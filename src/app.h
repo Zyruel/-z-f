@@ -150,6 +150,7 @@ struct App {
     // Avvio: istanti misurati dalla creazione del processo (ms)
     double stMain = 0, stWindow = 0, stGfx = 0, stFont = 0, stWait = 0, stFirst = 0;
     double stActivate = -1;      // attivazione dopo il primo frame (primo fuoco: Windows avvia il Text Input Framework)
+    double iconMs = -1;          // ultima icona della finestra caricata (appIconSet: dopo il primo frame, cambio di DPI)
     bool firstFrameDone = false;
     bool dirty = true;
     double lastFrame = 0;

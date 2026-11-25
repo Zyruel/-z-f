@@ -653,6 +653,7 @@ static void render() {
         }
         row(L"contenuto visibile", L"a %.1f ms%s", total, L"");
         if (A.stActivate >= 0) row(L"attivazione (dopo il primo frame)", L"%.1f ms%s", A.stActivate, L"");
+        if (A.iconMs >= 0) row(L"icona della finestra (dopo il primo frame)", L"%.1f ms%s", A.iconMs, L"");
         if (I.firstAt > 0) row(L"prima icona", L"a %.1f ms%s", I.firstAt, L"");
         if (hybrid) {
             if (A.switched) {

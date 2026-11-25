@@ -1,8 +1,8 @@
 # Disegna l'icona di [z]f e scrive src\z-f.ico.  Uso:  python strumenti\icona.py [--anteprima cartella]
 #
-# "[z]" nel blu d'accento su un quadrato arrotondato col fondo di [z]f: i colori sono C_ACCENT e
-# C_BG di src\theme.h (se cambiano lì, si cambiano qui e si rigenera). Disegno geometrico, senza
-# font, così non ci sono questioni di licenza. Serve Pillow (pip install pillow): è uno strumento
+# "[z]" nel blu d'accento su un quadrato arrotondato col fondo di [z]f: i colori si leggono da
+# C_ACCENT e C_BG di src\theme.h, così stanno in un posto solo (se cambiano lì, si rigenera).
+# Disegno geometrico, senza font, così non ci sono questioni di licenza. Serve Pillow (pip install pillow): è uno strumento
 # usato una volta, come strumenti\firma.cpp, non una dipendenza di [z]f. Il file .ico si committa.
 #
 # Le misure piccole (16 e 20 px) hanno un disegno a pixel fatto a mano: ridotto da quello grande,
@@ -12,13 +12,26 @@
 
 import io
 import os
+import re
 import struct
 import sys
 
 from PIL import Image, ImageDraw
 
-FONDO = (0x1B, 0x1C, 0x1E, 255)    # C_BG
-ACCENTO = (0x4A, 0xA3, 0xFF, 255)  # C_ACCENT
+QUI = os.path.dirname(os.path.abspath(__file__))
+
+
+def colore(nome):
+    """Un colore di src\\theme.h, scritto lì come rgba(0xRR, 0xGG, 0xBB)."""
+    with open(os.path.join(QUI, "..", "src", "theme.h"), encoding="utf-8") as f:
+        m = re.search(r"\b" + nome + r"\s*=\s*rgba\(\s*(0x[0-9a-fA-F]+)\s*,\s*(0x[0-9a-fA-F]+)\s*,\s*(0x[0-9a-fA-F]+)\s*\)", f.read())
+    if not m:
+        sys.exit(nome + " non trovato in src\\theme.h")
+    return tuple(int(x, 16) for x in m.groups()) + (255,)
+
+
+FONDO = colore("C_BG")
+ACCENTO = colore("C_ACCENT")
 MISURE = [16, 20, 24, 32, 40, 48, 64, 256]
 SS = 4  # sovracampionamento (riduzione con BOX: media esatta, senza aloni scuri)
 
@@ -139,8 +152,7 @@ def png(img):
 
 
 def main():
-    qui = os.path.dirname(os.path.abspath(__file__))
-    uscita = os.path.join(qui, "..", "src", "z-f.ico")
+    uscita = os.path.join(QUI, "..", "src", "z-f.ico")
     immagini = {s: (piccola(s) if s in PIXEL else grande(s)) for s in MISURE}
     dati = [png(immagini[s]) if s >= 256 else bmp32(immagini[s]) for s in MISURE]
     voci, pos = b"", 6 + 16 * len(MISURE)

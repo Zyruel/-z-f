@@ -29,9 +29,11 @@ static int frameY() { return sysMetric(SM_CYFRAME) + sysMetric(SM_CXPADDEDBORDER
 // Icona della finestra (src\z-f.rc, disegnata da strumenti\icona.py) alla misura dello schermo su
 // cui sta: la grande per Alt+Tab, la piccola per la barra delle applicazioni. Si carica dopo il
 // primo frame e a ogni cambio di DPI: prima della finestra le due icone costavano 1–2 ms (misurato)
-// che ritardavano il contenuto; fino ad allora Windows mostra la sua icona generica.
+// che ritardavano il contenuto; fino ad allora Windows mostra la sua icona generica. Il tempo è in
+// F12; oltre LOG_MSG va nel registro, perché qui non è dentro un messaggio e non si conterebbe.
 static void appIconSet() {
     static HICON iconBig, iconSmall;
+    double t0 = nowMs();
     HINSTANCE inst = GetModuleHandleW(nullptr);
     HICON b = (HICON)LoadImageW(inst, MAKEINTRESOURCEW(ZF_ICON), IMAGE_ICON, sysMetric(SM_CXICON), sysMetric(SM_CYICON), 0);
     HICON s = (HICON)LoadImageW(inst, MAKEINTRESOURCEW(ZF_ICON), IMAGE_ICON, sysMetric(SM_CXSMICON), sysMetric(SM_CYSMICON), 0);
@@ -41,6 +43,8 @@ static void appIconSet() {
     if (iconSmall) DestroyIcon(iconSmall);
     iconBig = b;
     iconSmall = s;
+    A.iconMs = nowMs() - t0;
+    if (A.iconMs > ui::LOG_MSG) hitchLog("icona della finestra lenta", sysMetric(SM_CXICON), A.iconMs);
 }
 
 struct Chrome {

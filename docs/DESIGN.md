@@ -530,8 +530,8 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   - la finestra la prende alla misura del suo schermo (`appIconSet`, `chrome.cpp`), dopo il
     primo frame e a ogni cambio di DPI;
   - si rigenera con `python strumenti\icona.py` (serve Pillow; `--anteprima <cartella>` scrive
-    le misure ingrandite in un PNG). Se cambiano `C_BG` o `C_ACCENT` in `theme.h`, si cambiano
-    anche in cima allo script.
+    le misure ingrandite in un PNG). I due colori lo script li legge da `theme.h`: se cambiano
+    lì, basta rigenerarla.
 
 ---
 
