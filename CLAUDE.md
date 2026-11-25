@@ -217,6 +217,9 @@ delle colonne, `listmouse.cpp`), il filtro nella barra di stato, la barra dei te
 le unità sotto Questo PC (sezioni 0000000000000000000 e 000000000000000000). Il monitor di
 Zyruel è a 175%.
 
+Prossimo: l'**aggiornamento automatico dalle Release** di GitHub. Il progetto è in `docs/idee.md`,
+sezione "Distribuzione"; prima di scrivere codice vanno decisi i punti "da decidere".
+
 **Tre elenchi da tenere aggiornati** (si scrive lì appena viene fuori qualcosa, non a memoria):
 - `prove\da-verificare.md`: le prove a mano che restano, per sezione;
 - `docs/idee.md`: le idee venute in mente e non ancora decise (per esempio modificare gli zip, 7z e rar),
