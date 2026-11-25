@@ -58,6 +58,15 @@ Restano a Zyruel:
 - [ ] **Spegnimento:** con l'opzione accesa e [z]f aperto, riavvia Windows: le schede tornano.
 - [ ] **Avvio:** `prove\avvio.bat` (a PC libero): il contenuto deve comparire come prima (64–80 ms),
       con l'opzione spenta e accesa.
+**Con GitHub vero** (Release 1.0.0-beta.3 pubblicata): una copia della versione precedente con
+l'aggiornamento ha trovato la beta.3 (controllo 0,6 s), l'ha scaricata (2,7 s), ha verificato la
+firma e l'ha installata identica a quella pubblicata; "Aggiorna" ha riaperto la finestra al suo
+posto, in primo piano, sulla stessa cartella. Difetto trovato: la versione nuova provava a
+cancellare `z-f.old.exe` mentre la vecchia stava ancora uscendo, e non ci riusciva (lo toglieva
+solo all'avvio dopo, e "Aggiornato a …" non compariva). Corretto su `dev` per la prossima
+versione: aspetta che il processo di prima sia uscito (al massimo `UPD_OLD_WAIT`, sul thread).
+Provato con una beta.4 finta: copia tolta subito dopo il riavvio.
+
 - [ ] **Il primo aggiornamento vero:** dalla 1.0.0-beta.3 alla successiva, quando ci sarà: il
       pallino su ≡, "Aggiorna a [z]f …", il riavvio di tutte le finestre (anche una aperta con
       "Nuova finestra") con le loro schede e posizioni, poi "Aggiornato a [z]f …".

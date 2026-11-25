@@ -545,11 +545,17 @@ static void restartLaunch() {
 
 // Dopo il primo frame: via la copia della versione precedente (se nessuno la usa più) e il primo
 // controllo più tardi, per non contendere disco e rete all'avvio
-struct UpdClean { HWND hwnd; std::wstring exe; };
+struct UpdClean { HWND hwnd; std::wstring exe; DWORD restartPid; };
 
 static DWORD WINAPI updCleanThread(void* p) {
     std::unique_ptr<UpdClean> c((UpdClean*)p);
     const std::wstring* exe = &c->exe;
+    // Dopo "Aggiorna" la versione di prima lancia questa mentre sta ancora uscendo: finché il suo
+    // processo c'è, il suo exe (z-f.old.exe) non si può cancellare. Si aspetta, al massimo un po'
+    if (c->restartPid) {
+        HANDLE old = OpenProcess(SYNCHRONIZE, FALSE, c->restartPid);
+        if (old) { WaitForSingleObject(old, ui::UPD_OLD_WAIT); CloseHandle(old); }
+    }
     std::wstring pattern = oldExeName(*exe, L"*"), dir = exe->substr(0, exe->find_last_of(L'\\') + 1);
     bool removed = false;
     WIN32_FIND_DATAW fd;
@@ -560,14 +566,15 @@ static DWORD WINAPI updCleanThread(void* p) {
         FindClose(h);
     }
     DeleteFileW((*exe + L".nuovo").c_str()); // rimasto da un aggiornamento interrotto
-    if (removed) PostMessageW(c->hwnd, WM_APP_UPDCLEAN, 0, 0);
+    // "Aggiornato a …": dopo un riavvio dall'aggiornamento, o quando si toglie la copia di prima
+    if (removed || c->restartPid) PostMessageW(c->hwnd, WM_APP_UPDCLEAN, 0, 0);
     return 0;
 }
 
 static void updStartup() {
     std::wstring exe = exePath();
     if (!exe.empty() && !slowPath(exe)) {
-        UpdClean* c = new UpdClean{ A.hwnd, exe };
+        UpdClean* c = new UpdClean{ A.hwnd, exe, A.restartPid };
         HANDLE h = CreateThread(nullptr, 0, updCleanThread, c, 0, nullptr);
         if (h) CloseHandle(h); else delete c;
     }

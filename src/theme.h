@@ -163,6 +163,7 @@ constexpr int ZIP_TEMP_KEEP = 3 * 24 * 3600 * 1000; // file estratti da uno zip 
 // ogni UPD_EVERY secondi (anche a [z]f aperto: la condizione si guarda ogni UPD_TICK ms)
 constexpr int UPD_DELAY = 30000, UPD_TICK = 3600 * 1000;
 constexpr int UPD_DELAY_TEST = 2000; // con --aggiorna-da (server di prova)
+constexpr int UPD_OLD_WAIT = 10000;  // dopo "Aggiorna": attesa massima che la versione di prima esca (sul thread)
 constexpr long long UPD_EVERY = 24 * 3600;
 constexpr int UPD_TIMEOUT = 10000, UPD_TIMEOUT_READ = 30000; // rete: risoluzione, connessione, invio · lettura
 constexpr int UPD_JSON_MAX = 2 << 20, UPD_EXE_MAX = 64 << 20; // risposte più grandi si scartano
