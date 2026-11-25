@@ -43,6 +43,23 @@ static void drawPanelScroll(float right, float trackY, float trackH, int first, 
     rrect(right - px(ui::GAP_S) - px(ui::EDGE), floorf(ty), px(ui::EDGE), floorf(th), px(ui::EDGE), fadeA(C_SCROLL, k));
 }
 
+// Anello di punti di un lavoro in corso, centrato in (cx, cy), diametro d: SPIN_DOTS punti fermi
+// su un cerchio, ne gira solo la luminosità (l'unica animazione continua, DESIGN.md §5). Punti e
+// non un glifo che ruota: i glifi sono rasterizzati diritti nell'atlante. Senza animazioni è fermo.
+static void drawSpinner(float cx, float cy, float d, uint32_t col) {
+    float dot = std::max(2.0f, px(ui::SPIN_DOT)), r = (d - dot) * 0.5f;
+    float head = A.animations ? (float)fmod(nowMs() / ui::SPIN_PERIOD, 1.0) : 0.0f;
+    for (int i = 0; i < ui::SPIN_DOTS; i++) {
+        float f = (float)i / ui::SPIN_DOTS, ang = (f - 0.25f) * 6.2831853f; // il primo punto in alto
+        float behind = head - f;
+        if (behind < 0) behind += 1; // 0 la testa, poi la scia che si spegne
+        float a = ui::SPIN_MIN_ALPHA + (1 - ui::SPIN_MIN_ALPHA) * (1 - behind);
+        rrect(floorf(cx + r * cosf(ang) - dot * 0.5f + 0.5f), floorf(cy + r * sinf(ang) - dot * 0.5f + 0.5f),
+              dot, dot, dot * 0.5f, fadeA(col, a));
+    }
+    if (A.animations) A.animActive = true;
+}
+
 // Titolo di una colonna nell'intestazione; arrow: con la freccia dell'ordinamento
 static std::wstring colTitle(int col, bool arrow) {
     std::wstring t = col == COL_NAME ? L"Nome" : col == COL_SIZE ? L"Dimensione" : col == COL_LINK ? L"Destinazione"
@@ -106,10 +123,15 @@ static void drawMenu() {
         }
         float tx = drawPanelItem(m.x, m.w, y, m.ih, m.pad, i == m.hot, it.icon,
                                  i < (int)m.paths.size() ? &m.paths[i] : nullptr, it.dim, m.iconW, k);
+        if (it.id == M_VERSION) { // a destra, al posto della scorciatoia, lo stato dell'aggiornamento
+            float iw = updIconW();
+            drawUpdateIcon(m.x + m.w - m.pad - iw, y, iw, m.ih, k);
+        }
         int kn = (int)wcslen(it.keys);
         float keysX = m.x + m.w - m.pad - (kn ? textWidth(it.keys, kn) : 0);
         uint32_t tc = !it.enabled ? C_FAINT : it.dim ? C_FAINT : C_TEXT;
-        drawText(tx, y + textOff, it.label, (int)wcslen(it.label), fadeA(tc, k), kn ? keysX - px(ui::GAP_M) : m.x + m.w - m.pad);
+        float textEnd = kn ? keysX - px(ui::GAP_M) : it.id == M_VERSION ? m.x + m.w - m.pad - updIconW() - px(ui::GAP_M) : m.x + m.w - m.pad;
+        drawText(tx, y + textOff, it.label, (int)wcslen(it.label), fadeA(tc, k), textEnd);
         if (kn) drawText(keysX, y + textOff, it.keys, kn, fadeA(it.enabled ? C_DIM : C_FAINT, k));
         y += m.ih;
     }

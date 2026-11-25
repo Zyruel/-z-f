@@ -1,6 +1,7 @@
 @echo off
 rem Compila [z]f con MSVC.  Uso:  build.bat          (release)
 rem                             build.bat debug    (debug con simboli)
+rem                             build.bat firma    (strumenti\firma.cpp: firma dei rilasci)
 setlocal
 cd /d "%~dp0"
 
@@ -23,6 +24,11 @@ if not %errorlevel%==0 goto :nocpp
 
 :havecl
 if not exist build mkdir build
+if /i "%MODE%"=="firma" (
+    cl /nologo /std:c++17 /utf-8 /EHsc /W3 /O2 /DUNICODE /D_UNICODE /Fo:build\ /Fe:build\firma.exe strumenti\firma.cpp || goto :fail
+    echo Fatto: build\firma.exe
+    exit /b 0
+)
 
 rem Shader precompilati: avvio piu' rapido. Senza fxc si compilano a runtime.
 where fxc >nul 2>nul
@@ -35,8 +41,9 @@ echo [avviso] fxc non trovato: gli shader saranno compilati all'avvio.
 del /q build\shader_vs.h build\shader_ps.h 2>nul
 
 :compile
-rem shell32 e ole32 si caricano solo al primo uso (icone, menu, appunti): avvio piu' leggero
-set "DELAY=delayimp.lib /DELAYLOAD:shell32.dll /DELAYLOAD:ole32.dll"
+rem shell32 e ole32 si caricano solo al primo uso (icone, menu, appunti), winhttp e bcrypt al primo
+rem controllo degli aggiornamenti: avvio piu' leggero
+set "DELAY=delayimp.lib /DELAYLOAD:shell32.dll /DELAYLOAD:ole32.dll /DELAYLOAD:winhttp.dll /DELAYLOAD:bcrypt.dll"
 set "COMMON=/nologo /std:c++17 /utf-8 /EHsc /W3 /DUNICODE /D_UNICODE /Ibuild /Fo:build\ /Fe:build\z-f.exe"
 if /i "%MODE%"=="debug" (
     cl %COMMON% /Od /Zi /MTd /Fd:build\ src\z-f.cpp /link /SUBSYSTEM:WINDOWS /DEBUG %DELAY% || goto :fail

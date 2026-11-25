@@ -10,7 +10,7 @@ enum MenuId { M_OPEN = 1, M_OPENWITH, M_CUT, M_COPY, M_PASTE, M_COPYPATH, M_RENA
               M_FAV_SEL,     // cartella selezionata nei preferiti
               M_SIDE_OPEN, M_SIDE_UP, M_SIDE_DOWN, M_SIDE_REMOVE, M_SIDE_PROPS,
               M_TAB_NEW, M_TAB_CLOSE, M_TAB_OTHERS, M_SET_DEFAULT, M_OPTIONS, M_NEW_WINDOW,
-              M_VERSION,     // riga della versione, non cliccabile
+              M_VERSION,     // riga della versione con lo stato dell'aggiornamento: controlla, aggiorna (update.cpp)
               M_DROP_COPY, M_DROP_MOVE, M_DROP_LINK, M_DROP_CANCEL, // trascinamento col tasto destro
               M_GOTO,        // "Vai a" (goto.cpp)
               M_PREVIEW,     // pannello di anteprima (preview.cpp)
@@ -259,6 +259,19 @@ struct App {
     float btnW, capW, navW, tabStripX, tabStripW; // barra del titolo e riga del percorso
     float fltX = 0, fltW = 0, fltClearW = 0;      // campo del filtro, a sinistra nella barra di stato
     bool fltClearHover = false, countsDirty = false;
+    // Avvio, riapertura delle schede e riavvio dopo un aggiornamento (tabs.cpp, main.cpp)
+    bool reopenTabs = false;   // riapri_schede: la finestra principale riapre le sue schede all'avvio
+    bool mainInstance = false; // finestra principale: riceve le cartelle aperte da fuori, salva schede.txt
+    bool startDeferred = false; // avvio senza cartella: la prima aspetta di sapere se ci sono schede da riaprire
+    std::wstring startDefault; // …e se non ce ne sono si va qui (la cartella utente)
+    DWORD restartPid = 0;      // avviata da un aggiornamento: le schede sono in riavvio-<pid>.txt
+    bool restartOnExit = false; // aggiornamento: uscendo, [z]f si riapre con l'exe nuovo
+    bool restartActive = false; // …ed era la finestra in primo piano: quella nuova lo sarà
+    WINDOWPLACEMENT restartPlace = {};
+    // Aggiornamento (update.cpp), in impostazioni.txt
+    bool updAuto = true;       // aggiornamenti: controllo automatico una volta al giorno
+    int updBeta = -1;          // aggiornamenti_beta: 1 anche le beta, 0 solo le stabili, -1 come la versione in uso
+    long long updLast = 0;     // ultimo controllo riuscito, secondi Unix
     bool closePending = false; // chiusa durante un'operazione sui file: nascosta finché non finisce
     bool noticeKeep = false;   // l'avviso resta all'arrivo della prossima cartella (cartella sparita)
     double shellObjMs = 0;     // ultimo oggetto per la selezione sul thread UI (Copia, Taglia, trascinamento)
@@ -334,3 +347,5 @@ struct Box;
 static void thumbsFrame(int first, int last);         // thumbs.cpp: voci visibili in griglia (e sincronizzazione)
 static void drawThumb(int vi, const Box& box, bool hidden, double now); // thumbs.cpp: miniatura o icona nel riquadro
 static void thumbsDeviceChanged();                   // thumbs.cpp: passaggio WARP → GPU
+static float updIconW();                             // update.cpp: spazio dell'icona di stato dell'aggiornamento
+static void drawUpdateIcon(float x, float y, float w, float h, float k); // update.cpp: accanto alla versione

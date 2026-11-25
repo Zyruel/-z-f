@@ -131,6 +131,12 @@ qualcosa è cambiato. Mai per decorazione, e mai così lente da farsi aspettare.
 - **Dopo una pausa** il primo frame avanza di un vsync, non del tempo trascorso, altrimenti le
   animazioni partirebbero già finite.
 - **Tutto è disattivabile** con `animazioni=0`: i valori arrivano subito all'obiettivo.
+- **Un'eccezione, l'anello di punti** (`drawSpinner`, `render.cpp`): l'unica animazione continua.
+  Si usa solo mentre un lavoro è davvero in corso e si vede dove l'utente sta guardando (il
+  controllo degli aggiornamenti accanto alla versione). `SPIN_DOTS` (8) punti tondi fermi su un
+  cerchio, gira solo la luminosità (dal 100% della testa a `SPIN_MIN_ALPHA` della scia); niente
+  glifi ruotati, che con l'atlante rasterizzato diritto si vedrebbero male. Con `animazioni=0` è
+  fermo.
 
 | Cosa | Valore |
 |---|---|
@@ -141,6 +147,7 @@ qualcosa è cambiato. Mai per decorazione, e mai così lente da farsi aspettare.
 | indicatore della scheda attiva | τ 30 ms |
 | scorrimento con la rotellina | τ 45 ms |
 | menu / tooltip / icona | 90 / 80 / 110 ms |
+| anello di punti: un giro | 900 ms, finché il lavoro è in corso |
 
 ---
 
@@ -300,6 +307,19 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   - il bordo superiore ridimensiona; su Windows 11 il pulsante ingrandisci mostra gli snap layout;
   - scheda attiva in `C_BAR` con barra `C_ACCENT` in alto; schede inattive in `C_TABBAR`, separate da un trattino `C_LINE`;
   - la × compare solo sulla scheda attiva o sotto il mouse.
+- **Versione e aggiornamento** (`update.cpp`): l'ultima voce del menu ≡ è la versione ("[z]f
+  1.0.0-beta.3"), con a destra, al posto della scorciatoia, un'icona di stato larga quanto il font
+  di icone:
+  - non ancora controllato o errore: frecce circolari (`IC_SYNC`) in `C_FAINT`;
+  - controllo in corso: l'anello di punti in `C_DIM` (§5);
+  - aggiornato: cerchio pieno con la spunta (`IC_DONE`) in `C_DIM`;
+  - versione nuova pronta: freccia di download (`IC_DOWNLOAD`) in `C_ACCENT`, e la voce diventa
+    "Aggiorna a [z]f …" (da scaricare a mano: "Scarica [z]f …"). Sul pulsante ≡ compare un pallino
+    `C_ACCENT` di `BADGE` (6) px, a `BADGE_INSET` (8) px dall'angolo in alto a destra.
+  Un clic sulla voce controlla di nuovo col menu aperto (l'anello, poi l'icona del risultato);
+  con una versione pronta chiude e riapre tutte le finestre di [z]f con le loro schede. La stessa
+  icona sta nelle opzioni, dopo la versione in fondo al pannello, e fa le stesse cose. L'esito
+  arriva come avviso nella barra di stato, mai con un dialogo.
 - **Pulsanti a icona** (≡, ▯, ← → ↑, ☆, ▦, ◨, pulsanti di sistema): quadrati o larghi `NAV_W` righe,
   icona centrata, hover come le voci. Disattivati in `C_FAINT` (← senza cronologia). Uno stato
   attivo si mostra col colore dell'icona (☆ piena in `C_ACCENT` se la cartella è tra i preferiti).
@@ -449,8 +469,11 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   centrato, con il resto della finestra attenuato da `C_SHADOW`.
   - barra del titolo con ×; sezioni col titolo in `C_FAINT`; righe con etichetta a sinistra e
     controllo a destra, eventuale spiegazione sotto in `C_FAINT`;
-  - sezioni: Aspetto, Integrazione con Windows, File ("Annulla dopo il riavvio"), Scorciatoie;
-  - in fondo la versione e la build in `C_FAINT`;
+  - sezioni: Aspetto, Integrazione con Windows, File ("Annulla dopo il riavvio"), Avvio e
+    aggiornamenti ("Riapri le schede all'avvio", "Aggiornamenti automatici" con l'ora
+    dell'ultimo controllo nella spiegazione, "Ricevi anche le beta"), Scorciatoie;
+  - in fondo la versione e la build in `C_FAINT`, seguite dall'icona di stato dell'aggiornamento
+    (cliccabile, vedi "Versione e aggiornamento");
   - si chiude con Esc (prima svuota la ricerca), con la × o cliccando fuori.
 - **Interruttore:** pillola 32×16 come in Windows 11: spento è un contorno `C_DIM` con il pallino
   `C_DIM`; acceso è pieno `C_ACCENT` con il pallino scuro. Il pallino scorre (τ come l'indicatore

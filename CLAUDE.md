@@ -62,8 +62,12 @@ documentazione sono in italiano; `shader.hlsl` è solo ASCII.
   - aggiornare `ZF_VERSION`;
   - nel README la riga "Versione attuale", in `NOVITA.md` la sezione della versione (con il mese);
   - salvare una copia in `build\z-f-<versione>.exe` (fino alla 0.28: `build\z-f-0.N.exe`);
+  - firmarla: `build\firma.exe build\z-f-<versione>.exe` scrive `z-f-<versione>.exe.sig` (il
+    programma si compila con `build.bat firma`). La chiave privata è solo sul PC di Zyruel,
+    cifrata in `%LOCALAPPDATA%\z-f-firma\chiave.bin`; senza, [z]f rifiuta l'aggiornamento;
   - pull request `dev` → `main`, unione, poi tag annotato `v<versione>` sul commit di `main` e
-    Release su GitHub con l'exe allegato (`gh release create`, con `--prerelease` per beta e rc).
+    Release su GitHub con **l'exe e la sua firma** allegati, con questi nomi esatti (`gh release
+    create`, con `--prerelease` per beta e rc): da lì gli exe già distribuiti si aggiornano da soli.
 
 ## Compilare
 
@@ -73,10 +77,10 @@ documentazione sono in italiano; `shader.hlsl` è solo ASCII.
 - **Compilazione incrociata da Linux** (sessione cloud), equivalente:
   ```
   python3 -m ziglang c++ -target x86_64-windows-gnu -O2 -std=c++17 -municode -Wall -Wextra \
-    -Wno-unused-parameter -Wno-date-time -DUNICODE -D_UNICODE src/z-f.cpp -o build/z-f-dev.exe \
-    -Wl,--subsystem,windows -luser32 -lgdi32 -ld3d11 -lshell32 -lole32 -luuid -ladvapi32
+    -Wno-unused-parameter -Wno-date-time -DUNICODE -D_UNICODE -DZF_DEV src/z-f.cpp -o build/z-f-dev.exe \
+    -Wl,--subsystem,windows -luser32 -lgdi32 -ld3d11 -lshell32 -lole32 -luuid -ladvapi32 -lwinhttp -lbcrypt
   ```
-  Anche qui: zero avvisi.
+  Anche qui: zero avvisi. `ZF_DEV` (anche in `build_zig.bat`): la build di prova non si aggiorna da sola.
 - **Sul PC di Zyruel:** `build.bat` si lancia da PowerShell con `cmd /c '.\build.bat'` dalla
   cartella del progetto. PowerShell non gestisce le parentesi quadre di `[z]f` nei percorsi
   (Copy-Item, Get-FileHash): per copiare e verificare gli exe si usa Bash (`cp`, `sha1sum`). Dalla
@@ -99,7 +103,11 @@ documentazione sono in italiano; `shader.hlsl` è solo ASCII.
   - `avvio.bat [volte] [exe]`: tempi di avvio con `--prova-avvio` (nel registro "prova avvio: …";
     ogni avvio porta una finestra in primo piano, quindi solo a PC libero);
   - `predefinito.bat`: [z]f al posto di Explorer;
-  - `hw.bat`, `warp.bat`, `ibrido.bat`: GPU.
+  - `hw.bat`, `warp.bat`, `ibrido.bat`: GPU;
+  - `aggiornamenti-prova.py <cartella>`: un server locale che fa da GitHub, per provare
+    l'aggiornamento con `--aggiorna-da=http://127.0.0.1:8766` su una **copia** dell'exe in una
+    cartella di prova (l'exe viene sostituito). Le finestre di prova si chiudono per PID o per
+    cartella, mai per nome: `taskkill /IM z-f.exe` chiuderebbe anche quelle di Zyruel.
 - **Dopo ogni prova:** controllare `build\z-f-log.txt`. All'avvio sono normali due voci dello stesso
   evento, il passaggio WARP → GPU: `primo Present GPU` (15–30 ms, il driver prepara la swapchain
   nuova; fino a novembre 2026 si chiamava `Present lento`) e `messaggio lento 0x8002`, che lo
@@ -162,12 +170,17 @@ documentazione sono in italiano; `shader.hlsl` è solo ASCII.
     con `SideItem::place`;
     la cartella che contiene un percorso: `parentOf` (`app.cpp`);
   - `notice`;
+  - `drawSpinner` (`render.cpp`), l'anello di punti di un lavoro in corso: l'unica animazione
+    continua, solo dove l'utente guarda (DESIGN.md §5);
+  - le schede da salvare o riaprire: `tabsSerialize`, `tabsRestore` (`tabs.cpp`);
+  - l'aggiornamento (`update.cpp`): `updCheck`, `updAction`, `drawUpdateIcon`, e il riavvio di
+    tutte le finestre (`updRestartAll`, `restartLaunch`);
   - il pannello delle opzioni;
   - la cornice (`chrome.cpp`).
 - **Operazioni sui file** (`fileops.cpp`): copia, sposta, Cestino passano da `foRun`
   (`IFileOperation` con l'esito di ogni elemento) e si registrano con `undoPush`; rinomina e
   nuova cartella da `fsStart`. Un'operazione nuova sui file passa da lì, così si può annullare.
-- **File di [z]f** in `%APPDATA%\z-f` (`preferiti.txt`, `impostazioni.txt`, `recenti.txt`, `viste.txt`, `annulla.txt` solo con l'opzione),
+- **File di [z]f** in `%APPDATA%\z-f` (`preferiti.txt`, `impostazioni.txt`, `recenti.txt`, `viste.txt`, `annulla.txt` e `schede.txt` solo con le loro opzioni, `riavvio-<pid>.txt` per un istante durante un aggiornamento),
   letti all'avvio dal thread veloce della barra laterale e scritti solo con `saveDataAsync`, che
   usa un file temporaneo e poi lo rinomina.
 - **Scorciatoie:** la tabella `kShortcuts` in `options.cpp` è l'elenco di riferimento. Ogni tasto
@@ -216,6 +229,11 @@ barra laterale a tutta altezza e ridimensionabile (i bordi dei pannelli passano 
 delle colonne, `listmouse.cpp`), il filtro nella barra di stato, la barra dei tempi come opzione e
 le unità sotto Questo PC (sezioni 0000000000000000000 e 000000000000000000). Il monitor di
 Zyruel è a 175%.
+
+La 1.0.0-beta.3 ha l'aggiornamento automatico dalle Release, firmato
+(`update.cpp`, `strumenti\firma.cpp`), con l'icona di stato accanto alla versione e il riavvio di
+tutte le finestre, e la riapertura delle schede all'avvio (`tabs.cpp`); prove nella sezione
+000000000000000000000 di `prove\da-verificare.md`.
 
 **Tre elenchi da tenere aggiornati** (si scrive lì appena viene fuori qualcosa, non a memoria):
 - `prove\da-verificare.md`: le prove a mano che restano, per sezione;

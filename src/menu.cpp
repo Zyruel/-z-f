@@ -137,9 +137,24 @@ static void menuOpenApp(float cx, float cy) {
     menuAdd(L"Opzioni\x2026", M_OPTIONS);
     menuSep();
     m.labels.clear();
-    m.labels.push_back(L"[z]f " ZF_VERSION); // versione, come voce non cliccabile
-    menuAdd(m.labels.back().c_str(), M_VERSION, false);
+    m.labels.push_back(updMenuLabel()); // versione, o "Aggiorna a [z]f …"; a destra lo stato (update.cpp)
+    menuAdd(m.labels.back().c_str(), M_VERSION, true, L"");
     menuPlace(cx, cy, false, t0);
+}
+
+// Il risultato di un controllo arriva col menu ≡ aperto: la voce della versione cambia testo
+static void menuVersionRefresh() {
+    PopupMenu& m = A.menu;
+    if (!m.open || m.kind != MENU_TAB) return;
+    for (MenuItem& it : m.items)
+        if (it.id == M_VERSION) {
+            m.labels.push_back(updMenuLabel());
+            it.label = m.labels.back().c_str();
+            float need = (float)textWidth(it.label, (int)wcslen(it.label)) + updIconW() + m.pad * 2 + px(ui::MENU_KEYS_GAP);
+            m.w = floorf(std::min((float)G.w - px(ui::GAP_S), std::max(m.w, need)));
+            m.x = std::max(px(ui::GAP_XS), std::min(m.x, (float)G.w - px(ui::GAP_XS) - m.w));
+            A.dirty = true;
+        }
 }
 
 // cx, cy: coordinate client; screenPt: per il menu della shell; fromKeyboard: evidenzia la prima voce
@@ -219,7 +234,7 @@ static void menuPlace(float cx, float cy, bool fromKeyboard, double t0) {
     for (const MenuItem& it : m.items) {
         if (!it.id) { h += m.sepH; seps = true; continue; }
         lw = std::max(lw, (float)textWidth(it.label, (int)wcslen(it.label)));
-        kw = std::max(kw, (float)textWidth(it.keys, (int)wcslen(it.keys)));
+        kw = std::max(kw, it.id == M_VERSION ? updIconW() : (float)textWidth(it.keys, (int)wcslen(it.keys)));
         if (it.icon) icons = true;
         h += m.ih;
     }
@@ -326,6 +341,7 @@ static void menuRun(int id, const CmdCtx& c) {
     case M_TAB_CLOSE:   tabClose(target); break;
     case M_SET_DEFAULT: toggleDefault(); break;
     case M_OPTIONS:     optionsOpen(); break;
+    case M_VERSION:     updAction(); break; // versione nuova pronta: riavvia; da scaricare a mano: la Release
     case M_GOTO:        gotoOpen(); break;
     case M_PREVIEW:     previewToggle(); break;
     case M_GRID_S: case M_GRID_M: case M_GRID_L: viewSet(true, id - M_GRID_S); break;
@@ -386,6 +402,8 @@ static void menuExec(int i) {
     c.target = m.target;
     c.kind = m.kind;
     std::wstring itemPath = (c.kind == MENU_CRUMB && i < (int)m.paths.size()) ? m.paths[i] : L"";
+    // La versione controlla gli aggiornamenti col menu aperto: l'anello di punti, poi il risultato
+    if (id == M_VERSION && U.st != UP_READY && U.st != UP_MANUAL) { updCheck(true); return; }
     menuClose();
     if (c.kind == MENU_CRUMB) { if (!itemPath.empty()) navigate(itemPath, 1, L""); return; }
     if (c.kind == MENU_DROP) { g_dropChoice = id; return; } // lo esegue chi ha aperto il menu (drag.cpp)

@@ -49,7 +49,8 @@ static LONG WINAPI crashFilter(EXCEPTION_POINTERS* ep) {
 // Una sola finestra di [z]f: aprire [z]f su una cartella quando è già in esecuzione consegna il
 // percorso alla finestra esistente (WM_COPYDATA), che apre una scheda, ed esce subito, prima di
 // creare finestre o D3D. Con un'opzione "--" (--new-window, --gpu=...) si apre comunque una
-// finestra nuova, che non riceve le cartelle aperte da fuori.
+// finestra nuova, che non riceve le cartelle aperte da fuori; tranne --principale, la finestra
+// principale che si riapre dopo un aggiornamento.
 
 #define ZF_COPYDATA 0x7A66 // "zf"
 
@@ -119,7 +120,10 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     // Argomenti già preparati dal runtime C: niente CommandLineToArgvW, che caricherebbe
     // shell32.dll all'avvio (con MSVC si carica solo quando serve, sul thread delle icone)
     std::wstring start, startSelect;
-    bool newWindow = false, startupProbe = false;
+    bool newWindow = false, startupProbe = false, principal = false;
+    // Riavvio dopo un aggiornamento (update.cpp, restartLaunch): posizione e stato della finestra
+    RECT place = {};
+    int placeState = -1, placeActive = 0;
     wchar_t** argv = __wargv;
     int argc = __argc;
     for (int i = 1; argv && i < argc; i++) {
@@ -129,10 +133,29 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
         if (!wcscmp(argv[i], L"--gpu=hw")) g_gpuPref = GPU_HW;
         else if (!wcscmp(argv[i], L"--gpu=warp")) g_gpuPref = GPU_WARP;
         else if (!wcscmp(argv[i], L"--prova-avvio")) startupProbe = true; // prove\avvio.bat
+        else if (!wcsncmp(argv[i], L"--riavvio=", 10)) A.restartPid = (DWORD)wcstoul(argv[i] + 10, nullptr, 10);
+        else if (!wcscmp(argv[i], L"--principale")) principal = true; // la finestra principale che si riapre
+        else if (!wcsncmp(argv[i], L"--finestra=", 11)) { // sinistra,alto,destra,basso,stato,primo piano
+            long v[6];
+            wchar_t* p = argv[i] + 11;
+            int n = 0;
+            for (; n < 6; n++) {
+                v[n] = wcstol(p, &p, 10);
+                if (*p != L',') { n++; break; }
+                p++;
+            }
+            if (n == 6) { place = RECT{ v[0], v[1], v[2], v[3] }; placeState = (int)v[4]; placeActive = (int)v[5]; }
+        }
+        else if (!wcsncmp(argv[i], L"--aggiorna-da=", 14)) U.base = argv[i] + 14; // prova: server locale invece di GitHub
         if (argv[i][0] == L'-' && argv[i][1] == L'-') newWindow = true; // --new-window, --gpu=..., prove
         else resolveStartArg(argv[i], start, startSelect);
     }
     if (!newWindow && forwardToRunning(start, startSelect)) return 0;
+    // La finestra principale riceve le cartelle aperte da fuori. Quella che si riapre dopo un
+    // aggiornamento tiene anche il mutex, così chi avvia [z]f dopo la trova (forwardToRunning)
+    A.mainInstance = !newWindow || principal;
+    if (principal) CreateMutexW(nullptr, FALSE, L"Local\\z-f-istanza");
+    g_msgRestart = RegisterWindowMessageW(L"z-f.riavvio");
 
     hitchLog("--- avvio", GetCurrentProcessId(), 0);
     LARGE_INTEGER f;
@@ -149,6 +172,10 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     HANDLE hwTh = nullptr;
     if (g_gpuPref != GPU_WARP && g_gpuPref != GPU_HYBRID) hwTh = CreateThread(nullptr, 0, hwThread, nullptr, 0, nullptr);
 
+    // Senza cartella si va nella cartella utente; la finestra principale (o una che si riapre dopo un
+    // aggiornamento) prima guarda se ci sono schede da riaprire: lo dice il thread veloce
+    // dell'avvio appena ha letto le impostazioni (WM_APP_START), meno di un millisecondo dopo
+    bool deferStart = start.empty() && (A.mainInstance || A.restartPid);
     if (start.empty()) {
         wchar_t buf[MAX_PATH];
         DWORD n = GetEnvironmentVariableW(L"USERPROFILE", buf, MAX_PATH);
@@ -182,7 +209,14 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
                              (int)(ui::WINDOW_W * sysScale), (int)(ui::WINDOW_H * sysScale), nullptr, nullptr, inst, nullptr);
     if (!A.hwnd) return 1;
     SetWindowPos(A.hwnd, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE); // cornice di [z]f
-    if (!newWindow) SetPropW(A.hwnd, kInstanceProp, (HANDLE)1); // riceve le cartelle aperte da fuori
+    if (A.mainInstance) SetPropW(A.hwnd, kInstanceProp, (HANDLE)1); // riceve le cartelle aperte da fuori
+    if (placeState >= 0) { // si riapre dov'era (la posizione "normale"; ingrandita o ridotta si mostra dopo)
+        WINDOWPLACEMENT wp = {};
+        wp.length = sizeof(wp);
+        wp.showCmd = SW_HIDE;
+        wp.rcNormalPosition = place;
+        SetWindowPlacement(A.hwnd, &wp);
+    }
     darkTitleBar(A.hwnd);
     A.viewWnd = createView(A.hwnd);
     InterlockedExchangePointer(&g_mainHwnd, A.hwnd);
@@ -192,7 +226,8 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     // Prima lettura (cartella e barra laterale) in parallelo con l'inizializzazione della GPU
     InitializeCriticalSection(&g_saveLock);
     InitializeCriticalSection(&g_writeLock);
-    navigate(start, 0, startSelect);
+    if (deferStart) { A.startDeferred = true; A.startDefault = start; }
+    else navigate(start, 0, startSelect);
     sideStartFast();
 
     // La finestra compare subito (sfondo del tema); il contenuto arriva quando D3D è pronto.
@@ -205,8 +240,11 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     si.cb = sizeof(si);
     GetStartupInfoW(&si);
     int show = (si.dwFlags & STARTF_USESHOWWINDOW) ? si.wShowWindow : SW_SHOWNORMAL;
+    if (placeState >= 0) // dopo un aggiornamento: com'era, e in primo piano solo quella che lo era
+        show = placeState == 1 ? (placeActive ? SW_SHOWMAXIMIZED : SW_MAXIMIZE) : placeState == 2 ? SW_SHOWMINNOACTIVE
+             : placeActive ? SW_SHOWNORMAL : SW_SHOWNOACTIVATE;
     bool activateLater = show == SW_SHOWNORMAL || show == SW_SHOW || show == SW_SHOWDEFAULT;
-    ShowWindow(A.hwnd, activateLater ? SW_SHOWNOACTIVATE : SW_SHOWDEFAULT);
+    ShowWindow(A.hwnd, activateLater ? SW_SHOWNOACTIVATE : placeState >= 0 ? show : SW_SHOWDEFAULT);
     UpdateWindow(A.hwnd);
     A.stWindow = processAgeMs();
 
@@ -242,6 +280,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
         MSG m;
         while ((!A.cur || !A.sideFastDone) && nowMs() - t0 < 100) {
             if (PeekMessageW(&m, nullptr, WM_APP_LISTING, WM_APP_LISTING, PM_REMOVE)) DispatchMessageW(&m);
+            else if (PeekMessageW(&m, nullptr, WM_APP_START, WM_APP_START, PM_REMOVE)) DispatchMessageW(&m);
             else if (PeekMessageW(&m, nullptr, WM_APP_SIDEBAR, WM_APP_SIDEBAR, PM_REMOVE)) DispatchMessageW(&m);
             else Sleep(0);
         }
@@ -290,9 +329,11 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
             dirSizeQueueCurrent(); // dimensioni delle cartelle: il disco serve prima alla lista
             linksQueueCurrent();   // destinazioni dei collegamenti, per lo stesso motivo
             fdStart();             // dialoghi Apri e Salva
+            updStartup();          // aggiornamento: pulizia della versione precedente, primo controllo più tardi
         }
     }
     saveFlush();
     logFlush();
+    if (A.restartOnExit) restartLaunch(); // dopo saveFlush: le schede sono già in riavvio-<pid>.txt
     return 0;
 }

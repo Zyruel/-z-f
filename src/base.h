@@ -28,6 +28,8 @@
 #include <commoncontrols.h> // icone grandi della shell (anteprima)
 #include <wincodec.h>       // WIC, caricato alla prima immagine dell'anteprima
 #include <thumbcache.h>     // cache delle miniature di Windows (griglia)
+#include <winhttp.h>        // aggiornamento: winhttp.dll si carica sul thread del controllo (update.cpp)
+#include <bcrypt.h>         // aggiornamento: impronta SHA-256 e firma ECDSA dell'exe scaricato
 #include <d3d11.h>
 #include <dxgi1_3.h>
 #include <stdint.h>
@@ -49,6 +51,8 @@
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "uuid.lib")
 #pragma comment(lib, "advapi32.lib")
+#pragma comment(lib, "winhttp.lib")
+#pragma comment(lib, "bcrypt.lib")
 #endif
 
 #ifndef WM_DPICHANGED
@@ -138,7 +142,7 @@ static inline uint32_t fadeA(uint32_t c, float a) {
 
 
 // Messaggi interni (thread di lavoro → finestra)
-#define ZF_VERSION L"1.0.0-beta.2" // versione (SemVer) mostrata nelle opzioni e nel menu di [z]f
+#define ZF_VERSION L"1.0.0-beta.3" // versione (SemVer) mostrata nelle opzioni e nel menu di [z]f
 
 #define WM_APP_LISTING (WM_APP + 1)
 #define WM_APP_GPU     (WM_APP + 2)
@@ -164,6 +168,9 @@ static inline uint32_t fadeA(uint32_t c, float a) {
 #define WM_APP_ZIP        (WM_APP + 22) // estrazione da uno zip finita (zip.cpp): lParam ZipJob*
 #define WM_APP_LINKS      (WM_APP + 23) // destinazioni dei collegamenti lette (links.cpp)
 #define WM_APP_PLACES     (WM_APP + 24) // spazio dei percorsi di rete letto (sidebar.cpp): lParam PlaceSpace*
+#define WM_APP_START      (WM_APP + 25) // schede da riaprire all'avvio lette (tabs.cpp): lParam StartTabs*
+#define WM_APP_UPDATE     (WM_APP + 26) // controllo o download dell'aggiornamento finito (update.cpp): lParam UpdJob*
+#define WM_APP_UPDCLEAN   (WM_APP + 27) // exe della versione precedente tolto dopo un aggiornamento (update.cpp)
 
 template <class T> static void safeRelease(T*& p) { if (p) { p->Release(); p = nullptr; } }
 

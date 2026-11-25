@@ -186,7 +186,8 @@ static std::wstring shortcutsOf(int cmd) {
 
 enum OptId { OPT_NONE = -1, OPT_CLOSE = 1, OPT_FONT_MINUS, OPT_FONT_PLUS, OPT_FACE_PREV, OPT_FACE_NEXT,
              OPT_ANIM, OPT_SIDEBAR, OPT_DEFAULT, OPT_FOLDER, OPT_PREVIEW, OPT_MONO_PREV, OPT_MONO_NEXT,
-             OPT_UNDO_PERSIST, OPT_SHELL_MENU, OPT_DIR_SIZES, OPT_DIALOGS, OPT_TIMES };
+             OPT_UNDO_PERSIST, OPT_SHELL_MENU, OPT_DIR_SIZES, OPT_DIALOGS, OPT_TIMES,
+             OPT_REOPEN, OPT_UPDATES, OPT_BETA, OPT_UPD_ACT };
 
 struct OptionsPanel {
     bool open = false;
@@ -202,6 +203,7 @@ struct OptionsPanel {
     int hover = OPT_NONE;
     HoverFade fade;
     float knobAnim = 0, knobSide = 0, knobDefault = 0, knobPreview = 0, knobUndo = 0, knobMenu = 0, knobDirSizes = 0, knobDialogs = 0, knobTimes = 0; // posizione animata degli interruttori
+    float knobReopen = 0, knobUpdates = 0, knobBeta = 0;
 } OP;
 
 static const wchar_t* kFaceChoices[] = { L"Segoe UI", L"Segoe UI Variable Text", L"Calibri", L"Tahoma", L"Verdana", nullptr };
@@ -270,6 +272,9 @@ static void optionsOpen() {
     OP.knobDirSizes = A.dirSizes ? 1.0f : 0.0f;
     OP.knobDialogs = A.dialogJump ? 1.0f : 0.0f;
     OP.knobTimes = A.timesBar ? 1.0f : 0.0f;
+    OP.knobReopen = A.reopenTabs ? 1.0f : 0.0f;
+    OP.knobUpdates = A.updAuto ? 1.0f : 0.0f;
+    OP.knobBeta = updBeta() ? 1.0f : 0.0f;
     OP.faces = installedFaces(kFaceChoices, F.face);
     OP.monoFaces = installedFaces(kMonoChoices, FM.face);
     menuClose();
@@ -326,6 +331,10 @@ static void optionsExec(int id) {
     case OPT_DIR_SIZES:  A.dirSizes = !A.dirSizes; settingsSave(); dirSizeQueueCurrent(); break;
     case OPT_DIALOGS:    A.dialogJump = !A.dialogJump; settingsSave(); break;
     case OPT_TIMES:      A.timesBar = !A.timesBar; settingsSave(); break;
+    case OPT_REOPEN:     A.reopenTabs = !A.reopenTabs; settingsSave(); break;
+    case OPT_UPDATES:    A.updAuto = !A.updAuto; settingsSave(); break;
+    case OPT_BETA:       A.updBeta = updBeta() ? 0 : 1; settingsSave(); break;
+    case OPT_UPD_ACT:    updAction(); break; // controlla, aggiorna, o apre la Release
     case OPT_FOLDER: {
         std::wstring p = zfDataPath(L"");
         if (!p.empty()) p.pop_back(); // senza "\" finale
@@ -416,7 +425,7 @@ static void drawOptions(double dt) {
     auto hit = [&](float x, float y, float w, float h, int id) {
         // solo la parte dentro l'area visibile è cliccabile
         float y0 = std::max(y, OP.viewTop), y1 = std::min(y + h, OP.viewBottom);
-        if (id == OPT_CLOSE || id == OPT_FOLDER) { y0 = y; y1 = y + h; }
+        if (id == OPT_CLOSE || id == OPT_FOLDER || id == OPT_UPD_ACT) { y0 = y; y1 = y + h; } // titolo e piede non scorrono
         if (y1 > y0) OP.hits.push_back({ x, y0, w, y1 - y0, id });
     };
     auto hov = [&](float x, float y, float w, float h, int id) {
@@ -449,7 +458,15 @@ static void drawOptions(double dt) {
     float fy = y + h - footH;
     rect(x + 1, fy, w - 2, 1, fadeA(C_LINE, k));
     std::wstring info = buildInfo();
-    drawText(x + pad, fy + floorf((footH - F.lineH) * 0.5f), info, fadeA(C_FAINT, k), x + w * 0.6f);
+    float infoEnd = x + w * 0.6f - updIconW() - px(ui::GAP_M);
+    drawText(x + pad, fy + floorf((footH - F.lineH) * 0.5f), info, fadeA(C_FAINT, k), infoEnd);
+    {   // dopo la versione, lo stato dell'aggiornamento: un clic controlla, aggiorna o apre la Release
+        float iw = updIconW(), ix = std::min(infoEnd, x + pad + (float)textWidth(info.c_str(), (int)info.size())) + px(ui::GAP_M);
+        float iy = fy + floorf((footH - A.rowH) * 0.5f);
+        hov(ix - px(ui::GAP_S), iy, iw + px(ui::GAP_M), A.rowH, OPT_UPD_ACT);
+        drawUpdateIcon(ix, iy, iw, A.rowH, k);
+        hit(ix - px(ui::GAP_S), iy, iw + px(ui::GAP_M), A.rowH, OPT_UPD_ACT);
+    }
     const wchar_t* fl = L"Cartella delle impostazioni";
     float flw = (float)textWidth(fl, (int)wcslen(fl)) + px(ui::GAP_M) * 2;
     float flx = x + w - pad - flw + px(ui::GAP_M), fly = fy + floorf((footH - A.rowH) * 0.5f);
@@ -559,6 +576,22 @@ static void drawOptions(double dt) {
     label(L"Dimensione delle cartelle nella colonna",
           L"Contata in background, a priorità bassa; unità di rete e ottiche solo nel tooltip e nell'anteprima");
     sw(A.dirSizes, OP.knobDirSizes, OPT_DIR_SIZES);
+    cy += rowH * 2 - px(ui::GAP_S);
+    cy += px(ui::GAP_M);
+
+    section(L"Avvio e aggiornamenti");
+    label(L"Riapri le schede all'avvio", L"Le schede della finestra principale, com'erano alla chiusura");
+    sw(A.reopenTabs, OP.knobReopen, OPT_REOPEN);
+    cy += rowH * 2 - px(ui::GAP_S);
+    {
+        std::wstring last = updLastText();
+        std::wstring hint = L"Una volta al giorno da GitHub" + (last.empty() ? std::wstring() : L" \x00B7 ultimo controllo " + last);
+        label(L"Aggiornamenti automatici", hint.c_str());
+    }
+    sw(A.updAuto, OP.knobUpdates, OPT_UPDATES);
+    cy += rowH * 2 - px(ui::GAP_S);
+    label(L"Ricevi anche le beta", L"Le versioni di prova, prima delle stabili");
+    sw(updBeta(), OP.knobBeta, OPT_BETA);
     cy += rowH * 2 - px(ui::GAP_S);
     cy += px(ui::GAP_M);
 

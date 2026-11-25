@@ -57,6 +57,7 @@ enum : uint32_t {
     IC_FILTER = 0xE71C, IC_CHEVRON_DOWN = 0xE70D, IC_CHEVRON_RIGHT = 0xE76C, IC_DELETE = 0xE74D,
     IC_FOLDER = 0xE8B7, IC_PAGE = 0xE7C3, IC_GRID = 0xE80A,
     IC_MIN = 0xE921, IC_MAX = 0xE922, IC_RESTORE = 0xE923, IC_WCLOSE = 0xE8BB,
+    IC_SYNC = 0xE895, IC_DOWNLOAD = 0xE896, IC_DONE = 0xEC61, // aggiornamento: controlla, scarica, aggiornato
 };
 
 static void glyphReset() {
