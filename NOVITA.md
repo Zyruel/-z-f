@@ -19,6 +19,8 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 - Griglia e anteprima di Questo PC: i percorsi di rete hanno l'icona di cartella senza chiedere
   niente alla rete, e le icone delle unità di rete e ottiche si chiedono a parte. Un NAS spento
   non ferma più le icone e le miniature delle altre cartelle, e non cambia l'icona delle cartelle.
+- Tooltip e anteprima non scaricano più le immagini solo online di OneDrive (e servizi simili) per
+  scriverne la risoluzione: un file solo online resta nel cloud finché non lo si apre.
 
 ## 1.0.0-beta.3 (novembre 2026)
 

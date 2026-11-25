@@ -29,3 +29,18 @@ quel codice, o tutti insieme in un momento tranquillo. Quando una voce è fatta 
   che ha solo l'elenco di elementi della shell (IDList) resta senza destinazione. Sui 177 del PC
   non ce n'è nessuno (tutti uguali a Windows). Da rivedere se su un altro PC ne compare uno vuoto
   dove le proprietà di Windows mostrano un percorso.
+- [ ] **Icona grande mancante alla prima anteprima dopo l'avvio** (novembre 2026, visto una volta
+  provando i file solo online). z-f-dev aperto con l'anteprima già accesa su un PNG solo online:
+  righe d'informazione senza l'icona grande; tornandoci dopo, l'icona c'era. Causa probabile: il
+  thread dell'anteprima (e quelli delle miniature, `thIconWork`) chiede subito `SHGetImageList`,
+  senza aspettare `I.shellReady` come il secondo thread delle icone (`icons.cpp`: "insieme, la
+  prima chiamata falliva"). Da riprodurre (avvio con l'anteprima aperta su un file senza
+  anteprima) e, se è così, aspettare lo stesso evento in `pvBigIcon`.
+- [ ] **Icona di un file solo online dopo lo scaricamento** (novembre 2026, da verificare). Per
+  .exe, .lnk, .ico la shell dà al segnaposto l'icona generica, e [z]f la tiene in cache per
+  percorso (`iconFor`, `thIconKeyFor`); quando il file si scarica (aprendolo) gli attributi
+  cambiano ma la chiave no, quindi l'icona vera arriverebbe solo riavviando. Anche le miniature
+  aggiornano `t.online` solo se cambiano data o dimensione. Proposta da decidere con Zyruel: in
+  `iconSource` un file solo online ha l'icona per estensione (`ICON_EXT`, la stessa immagine
+  generica, una richiesta per tipo invece di una per file da 15–40 ms), così allo scaricamento
+  la chiave cambia e l'icona vera arriva da sola.

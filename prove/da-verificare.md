@@ -20,6 +20,41 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 00000000000000000000000. File solo online: tooltip e anteprima (z-f-dev, novembre 2026)
+
+Correzione del controllo del codice (`tooltip.cpp`, `readInfo`): la risoluzione di un'immagine
+si leggeva aprendo il file anche quando è solo online, e così OneDrive lo scaricava. Ora, come già
+per i .lnk, il contenuto si legge solo se il file è sul disco (`onlineOnly`).
+
+Sul PC OneDrive non è configurato: la prova la fa `prove\online-prova.cpp`, che crea una radice
+di sincronizzazione finta con l'API Cloud Files di Windows (la stessa di OneDrive) e conta ogni
+scaricamento con il processo che lo chiede. I segnaposto hanno gli attributi dei file solo online
+di OneDrive (`0x00401620`: offline, recall on data access, sparse, reparse point).
+
+Provato da Claude con z-f-dev in `build\online-*` (cartelle di segnaposto: .png, .jpg, .exe,
+.lnk, .ico), confrontando con la build di prima:
+- [x] **Prima:** solo aprendo la cartella (anteprima aperta, cursore sul PNG) il PNG si scarica;
+      col cursore sul JPEG si scarica anche quello (1 MB) e l'anteprima poi lo mostra come
+      immagine. 2 scaricamenti, tutti da z-f-dev.exe.
+- [x] **Dopo:** anteprima su tutte e cinque le voci, tooltip sul JPEG, griglia grande: nessuno
+      scaricamento. Anteprima e tooltip mostrano tipo, dimensione, date e "solo online", senza la
+      risoluzione; icone generiche del tipo (quelle che dà la shell, come Explorer).
+- [x] **Icone per file** (.exe, .lnk, .ico): `SHGetFileInfo` sul segnaposto (icona della lista,
+      icona grande dell'anteprima e della griglia) non scarica niente, la shell dà l'icona
+      generica (`online-prova passi`, 0 scaricamenti in 15 chiamate). Nessuna modifica al codice.
+- [x] Registro: niente di nuovo (all'avvio `0x8002`, normale; alla chiusura per PID un
+      `messaggio lento 0x0010` da 25,8 ms, che il registro ha già 17 volte da prima). MSVC: zero
+      avvisi.
+
+Restano a Zyruel (serve OneDrive vero, con un account):
+- [ ] In una cartella di OneDrive con foto "solo online" (icona della nuvola in Esplora file):
+      cursore sulle foto con Alt+P aperto e tooltip fermo su una foto. Le foto restano con la
+      nuvola (non diventano "disponibili su questo dispositivo") e l'anteprima mostra "Solo
+      online: si legge solo aprendolo".
+- [ ] Lì stesso, un .exe o un .lnk solo online: icona generica, nessuno scaricamento (la radice
+      finta non è registrata presso la shell come quella di OneDrive: da confermare che la shell
+      si comporti uguale).
+
 ## 0000000000000000000000. Miniature: zip, percorsi e unità di rete (z-f-dev, novembre 2026)
 
 Tre correzioni del controllo del codice (`thumbs.cpp`, `preview.cpp`, `icons.cpp`): le miniature
