@@ -1,11 +1,159 @@
 #!/bin/sh
-# main si aggiorna solo con una pull request da dev. GitHub lo impone gia'; questo controllo
-# ferma l'errore prima, sul PC. Si attiva una volta per copia del repository con:
-# git config core.hooksPath .githooks
+# Si attiva una volta per copia del repository con: git config core.hooksPath .githooks
+#
+# Due controlli prima di ogni push:
+# - main si aggiorna solo con una pull request da dev. GitHub lo impone gia'; qui si ferma
+#   l'errore prima, sul PC;
+# - il repository e' pubblico: quello che esce non deve contenere dati personali. Si guardano
+#   solo i commit che il remoto non ha ancora, e di quelli solo cio' che e' nuovo (righe aggiunte,
+#   messaggi, nomi dei file, autori), cosi' il controllo resta rapido e non ripete la storia.
+#
+# Le parole private (nome utente, email, nomi, server...) stanno in .git/info/parole-private.txt,
+# una per riga: dentro .git il file non si pusha mai, e questo hook, che e' pubblico, non ne
+# contiene nessuna.
+#
+# I messaggi sono in ASCII: la console di Windows non mostra bene l'UTF-8 che arriva da sh.
+
+t=$(mktemp -d) || exit 1
+trap 'rm -rf "$t"' EXIT
+
+remoto=$1
+: > "$t/commit"
 while read local_ref local_sha remote_ref remote_sha; do
   if [ "$remote_ref" = "refs/heads/main" ]; then
     echo "[z]f: push diretto su main bloccato. Si lavora su dev; main si aggiorna con una pull request." >&2
     exit 1
   fi
+  # Uno sha fatto solo di zeri (40 con SHA-1, 64 con SHA-256) vuol dire "niente".
+  case $local_sha in *[!0]*) ;; *) continue ;; esac  # cancellazione: non esce niente
+  case $remote_sha in
+    *[!0]*)
+      # Se il remoto ha uno sha che qui non c'e' (push di qualcun altro non ancora scaricato),
+      # l'intervallo non si puo' calcolare: si ripiega su quello di un branch nuovo.
+      if git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+        git rev-list "$remote_sha..$local_sha" >> "$t/commit" || exit 1
+        continue
+      fi ;;
+  esac
+  # Branch nuovo: i commit che nessun branch del remoto contiene gia'.
+  git rev-list "$local_sha" --not --remotes="$remoto" >> "$t/commit" || exit 1
 done
+
+[ -s "$t/commit" ] || exit 0
+
+# Parole private: si tolgono commenti, righe vuote, spazi ai lati, il BOM e il CR che il Blocco
+# note puo' aggiungere (con un CR in fondo una parola non verrebbe mai trovata).
+parole=$(git rev-parse --git-path info/parole-private.txt)
+if [ -f "$parole" ]; then
+  sed -e '1s/^\xEF\xBB\xBF//' -e 's/\r$//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+      -e '/^#/d' -e '/^$/d' "$parole" > "$t/parole"
+else
+  : > "$t/parole"
+  echo "[z]f: avviso: manca $parole, le parole private non si controllano. Crealo con una parola per riga (nome utente, email, server...; # per i commenti)." >&2
+fi
+
+# Percorsi della cartella di un utente: X:\Users\<nome>, X:/Users/<nome>, anche con le barre
+# raddoppiate dei sorgenti, e /x/Users/<nome> di Git Bash. Il nome deve iniziare con una lettera o
+# una cifra, cosi' passano gli esempi come <nome> o %USERNAME%. Sono ammessi "utente" (il nome
+# degli esempi, CLAUDE.md) e le cartelle di Windows Public e Default, che non dicono chi e'.
+percorso='([A-Za-z]:|(^|[^[:alnum:]])/[A-Za-z])[\\/]+users[\\/]+[[:alnum:]_]'
+ammessi='s#([\\/])(users[\\/]+(utente|public|default)([^[:alnum:]_.-]|$))#\1-\2#Ig'
+
+# Estensioni di file che non devono finire nel repository: eseguibili, firme, chiavi.
+vietate='\.(exe|sig|bin|pfx|pem|key|p12)$'
+
+vuoto=$(git hash-object -t tree /dev/null)
+trovato=0
+email=0
+
+# Legge un diff -U0 e scrive ogni riga aggiunta: "file:riga" in $t/pos e il testo in $t/testo.
+# Le righe che iniziano con "+++" sono intestazioni solo prima del primo "@@" di ogni file: dopo,
+# sono righe aggiunte che iniziano con "++".
+annota() {
+  file=; n=0; testa=0
+  while IFS= read -r l; do
+    if [ $testa = 1 ]; then
+      case $l in
+        '+++ '*) file=${l#'+++ '}; file=${file#b/} ;;
+        '@@'*) testa=0; n=${l#*+}; n=${n%%[ ,]*} ;;
+      esac
+    else
+      case $l in
+        'diff --git '*) testa=1 ;;
+        '@@'*) n=${l#*+}; n=${n%%[ ,]*} ;;
+        '+'*) printf '%s:%s\n' "$file" "$n" >&3; printf '%s\n' "${l#+}" >&4; n=$((n + 1)) ;;
+      esac
+    fi
+  done
+}
+
+# Aggiunge a $t/pos e $t/testo le righe di stdin con la posizione $1, e il numero di riga se $2
+# e' "numera" (nei messaggi serve, per i nomi dei file no).
+aggiungi() {
+  n=1
+  while IFS= read -r l; do
+    if [ "$2" = numera ]; then printf '%s:%s\n' "$1" "$n" >&3; else printf '%s\n' "$1" >&3; fi
+    printf '%s\n' "$l" >&4; n=$((n + 1))
+  done
+}
+
+for c in $(cat "$t/commit"); do
+  git log -1 --no-show-signature --format='%h%n%ae%n%ce%n%an%n%cn' "$c" > "$t/info"
+  { IFS= read -r h; IFS= read -r ae; IFS= read -r ce; IFS= read -r an; IFS= read -r cn; } < "$t/info"
+
+  # Le email devono essere quelle anonime di GitHub (in Settings > Emails).
+  for ruolo in autore committer; do
+    if [ $ruolo = autore ]; then e=$ae; chi="dell'autore"; else e=$ce; chi="del committer"; fi
+    if ! printf '%s\n' "$e" | grep -q -i -E '^[^@]+@users\.noreply\.github\.com$|^noreply@github\.com$'; then
+      echo "[z]f: $h email $chi non anonima: $e" >&2
+      trovato=1; email=1
+    fi
+  done
+
+  base=$(git rev-parse -q --verify "$c^1") || base=$vuoto
+  : > "$t/pos"; : > "$t/testo"
+  {
+    printf '%s\n' "$an" | aggiungi "autore"
+    printf '%s\n' "$cn" | aggiungi "committer"
+    git log -1 --no-show-signature --format=%B "$c" | aggiungi "messaggio" numera
+    git -c core.quotepath=off diff --name-only --no-renames --diff-filter=d "$base" "$c" > "$t/nomi"
+    aggiungi "nome di file" < "$t/nomi"
+    # Il diff si percorre riga per riga (lento in sh) solo se contiene qualcosa da segnalare.
+    git -c core.quotepath=off diff --no-color --no-ext-diff --no-textconv --no-renames -U0 \
+        --src-prefix=a/ --dst-prefix=b/ "$base" "$c" > "$t/diff"
+    if sed -E "$ammessi" "$t/diff" | grep -a -q -i -E "$percorso" ||
+       { [ -s "$t/parole" ] && grep -a -q -i -F -f "$t/parole" "$t/diff"; }; then
+      annota < "$t/diff"
+    fi
+  } 3>> "$t/pos" 4>> "$t/testo"
+
+  sed -E "$ammessi" "$t/testo" | grep -a -n -i -E "$percorso" | sed 's/:.*/:percorso con un nome utente/' > "$t/righe"
+  if [ -s "$t/parole" ]; then
+    grep -a -n -i -F -f "$t/parole" "$t/testo" | sed 's/:.*/:parola privata/' >> "$t/righe"
+  fi
+  grep -a -n -i -E "$vietate" "$t/nomi" | sed 's/^\([0-9]*\):.*/\1:file da non pubblicare/' > "$t/file"
+
+  k=0
+  while IFS=: read -r i motivo; do
+    k=$((k + 1))
+    if [ $k -gt 20 ]; then echo "[z]f: $h ... e altre righe" >&2; break; fi
+    pos=$(sed -n "${i}p" "$t/pos")
+    riga=$(sed -n "${i}{s/^[[:space:]]*//;s/^\(.\{100\}\).*/\1.../;p;}" "$t/testo")
+    echo "[z]f: $h $pos: $motivo: $riga" >&2
+    trovato=1
+  done < "$t/righe"
+  while IFS=: read -r i motivo; do
+    echo "[z]f: $h $(sed -n "${i}p" "$t/nomi"): $motivo" >&2
+    trovato=1
+  done < "$t/file"
+done
+
+if [ $trovato = 1 ]; then
+  echo "[z]f: push bloccato: i commit in uscita contengono dati da non pubblicare (sopra)." >&2
+  if [ $email = 1 ]; then
+    echo "[z]f: per l'email: git config user.email <id>+<utente>@users.noreply.github.com, poi git commit --amend --reset-author." >&2
+  fi
+  echo "[z]f: correggi i commit (git commit --amend per l'ultimo, git rebase -i per i precedenti) e ripeti il push." >&2
+  exit 1
+fi
 exit 0

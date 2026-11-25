@@ -50,6 +50,9 @@ documentazione sono in italiano; `shader.hlsl` è solo ASCII.
   Zyruel, mai il nome di battesimo; niente riferimenti ad amici o altre persone; niente percorsi con
   il nome utente, nomi di server, condivisioni e cartelle di lavoro: negli esempi `\\server\…`,
   `C:\Users\utente`) e niente nomi di altri file manager presi a confronto.
+  `.githooks/pre-push` lo controlla nei commit in uscita (email non anonime, percorsi con un nome
+  utente, `.exe`/`.sig`/chiavi, parole private) e blocca il push dicendo commit, file e riga: si
+  corregge il commit. Le parole private sono in `.git/info/parole-private.txt`, che non si pusha.
 - **Branch:**
   - `dev`: il lavoro di ogni giorno, si committa e si pusha qui;
   - `main`: solo versioni rilasciate, aggiornato con una pull request da `dev` (unione con merge

@@ -143,6 +143,15 @@ La build consigliata è quella MSVC. Confronto misurato sullo stesso codice e su
 
 Con MSVC, `shell32` e `ole32` si caricano solo al primo uso (`/DELAYLOAD`). Sul tempo di avvio misurato non cambia nulla di rilevabile, ma la finestra non carica due DLL che non le servono.
 
+## Controllo prima del push
+
+`.githooks/pre-push` (attivo con `git config core.hooksPath .githooks`, una volta per copia del repository; solo `sh`, `git`, `grep` e `sed` di Git for Windows) fa due controlli:
+
+- **main:** blocca il push diretto su `main`, che si aggiorna solo con una pull request da `dev`;
+- **dati da non pubblicare:** il repository è pubblico. Per ogni ref in uscita prende i commit che il remoto non ha (`remote_sha..local_sha`; per un branch nuovo, quelli che nessun branch del remoto contiene) e di ciascuno guarda solo ciò che è nuovo: righe aggiunte del diff (contro il primo genitore), messaggio, nomi dei file, nome e email di autore e committer. Blocca le email che non sono quelle anonime di GitHub (`…@users.noreply.github.com`, `noreply@github.com`), i percorsi della cartella di un utente (`X:\Users\…`, `X:/Users/…`, anche con le barre raddoppiate dei sorgenti, e `/x/Users/…` di Git Bash; ammessi `utente`, `Public`, `Default` e i segnaposto come `<nome>`), i file `.exe`, `.sig`, `.bin`, `.pfx`, `.pem`, `.key`, `.p12` e le parole di `.git/info/parole-private.txt` (una per riga, `#` per i commenti, senza distinguere maiuscole). Quel file sta in `.git`, quindi non si pusha mai, e l'hook, che è pubblico, non contiene nessuna parola privata; se manca, l'hook avvisa e non blocca. Ogni segnalazione dice commit, file e riga (o messaggio, nome di file, email); il messaggio finale chiede di correggere i commit (`git commit --amend`, `git rebase -i`).
+
+Il diff si percorre riga per riga in `sh` (lento) solo se un `grep` su tutto il diff trova già qualcosa. Misurato: un commit 0,7 s; tutta la storia pubblica (6 commit, il primo con tutto il codice) 2,9 s; il caso peggiore, una parola trovata nel primo commit, 4,9 s. Le prove sono in un repository finto con un remoto nudo locale (21 casi, tutti passati).
+
 ## Differenze note rispetto a Explorer
 
 L'ordinamento naturale qui è ordinale, con minuscole e accenti piegati. Explorer usa invece le regole linguistiche di Windows. Nei casi comuni il risultato è uguale (numeri, maiuscole/minuscole, lettere accentate). Può differire sui segni di punteggiatura: ad esempio Explorer tende a ignorare il trattino in "co-op".
