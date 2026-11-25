@@ -61,8 +61,9 @@ documentazione sono in italiano; `shader.hlsl` è solo ASCII.
   - `main` è protetto su GitHub (pull request obbligatoria, anche per gli amministratori) e in
     locale da `.githooks/pre-push`, attivo con `git config core.hooksPath .githooks` (una volta per
     copia del repository), che ferma l'errore prima. Non si scavalca con `--no-verify`.
-- **Rilascio:** con `/rilascio [versione]` (skill in `.claude/skills/rilascio`, la lancia solo
-  Zyruel): versione nei documenti, build, copia in `build\z-f-<versione>.exe` (fino alla 0.28:
+- **Rilascio:** una pull request `dev` → `main` è un rilascio: se Zyruel la chiede senza
+  `/rilascio`, non la si apre e gli si ricorda `/rilascio`. Si fa con `/rilascio [versione]` (skill
+  in `.claude/skills/rilascio`, la lancia solo Zyruel): versione nei documenti, build, copia in `build\z-f-<versione>.exe` (fino alla 0.28:
   `build\z-f-0.N.exe`) firmata, pull request `dev` → `main`, tag annotato e Release con l'exe e la
   firma, da cui gli exe distribuiti si aggiornano da soli. La chiave privata di firma è solo sul PC
   di Zyruel: senza, [z]f rifiuta l'aggiornamento, e non se ne crea un'altra.
