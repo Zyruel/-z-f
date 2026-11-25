@@ -49,6 +49,12 @@ def handle(c):
         else:
             c.sendall(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
         print("GET", path, flush=True)
+        # Chiusura pulita: chiudendo di colpo, Windows può mandare un reset che interrompe la
+        # risposta ancora in viaggio (WinHTTP: errore 12030)
+        c.shutdown(socket.SHUT_WR)
+        c.settimeout(5)
+        while c.recv(4096):
+            pass
     finally:
         c.close()
 

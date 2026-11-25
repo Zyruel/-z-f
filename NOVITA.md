@@ -8,7 +8,7 @@ erano `0.N`. Ogni rilascio, dalla 1.0.0-beta.2, ha un tag `v<versione>` e una
 versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 [`ARCHITETTURA.md`](docs/ARCHITETTURA.md).
 
-## 1.0.0-beta.3 (in preparazione)
+## 1.0.0-beta.3 (novembre 2026)
 
 - **Aggiornamento automatico:** una volta al giorno [z]f guarda su GitHub se c'è una versione
   nuova, la scarica, ne controlla impronta e firma e la mette al posto di quella in uso; parte al

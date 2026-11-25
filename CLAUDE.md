@@ -230,7 +230,7 @@ delle colonne, `listmouse.cpp`), il filtro nella barra di stato, la barra dei te
 le unità sotto Questo PC (sezioni 0000000000000000000 e 000000000000000000). Il monitor di
 Zyruel è a 175%.
 
-La 1.0.0-beta.3 (in preparazione su `dev`) ha l'aggiornamento automatico dalle Release, firmato
+La 1.0.0-beta.3 ha l'aggiornamento automatico dalle Release, firmato
 (`update.cpp`, `strumenti\firma.cpp`), con l'icona di stato accanto alla versione e il riavvio di
 tutte le finestre, e la riapertura delle schede all'avvio (`tabs.cpp`); prove nella sezione
 000000000000000000000 di `prove\da-verificare.md`.

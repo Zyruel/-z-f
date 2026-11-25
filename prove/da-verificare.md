@@ -40,9 +40,11 @@ posto di GitHub) e una copia dell'exe in una cartella di prova, ridotta a icona:
   sembrava più piccolo delle frecce), le frecce circolari dopo un errore, la sezione "Avvio e
   aggiornamenti" nelle opzioni e la freccia accanto alla versione in fondo al pannello. La
   spiegazione di "Aggiornamenti automatici" era troppo lunga e tagliava l'ora: accorciata.
-Una volta, su sei controlli con il server veloce, il controllo è finito in errore 18 ms dopo aver
-letto `releases.json`, senza scaricare niente: non si è ripetuto. Ora il registro scrive anche il
-motivo di ogni errore ("aggiornamento: <motivo>"): se ricapita, si legge lì.
+Ogni tanto un controllo finiva in "errore di rete 12030" (connessione interrotta): era il server
+di prova, che chiudeva la connessione di colpo e Windows mandava un reset. Con la chiusura pulita
+(ora in `prove\aggiornamenti-prova.py`) sei giri su sei sono riusciti, con l'exe di rilascio della
+1.0.0-beta.3 firmato con la chiave vera, arrivato identico. Il registro scrive anche il motivo di
+ogni errore ("aggiornamento: <motivo>"); un controllo fallito si ripete da solo un'ora dopo.
 MSVC senza avvisi (a `/W4` solo quello noto di `zip.cpp`). L'exe cresce di circa 70 KB (1049 KB
 invece di 979): metà è il codice nuovo, il resto il compilatore che con la build unica inserisce
 diversamente funzioni già esistenti. winhttp.dll e bcrypt.dll si caricano solo al primo controllo.

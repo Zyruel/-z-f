@@ -142,7 +142,7 @@ static inline uint32_t fadeA(uint32_t c, float a) {
 
 
 // Messaggi interni (thread di lavoro → finestra)
-#define ZF_VERSION L"1.0.0-beta.2" // versione (SemVer) mostrata nelle opzioni e nel menu di [z]f
+#define ZF_VERSION L"1.0.0-beta.3" // versione (SemVer) mostrata nelle opzioni e nel menu di [z]f
 
 #define WM_APP_LISTING (WM_APP + 1)
 #define WM_APP_GPU     (WM_APP + 2)
