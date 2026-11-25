@@ -118,6 +118,12 @@ constexpr float PREVIEW_ICON = 96;
 constexpr float THUMB_PX[3] = { 96, 160, 256 };
 constexpr float THUMB_ICON = 0.5f;
 constexpr int GRID_NAME_LINES = 2;
+// Anello di punti di un lavoro in corso (controllo dell'aggiornamento): punti fermi, ne gira solo
+// la luminosità, come l'anello di avanzamento di Windows. Diametro in frazione dell'icona
+constexpr int SPIN_DOTS = 8;
+constexpr float SPIN_DOT = 3, SPIN_SIZE = 1.0f, SPIN_MIN_ALPHA = 0.2f;
+// Pallino su ≡ quando c'è una versione nuova pronta: diametro, distanza dall'angolo in alto a destra
+constexpr float BADGE = 6, BADGE_INSET = 8;
 
 // --- testo ------------------------------------------------------------------------------
 constexpr int FONT_PX = 13, FONT_MIN = 10, FONT_MAX = 24; // una sola dimensione in tutta l'interfaccia
@@ -132,6 +138,8 @@ constexpr float TAU_SCROLL = 45;   // scorrimento con la rotellina
 constexpr int WHEEL_LINES = 3;     // righe per scatto della rotellina (lista, menu, pannelli; non la griglia)
 // Durate fisse (ease-out)
 constexpr float DUR_MENU = 90, DUR_TIP = 80, DUR_ICON = 110;
+// Unica animazione continua (DESIGN.md §5): un giro dell'anello di punti, solo mentre un lavoro è in corso
+constexpr float SPIN_PERIOD = 900;
 // Tooltip e avvisi
 constexpr int TIP_DELAY = 500, TIP_DELAY_NEAR = 60, TIP_INFO_WAIT = 150, TIP_NEAR_WINDOW = 400;
 constexpr int NOTICE_INFO = 2500, NOTICE_ERROR = 4000;
@@ -151,6 +159,13 @@ constexpr float MARQUEE_SCROLL_MAX = 6;
 constexpr int WATCH_BATCH = 50;    // notifiche della cartella aperta raggruppate: al massimo una ricarica ogni tanto
 constexpr int SIDE_RELOAD = 5000;  // tornando a [z]f, unità e preferiti si rileggono se più vecchi di così
 constexpr int ZIP_TEMP_KEEP = 3 * 24 * 3600 * 1000; // file estratti da uno zip (%TEMP%\z-f): tolti all'estrazione dopo questo tempo
+// Aggiornamento (update.cpp): primo controllo così tanto dopo il primo frame, poi al massimo uno
+// ogni UPD_EVERY secondi (anche a [z]f aperto: la condizione si guarda ogni UPD_TICK ms)
+constexpr int UPD_DELAY = 30000, UPD_TICK = 3600 * 1000;
+constexpr int UPD_DELAY_TEST = 2000; // con --aggiorna-da (server di prova)
+constexpr long long UPD_EVERY = 24 * 3600;
+constexpr int UPD_TIMEOUT = 10000, UPD_TIMEOUT_READ = 30000; // rete: risoluzione, connessione, invio · lettura
+constexpr int UPD_JSON_MAX = 2 << 20, UPD_EXE_MAX = 64 << 20; // risposte più grandi si scartano
 
 // --- registro dei rallentamenti (z-f-log.txt, ms) -----------------------------------------
 // Oltre queste soglie un tempo si scrive con l'ora. Il riferimento è un frame a 60 Hz.

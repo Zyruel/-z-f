@@ -25,6 +25,7 @@
 #include "tabs.cpp"   // schede
 #include "sidebar.cpp"// barra laterale: preferiti e unità
 #include "integration.cpp" // [z]f al posto di Explorer (registro HKCU)
+#include "update.cpp" // aggiornamento automatico dalle Release di GitHub, riavvio con le schede
 #include "filedlg.cpp" // dialoghi Apri e Salva nella cartella di [z]f
 #include "crumbs.cpp" // percorso a segmenti cliccabili
 #include "chrome.cpp" // cornice: barra del titolo con le schede, pulsanti

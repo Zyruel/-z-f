@@ -22,6 +22,8 @@ struct SideLoad {
     std::vector<std::wstring> recents;  // righe di recenti.txt (solo lettura veloce)
     std::vector<std::wstring> undo;     // righe di annulla.txt (solo lettura veloce; vuoto se l'opzione è spenta)
     std::vector<std::wstring> views;    // righe di viste.txt (solo lettura veloce)
+    bool startTabs = false;             // lettura veloce: cercare le schede da riaprire (WM_APP_START)
+    DWORD restartPid = 0;               // …in riavvio-<pid>.txt (riavvio dopo un aggiornamento)
 };
 
 static std::wstring knownFolder(REFKNOWNFOLDERID id) {
@@ -108,8 +110,22 @@ static std::wstring volumeRead(SideItem& it, const std::wstring& root) {
 static DWORD WINAPI sideFastThread(void* p) {
     SideLoad* L = (SideLoad*)p;
     migrateLegacyData();
-    L->fileFound = readFavFile(L->favs);
     readDataLines(L"impostazioni.txt", L->settings);
+    // Le schede da riaprire, subito: la prima cartella le aspetta (main.cpp), il resto no
+    if (L->startTabs) {
+        StartTabs* s = new StartTabs;
+        if (L->restartPid) {
+            std::wstring name = L"riavvio-" + std::to_wstring(L->restartPid) + L".txt";
+            s->restart = true;
+            readDataLines(name.c_str(), s->lines);
+            DeleteFileW(zfDataPath(name.c_str()).c_str());
+        } else {
+            for (const std::wstring& l : L->settings)
+                if (l == L"riapri_schede=1") { readDataLines(L"schede.txt", s->lines); break; }
+        }
+        if (!PostMessageW(L->hwnd, WM_APP_START, 0, (LPARAM)s)) delete s;
+    }
+    L->fileFound = readFavFile(L->favs);
     readDataLines(L"recenti.txt", L->recents);
     readDataLines(L"annulla.txt", L->undo);
     readDataLines(L"viste.txt", L->views);
@@ -129,8 +145,18 @@ static DWORD WINAPI sideFastThread(void* p) {
 }
 static void sideStartFast() {
     SideLoad* L = new SideLoad{ A.hwnd, 0, true, true, false, {}, {}, {}, {}, {}, {} };
+    // La finestra principale cerca le schede da riaprire; dopo un aggiornamento ogni finestra le sue
+    L->startTabs = A.mainInstance || A.restartPid;
+    L->restartPid = A.restartPid;
     HANDLE h = CreateThread(nullptr, 0, sideFastThread, L, 0, nullptr);
-    if (h) CloseHandle(h); else { delete L; A.sideFastDone = true; recentLoaded({}); viewsLoaded({}); }
+    if (h) CloseHandle(h);
+    else {
+        delete L;
+        A.sideFastDone = true;
+        recentLoaded({});
+        viewsLoaded({});
+        if (A.startDeferred) { A.startDeferred = false; navigate(A.startDefault, 0, L""); }
+    }
 }
 
 static DWORD WINAPI sideThread(void* p) {

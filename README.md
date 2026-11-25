@@ -9,9 +9,10 @@ libero, con [licenza MIT](LICENSE).
 ## Scaricare
 
 L'ultima versione è nelle [Release](https://github.com/Zyruel/-z-f/releases): si scarica
-`z-f-<versione>.exe` e si avvia, senza installazione. Impostazioni, preferiti e cartelle recenti
-stanno in `%APPDATA%\z-f`, in file di testo modificabili anche a mano. Serve Windows a 64 bit
-(provato su Windows 11).
+`z-f-<versione>.exe` e si avvia, senza installazione (conviene rinominarlo `z-f.exe` e tenerlo in
+una cartella propria: gli aggiornamenti lo sostituiscono lì). Impostazioni, preferiti e cartelle
+recenti stanno in `%APPDATA%\z-f`, in file di testo modificabili anche a mano. Serve Windows a 64
+bit (provato su Windows 11).
 
 ## Cosa sa fare
 
@@ -40,7 +41,11 @@ stanno in `%APPDATA%\z-f`, in file di testo modificabili anche a mano. Serve Win
 - **Al posto di Explorer**, con l'opzione "Usa [z]f al posto di Explorer": le cartelle aperte da
   Windows e Win+E aprono [z]f. Scrive solo nelle impostazioni dell'utente e si annulla con lo
   stesso interruttore.
-- **Una finestra sola:** aprire una cartella con [z]f già aperto aggiunge una scheda.
+- **Una finestra sola:** aprire una cartella con [z]f già aperto aggiunge una scheda. Con
+  l'opzione "Riapri le schede all'avvio" si riparte dalle schede che c'erano alla chiusura.
+- **Si aggiorna da solo:** una volta al giorno guarda se c'è una versione nuova, la scarica, ne
+  controlla la firma e la installa per il prossimo avvio. Lo stato è accanto alla versione, nel
+  menu ≡: da lì "Aggiorna" riavvia subito [z]f con le stesse schede. Si spegne nelle opzioni.
 - **Opzioni** (Ctrl+,) con effetto immediato.
 
 ## Scorciatoie

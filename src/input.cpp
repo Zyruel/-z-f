@@ -174,6 +174,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     if (msg == WM_LBUTTONDOWN || msg == WM_MBUTTONDOWN || msg == WM_NCLBUTTONDOWN ||
         (msg == WM_KEYDOWN && !(lp & (1 << 30)) && wp != VK_SHIFT && wp != VK_CONTROL && wp != VK_MENU))
         shellMenuCancel();
+    if (msg == g_msgRestart && msg) { restartBegin(false); return 0; } // un'altra finestra ha cliccato "Aggiorna"
     switch (msg) {
     case WM_COPYDATA: // cartella aperta da una seconda istanza di [z]f
         return onCopyData((const COPYDATASTRUCT*)lp);
@@ -229,6 +230,15 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         return 0;
     case WM_APP_PLACES:
         onPlaceSpace((PlaceSpace*)lp);
+        return 0;
+    case WM_APP_START:
+        onStartTabs((StartTabs*)lp);
+        return 0;
+    case WM_APP_UPDATE:
+        onUpdate((UpdJob*)lp);
+        return 0;
+    case WM_APP_UPDCLEAN:
+        onUpdClean();
         return 0;
     case WM_APP_NET:
         onNetDone((NetJob*)lp);
@@ -349,6 +359,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (wp == 4) { KillTimer(hwnd, 4); onGpuReady(); }
         if (wp == 13) { KillTimer(hwnd, 13); gpuRecoverStart(); return 0; } // GPU persa: nuovo tentativo
         if (wp == 14) { zipOnTimer(); return 0; } // estrazione da uno zip che dura
+        if (wp == 15) { updOnTimer(); return 0; } // aggiornamento: un controllo al giorno
         A.dirty = true;
         return 0;
     case WM_KEYDOWN:
@@ -645,7 +656,13 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_CLOSE:
         if (closeDeferred()) return 0; // operazioni sui file in corso: si chiude quando finiscono
         break;
+    case WM_ENDSESSION:
+        // Windows si spegne o l'utente esce: dopo questo messaggio il processo può finire senza
+        // WM_DESTROY. Le schede e i salvataggi in coda si scrivono adesso: nessuno sta aspettando
+        if (wp) { tabsSaveOnExit(); saveFlush(); logFlush(); }
+        return 0;
     case WM_DESTROY:
+        tabsSaveOnExit(); // schede.txt, riavvio-<pid>.txt: li scrive saveFlush, a fine processo
         // I dati messi negli appunti vivono in questo processo: prima di uscire vanno consegnati
         // a Windows, altrimenti un "Incolla" successivo riceve solo l'elenco dei file e perde
         // l'informazione copia/taglia.

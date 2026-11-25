@@ -8,6 +8,17 @@ erano `0.N`. Ogni rilascio, dalla 1.0.0-beta.2, ha un tag `v<versione>` e una
 versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 [`ARCHITETTURA.md`](docs/ARCHITETTURA.md).
 
+## 1.0.0-beta.3 (in preparazione)
+
+- **Aggiornamento automatico:** una volta al giorno [z]f guarda su GitHub se c'è una versione
+  nuova, la scarica, ne controlla impronta e firma e la mette al posto di quella in uso; parte al
+  prossimo avvio. Accanto alla versione, nel menu ≡ e nelle opzioni, un'icona dice lo stato
+  (controllo in corso, aggiornato, versione nuova); con una versione pronta ≡ ha un pallino e
+  "Aggiorna" riavvia subito tutte le finestre di [z]f, con le loro schede. Opzioni
+  "Aggiornamenti automatici" e "Ricevi anche le beta".
+- **Riapri le schede all'avvio** (opzione): la finestra principale si riapre con le schede che
+  aveva alla chiusura, anche quando Windows si spegne con [z]f aperto.
+
 ## 1.0.0-beta.2 (novembre 2026)
 
 Prima versione pubblica: il codice è su GitHub con licenza MIT e la cronologia del repository

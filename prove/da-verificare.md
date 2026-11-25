@@ -20,6 +20,46 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 000000000000000000000. Aggiornamento automatico e riapertura delle schede (1.0.0-beta.3, novembre 2026)
+
+Provato da Claude, senza toccare lo schermo, con `prove\aggiornamenti-prova.py` (server locale al
+posto di GitHub) e una copia dell'exe in una cartella di prova, ridotta a icona:
+- **giro completo:** controllo 18 ms, download dell'exe e della firma 25 ms, impronta e firma
+  giuste, scambio fatto (`z-f.exe` uguale alla versione nuova, `z-f.old.exe` la vecchia);
+- **riavvio:** col messaggio di "Aggiorna" la finestra salva le schede, esce e si riapre con
+  l'exe nuovo (`--riavvio`, ridotta a icona com'era), sulla stessa cartella (dal titolo);
+  `riavvio-<pid>.txt` letto e cancellato, `z-f.old.exe` cancellato;
+- **tre schede, la seconda attiva:** riaperte con la seconda attiva; il file scritto da un
+  riavvio ha le tre schede con cartella e voce selezionata, anche quelle mai aperte;
+- **firma falsa:** rifiutata, exe non toccato (ora con un avviso anche nel controllo automatico);
+- **server spento:** errore dopo 2 s, tutto sul thread, exe non toccato;
+- **cinque giri di fila:** tutti riusciti (controllo 16–20 ms); quando la copia precedente era
+  ancora bloccata, lo scambio ha usato `z-f.old-<numero>.exe`, come previsto;
+- **a vista** (finestra di prova separata): pallino blu su ≡, "Aggiorna a [z]f 1.0.0-beta.3" con
+  la freccia blu, l'anello di punti durante un controllo (portato alla misura delle icone: a 12 px
+  sembrava più piccolo delle frecce), le frecce circolari dopo un errore, la sezione "Avvio e
+  aggiornamenti" nelle opzioni e la freccia accanto alla versione in fondo al pannello. La
+  spiegazione di "Aggiornamenti automatici" era troppo lunga e tagliava l'ora: accorciata.
+Una volta, su sei controlli con il server veloce, il controllo è finito in errore 18 ms dopo aver
+letto `releases.json`, senza scaricare niente: non si è ripetuto. Ora il registro scrive anche il
+motivo di ogni errore ("aggiornamento: <motivo>"): se ricapita, si legge lì.
+MSVC senza avvisi (a `/W4` solo quello noto di `zip.cpp`). L'exe cresce di circa 70 KB (1049 KB
+invece di 979): metà è il codice nuovo, il resto il compilatore che con la build unica inserisce
+diversamente funzioni già esistenti. winhttp.dll e bcrypt.dll si caricano solo al primo controllo.
+
+Restano a Zyruel:
+- [ ] **La spunta:** con GitHub vero, dopo la pubblicazione della 1.0.0-beta.3, un clic sulla
+      versione nel menu ≡ mostra l'anello e poi la spunta ("[z]f … è l'ultima versione").
+- [ ] **Riapri le schede all'avvio:** accendila, apri tre schede, chiudi [z]f e riaprilo (senza
+      cartella, per esempio dal menu Start): tornano le tre schede, con quella attiva di prima.
+      Poi riaprilo su una cartella (doppio clic sul desktop): le schede di prima più quella.
+- [ ] **Spegnimento:** con l'opzione accesa e [z]f aperto, riavvia Windows: le schede tornano.
+- [ ] **Avvio:** `prove\avvio.bat` (a PC libero): il contenuto deve comparire come prima (64–80 ms),
+      con l'opzione spenta e accesa.
+- [ ] **Il primo aggiornamento vero:** dalla 1.0.0-beta.3 alla successiva, quando ci sarà: il
+      pallino su ≡, "Aggiorna a [z]f …", il riavvio di tutte le finestre (anche una aperta con
+      "Nuova finestra") con le loro schede e posizioni, poi "Aggiornato a [z]f …".
+
 ## 00000000000000000000. Percorsi di rete sotto Questo PC (z-f-dev, novembre 2026)
 
 Provato da Claude in z-f-dev con un percorso di rete verso un NAS: la voce compare sotto le

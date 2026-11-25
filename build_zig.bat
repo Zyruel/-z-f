@@ -11,5 +11,5 @@ if not %errorlevel%==0 (
     exit /b 1
 )
 if not exist build mkdir build
-zig c++ -target x86_64-windows-gnu -O2 -std=c++17 -municode -Wno-date-time -DUNICODE -D_UNICODE -Ibuild src\z-f.cpp -o build\z-f-dev.exe -Wl,--subsystem,windows -luser32 -lgdi32 -ld3d11 -lshell32 -lole32 -luuid -ladvapi32 || exit /b 1
+zig c++ -target x86_64-windows-gnu -O2 -std=c++17 -municode -Wno-date-time -DUNICODE -D_UNICODE -DZF_DEV -Ibuild src\z-f.cpp -o build\z-f-dev.exe -Wl,--subsystem,windows -luser32 -lgdi32 -ld3d11 -lshell32 -lole32 -luuid -ladvapi32 -lwinhttp -lbcrypt || exit /b 1
 echo Fatto: build\z-f-dev.exe

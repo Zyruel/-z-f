@@ -167,6 +167,124 @@ static void openFromOutside(const std::wstring& path, const std::wstring& select
     tabNew(path, true, select);
 }
 
+// --- riapertura delle schede ----------------------------------------------------
+// schede.txt (opzione riapri_schede, solo la finestra principale) e riavvio-<pid>.txt (riavvio
+// dopo un aggiornamento, ogni finestra il suo): "attiva=<n>" e una riga per scheda,
+// "scheda=<cartella>|<voce selezionata>". Cartella vuota: Questo PC. Un nome di file non contiene
+// mai '|'. Si scrivono uscendo (WM_DESTROY, WM_ENDSESSION) e si leggono sul thread veloce dell'avvio.
+
+struct SavedTab { std::wstring path, select; };
+struct StartTabs { bool restart = false; std::vector<std::wstring> lines; }; // WM_APP_START
+
+// Cartella e voce selezionata della scheda i, come le ritroverebbe chi la riapre
+static bool tabPlace(int i, std::wstring& path, std::wstring& select) {
+    auto selName = [](const Listing* l, const std::vector<uint32_t>& view, int sel) {
+        if (!l || sel < 0 || sel >= (int)view.size() || view[sel] >= l->e.size()) return std::wstring();
+        const Entry& e = l->e[view[sel]];
+        return std::wstring(l->name(e), e.nameLen);
+    };
+    if (i == A.tab) {
+        if (A.loading) { path = A.loadPath; select = A.pendingSelect; return true; }
+        if (!A.cur) return false;
+        path = A.cur->path;
+        select = selName(A.cur, A.view, A.sel);
+        return true;
+    }
+    const TabState& t = A.tabs[i];
+    if (t.pending) { path = t.pendingPath; select = t.pendingSelect; return true; }
+    if (!t.cur) return false;
+    path = t.cur->path;
+    select = selName(t.cur, t.view, t.sel);
+    return true;
+}
+
+static std::string tabsSerialize() {
+    std::string d, tabs;
+    int active = 0, n = 0;
+    for (int i = 0; i < (int)A.tabs.size(); i++) {
+        std::wstring path, select;
+        if (!tabPlace(i, path, select)) continue;
+        if (i == A.tab) active = n;
+        tabs += "scheda=" + toUtf8(path) + "|" + toUtf8(select) + "\r\n";
+        n++;
+    }
+    d = "attiva=" + std::to_string(active) + "\r\n" + tabs;
+    return d;
+}
+
+// Uscendo: le schede vanno nella coda dei salvataggi, che saveFlush scrive prima della fine del processo
+static void tabsSaveOnExit() {
+    if (A.mainInstance && A.reopenTabs) saveDataAsync(L"schede.txt", tabsSerialize());
+    if (A.restartOnExit)
+        saveDataAsync((L"riavvio-" + std::to_wstring(GetCurrentProcessId()) + L".txt").c_str(), tabsSerialize());
+}
+
+static bool tabsParse(const std::vector<std::wstring>& lines, std::vector<SavedTab>& tabs, int& active) {
+    active = 0;
+    for (const std::wstring& l : lines) {
+        if (!l.compare(0, 7, L"attiva=")) active = _wtoi(l.c_str() + 7);
+        else if (!l.compare(0, 7, L"scheda=")) {
+            size_t bar = l.find(L'|', 7);
+            SavedTab t;
+            t.path = l.substr(7, bar == std::wstring::npos ? std::wstring::npos : bar - 7);
+            if (bar != std::wstring::npos) t.select = l.substr(bar + 1);
+            tabs.push_back(std::move(t));
+        }
+    }
+    if (active < 0 || active >= (int)tabs.size()) active = 0;
+    return !tabs.empty();
+}
+
+// Le schede lette diventano schede di questa finestra, in attesa come quelle aperte in background:
+// si caricano quando diventano attive. replace: la finestra non ha ancora una cartella (avvio
+// senza cartella), quindi le schede salvate sono tutte e si apre quella che era attiva. Altrimenti
+// (avvio su una cartella) vanno prima della scheda aperta, che resta attiva; una scheda sulla
+// stessa cartella non si ripete.
+static void tabsRestore(const std::vector<SavedTab>& saved, int active, bool replace) {
+    if (replace) {
+        A.tabs.assign(saved.size(), TabState());
+        for (int i = 0; i < (int)saved.size(); i++) {
+            if (i == active) continue;
+            A.tabs[i].pending = true;
+            A.tabs[i].pendingPath = saved[i].path;
+            A.tabs[i].pendingSelect = saved[i].select;
+        }
+        A.tab = active;
+        A.tabOpenAfter = -1;
+        navigate(saved[active].path, 0, saved[active].select);
+    } else {
+        std::wstring cur = A.loading ? A.loadPath : A.cur ? A.cur->path : L"";
+        std::vector<TabState> add;
+        for (const SavedTab& s : saved) {
+            if (samePath(s.path, cur)) continue;
+            TabState t;
+            t.pending = true;
+            t.pendingPath = s.path;
+            t.pendingSelect = s.select;
+            add.push_back(std::move(t));
+        }
+        A.tabs.insert(A.tabs.begin(), std::make_move_iterator(add.begin()), std::make_move_iterator(add.end()));
+        A.tab += (int)add.size();
+        A.tabOpenAfter = -1;
+    }
+    A.dirty = true;
+}
+
+// Dal thread veloce dell'avvio: le schede da riaprire (anche nessuna)
+static void onStartTabs(StartTabs* s) {
+    std::vector<SavedTab> saved;
+    int active = 0;
+    bool ok = tabsParse(s->lines, saved, active);
+    delete s;
+    if (A.startDeferred) {
+        A.startDeferred = false;
+        if (ok) tabsRestore(saved, active, true);
+        else navigate(A.startDefault, 0, L"");
+    } else if (ok) {
+        tabsRestore(saved, active, false);
+    }
+}
+
 // --- barra delle schede -------------------------------------------------------
 
 static float tabWidth() {

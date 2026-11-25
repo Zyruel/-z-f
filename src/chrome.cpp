@@ -205,6 +205,10 @@ static void drawChromeButton(int id, bool toolbar) {
     case CH_PREVIEW: cp = IC_PREVIEW; if (A.prevOpen && en) col = C_TEXT; break; // aperta: come ▯ con la barra laterale
     }
     drawUiIcon(x, y, w, h, cp, col);
+    if (id == CH_MENU && updBadge()) { // versione nuova pronta: un pallino su ≡, dove sta "Aggiorna"
+        float b = px(ui::BADGE), in = px(ui::BADGE_INSET);
+        rrect(floorf(x + w - in - b * 0.5f), floorf(y + in - b * 0.5f), b, b, b * 0.5f, C_ACCENT);
+    }
 }
 
 static void drawChromeTitle(double dt) {
