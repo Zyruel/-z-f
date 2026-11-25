@@ -10,7 +10,8 @@
 #
 # Le parole private (nome utente, email, nomi, server...) stanno in .git/info/parole-private.txt,
 # una per riga: dentro .git il file non si pusha mai, e questo hook, che e' pubblico, non ne
-# contiene nessuna.
+# contiene nessuna. Si cercano come parole intere (grep -w), senza distinguere maiuscole: un nome
+# non deve scattare dentro una parola piu' lunga che lo contiene per caso.
 #
 # I messaggi sono in ASCII: la console di Windows non mostra bene l'UTF-8 che arriva da sh.
 
@@ -122,14 +123,14 @@ for c in $(cat "$t/commit"); do
     git -c core.quotepath=off diff --no-color --no-ext-diff --no-textconv --no-renames -U0 \
         --src-prefix=a/ --dst-prefix=b/ "$base" "$c" > "$t/diff"
     if sed -E "$ammessi" "$t/diff" | grep -a -q -i -E "$percorso" ||
-       { [ -s "$t/parole" ] && grep -a -q -i -F -f "$t/parole" "$t/diff"; }; then
+       { [ -s "$t/parole" ] && grep -a -q -i -w -F -f "$t/parole" "$t/diff"; }; then
       annota < "$t/diff"
     fi
   } 3>> "$t/pos" 4>> "$t/testo"
 
   sed -E "$ammessi" "$t/testo" | grep -a -n -i -E "$percorso" | sed 's/:.*/:percorso con un nome utente/' > "$t/righe"
   if [ -s "$t/parole" ]; then
-    grep -a -n -i -F -f "$t/parole" "$t/testo" | sed 's/:.*/:parola privata/' >> "$t/righe"
+    grep -a -n -i -w -F -f "$t/parole" "$t/testo" | sed 's/:.*/:parola privata/' >> "$t/righe"
   fi
   grep -a -n -i -E "$vietate" "$t/nomi" | sed 's/^\([0-9]*\):.*/\1:file da non pubblicare/' > "$t/file"
 
