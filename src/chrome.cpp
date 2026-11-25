@@ -26,6 +26,23 @@ static int sysMetric(int m) {
 // Spessore del bordo di ridimensionamento (come quello delle finestre di Windows)
 static int frameY() { return sysMetric(SM_CYFRAME) + sysMetric(SM_CXPADDEDBORDER); }
 
+// Icona della finestra (src\z-f.rc, disegnata da strumenti\icona.py) alla misura dello schermo su
+// cui sta: la grande per Alt+Tab, la piccola per la barra delle applicazioni. Si carica dopo il
+// primo frame e a ogni cambio di DPI: prima della finestra le due icone costavano 1–2 ms (misurato)
+// che ritardavano il contenuto; fino ad allora Windows mostra la sua icona generica.
+static void appIconSet() {
+    static HICON iconBig, iconSmall;
+    HINSTANCE inst = GetModuleHandleW(nullptr);
+    HICON b = (HICON)LoadImageW(inst, MAKEINTRESOURCEW(ZF_ICON), IMAGE_ICON, sysMetric(SM_CXICON), sysMetric(SM_CYICON), 0);
+    HICON s = (HICON)LoadImageW(inst, MAKEINTRESOURCEW(ZF_ICON), IMAGE_ICON, sysMetric(SM_CXSMICON), sysMetric(SM_CYSMICON), 0);
+    SendMessageW(A.hwnd, WM_SETICON, ICON_BIG, (LPARAM)b);
+    SendMessageW(A.hwnd, WM_SETICON, ICON_SMALL, (LPARAM)s);
+    if (iconBig) DestroyIcon(iconBig); // quelle di prima, non più usate dalla finestra
+    if (iconSmall) DestroyIcon(iconSmall);
+    iconBig = b;
+    iconSmall = s;
+}
+
 struct Chrome {
     int hover = CH_NONE;     // pulsante sotto il mouse (anche nell'area non client)
     int pressed = CH_NONE;   // pulsante di sistema premuto

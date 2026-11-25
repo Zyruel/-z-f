@@ -80,10 +80,11 @@ documentazione sono in italiano; `shader.hlsl` è solo ASCII.
 - **Compilazione incrociata da Linux** (sessione cloud), equivalente:
   ```
   python3 -m ziglang c++ -target x86_64-windows-gnu -O2 -std=c++17 -municode -Wall -Wextra \
-    -Wno-unused-parameter -Wno-date-time -DUNICODE -D_UNICODE -DZF_DEV src/z-f.cpp -o build/z-f-dev.exe \
+    -Wno-unused-parameter -Wno-date-time -DUNICODE -D_UNICODE -DZF_DEV src/z-f.cpp src/z-f.rc -o build/z-f-dev.exe \
     -Wl,--subsystem,windows -luser32 -lgdi32 -ld3d11 -lshell32 -lole32 -luuid -ladvapi32 -lwinhttp -lbcrypt
   ```
   Anche qui: zero avvisi. `ZF_DEV` (anche in `build_zig.bat`): la build di prova non si aggiorna da sola.
+  `src/z-f.rc` (l'icona) lo compila zig stesso, dalla 0.12; MSVC con `rc` in `build.bat`.
 - **Sul PC di Zyruel:** `build.bat` si lancia da PowerShell con `cmd /c '.\build.bat'` dalla
   cartella del progetto. PowerShell non gestisce le parentesi quadre di `[z]f` nei percorsi
   (Copy-Item, Get-FileHash): per copiare e verificare gli exe si usa Bash (`cp`, `sha1sum`). Dalla

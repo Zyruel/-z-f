@@ -10,6 +10,8 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 
 ## Prossima versione (in preparazione)
 
+- **[z]f ha un'icona:** "[z]" nel blu di [z]f su un quadrato scuro, nella barra delle
+  applicazioni, in Alt+Tab e sul file dell'exe; nitida anche a 16 px.
 - Dopo "Aggiorna" la copia della versione precedente si toglie subito e compare "Aggiornato a
   [z]f …" (prima la versione nuova provava a toglierla mentre la vecchia stava ancora uscendo).
 

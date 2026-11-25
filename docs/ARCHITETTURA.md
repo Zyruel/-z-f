@@ -54,6 +54,7 @@ Si compila un solo file, `src/z-f.cpp`, che include i moduli nell'ordine in cui 
 | `hybrid.cpp` | WARP all'avvio, poi passaggio alla GPU |
 | `input.cpp` | tastiera, mouse, messaggi della finestra |
 | `main.cpp` | avvio e ciclo dei messaggi |
+| `z-f.rc` / `z-f.ico` | risorse dell'exe: l'icona, disegnata da `strumenti\icona.py` |
 
 Regola d'oro: **il thread dell'interfaccia non tocca mai il disco.**
 
@@ -68,6 +69,7 @@ Il passaggio WARP → GPU copia gli atlanti di glifi e icone dal device WARP, ch
 ## Le funzioni, una per una
 
 - finestra Win32 con swapchain D3D11 in modalità flip e latenza di un frame;
+- **icona** (`src\z-f.ico`, aspetto in `DESIGN.md`): una risorsa dell'exe (`src\z-f.rc`, ID `ZF_ICON` in `base.h`) compilata da `rc` in `build.bat` (da zig stesso in `build_zig.bat`). L'ico la scrive `strumenti\icona.py`, uno script Pillow usato una volta come `strumenti\firma.cpp`: 16 e 20 px disegnate a pixel, le altre misure dalla stessa geometria agganciata ai pixel, disegnata a 4× e ridotta con una media esatta (BOX: niente aloni scuri). Sotto 256 le immagini sono BMP a 32 bit, il formato classico delle icone; la 256 è PNG, che lì pesa molto meno. La classe della finestra registra ancora l'icona generica di Windows: le due chiamate che caricano la nostra (`LoadImageW` alla misura grande e piccola del DPI della finestra) costano 1,3–2,7 ms e prima di `CreateWindowEx` ritardavano tutto l'avvio (misurato: 1,6–2,8 ms contro 0,0 dell'icona generica). Ora `appIconSet` (`chrome.cpp`) le carica dopo il primo frame, come `dropRegister`, e le dà alla finestra con `WM_SETICON`; di nuovo a ogni `WM_DPICHANGED`, liberando le vecchie. L'exe cresce di 46 KB (1.050.624 → 1.097.728 byte), quasi tutti dell'icona; il contenuto visibile resta lo stesso (`prove\avvio.bat`, 10 avvii: mediana 54,9 ms prima, 51,5 dopo);
 - tutto il testo disegnato dalla GPU, con un atlante di glifi rasterizzati da GDI al primo uso. Se Windows usa ClearType, i glifi sono in ClearType: tre coperture per pixel, una per subpixel, fuse con lo sfondo dallo shader con il dual-source blending (come il testo delle app di Windows); altrimenti scala di grigi con lo stesso percorso. Dimensione regolabile con Ctrl+rotellina, Ctrl +/−, Ctrl+0;
 - **animazioni brevi e con uno scopo**: evidenziazione al passaggio del mouse che sfuma, cursore che scivola tra le righe, cartella nuova che entra in dissolvenza, icone che sostituiscono il segnaposto con una dissolvenza incrociata, menu e tooltip che compaiono in dissolvenza, indicatore della scheda attiva che scorre. Un solo meccanismo (avvicinamento esponenziale con costante di tempo nota); si ridisegna solo finché qualcosa si muove, poi zero CPU. Disattivabili con `animazioni=0`;
 - **tooltip** dopo mezzo secondo fermi (60 ms passando tra elementi vicini): sui file nome completo, tipo, dimensione in byte, risoluzione delle immagini (letta dall'intestazione PNG/JPEG/GIF/BMP), date di modifica e creazione con il tempo trascorso, attributi, totale della selezione; sulle cartelle il contenuto (letto in background, al massimo 200 ms) e la dimensione totale con il numero di file, che cresce mentre si conta; sulle unità file system, capacità, usato e libero; su schede, pulsanti, intestazioni e barra dei tempi cosa fanno. Le informazioni dal disco arrivano da un thread e il tooltip le aspetta al massimo 150 ms, così compare già completo;
@@ -128,7 +130,7 @@ Il programma non usa CPU quando non c'è niente da fare: ridisegna solo dopo un 
 
 ## Compilare: MSVC e zig
 
-Lo script trova da solo `cl.exe` tramite `vswhere`. Se nel PATH c'è anche `fxc.exe` (incluso nel Windows SDK), gli shader vengono precompilati e l'avvio è più rapido. Altrimenti vengono compilati all'avvio, e la barra di stato lo segnala.
+Lo script trova da solo `cl.exe` tramite `vswhere`. Se nel PATH c'è anche `fxc.exe` (incluso nel Windows SDK), gli shader vengono precompilati e l'avvio è più rapido. Altrimenti vengono compilati all'avvio, e la barra di stato lo segnala. L'icona (`src\z-f.rc`) la compila `rc.exe`, anche lui del Windows SDK, in `build\z-f.res`, che va al link con il resto.
 
 **Senza Visual Studio:** `winget install zig.zig`, poi `build_zig.bat`, che scrive `build\z-f-dev.exe` (la build di prova) e non tocca `build\z-f.exe`. Usa gli shader precompilati se `build.bat` li ha già prodotti in `build\`.
 

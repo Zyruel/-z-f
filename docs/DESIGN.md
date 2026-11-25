@@ -520,6 +520,18 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
     le sottocartelle, Esc prima svuota il testo e poi chiude;
   - mouse: la voce sotto il mouse diventa attiva; clic apre, clic centrale o Ctrl+clic in una
     nuova scheda; clic fuori chiude e basta, come i menu; tooltip con il percorso completo.
+- **Icona dell'applicazione** (`src\z-f.ico`, risorsa di `src\z-f.rc`): "[z]" in `C_ACCENT` su un
+  quadrato arrotondato `C_BG`, gli stessi due colori dell'interfaccia. Forma geometrica, senza font:
+  parentesi quadre con asta e grazie dello stesso spessore, "z" minuscola centrata fra le due.
+  - misure: 16, 20, 24, 32, 40, 48, 64 (BMP a 32 bit) e 256 (PNG);
+  - 16 e 20 hanno un disegno a pixel fatto a mano, tratti di 2 px: ridotto da quello grande,
+    "[z]" diventerebbe una macchia. Dalla 24 in su la stessa geometria con i bordi agganciati ai
+    pixel, angolo `0,22 ×` la misura; dalla 32 un margine trasparente di 1/32 della misura;
+  - la finestra la prende alla misura del suo schermo (`appIconSet`, `chrome.cpp`), dopo il
+    primo frame e a ogni cambio di DPI;
+  - si rigenera con `python strumenti\icona.py` (serve Pillow; `--anteprima <cartella>` scrive
+    le misure ingrandite in un PNG). Se cambiano `C_BG` o `C_ACCENT` in `theme.h`, si cambiano
+    anche in cima allo script.
 
 ---
 

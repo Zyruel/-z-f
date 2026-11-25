@@ -126,6 +126,7 @@ static void onDpi(UINT dpi) {
     fontCreate(A.scale);
     iconSetSize((int)lroundf(ui::LIST_ICON * A.scale));
     layout(); // in griglia il riquadro delle miniature cambia: si rifanno alla misura nuova
+    if (A.sideStarted) appIconSet(); // prima del primo frame la carica main.cpp
     A.dirty = true;
 }
 

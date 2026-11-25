@@ -1,0 +1,3 @@
+// Risorse di [z]f: per ora solo l'icona (disegnata da strumenti\icona.py). Solo ASCII.
+// L'ID e' ZF_ICON in base.h: qui si scrive il numero, perche' rc non legge base.h.
+1 ICON "z-f.ico"

@@ -188,7 +188,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     wc.lpfnWndProc = wndProc;
     wc.hInstance = inst;
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-    wc.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
+    wc.hIcon = LoadIconW(nullptr, IDI_APPLICATION); // la nostra arriva dopo il primo frame (appIconSet)
     wc.hbrBackground = CreateSolidBrush((COLORREF)(C_BG & 0xFFFFFF)); // finché D3D non è pronto
     wc.lpszClassName = L"z-f";
     RegisterClassExW(&wc);
@@ -324,6 +324,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
                 PostMessageW(A.hwnd, WM_CLOSE, 0, 0);
             }
             A.sideStarted = true;
+            appIconSet();
             sideLoad();
             dropRegister(); // OLE per ricevere i file trascinati: dopo il primo frame, non all'avvio
             dirSizeQueueCurrent(); // dimensioni delle cartelle: il disco serve prima alla lista

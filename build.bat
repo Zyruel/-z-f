@@ -41,14 +41,16 @@ echo [avviso] fxc non trovato: gli shader saranno compilati all'avvio.
 del /q build\shader_vs.h build\shader_ps.h 2>nul
 
 :compile
+rem Risorse dell'exe (l'icona): rc e' nel Windows SDK, come fxc
+rc /nologo /fo build\z-f.res src\z-f.rc || goto :fail
 rem shell32 e ole32 si caricano solo al primo uso (icone, menu, appunti), winhttp e bcrypt al primo
 rem controllo degli aggiornamenti: avvio piu' leggero
 set "DELAY=delayimp.lib /DELAYLOAD:shell32.dll /DELAYLOAD:ole32.dll /DELAYLOAD:winhttp.dll /DELAYLOAD:bcrypt.dll"
 set "COMMON=/nologo /std:c++17 /utf-8 /EHsc /W3 /DUNICODE /D_UNICODE /Ibuild /Fo:build\ /Fe:build\z-f.exe"
 if /i "%MODE%"=="debug" (
-    cl %COMMON% /Od /Zi /MTd /Fd:build\ src\z-f.cpp /link /SUBSYSTEM:WINDOWS /DEBUG %DELAY% || goto :fail
+    cl %COMMON% /Od /Zi /MTd /Fd:build\ src\z-f.cpp build\z-f.res /link /SUBSYSTEM:WINDOWS /DEBUG %DELAY% || goto :fail
 ) else (
-    cl %COMMON% /O2 /Oi /GS- /Gy /MT /DNDEBUG src\z-f.cpp /link /SUBSYSTEM:WINDOWS /OPT:REF /OPT:ICF %DELAY% || goto :fail
+    cl %COMMON% /O2 /Oi /GS- /Gy /MT /DNDEBUG src\z-f.cpp build\z-f.res /link /SUBSYSTEM:WINDOWS /OPT:REF /OPT:ICF %DELAY% || goto :fail
 )
 echo.
 echo Fatto: build\z-f.exe  [%MODE%]
