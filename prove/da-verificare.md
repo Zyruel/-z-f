@@ -1,0 +1,1026 @@
+# Prove da fare a mano — griglia, annulla, anteprima, "Vai a", rettangolo e colonne, pannelli, scorciatoie, trascinamento
+
+Stato: rilascio **0.28** (copia in `build\z-f-0.28.exe`): la **barra laterale a tutta altezza e
+ridimensionabile**, il filtro nella barra di stato e la barra dei tempi come opzione (sezione
+0000000000000000000), più le **unità sotto Questo PC** (sezione 000000000000000000). La 0.27 aveva
+la **colonna Destinazione dei
+collegamenti** (sezione 00000000000000000), già provata da Zyruel; resta un altro PC. La 0.26
+aveva gli **zip come cartelle** (sezione
+0000000000000000) e **Incolla da uno zip** (sezione 000000000000000): sono le prime prove da fare.
+Le idee per dopo sono in `docs/idee.md`, le piccole cose da sistemare in `docs/da-sistemare.md` (nella
+cartella del progetto). La 0.25 era la **fine del controllo del codice**: Shift+Canc e Proprietà
+sul thread del menu della shell, tasti dalla tabella delle scorciatoie (sezione 00000000000000).
+La 0.24 aveva l'**inizio di un trascinamento con molte voci** (sezione
+0000000000000: le prove verso le altre app restano da fare). La 0.23 aveva
+il **menu completo della shell su un thread suo** (sezione 000000000000). La 0.22 era il **controllo del codice**
+rispetto ai principi (sezioni da 000000 a 00000000000). La 0.21 aveva portato la
+**dimensione delle cartelle** e il **salto dei dialoghi Apri/Salva** (sezione 00000). La 0.20
+aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unità di rete**, i
+**nomi delle unità di rete** e l'opzione **"Menu completo di Windows col tasto destro"** (sezione
+0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
+restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
+
+## 00000000000000000000. Percorsi di rete sotto Questo PC (z-f-dev, novembre 2026)
+
+Provato da Claude in z-f-dev con un percorso di rete verso un NAS: la voce compare sotto le
+unità con lo spazio libero e la barra, il tooltip dice "Percorso di rete" e il percorso, il clic
+la apre ed evidenzia la voce; in "Questo PC" nella lista c'è con tipo "Percorso di rete" e
+l'anteprima mostra icona e spazio; "Altre opzioni…" apre il menu di Windows (prima della
+correzione non compariva). Quel giorno la condivisione era lentissima (50–60 s per rispondere):
+le unità avevano comunque subito il loro spazio, e il menu di Windows è comparso dopo 46 s.
+Restano a Zyruel:
+
+- [ ] **Con la condivisione veloce** (in rete locale): spazio e menu di Windows arrivano
+      subito.
+- [ ] **Un percorso di rete nuovo** creato con "Aggiungi un percorso di rete" mentre [z]f è
+      aperto: compare tornando su [z]f.
+- [ ] **NAS spento:** la voce resta (senza spazio), [z]f non si blocca, aprirla dà l'errore
+      solito.
+- [ ] **Condivisione del NAS:** se lo aggiungi come percorso di rete, compare anche lui.
+
+## 0000000000000000000. Barra laterale a tutta altezza, filtro nella barra di stato, barra dei tempi (0.28, novembre 2026)
+
+Chiesto da Zyruel, con uno screenshot: la barra laterale arriva in fondo alla finestra, libera, e
+si allarga trascinandone il bordo come l'anteprima; il filtro sta a sinistra nella barra di stato,
+allineato alla lista (prima prova: era nell'ultima riga della barra laterale, Zyruel la vuole tutta
+libera); i contatori di cartelle e file vanno a destra nella barra di stato; i tempi
+misurati hanno una barra loro sopra la barra di stato, solo con l'opzione "Barra dei tempi"
+(`barra_tempi`). I bordi di colonne, barra laterale e anteprima ora passano dallo stesso codice
+(`colDragStart`/`colDragEnd` in `listmouse.cpp`, `panelEdgeAt` in `app.cpp`); quello vecchio
+dell'anteprima è stato tolto. DESIGN, "Barra laterale", "Barra di stato", "Barra dei tempi".
+
+**Già provato da Claude** in z-f-dev, cartella di prova (25/11/2026): bordo della barra laterale
+trascinato e doppio clic (torna a 210), selezione accanto ai contatori, interruttore della barra dei
+tempi e tooltip dei tempi, Ctrl+B (il filtro va a sinistra della finestra). MSVC senza avvisi; nel
+registro solo le due voci normali dell'avvio.
+
+**Da provare:**
+- [ ] trascinare il bordo dell'anteprima: si comporta come prima (Esc torna a prima, doppio clic 360);
+- [ ] Esc mentre si trascina il bordo della barra laterale: torna alla larghezza di prima;
+- [ ] finestra stretta con barra laterale larga e anteprima aperta: cede prima l'anteprima, poi le colonne;
+- [ ] barra laterale con molte voci: scorre fino in fondo alla finestra e l'ultima voce si raggiunge;
+- [ ] filtro: scrivere nella lista, × per toglierlo, tooltip sul campo;
+- [ ] un avviso lungo (per esempio un errore) con molti selezionati: finisce in "…" prima della selezione;
+- [ ] con la barra dei tempi accesa, il pannello F12 sta sopra le due barre, non le copre;
+- [ ] trascinare file sulla barra laterale in basso: il rilascio sui preferiti funziona fino all'ultima voce.
+
+**Preferiti rientrati, riordinabili, cestino** (chiesto da Zyruel, stessa sera; `sidebar.cpp`,
+`favMouseDown`/`favMouseMove`/`favMouseUp`, `favTrashAt`, `drawFavGap` in comune con il rilascio
+da fuori). La conferma del cestino è sul posto e non un dialogo, per il principio 6.
+**Già provato da Claude** in z-f-dev con i preferiti veri (copia salvata prima e rimessa dopo,
+sha1 uguale): rientro, cestino al passaggio del mouse, una voce trascinata tra due preferiti, primo clic sul cestino "Togli?" in rosso, secondo clic tolto con l'avviso, clic semplice
+su Desktop apre la cartella.
+**Da provare:**
+- [ ] Esc durante il trascinamento di un preferito: resta dov'era; Esc con "Togli?": torna il cestino normale;
+- [ ] "Togli?" e poi il mouse su un'altra voce: la conferma sparisce;
+- [ ] Ctrl+clic e clic centrale su un preferito: nuova scheda;
+- [ ] rilasciare un preferito sotto l'ultimo o sopra il primo: va in fondo / in cima;
+- [ ] doppio clic sul cestino: non toglie (il secondo clic di un doppio clic non conta), serve un clic in più.
+
+## 000000000000000000. Unità sotto Questo PC nella barra laterale (0.28, novembre 2026)
+
+Chiesto da Zyruel: niente più titolo "Unità"; "Questo PC" è un nodo dell'albero, come in
+Explorer, con le unità rientrate sotto (`SIDE_INDENT`) e la freccia ˅/› a destra. Compilato con
+MSVC senza avvisi (in `build\z-f-dev.exe`: `build\z-f.exe` era aperto). La prova la fa Zyruel.
+
+- [ ] aspetto a 175%: spazio tra i preferiti e Questo PC (`GAP_L`), rientro delle unità, freccia
+  allineata a quella di "Preferiti", nomi lunghi delle unità di rete tagliati prima dello spazio libero;
+- [ ] clic sulla freccia: il ramo si chiude e si apre, ricordato al riavvio (`unita_aperte`);
+  clic sul nome: va a Questo PC; Ctrl+clic e clic centrale: nuova scheda;
+- [ ] a ramo chiuso, stando su C:\…: Questo PC con la pillola più chiara; a ramo aperto la
+  pillola è sull'unità;
+- [ ] tasto destro sulla freccia: il menu di Questo PC; tooltip sulla freccia: "Comprimi /
+  Unità di Questo PC";
+- [ ] preferiti vuoti: la riga "Ctrl+D aggiunge" non si sovrappone a Questo PC;
+- [ ] trascinare file su un'unità rientrata: l'indicatore è sulla riga giusta;
+- [ ] barra laterale più alta della finestra: lo scorrimento arriva fino all'ultima unità.
+
+## 00000000000000000. Colonna Destinazione dei collegamenti (0.27, novembre 2026)
+
+Chiesto da Zyruel: accanto ai collegamenti (.lnk) la loro destinazione, in
+grigio, e un clic porta lì ("Apri percorso file"). Scelta con Zyruel: una colonna "Destinazione",
+solo nelle cartelle con collegamenti (`lnk.cpp` lettore, `links.cpp` colonna e thread; README,
+"collegamenti"; DESIGN, sezione 7).
+
+**Già provato, senza interfaccia** (`prove\collegamenti-prova.cpp`): tutti i 177 collegamenti del PC
+(Desktop, menu Start, Recenti) più una cartella di prova (file accentato, cartella, `%windir%`,
+`C:\`, `\\server\condivisione\…` che non esiste) letti uguali a IShellLink di Windows. A caldo 0,09 ms
+a collegamento contro 0,86 di IShellLink; la prima lettura dopo l'avvio del PC circa 5 ms
+(disco e antivirus), sul thread. `computer.lnk` (un computer della rete, `\\computer`): niente
+destinazione, come per Windows. MSVC senza avvisi (anche `/W4`, a parte quello già noto di
+`zip.cpp`, in `docs/da-sistemare.md`).
+
+**Provato da Zyruel** in z-f-dev sulla cartella di prova (25/11/2026): tutto a posto; la riga di F12
+era troppo lunga e passava sotto il valore (accorciata, e ora nel pannello F12 un'etichetta che
+non ci sta finisce in "…"). **Resta da provare** su un altro PC, in una cartella con molti collegamenti a percorsi di rete e a un'unità di rete, confrontando con le proprietà di Windows. L'elenco
+completo, per riferimento (cartella di prova: si crea come sotto):
+- [ ] la colonna c'è solo dove ci sono .lnk; le destinazioni compaiono subito, in grigio; con la
+  finestra stretta cede per prima Destinazione, poi Data e Dimensione; il nome tiene il suo minimo;
+- [ ] mouse sopra la destinazione: manina e fondo chiaro solo attorno al testo (sullo spazio
+  vuoto della colonna la freccia normale), tooltip col percorso intero
+  e "Clic: apri percorso file · clic centrale: nuova scheda";
+- [ ] clic sulla destinazione: va nella cartella che la contiene, con la destinazione selezionata;
+  su `C:\`: Questo PC con l'unità selezionata; su `\\server\…` non raggiungibile: avviso di
+  errore, nessun blocco; clic centrale: nuova scheda in background;
+- [ ] doppio clic sulla destinazione (per abitudine): va lì una volta sola, non apre il
+  collegamento né la voce che arriva sotto il mouse;
+- [ ] trascinare partendo dalla destinazione: parte il rettangolo, nessuna navigazione;
+  Ctrl+clic e Shift+clic sulla destinazione: solo selezione;
+- [ ] intestazione: bordo Nome|Destinazione trascinabile, doppio clic adatta al percorso più
+  lungo, larghezza salvata (`colonna_destinazione`); clic su "Destinazione" ordina dalla A (senza
+  destinazione in fondo), "Ordina per destinazione" nel tooltip;
+- [ ] menu sul collegamento: "Apri percorso file"; tooltip della riga e anteprima: riga
+  "Destinazione";
+- [ ] creare, rinominare o cambiare un collegamento mentre la cartella è aperta: la destinazione
+  si aggiorna senza lampeggiare; F12 "collegamenti (thread)";
+- [ ] `build\z-f-log.txt`: nessuna voce nuova.
+
+Per creare la cartella di prova (PowerShell):
+`$sh = New-Object -ComObject WScript.Shell; $l = $sh.CreateShortcut("$PWD\prova.lnk"); $l.TargetPath = "C:\Windows\notepad.exe"; $l.Save()`
+
+## 0000000000000000. Zip come cartelle (0.26, novembre 2026)
+
+Aprire uno zip apriva Esplora file. Ora uno zip
+si apre dentro [z]f, con un lettore nostro (`zip.cpp`, `zipout.cpp`; README, "archivi zip come
+cartelle"; DESIGN, sezione 7).
+
+**Già provato, senza interfaccia** (`prove\zip-prova.cpp`, dati di prova creati con
+`Compress-Archive` e `System.IO.Compression`): elenco ed estrazione di zip "Optimal", "Fastest" e
+"NoCompression" (175 file, cartelle annidate, nomi accentati, binari incomprimibili, immagini,
+notepad.exe): tutti i file identici agli originali (sha1). Zip64 con 70.000 voci: directory centrale
+in 17 ms. Un registro da 138 MB: 244 ms (538 MB/s), identico. Nomi nella codepage 850 senza il bit
+UTF-8: letti giusti (àèìòù, ü). Zip troncato e file che non è uno zip: "Archivio zip non valido o
+non supportato". Un byte rovinato: il CRC lo trova (notepad.exe non estratto, niente file a metà).
+Percorsi dentro lo zip, sottocartelle (menu "›") e lettura parziale in memoria (anteprima).
+MSVC senza avvisi.
+
+**Da provare a mano** (l'accesso allo schermo non c'era: prima volta in z-f-dev, `prove\dev.bat`,
+in una cartella di prova con degli zip; `prove\prova.zip` va bene, oppure se ne crea uno grande con
+`Compress-Archive`):
+- [ ] doppio clic e Invio su uno zip: si apre come cartella; percorso a segmenti con il nome dello
+  zip; "›" sul segmento dello zip elenca le sue cartelle; ↑ e Backspace tornano alla cartella dello
+  zip con lo zip selezionato; ← → nella cronologia; titolo della scheda;
+- [ ] colonne Data e Dimensione (cartelle col totale), ordinamento, filtro, griglia, nascosti
+  attenuati; F12: "zip: directory centrale" con le voci, barra di stato coi tempi di lettura;
+- [ ] tooltip su file (tipo, dimensione, risoluzione delle immagini) e cartelle (contenuto,
+  dimensione) dentro lo zip;
+- [ ] anteprima: immagine, testo, cartella dentro lo zip; lo zip stesso selezionato in una
+  cartella normale mostra il contenuto con il totale nel piede;
+- [ ] griglia: miniature delle immagini dentro lo zip, icone per estensione degli altri (anche .exe);
+- [ ] doppio clic su un file: si apre col suo programma (file in `%TEMP%\z-f\<n>`); su uno zip
+  dentro lo zip: si apre in [z]f; F12 "zip: ultima estrazione";
+- [ ] Ctrl+C su file e cartelle, poi Incolla in [z]f e in Esplora file: arrivano i file;
+  avviso "Estratto e copiato: …";
+- [ ] trascinamento verso Esplora file e verso un'altra scheda di [z]f (copia); rilasciare prima
+  della fine di un'estrazione lunga (un file grande): niente trascinamento, niente rilascio sbagliato;
+- [ ] F2, Canc, Ctrl+X, Ctrl+V, Ctrl+Shift+N dentro lo zip: avviso "L'archivio zip è in sola
+  lettura"; menu: Taglia, Rinomina, Elimina, Incolla e Nuova cartella disattivati; niente Proprietà,
+  Apri con, terminale, "Altre opzioni…"; Shift+tasto destro apre il nostro menu; trascinare file
+  dentro lo zip: cursore di divieto;
+- [ ] uno zip cifrato o con un altro metodo (7-Zip, "Deflate64" o "LZMA"): avviso e Esplora file
+  selezionato sulla voce (`explorer.exe /select,` con un percorso dentro lo zip: da verificare che
+  Esplora file lo accetti);
+- [ ] F5 dopo aver cambiato lo zip da fuori (rilegge); zip cancellato mentre è aperto: F5 torna
+  alla cartella che lo conteneva;
+- [ ] preferito dentro uno zip: nome, clic, nessun rallentamento della barra laterale;
+- [ ] `build\z-f-log.txt` dopo le prove: "zip: elenco lento" / "zip: estrazione" solo oltre 100 ms.
+
+**Scelta da confermare:** i nomi senza il bit UTF-8 si leggono nella codepage OEM del sistema (come
+li scrivono Esplora file e 7-Zip), non sempre in 437 come dice la specifica: in Italia (850) le
+lettere accentate comuni sono uguali, ma À, Á e simili no. Segnata in `docs/da-sistemare.md`.
+
+## 000000000000000. Incolla da uno zip (0.26, novembre 2026)
+
+Un file copiato con Explorer da dentro uno zip non si incollava in [z]f.
+Negli appunti, in quel caso, non c'è `CF_HDROP` ma solo i formati della shell: "Shell IDList
+Array", "FileGroupDescriptorW", "FileContents", "AsyncFlag". [z]f guardava solo `CF_HDROP`.
+Lo stesso vale per telefoni e allegati.
+
+Ora:
+- "Incolla" (Ctrl+V, il nostro menu, il menu completo della shell) è attivo anche con "Shell IDList
+  Array" o "FileGroupDescriptorW" (`clipHasFiles`, `shell.cpp`: `IsClipboardFormatAvailable`, non
+  apre gli appunti);
+- sul thread di Incolla (`runPaste`), se gli appunti non hanno percorsi, l'oggetto degli appunti va
+  all'`IDropTarget` della cartella con l'effetto copia, o sposta dopo Taglia: lo stesso codice del
+  rilascio, spostato in `shellDropInto` (`drag.cpp`). Con `CF_HDROP` non cambia niente
+  (`IFileOperation`, annullabile). Gli elementi senza percorso non si annullano, come nel
+  rilascio da uno zip. Dopo Taglia gli appunti restano.
+
+**Trovato provando:** la prima versione chiamava `Drop` (S_OK in 2 ms), ma non estraeva niente.
+Negli appunti Explorer dice con il formato "AsyncFlag" che l'operazione può andare in asincrono: la
+shell tornava subito da `Drop` e poi richiamava il nostro thread (12 messaggi in circa 100 ms), ma
+il thread era già uscito. `SyncData`, l'involucro che già toglieva `IDataObjectAsyncCapability` al
+trascinamento, ora nasconde anche "AsyncFlag": la shell estrae dentro `Drop` (124 ms per un file)
+e il thread finisce dopo.
+
+**Strumento di controllo dello schermo:** ogni clic o tasto mandato da solo svuota gli appunti,
+anche un semplice testo. Dentro un `computer_batch` non succede. Per questo il Ctrl+V finale l'ha
+fatto Zyruel.
+
+Provato (z-f-dev, Zyruel): copiato da uno zip con Explorer, Ctrl+V nella cartella di prova: il
+file arriva e la lista si aggiorna. Registro: nessun messaggio lento. MSVC senza avvisi.
+
+Da provare a mano:
+- [ ] da uno zip, una cartella con dentro dei file, e più voci insieme;
+- [ ] "Incolla" del tasto destro (nostro menu) e del menu completo della shell, anche "Incolla" su
+      una cartella (finisce lì dentro: niente avviso, perché quanti elementi non si sa);
+- [ ] da uno zip con un nome che c'è già: la finestra dei conflitti di Explorer;
+- [ ] Taglia dentro uno zip e Incolla in [z]f;
+- [ ] da un telefono (MTP) e da un allegato di Outlook, se capita;
+- [ ] trascinare da uno zip in [z]f funziona come prima (anche il rilascio passa da `SyncData`).
+
+## 00000000000000. Ultimi punti del controllo del codice (0.25, novembre 2026)
+
+Compilato con MSVC senza avvisi (`/W3` e `/W4 /Zs`). Misure su questo PC (Ryzen 9 7900), con due
+programmi a parte che rifanno gli stessi passi di [z]f: `prove\shell-verbi.cpp` e
+`prove\vai-a-misura.cpp`.
+
+**1. Shift+Canc e Proprietà di più voci: spostate sul thread del menu della shell.** Prima
+`shellVerb` costruiva l'oggetto della shell e chiamava `InvokeCommand` sul thread dell'interfaccia.
+Il registro non lo vedeva (escludeva "delete" e "properties"). Misure, cartella di prova con file vuoti:
+
+| voci | prima del comando, locale | prima del comando, `\\localhost\c$` |
+|---|---|---|
+| 20 | 8 ms (40 la prima volta) | 14 ms |
+| 500 | 38 ms | 160 ms |
+| 2.000 | 131 ms | 680 ms |
+| 20.000 | 1.620 ms (ParseDisplayName 530, QueryContextMenu 1.100) | 8.100 ms (ParseDisplayName 8.070) |
+
+Poi, dentro `InvokeCommand`: Shift+Canc con 20.000 voci conta gli elementi per 1,4 s prima della
+conferma, quindi 3,1 s dal tasto alla finestra; risposto "Sì", l'eliminazione stessa gira lì dentro
+(21 s per 20.000 file vuoti). Proprietà torna subito (3 ms), la finestra arriva dopo 7 s dal suo
+thread. La condivisione era SMB verso questo stesso PC: una rete vera costa di più.
+
+Ora `shellVerb` manda la richiesta al thread del menu (`smSend`, lo stesso del menu completo:
+`smRunVerb`), che prepara e invoca il comando con [z]f proprietaria dei dialoghi. Copia e Taglia
+di unità e Questo PC (gli unici che passavano ancora dalla shell) vanno sullo stesso thread; gli
+appunti si consegnano a Windows dal thread, come per le voci del menu. Un clic durante l'attesa
+non annulla il comando (il menu sì). Spariti `shellMenuFor` e `invokeOn`. Nel registro "comando
+della shell lento" oltre `LOG_MENU` (tempo sul thread); in F12 la riga "comando della shell:
+preparazione (thread)".
+
+Provato (z-f-dev, 20.000 file finti): Ctrl+A, Shift+Canc, F12 premuto mezzo secondo dopo si apre
+subito; la conferma "Eliminare questi 20.000 elementi definitivamente?" compare dopo circa 3 s;
+"No" non elimina niente. F12: preparazione 1.598 ms (20000 voci), messaggio più lento 6,4 ms.
+Alt+Invio: Proprietà con "20.000 file", preparazione 1.547 ms, messaggio più lento 6,6 ms. Ctrl+C
+su Disco locale (C:) in Questo PC: negli appunti l'oggetto della shell (Shell IDList Array,
+FileDrop). Registro: solo le due righe "comando della shell lento" (1.598 e 1.547 ms, sul thread).
+
+**Successo provando:** la prima versione di `shell-verbi.cpp` chiudeva la prima finestra che
+compariva; con 20.000 voci era quella che conta gli elementi, non la conferma, e i 20.000 file
+finti della cartella di prova sono stati eliminati davvero. Corretto: aspetta la finestra con "No".
+
+**2. "Vai a": nessun cambiamento, i numeri non lo chiedono.** Caso peggiore teorico: 30 cartelle
+attive con 3.000 sottocartelle ciascuna (`DIR_MAX`), 90.000 nomi. Ogni ricerca costa 2,5–5,8 ms
+(la peggiore è una ricerca che sta tutta nel percorso delle cartelle, come "users\utente": ogni
+sottocartella passa al confronto col percorso intero). Con le cartelle che arrivano una alla volta
+la somma è 40–70 ms, ma divisa in 30 messaggi, ognuno sotto la soglia `LOG_GOTO` (8 ms), con
+frame in mezzo. Con i dati veri di questo PC (preferiti e 20 recenti: 25 cartelle, 248 nomi):
+0,04 ms. Il registro non ha mai segnato "vai a: ricerca lenta". A campo vuoto, il caso più comune
+all'apertura, le cartelle che arrivano non entrano nemmeno nella ricerca.
+
+**"messaggio lento 0x0006" all'avvio: guardato, è Windows.** Nel registro 3 avvii su 91 (25,5,
+58,9 e 77,6 ms; l'ultimo con dentro "0x0281" 66,9 ms), anche con la 0.24, sempre 40–85 ms dopo
+"--- avvio", cioè in `ShowWindow` (`main.cpp`), prima di creare il device D3D. [z]f non gestisce
+`WM_ACTIVATE` né `WM_IME_SETCONTEXT` (0x0281): il tempo è in `DefWindowProc`, la prima volta che
+una finestra del thread prende il fuoco. Misurato con `prove\ime-avvio.cpp` (finestra nascosta che
+prende il fuoco solo nel suo thread: nessuna finestra sullo schermo), 20 processi:
+- il primo fuoco costa 14–17 ms (il secondo 0,5 ms): Windows carica e avvia il Text Input
+  Framework del thread (`textinputframework.dll`, `CoreMessaging.dll`, `CoreUIComponents.dll`,
+  `wintypes.dll`, `Oleacc.dll`, `OLEAUT32.dll`…), che serve a IME, pannello delle emoji, dettatura;
+- caricare prima quelle DLL su un altro thread toglie solo circa 3 ms (12–14 ms restano): il resto
+  è l'avvio per thread, che si fa solo sul thread della finestra;
+- i casi lenti del registro sono le volte in cui questo passo va lento (probabilmente l'attesa di
+  un altro processo di Windows, come TextInputHost, o la cache del disco fredda). Disattivare il
+  Text Input Framework per [z]f lo toglierebbe, ma toglierebbe anche IME ed emoji: no.
+
+**Fatto (z-f-dev, dopo la 0.25, deciso con Zyruel): l'attivazione va dopo il primo frame.**
+`main.cpp` mostra la finestra con `SW_SHOWNOACTIVATE`, crea D3D e disegna il primo frame, poi
+chiama `SetForegroundWindow`. Il costo del primo fuoco resta, ma a contenuto già visibile. Se chi
+avvia [z]f chiede la finestra ridotta a icona o ingrandita (`STARTUPINFO`), si mostra come prima.
+F12 ha la riga nuova "attivazione (dopo il primo frame)".
+
+Misurato con `prove\avvio.bat` e l'opzione nuova `--prova-avvio`, che scrive nel registro
+"prova avvio: contenuto" e "prova avvio: primo fuoco" (con 1 se la finestra è in primo piano) e
+chiude la finestra. Confronto con una build uguale ma con l'attivazione dentro `ShowWindow`, 16
+avvii alternati per build:
+
+| | contenuto visibile (mediana, min–max) | primo fuoco | in primo piano |
+|---|---|---|---|
+| prima (in `ShowWindow`) | 74 ms (56–120) | 29 ms (16–65), prima del frame | 16 su 16 |
+| dopo il primo frame | **51 ms** (37–63) | 11,5 ms (10–14), dopo il frame | 16 su 16 |
+
+Provato anche con `start /min` (resta ridotta a icona, non prende il primo piano), `start /max`
+(ingrandita, in primo piano) e normale (in primo piano). Nell'uso normale (tre avvii con
+`prove\dev.bat`) il registro ha solo le voci solite dell'avvio. Con `--prova-avvio` la chiusura
+subito dopo l'avvio registra "messaggio lento 0x0010" (30–100 ms, con dentro a volte "0x0086"):
+è la chiusura a metà del passaggio WARP → GPU, solo nella prova.
+
+**Successo provando:** un comando di prova con `start` scritto male (le virgolette passate da Bash)
+ha fatto comparire più volte l'errore di Windows "Impossibile trovare '\\'". Fermato; per queste
+prove ora c'è un .bat.
+
+Da provare a mano:
+- [ ] [z]f al posto di Explorer: Win+E, una cartella aperta dal desktop, "Apri percorso file" da
+      un'altra app: la finestra nuova viene in primo piano (con la 0.25 in `build\z-f.exe` questo
+      non c'è ancora: serve il prossimo rilascio);
+- [ ] una seconda apertura mentre [z]f è già aperto: la cartella va nella finestra esistente come prima.
+
+**3. Ritocchi da 1 px: fatti come proposto, decisi con Zyruel.** Niente cambia sullo schermo.
+- **segnaposto delle icone** (`render.cpp`, il rettangolo che c'è prima che arrivi l'icona): le
+  proporzioni sono in `theme.h`: `PH_TAB_Y = 0.12`, `PH_TAB_W = 0.45`, `PH_TAB_H = 0.2`
+  (linguetta della cartella); `PH_BODY_Y = 0.25`, `PH_BODY_CUT = 0.3` (corpo: da 0,25, alto il
+  lato meno 0,3); `PH_FILE_X = 0.15`, `PH_FILE_W = 0.7` (foglio). Stesse formule di prima;
+- **`+ 1` in `drawCrumbs`** tolto. Tutte le posizioni dei segmenti sono intere, quindi il testo ci
+  sta lo stesso (provato: i segmenti lunghi come "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" interi);
+  cambia solo un segmento troncato perché più largo della barra, che finisce 1 px prima;
+- **`ROW_EXTRA`** resta `lroundf(9 × scala)`: con `px()` (per difetto) le righe sarebbero 1 px più
+  basse a 150% (14 → 13), 175% (16 → 15, il monitor di Zyruel) e 250% (23 → 22). È l'eccezione
+  voluta, scritta in `theme.h`, in `layout` e in DESIGN.md §3: anche così cade su pixel interi.
+
+**4. Tasti ricavati dalla tabella delle scorciatoie: fatto, deciso con Zyruel.** Prima i tasti
+stavano in tre posti: `onKey`, `WM_SYSKEYDOWN` (Alt+frecce, Alt+Invio, Alt+P) e `kShortcuts`
+(confrontati a mano: coincidevano). Ora in `kShortcuts` ogni tasto che esegue solo un comando si
+scrive `K(comando, modificatori, tasto)`:
+- `onKey` lo cerca lì (`shortcutCmd`) e lo esegue con lo stesso codice del menu: lo `switch` di
+  `menuExec` ora è `menuRun(id, CmdCtx)`, con `case` nuovi per i comandi senza voce (`M_BACK`,
+  `M_FWD`, `M_UP`, `M_EDIT_PATH`, `M_SIDEBAR`);
+- `WM_SYSKEYDOWN` e `WM_SYSCHAR` passano a `onKey` i tasti Alt della tabella (gli altri, come
+  Alt+F4, restano a Windows);
+- il nome mostrato si ricava dal tasto (`keyName`: "Ctrl+Shift+N", "Alt+↑", "Canc", "Ctrl+,");
+- in `onKey` restano scritti a mano solo i tasti che dipendono dal contesto: frecce, PagSu e
+  PagGiù, Home e Fine, Backspace, Esc, Ctrl+Spazio, Ctrl+Tab, Ctrl+1…9, Ctrl+A, Ctrl+V (incolla
+  anche un percorso o un testo, il menu solo i file), Ctrl +/−/0, F12, Menu;
+- strada facendo, due copie diventate una: F5 e "Aggiorna" dei menu (`refreshNow`, che riprova
+  anche il watcher come faceva solo F5) e mostra/nascondi la barra laterale (`sidebarToggle`, era
+  scritta in tre posti).
+
+Cambia una cosa: i modificatori devono essere esattamente quelli della tabella. Prima
+Ctrl+Shift+W chiudeva la scheda, Ctrl+Shift+T ne apriva una, Ctrl+Invio e Shift+Invio aprivano la
+voce, Shift+F5 ricaricava; ora non fanno niente. Alt+P con un menu aperto ora chiude il menu (come
+ogni tasto) invece di aprire anche l'anteprima, e con "Vai a" aperto non fa niente (come Alt+frecce).
+
+Provato (z-f-dev, cartella di prova con 2 cartelle e 3 file): Ctrl+B, Alt+P, Ctrl+Shift+3,
+Ctrl+Shift+6, Invio, Alt+↑, Alt+←, Alt+→, Ctrl+T, Ctrl+Shift+W (niente, giusto), Ctrl+W, Ctrl+G,
+F4, F2, Ctrl+, (nelle scorciatoie i nomi ricavati sono uguali a prima), Ctrl+Shift+N con Ctrl+Z,
+Canc con Ctrl+Z e Ctrl+Shift+Z, Shift+Canc (conferma, "No"), Alt+Invio su un file; menu del tasto
+destro con Invio, Ctrl+X, Ctrl+C, Ctrl+Shift+C, F2, Canc, Alt+Invio, Shift+F10; tooltip di ← con
+"Alt+← · tasto laterale indietro". Registro: nessun messaggio lento, solo due "attesa vsync lunga"
+(39 e 59 ms, il debito noto).
+
+Da provare a mano:
+- [ ] Shift+Canc su pochi file in una cartella vera: conferma come prima, "Sì" li elimina e la
+      lista si aggiorna;
+- [ ] Shift+Canc su una cartella di rete vera, con molte voci: l'interfaccia resta libera finché
+      compare la conferma;
+- [ ] Proprietà di più voci da menu (tasto destro → Proprietà) e da Alt+Invio;
+- [ ] Ctrl+C e Ctrl+X su un'unità in Questo PC, poi Incolla in Explorer (ci si aspetta che
+      Explorer rifiuti come prima: è la stessa operazione della shell);
+- [ ] i tasti non provati qui: Ctrl+P, Ctrl+L, F5, Ctrl+D (aggiunge e toglie dai preferiti),
+      Ctrl+Shift+2 e 4, Ctrl+Y, Ctrl+C/X/V su file, Ctrl+Shift+C; e che Alt+F4 chiuda ancora la
+      finestra e Alt+Spazio apra il menu di sistema.
+
+## 0000000000000. Inizio di un trascinamento con molte voci (z-f-dev, novembre 2026)
+
+Compilato con MSVC senza avvisi (`/W3` e `/W4`). L'oggetto della shell per la selezione costa
+circa 25 µs a voce sul thread dell'interfaccia (20.300 voci: 550 ms prima che il trascinamento
+parta). Da 500 voci (`kDragFastItems`, circa 12 ms con l'oggetto della shell) si trascina un
+oggetto con i soli percorsi (`CF_HDROP`), lo stesso di Copia e Taglia (`hdropObject` in
+`shell.cpp`). Senza immagine Windows disegnava un quadrato bianco: ora è l'icona grande del primo
+elemento, per estensione dalla lista delle icone di sistema, con "Sposta in …" sotto. Sotto le 500
+voci non cambia niente.
+
+**Trovato provando:** a fine operazione su 20.000 file, `onFileJob` dimenticava i totali delle
+cartelle percorso per percorso (60.000 chiamate): "messaggio lento 0x800E 76 ms". Ora, oltre 256
+percorsi, `dirSizeForgetAll` li dimentica tutti in un colpo; i totali si rifanno in background.
+
+Provato (cartella di prova, 20.000 file vuoti): selezionati tutti, trascinati sulla scheda di
+un'altra cartella (si apre dopo mezzo secondo) e rilasciati nella lista. Inizio del trascinamento
+10,8 ms (F12, "copia, taglia, trascina, menu"), immagine con l'icona dei .txt e "Sposta in molti",
+tutti i 20.000 file spostati, nessun messaggio lento nel registro. Lo spostamento in sé (88 s per
+20.000 file, sul thread di `IFileOperation`) è quello di Explorer.
+
+Da provare a mano:
+- [ ] 600 file trascinati su altre app: il desktop, una cartella di Explorer, una cartella zip,
+      un allegato di Outlook o del browser (ricevono solo i percorsi);
+- [ ] Alt+trascina 600 file sul desktop: crea i collegamenti;
+- [ ] 400 file: tutto come prima (immagine della shell con le miniature).
+
+## 000000000000. Menu completo della shell su un thread suo (z-f-dev, novembre 2026)
+
+Compilato con MSVC senza avvisi (`/W3` e `/W4`). `QueryContextMenu` (carica tutte le estensioni)
+e `TrackPopupMenuEx` girano su un thread STA con una finestra nascosta sua (`shell.cpp`, "menu
+completo della shell, su un thread suo"): non figlia né posseduta da quella di [z]f, perché tra
+thread diversi Windows legherebbe le code dell'input. Il menu prende il primo piano per la sua
+finestra e lo restituisce a [z]f, se nel frattempo non si è passati a un'altra app. Elimina,
+Incolla, Rinomina, Copia e Taglia tornano al thread UI con i percorsi del clic; le altre voci le
+esegue la shell sul thread, con [z]f proprietaria dei dialoghi. Il thread resta vivo; se è occupato
+(un comando lungo) il menu successivo ne usa un altro, fino a 4. Chiudendo [z]f mentre un comando
+della shell è in corso, la finestra sparisce e il processo aspetta, come per le copie.
+
+Provato (cartella di prova):
+- Shift+clic destro su un file: il menu compare, scuro; "Invia a" si apre con le sue icone
+  (sottomenu disegnato dall'estensione, ora sulla finestra del thread);
+- "Elimina" dal menu: il file va nel Cestino tramite [z]f, e Ctrl+Z lo rimette ("Annullata
+  l'eliminazione di tre.txt: di nuovo in rinomina");
+- "Rinomina" dal menu: la casella si apre sulla voce, "quattro" + Invio la rinomina; la tastiera
+  torna a [z]f;
+- menu dello sfondo: Incolla (grigio senza file negli appunti) e Aggiorna in cima; Esc lo chiude e
+  una lettera dopo filtra;
+- registro: "menu della shell lento" 453 ms la prima volta, poi 180–200 ms, **sul thread**; nessun
+  "messaggio lento" del thread dell'interfaccia (prima quei tempi erano un blocco dell'interfaccia).
+
+Provato da Zyruel col mouse (tutto passa):
+- [x] clic destro e subito un clic altrove (entro un quarto di secondo): il menu non compare dopo;
+- [x] menu aperto, clic su un'altra app: il menu si chiude e [z]f non si riprende il primo piano;
+- [x] una voce lunga di un'estensione (7-Zip, "Estrai tutto…") e intanto un altro menu: compare;
+- [x] "Proprietà" e "Apri con" dal menu: i dialoghi stanno sopra [z]f;
+- [x] "Copia come percorso" e Copia su un'unità in Questo PC: gli appunti restano anche chiudendo [z]f.
+
+Nota sulle prove a schermo: lo strumento che controlla lo schermo, a ogni chiamata nuova, riporta
+davanti la finestra principale e così chiude il menu (che ha il primo piano su un'altra finestra);
+dentro una stessa chiamata il menu resta. Con il mouse vero non dovrebbe succedere: è la prima
+cosa da guardare (apri il menu, muoviti tra le voci e i sottomenu senza fretta).
+
+## 00000000000. Chiusura del controllo del codice (z-f-dev, novembre 2026)
+
+Compilato con MSVC senza avvisi, ora anche con `/W4 /Zs` (i 5 di prima corretti). Le voci di
+`prompt-dopo-il-controllo.md`, una per una.
+
+**Bug piccoli** (tutti verificati nel codice prima di correggerli):
+1. contatori col filtro: `applyFilter` segna i contatori da rifare. Provato: filtro "alfa" (2 cartelle,
+   1 file), poi Ctrl+V di "beta" (1 cartella, 2 file, stesse 3 voci): ora 1 e 2, prima restava 2 e 1;
+2. Ripeti vecchio dopo un annullamento: le operazioni nuove non aspettano (niente da far aspettare);
+   un annullamento finito va tra i Ripeti solo se nel frattempo non ne è stata registrata un'altra
+   (`UH.pushes`);
+3. totale di una cartella vecchio: se durante un conto arriva `dirSizeForget` per quella cartella o
+   una dentro, il conto non si scrive e si rifà;
+4. tooltip: `CoInitializeEx` sul suo thread. Provato: il tipo del file c'è;
+5. dialoghi Apri/Salva: chiudendo (o nascondendo, con un'operazione in corso) la finestra che era
+   l'ultima usata, la memoria condivisa passa alla finestra di [z]f più in alto. Se l'HWND salvato
+   non esiste più (processo caduto) decide la più in alto, la stessa per tutti;
+6. "Usa [z]f al posto di Explorer": percorso dell'exe anche oltre `MAX_PATH`, e senza percorso
+   l'attivazione si rifiuta ("Impossibile modificare il registro");
+7. menu "›" e "Vai a": la chiave dell'ordinamento poteva superare il buffer con nomi che si
+   scompongono in più lettere (Hangul). Ora un limite unico (`kKeyMax`). Provato: cartelle coreane,
+   ordine naturale (나무1, 나무2, 나무10) e menu "›";
+8. ricarica in più: `refreshAgain` si azzera a ogni lettura nuova e al cambio di scheda; una
+   ricarica superata non azzera più `refreshInFlight` di quella nuova;
+9. rinomina dopo una ricarica: la voce si ritrova col suo nome. **Trovato in più:** dopo "Nuova
+   cartella" il controllo della rinomina girava dopo `beginRename` e rimetteva la casella sulla voce
+   che aveva il cursore prima: confermando, si sarebbe rinominata quella. Provato: cursore su
+   uno.txt, Ctrl+Shift+N, "nuova", Invio: si rinomina la cartella nuova, uno.txt resta. Ctrl+Z:
+   "Annullata la creazione di nuova";
+10. `gfx.cpp`: `QueryInterface`, `GetAdapter`, `GetBuffer` controllati, niente perdite se manca la factory;
+11. anteprima: `pvCancelled` ovunque; il thread senza pompa dei messaggi resta così (vive per una
+    richiesta sola), con il perché nel commento.
+
+**Thread dell'interfaccia:**
+- Ctrl+V (caselle e lista) legge gli appunti su un thread e il testo arriva qualche millisecondo
+  dopo. Provato nel filtro e nella casella del percorso;
+- "Usa [z]f al posto di Explorer" scrive il registro e avvisa Explorer su un thread; il tempo va
+  sempre nel registro ("al posto di Explorer"). **Non provato** (non si tocca il registro al tuo posto);
+- icone su due thread (per estensione; dal file o dall'unità). **Trovato provando:** i due thread
+  insieme facevano fallire la prima `SHGetFileInfo` (F12: "2 fallite", cartelle col segnaposto e
+  preferiti senza icona); ora il secondo aspetta il primo. Dopo: 4 caricate, 0 fallite, contenuto
+  visibile a 56 ms, prima icona a 72 ms;
+- dimensione delle cartelle iterativa invece che ricorsiva. Provato: 3000 livelli (percorso di
+  6124 caratteri), colonna "5,9 KB", giusto.
+
+**Coerenza:** scorciatoie dei tooltip (schede, ← → ↑, ▯, percorso, filtro, "Vai a") da `kShortcuts`
+con `shortcutsOf`, separatore " · " ovunque (anche date e piedi dell'anteprima), soglie del registro
+e i due tempi di lavoro in `theme.h`, "primi 256 KB" da `kPvTextMax`, il contenuto di una cartella
+con una funzione sola (`contentLine`) per tooltip e anteprima. Nel pannello delle opzioni Indietro e
+Avanti sono ora due righe, e Backspace sta con la cartella superiore.
+
+**Misure:** il percorso a segmenti (rifatto a ogni frame) costa 0,00 ms, peggiore 0,01 (nuova riga
+in F12): niente cache. Le miniature per cella restano a 0,23 ms in WinSxS (misura di prima): sotto
+il millesimo di frame che conta, niente cache per ora.
+
+Da provare a mano:
+- [ ] Ctrl+V nella rinomina e in "Vai a" (il testo arriva e "Vai a" cerca);
+- [ ] "Usa [z]f al posto di Explorer" acceso e spento dalle opzioni: l'interruttore si aggiorna
+      all'avviso, nel registro una riga "al posto di Explorer" con il tempo;
+- [ ] due finestre di [z]f, chiudi quella usata per ultima: un dialogo Apri salta nella cartella
+      dell'altra;
+- [ ] icone di .lnk ed .exe su una condivisione lenta: le altre icone arrivano lo stesso.
+
+Lasciati a te (lavori grossi o da decidere):
+- menu completo della shell su un thread suo (debito in CLAUDE.md);
+- inizio di un trascinamento con molte voci (oggetto della shell come per gli appunti, magari solo
+  sopra un certo numero);
+- Shift+Canc e Proprietà di più voci: il registro non le misura (aprono finestre di Windows), serve
+  una misura apposta;
+- "Vai a" che rifà la ricerca a ogni cartella in arrivo: il registro non ha mai segnato "ricerca lenta";
+- da decidere: segnaposto delle icone, `+ 1` in `crumbs.cpp`, `ROW_EXTRA` con `lroundf`; tasti
+  scritti in `onKey` a parte da `kShortcuts`.
+
+## 0000000000. Velocità: misure e memoria delle miniature (z-f-dev, novembre 2026)
+
+Compilato con MSVC senza avvisi (con `/W4` ne restavano 5, non 4: il filtro nascondeva quello di `std::fill`; ora zero, sezione 00000000000). Cosa dicevano le misure:
+- **"Present lento" a ogni avvio:** è il primo `Present` sulla swapchain nuova della GPU, dentro il
+  passaggio WARP → GPU (`messaggio lento 0x8002`, che lo contiene). Nelle 30 volte del log cade
+  sempre 4–9 ms prima del `0x8002`. Costa 18–26 ms al driver e non è un rallentamento nuovo: ora il
+  log lo chiama "primo Present GPU" e CLAUDE.md lo mette tra le voci normali;
+- **costi a ogni frame**, misurati a parte con lo stesso codice (`prove\costi-frame.cpp`, il
+  minimo su 2000 giri): `selCount` su 30.734 voci 0,020 ms; `dirSizeGet` per 60 righe 0,003 ms; `iconFor`
+  per 60 righe 0,001 ms. Con un frame di 0,12–0,32 ms (misurato in [z]f) e un obiettivo sotto
+  1 ms non valgono una cache: lasciati così;
+- **menu completo della shell** (250–550 ms): è Windows che carica le estensioni, a ogni apertura.
+  È un'opzione e il tempo è già misurato. Toglierlo dal thread dell'interfaccia vorrebbe dire
+  costruire e mostrare il menu su un thread suo, con una finestra sua: lavoro grosso, segnato tra i
+  debiti tecnici di CLAUDE.md con il piano.
+
+Cambiato:
+- **miniature fuori dalla griglia:** quando nessuna scheda è più in griglia si libera anche la RAM
+  (fino a 96 MB), non solo la VRAM;
+- **tempi nuovi in F12:** "miniature: creazione dell'atlante (UI)" (nel registro se supera 16 ms)
+  e "primo caricamento di WIC", ora misurato anche quando lo carica la griglia e non l'anteprima;
+- il pannello F12 ha posto per 128 righe (erano 80, senza controllo: con tutte le sezioni aperte
+  ci si avvicinava).
+
+Non provati a schermo (stavi usando il PC):
+- [ ] **memoria:** in una cartella di foto, griglia (Ctrl+Shift+2), scorri un po', poi elenco
+      (Ctrl+Shift+6): in Gestione attività la memoria di z-f-dev scende; tornando in griglia le
+      miniature ricompaiono subito;
+- [ ] **F12 in griglia:** le righe "creazione dell'atlante" e "primo caricamento di WIC" hanno
+      valori sensati (se la prima immagine la apre la griglia);
+- [ ] **log:** all'avvio "primo Present GPU" al posto di "Present lento".
+
+## 000000000. Coerenza: colori e misure da theme.h (z-f-dev, novembre 2026)
+
+Compilato con MSVC senza avvisi (con `/W4` ne restavano 5, non 4: il filtro nascondeva quello di `std::fill`; ora zero, sezione 00000000000). Nessun `rgba(` fuori da
+`theme.h` e nessun `floorf(N * s)`/`px(N)` con un numero:
+- **colori nuovi in `theme.h`:** `C_CLOSE` e `C_ON_CLOSE` (pulsante chiudi), `C_KNOB_ON`
+  (pallino dell'interruttore acceso), `C_SEL_EDGE_PARENT` (pillola dell'unità che contiene la
+  cartella aperta), `C_ICON` e `C_ICON_HIDDEN` (icone e immagini; i file nascosti al 43%). `C_BG`
+  non è più ricopiato a mano nello sfondo di D3D e della finestra;
+- **misure nuove:** pulsanti e margini delle schede, barra laterale, tooltip, pannello delle
+  opzioni e interruttore, campo del filtro, entrata della lista, finestra nuova e minima, font
+  delle icone, menu da tastiera; il resto usa nomi che c'erano già (`GAP_*`, `EDGE`, `FIELD_PAD`);
+- **hover con dissolvenza** anche per + e × delle schede e × del filtro (erano gli ultimi accesi
+  di colpo);
+- DESIGN.md diceva `PATH_BAR` 1,6: è 1,45 (il valore di `theme.h`, quello che si vede).
+
+I valori sono gli stessi di prima, quindi a scala 100% l'aspetto non deve cambiare. A scale diverse
+cambia al massimo un pixel in tre punti:
+- il margine dal bordo della finestra di tooltip e menu, che prima erano 4 e 2 px non scalati;
+- il pallino dell'interruttore, ora con lo stesso rientro sui due lati;
+- la × e il + delle schede, prima con frazioni di pixel.
+
+Claude non l'ha confrontato a schermo: mentre apriva la 0.21 per il confronto stavi usando il PC, quindi ha lasciato schermo e tastiera. Da guardare,
+z-f-dev accanto a `build\z-f-0.21.exe --new-window`:
+- [ ] **barra del titolo:** schede, separatori, titolo, + e × (ora sfumano entrando e uscendo col
+      mouse), pulsante chiudi rosso col simbolo bianco;
+- [ ] **barra laterale:** voci, spazio libero, barra d'uso, pillola dell'unità più chiara, "Ctrl+D
+      aggiunge" con i preferiti vuoti;
+- [ ] **barra di stato:** campo del filtro e la sua × (sfuma);
+- [ ] **opzioni (Ctrl+,):** misura del pannello, interruttori (il pallino), "13 px", carattere, ricerca;
+- [ ] **tooltip e menu** vicino al bordo destro e in basso della finestra;
+- [ ] **file nascosti** con l'icona attenuata, in elenco, in griglia e nell'anteprima di una cartella.
+
+## 00000000. Niente duplicati (z-f-dev, novembre 2026)
+
+Compilato con MSVC senza avvisi (con `/W4` ne restavano 5, non 4: il filtro nascondeva quello di `std::fill`; ora zero, sezione 00000000000). Un posto solo per:
+- **"unità lenta?"** (`slowPath`): erano tre versioni diverse. Ora "Vai a", miniature e dimensione
+  delle cartelle trattano allo stesso modo rete e unità ottiche: la dimensione delle cartelle non
+  conta più da sola un CD/DVD, come già non faceva con la rete;
+- **"solo online?"** (`onlineOnly`): il tooltip non riconosceva `RECALL_ON_OPEN`, anteprima e
+  miniature sì; ora dicono la stessa cosa;
+- **tipo di unità** (`driveKind`): la lista di Questo PC diceva "Rimovibile" e "CD/DVD", la barra
+  laterale "Unità rimovibile" e "Unità ottica". Ora ovunque come Windows: "Unità rimovibile",
+  "Unità ottica", "Disco RAM";
+- **× del filtro** (`fltClearAt`), **suggerimento del campo vuoto** (in `drawField`: "Vai a una
+  cartella…", "Cerca…"), **scorciatoie del menu della shell** (da `kShortcuts`), **righe per
+  scatto della rotellina** (`ui::WHEEL_LINES`), **icone della lista** (`ui::LIST_ICON`),
+  `ICON_ATLAS`, `kInstanceProp`, le misure del testo (`ui::FONT_*` senza alias);
+- tolti: il collegamento a `dxgi.lib` (nessuna funzione usata), `IC_SEARCH`, `IC_SETTINGS`, un
+  commento orfano.
+
+`build_zig.bat` ora scrive `build\z-f-dev.exe`, non più `build\z-f.exe` (la build MSVC che usi),
+e usa gli shader precompilati se ci sono. Non provato: zig non è installato su questo PC.
+
+Claude l'ha provato a schermo su z-f-dev: × del filtro (si evidenzia e svuota), "Vai a una
+cartella…" e "Cerca…", menu della shell sullo sfondo con "Incolla Ctrl+V" e "Aggiorna F5",
+Questo PC ("Disco locale"). Log pulito.
+
+- [ ] **una chiavetta o un lettore DVD**: in Questo PC e nella barra laterale lo stesso nome,
+      "Unità rimovibile" / "Unità ottica";
+- [ ] **un file OneDrive solo online**: tooltip, anteprima e miniatura dicono tutti "solo online".
+
+Resta doppio, di proposito: `kShaderSrc` in `gfx.cpp` è una copia di `shader.hlsl` per quando gli
+shader non sono precompilati (zig, o MSVC senza fxc). Toglierla vorrebbe dire non avere shader
+senza fxc. Se cambi `shader.hlsl`, va cambiata anche lei.
+
+## 0000000. Il thread dell'interfaccia non tocca il disco (z-f-dev, novembre 2026)
+
+Compilato con MSVC senza avvisi (con `/W4` ne restavano 5, non 4; ora zero, sezione 00000000000). Claude l'ha provato
+a schermo su z-f-dev, in cartelle di prova nello scratchpad (una con 20.300 voci finte). Misurato:
+- **Ctrl+C e Ctrl+X** su 20.300 voci: da 545 ms a **5,8 ms** (F12, riga "copia, taglia, trascina,
+  menu"). Negli appunti 20.300 file e, dopo Taglia, "Preferred DropEffect" = sposta. Copia e Incolla
+  di beta.txt, Taglia e Incolla di gamma.txt in un'altra cartella: giusti, e dopo Taglia gli appunti
+  si svuotano;
+- **ingresso di un trascinamento** con 20.300 voci: da **10.352 ms a 37 ms**. Era
+  `DragQueryFileW`, che riparte dall'inizio dell'elenco per ogni voce. Lo stesso codice serve
+  Incolla e il rilascio da altre app. Movimento sopra una destinazione: da 2,5 ms a ogni
+  `DragOver` a un controllo solo quando la destinazione cambia;
+- **watcher** aperto dal suo thread: un file creato da fuori compare da solo;
+- **log** scritto da un thread: le righe arrivano (avvio, vsync, le misure nuove);
+- **Nuova finestra** (≡) si apre nella stessa cartella; **Cartella delle impostazioni** apre la
+  scheda su `%APPDATA%\z-f` (la cartella la crea un thread).
+
+Non provati a schermo:
+- [ ] **unità di rete lenta o appesa**: entrare e uscire da una sua cartella non blocca più
+      l'interfaccia (il watcher apre e chiude sul suo thread); **Disconnetti** stando dentro
+      l'unità funziona ancora (il thread della disconnessione aspetta che il watcher abbia chiuso);
+- [ ] **antivirus o disco lento al salvataggio**: le impostazioni si salvano senza bloccare (la
+      coda ha un lock suo, separato da quello delle scritture);
+- [ ] **chiavetta inserita e tolta più volte di fila**: la barra laterale si aggiorna con un solo
+      thread alla volta;
+- [ ] **"Annulla dopo il riavvio" con un'operazione enorme** (Ctrl+A e sposta migliaia di file):
+      F12 "annulla: registrazione" resta sotto pochi ms;
+- [ ] **Incolla in Explorer** di file copiati in [z]f, e Taglia in [z]f + Incolla in Explorer
+      (sposta). Ora negli appunti ci sono solo `CF_HDROP` e l'effetto, non più l'oggetto della
+      shell: è quello che usano molte app, ma va visto con Explorer, il desktop, una zip, Outlook.
+
+Resta da decidere:
+- [ ] **inizio di un trascinamento** con migliaia di voci: l'oggetto della shell costa 550 ms per
+      20.300 voci (25 µs a voce: 100 voci 2,5 ms). Si può costruire come per gli appunti, senza
+      disco, ma l'immagine trascinata e alcune destinazioni (zip, Outlook, il desktop con Alt)
+      potrebbero comportarsi diversamente. Lasciato così finché non decidi.
+
+Durante le prove Claude ha messo in `%APPDATA%\z-f\recenti.txt` cartelle di prova e
+`\\localhost\C$`, poi le ha tolte (copia di prima nello scratchpad). La build di prova della GPU ha
+riscritto `impostazioni.txt` con `griglia_dimensione=2`: se prima avevi un'altra dimensione della
+griglia, rimettila con Ctrl+Shift+3/4.
+
+## 000000. Correzioni del controllo del codice (z-f-dev, novembre 2026)
+
+Compilato con MSVC senza avvisi (`/W3`; con `/W4` restano solo i 6 avvisi che c'erano già).
+Claude l'ha provato a schermo su z-f-dev in una cartella di prova nello scratchpad. Ha funzionato:
+- **menu completo di Windows → Elimina** su un file: va nel Cestino da [z]f; Ctrl+Z "Annullata
+  l'eliminazione di alfa.txt: di nuovo in prova-zf". **Incolla su una cartella** (Shift+tasto
+  destro su `destinazione`): "Copiato in destinazione"; Ctrl+Z "Annullata la copia di beta.txt: nel Cestino";
+- **annullamento con il file in uso** (tenuto aperto in esclusiva da un altro processo), Annulla
+  nella finestra "File in uso" di Windows: "Impossibile annullare la copia: beta.txt: interrotto;
+  si può riprovare" in rosso; chiuso il file, Ctrl+Z "Annullata la copia di beta.txt: nel Cestino";
+- **chiusura durante un'operazione** (finestra "Sostituisci o ignora" aperta): la finestra di
+  [z]f sparisce, quella di Windows resta, il processo è vivo; scelto "Ignora", il processo esce;
+- **GPU persa**, simulata in una build a parte (F9 chiamava `gpuLost`, non è nel codice): tre volte,
+  in elenco e in griglia; tutto ridisegnato, testo e icone compresi. Log: "GPU persa", "GPU
+  ripristinata" (device nuovo in 58 ms sul thread, 36 ms sul thread dell'interfaccia);
+- **↑ su `\\localhost\C$`**: la freccia è spenta, Alt+↑ non fa niente (prima andava a `\\localhost` e dava errore);
+- **cartella aperta eliminata da fuori**: [z]f risale e l'avviso "La cartella è stata eliminata o
+  spostata" ora resta (prima spariva appena arrivava la cartella superiore);
+- log: solo le voci solite (avvio, `0x8002`, "attesa vsync lunga", il menu della shell).
+
+Trovato e corretto durante la prova (c'era già prima): Annulla nella finestra "File in uso" mentre
+si eliminava faceva credere a [z]f che l'eliminazione fosse avvenuta (la shell risponde con un
+esito positivo). Ora conta il disco: valeva anche per Canc, che metteva in cronologia
+un'eliminazione mai fatta.
+
+Corretti ma non provati a schermo (servono cose che Claude non può fare, o file veri):
+- [ ] **rotellina di un touchpad di precisione** nel menu che scorre, in "Vai a" e nelle opzioni:
+      prima non si muovevano, gli scatti parziali si perdevano;
+- [ ] **monitor a 144 Hz**: le animazioni della barra delle schede, dei pulsanti del titolo e della
+      barra laterale hanno la stessa velocità delle altre (prima andavano 2,4 volte più veloci);
+- [ ] **animazioni spente**: anche lo scorrimento con la rotellina salta subito, senza scivolare;
+- [ ] **scheda lasciata a metà caricamento** (una cartella di rete lenta): tornandoci, la voce da
+      selezionare (la cartella da cui si è saliti, `/select`) è selezionata;
+- [ ] **doppio clic sul bordo della colonna Dimensione** con "Dimensione delle cartelle nella
+      colonna": la colonna si allarga anche per i totali delle cartelle ("12,3 GB");
+- [ ] **avvisi**: dopo "Percorso copiato" (azzurro), un errore di caricamento è rosso;
+- [ ] **griglia con migliaia di foto** (oltre 96 MB di miniature): le celle visibili non restano
+      vuote; un `.ico` senza miniatura mostra la sua icona;
+- [ ] **"Vai a"** dopo aver cambiato cartella in una scheda: le sottocartelle della cartella di
+      prima si aggiornano (prima restavano quelle di quando era aperta);
+- [ ] **riaprire [z]f mentre si chiude** con un'operazione in corso: torna la stessa finestra.
+
+## 00000. Dimensione delle cartelle e salto dei dialoghi (0.21)
+
+Compilato con MSVC senza avvisi; log pulito. Claude ha provato a schermo:
+- **dimensione delle cartelle**: tooltip su una cartella grande con il totale in byte e il numero di file;
+  colonna Dimensione di C:\ riempita man mano, parziali attenuati;
+  le cartelle illeggibili (Config.Msi, Recovery) restano vuote invece di "0 B". F12: tutto C:\ in
+  14,4 s sul thread, frame a 0,12 ms (peggiore 0,35);
+- **dialoghi**, con `build\dialoghi-prova.exe` (`prove\dialoghi-prova.cpp`) e z-f-dev su una cartella di prova: 4 giri di Apri, Salva, Apri classico, Salva classico e scelta cartella, tutti e
+  20 col programma ancora vivo; Apri e Salva entrano nella cartella, Salva tiene il nome
+  proposto, i classici sono nella cartella, la scelta cartella resta dov'era. F12: notifica UI al
+  massimo 0,138 ms, salto 290 ms sul thread.
+  Attenzione: la prima versione mandava "Apri" appena il dialogo compariva e il programma cadeva
+  (COMDLG32, accesso non valido). Ora aspetta la vista dei file più 150 ms.
+
+Restano a te (lo strumento di Claude non lascia cliccare nei dialoghi):
+- [ ] **salto al ritorno**: con un dialogo aperto, passa a [z]f, cambia cartella, torna al dialogo
+      (clic o Alt+Tab): deve entrare nella cartella nuova. Tornando senza cambiare cartella in [z]f
+      non deve muoversi (anche se nel dialogo sei andato altrove);
+- [ ] dialoghi veri: Blocco note (Apri, Salva con nome), Paint, un browser (carica file), Office o
+      LibreOffice, un programma vecchio; nessuno deve chiudersi o cadere;
+- [ ] con due finestre di [z]f agisce l'ultima usata; con l'opzione spenta non succede niente;
+- [ ] colonna Dimensione su un disco lento o una cartella enorme: il PC resta reattivo; ordinando
+      per Dimensione le cartelle già contate si ordinano per totale; dopo una copia dentro una
+      sottocartella il suo totale si aggiorna.
+
+## 0000. Primi commenti (0.20)
+
+Compilato con MSVC senza avvisi. Claude l'ha provato a schermo su z-f-dev, collegando
+`\\localhost\D$` su Z: col nuovo "Connetti" e togliendola col nuovo "Disconnetti". Ha funzionato:
+- **Questo PC** nella barra laterale, con l'icona della shell (prima mancava: `SHGetFileInfo`
+  non accetta `::{CLSID}`, ora il thread delle icone passa dal PIDL); clic ci va ed è evidenziata;
+  menu Apri, Apri in nuova scheda, Connetti unità di rete…, Proprietà;
+- **Proprietà** apre Impostazioni › Sistema › Informazioni sul sistema (`ms-settings:about`: il
+  verbo "properties" sul CLSID non apriva niente). Su un thread: sul thread UI costava 222 ms;
+- **Connetti unità di rete…** dal menu dello sfondo di Questo PC e dalla barra laterale: il
+  dialogo di Windows davanti a [z]f; connettendo, [z]f apre Z:; Annulla non dà avvisi. Dopo il
+  dialogo il fuoco andava a un'altra finestra (il dialogo è di un altro thread): ora [z]f torna davanti;
+- **nome**: "D$ (Z:)" e non l'etichetta del disco; tooltip con "Percorso di rete \\localhost\D$";
+- **Disconnetti** stando dentro Z: (menu della barra laterale): si passa a Questo PC, avviso
+  "Unità Z: disconnessa", Z: sparisce da lista e barra; `net use` vuoto. "Disconnetti" c'è anche
+  nel menu di Z: in Questo PC;
+- **opzione "Menu completo di Windows col tasto destro"**: accesa, il tasto destro su D: in
+  Questo PC apre il menu della shell (254 ms, nel log come "menu contestuale lento": atteso),
+  Shift+tasto destro il nostro, con "Altre opzioni…" senza Shift+F10; la barra laterale tiene il
+  nostro; spenta di nuovo, `menu_completo=0` in impostazioni.txt;
+- log: nessuna voce nuova a parte quella del menu della shell e le solite "attesa vsync lunga".
+
+Attenzione: togliere "Riconnetti all'accesso" nel dialogo cambia anche il predefinito di Windows
+(`net use` passa a "non saranno memorizzate"). Claude l'ha rimesso con `net use /persistent:yes`.
+
+Restano a te:
+- [ ] **un'unità di rete vera**: deve avere il nome della condivisione, come in Explorer; un'unità non raggiungibile non deve bloccare niente;
+- [ ] **Disconnetti con un file aperto** sull'unità (in Notepad): avviso "ci sono file aperti";
+- [ ] Ctrl+clic e clic centrale su Questo PC aprono una scheda; con la sezione Unità chiusa sparisce;
+- [ ] con l'opzione accesa, il tasto Menu della tastiera apre il menu della shell; l'opzione
+      resta dopo il riavvio.
+
+## 000. Vista a griglia con miniature (0.19)
+
+Claude l'ha provata a schermo su z-f-dev (MSVC senza avvisi) a 2560×1392, in cartelle di prova
+nello scratchpad (`python prove\griglia-prova.py <cartella>`: circa 3.000 file finti) e, solo
+guardando, in WinSxS, Download e Questo PC. Ha funzionato:
+- **Ctrl+Shift+2/3/4/6**, pulsante ▦ (tra ☆ e ◨), menu ≡ e menu dello sfondo ("Mostra come
+  griglia/elenco" con la scorciatoia); passando da una vista all'altra resta in vista la voce del cursore;
+- **vista per cartella** in `viste.txt`: riaprendo z-f-dev le cartelle in griglia tornano in griglia;
+- **miniature**: dalla cache di Windows (0,4–0,8 ms), con WIC le foto mai viste (15–27 ms a foto,
+  6 thread: prima schermata di 66 foto da 12 MP in 306–332 ms), video dalla shell, icone grandi per
+  cartelle, zip, exe, PDF (senza gestore), unità; foto ruotate con l'EXIF dritte; `desktop.ini`
+  nascosto attenuato;
+- **cache di Windows riempita a riposo**: le foto viste con WIC, riaperte in un processo nuovo,
+  arrivano tutte dalla cache (prima schermata 103 ms);
+- **tastiera** (← → ↑ ↓, Shift+→), **rettangolo** (20 voci in 5 colonne × 4 righe), **F2** con la
+  casella sotto la miniatura, **tooltip** sulle voci, piccole/medie/grandi;
+- **frame**: scorrendo veloce mentre arrivano le foto 0,19 ms (peggiore 0,76); WinSxS (30.734 voci)
+  in griglia piccola 0,32 ms (peggiore 0,91); entrando in griglia peggiore 0,91. In F12: risultati e
+  richieste al massimo 0,04 ms, disegno delle voci 0,23 ms, texture 0,30 ms per frame;
+- log: nessuna voce dovuta alla griglia (le "attesa vsync lunga" sono arrivate ingrandendo la finestra).
+
+Restano a te:
+- [ ] **Ctrl+rotellina in griglia** cambia piccole ↔ medie ↔ grandi (in elenco resta il testo).
+      Claude non riesce a tenere Ctrl con la rotellina.
+- [ ] **Trascinamento dalla griglia**: da miniatura o nome di una voce selezionata partono i file;
+      da una voce non selezionata il rettangolo. Rilascio su una cartella della griglia (bordo
+      attorno alla voce). Claude non l'ha provato per non spostare file veri.
+- [ ] **Clic, doppio clic, clic centrale e tasto destro** su una voce della griglia; menu da
+      tastiera (tasto Menu) sotto la voce del cursore.
+- [ ] **Una cartella di foto vera del telefono** (HEIC, se hai il codec) e una **di rete**: le
+      miniature arrivano senza bloccare niente; uscendo dalla cartella di rete le altre restano veloci.
+- [ ] **OneDrive solo online**: niente download, solo le miniature che Windows ha già.
+- [ ] **Scala 150%** (o un altro monitor): il riquadro e le miniature si rifanno alla misura nuova.
+- [ ] **Da decidere:** l'aspetto (riquadri, nome su due righe, cartelle e icone a metà del
+      riquadro, cursore) e i 6 thread di WIC, che per un attimo occupano metà dei core.
+
+## 00. Annulla e ripeti (0.19)
+
+Claude l'ha provato a schermo su z-f-dev (MSVC senza avvisi), in una cartella di prova nello
+scratchpad con file finti. Ha funzionato:
+- **rinomina** con F2 → Ctrl+Z ("Annullata la rinomina: di nuovo c.txt") → Ctrl+Y → Ctrl+Z;
+- **Canc** di un file → Ctrl+Z lo rimette al suo posto con il cursore sopra; **Ctrl+A e Canc** di
+  5 elementi con una cartella piena → Ctrl+Z li rimette tutti (3,6 ms sul thread). Nel Cestino non
+  resta niente (controllato con la shell: nessuna voce vuota);
+- **copia con conflitto:** finestra della shell, "Mantieni entrambi" → `b (2).txt`; Ctrl+Z manda
+  nel Cestino solo `b (2).txt`, il `b.txt` che c'era resta; Ctrl+Y la riporta dal Cestino;
+- **Taglia e Incolla** in un'altra cartella → gli appunti si svuotano → Ctrl+Z ("Annullato lo
+  spostamento di a.txt: di nuovo in Sorgente");
+- **disco cambiato:** dopo lo spostamento un altro programma crea un `a.txt` dove stava →
+  Ctrl+Z non sostituisce niente e dice "Impossibile annullare lo spostamento: in Sorgente c'è già
+  un elemento chiamato a.txt"; una copia modificata da un altro programma → "Impossibile annullare
+  la copia: e.txt è stato modificato dopo";
+- **nuova cartella** (Ctrl+Shift+N) rinominata in Foto → un solo Ctrl+Z ("Annullata la creazione di Foto");
+- **trascinamento** (sposta in una cartella) → "Spostato in Foto" → Ctrl+Z;
+- menu ≡ ("Annulla nuova cartella Ctrl+Z", "Ripeti spostamento Ctrl+Y") e menu dello sfondo
+  ("Annulla …" dopo Incolla); F12; opzione "Annulla dopo il riavvio": accesa, z-f-dev chiuso e
+  riaperto, Ctrl+Z ha annullato la rinomina fatta prima;
+- log: nessuna voce dovuta alle operazioni sui file.
+
+Restano a te:
+- [ ] **Ctrl+trascinamento** (copia) e **Alt+trascinamento** (collegamento) → Ctrl+Z: la copia e il
+      .lnk vanno nel Cestino. Claude non può tenere un tasto premuto mentre trascina.
+- [ ] **Con Explorer:** Taglia in Explorer e Incolla in [z]f (sposta, gli appunti si svuotano) →
+      Ctrl+Z; trascinamento da Explorer a [z]f → Ctrl+Z.
+- [ ] **Tra due unità** (C: → D:, file grande): avanzamento di Explorer, poi Ctrl+Z lo riporta
+      (anche qui con l'avanzamento); [z]f resta reattivo.
+- [ ] **Conferma dell'eliminazione:** se nelle proprietà del Cestino hai "Visualizza conferma
+      eliminazione", Canc la chiede come Explorer; altrimenti no.
+- [ ] **Unità di rete o chiavetta senza Cestino:** Canc → la shell avvisa che l'eliminazione è
+      definitiva; dopo, Ctrl+Z non la annulla (e annulla l'operazione prima, dicendo quale).
+- [ ] **Ctrl+Z durante una copia lunga:** "Operazione sui file in corso: si potrà annullare quando finisce".
+- [ ] **Ctrl+Z mentre scrivi** (rinomina, percorso, "Vai a", ricerca delle opzioni): non tocca i file.
+- [ ] **Da decidere:** un annullamento che non riesce per un motivo definitivo (posto occupato,
+      file sparito, modificato dopo) esce dalla cronologia, come in Explorer: il Ctrl+Z dopo annulla
+      l'operazione precedente. Per un motivo che può passare (file in uso, Annulla, permessi) ora
+      resta e si riprova (sezione 000000). Ti va bene questa divisione?
+- [ ] **Da decidere:** cambiano strada Incolla, Canc/Elimina e il rilascio di file veri: ora li fa
+      [z]f con `IFileOperation`, non la shell. Usa per qualche giorno z-f-dev al posto di z-f per
+      vedere se qualcosa si comporta diversamente da prima.
+
+## 0c. Pannello di anteprima (z-f-dev)
+
+Provato da Claude senza schermo (accesso negato), con un programma che chiama lo stesso codice
+del thread su una cartella di prova:
+- **immagini:** JPEG 6000×4000 con rotazione EXIF 6 → 360×540 e dritta, 13–15 ms; JPEG 1500×1000
+  6 ms; PNG 4000×3000 11 ms; PNG trasparente, BMP, WebP 4–5 ms (la prima WebP 80 ms: Windows
+  carica il codec); JPEG rotto → informazioni. Creazione di WIC la prima volta: 1,8 ms;
+- **testo:** UTF-8 da 1,3 MB → primi 256 KB, 1,5 ms; ASCII, ANSI (accenti e “virgolette” giusti),
+  UTF-16 con e senza BOM, file senza estensione, JS minimizzato su una riga sola (spezzato a 2000
+  caratteri), file vuoti: tutti riconosciuti, sotto 1 ms;
+- **binari** (.bin, estensione sconosciuta) → icona grande e informazioni, 1,5–2,5 ms;
+- **cartelle:** 3.001 voci in 2 ms, cartelle prima; cartella vuota.
+
+Poi Claude l'ha provato a schermo su z-f-dev (2560×1392, scala 100%), nella cartella di prova
+che crea `python prove\anteprima-prova.py <cartella>`. Ha funzionato:
+- Alt+P, il pulsante ◨ (con il tooltip "Nascondi l'anteprima · Alt+P") e ≡ → "Mostra anteprima
+  Alt+P"; lo stato aperto, la larghezza e il carattere si salvano e tornano al riavvio;
+- ogni tipo della cartella di prova: cartelle (righe allineate a quelle della lista), binari e
+  JPEG rotto (icona grande e righe del tooltip), JSON, C, log, file senza estensione, UTF-16 con e
+  senza BOM, ANSI, file vuoto, BMP, PNG grande e trasparente, WebP semitrasparente, foto del
+  telefono dritta, testo lungo ("UTF-8 · primi 256 KB di 1,3 MB");
+- Questo PC: icona del disco, file system, capacità, usato, libero;
+- rotellina sul testo (5 scatti = 15 righe), la lista non si muove;
+- bordo trascinato fino a circa 900 px e doppio clic che torna a 360; con la finestra non
+  ingrandita il pannello era già più stretto di 360 (cede per primo);
+- 80 frecce di fila in una cartella di 3.001 file: l'anteprima finisce sull'ultima voce;
+- F12 col pannello aperto su un testo lungo: frame 0,11 ms (peggiore 0,27), anteprima lettura
+  0,3 ms, decodifica 0,7 ms, texture 0,08 ms, primo caricamento di WIC 0,7 ms;
+- log: niente dovuto all'anteprima (solo le voci solite dell'avvio e un'attesa vsync lunga
+  ingrandendo la finestra, il debito già noto).
+
+Corretti durante la prova: una parola più lunga di una riga (JS minimizzato) lasciava "var" da
+solo sulla prima riga; il piede contava come righe anche i pezzi spezzati ("85 righe" per un file
+di una riga sola); le righe di una cartella partivano 8 px più in basso di quelle della lista.
+
+Restano a te (Claude non può tenere un tasto premuto mentre trascina, né usare la rete):
+- [ ] **Esc a metà trascinamento del bordo:** torna la larghezza di prima. Il cursore ↔ sul bordo
+      (negli screenshot il cursore non si vede).
+- [ ] **Freccia tenuta premuta** davvero (la ripetizione della tastiera) in una cartella con molte
+      foto grandi: la lista scorre come prima, l'anteprima non lampeggia.
+- [ ] **File lenti:** su un'unità di rete l'interfaccia non si blocca; se tarda si vedono il nome e
+      "caricamento…".
+- [ ] **Finestra molto stretta:** sotto i 220 px di spazio l'anteprima sparisce e torna
+      riallargando; aprendola senza posto compare l'avviso.
+- [ ] **Opzioni:** cambiare "Carattere dell'anteprima" (Consolas, Lucida Console, Courier New,
+      Segoe UI) cambia subito il testo.
+- [ ] **Da decidere:** il nome nell'intestazione del pannello è in `C_TEXT` (è il contenuto, non
+      un'etichetta come "Nome ↑"). Ti va bene? L'immagine è centrata anche in verticale: su uno
+      schermo alto resta a metà pannello. E 360 px di larghezza predefinita su 2560 ti bastano?
+
+Al primo avvio della nuova z-f.exe il log ha mostrato, oltre al normale `messaggio lento 0x8002`,
+un `Present lento 23 ms` 4 ms prima, quindi durante il passaggio WARP → GPU. Si è ripresentato
+(18 ms) anche al primo avvio di z-f-dev con "Vai a", sempre durante il passaggio: è da guardare.
+
+## 0. "Vai a" (z-f-dev)
+
+Claude non l'ha potuto provare a schermo (accesso allo schermo negato). Provati senza schermo:
+l'avvio (log normale), la scrittura di `%APPDATA%\z-f\recenti.txt` (la cartella iniziale c'è),
+l'ordine e i tempi della ricerca su 20.000 nomi (0,3 ms a tasto). Tutto il resto va visto:
+
+- [ ] **Apertura:** Ctrl+P, Ctrl+G e ≡ → "Vai a…" aprono il pannello sotto la riga del percorso,
+      in dissolvenza come un menu; lo stesso tasto lo richiude. La voce del menu ≡ mostra "Ctrl+P".
+- [ ] **Campo vuoto:** mostra le cartelle recenti (naviga un po' prima: alla prima apertura ci
+      sono solo quelle visitate), non quella aperta. Il primo giorno, senza recenti: preferiti e unità.
+- [ ] **Ricerca:** "dl" → Download; "doc" → Documenti; le lettere trovate sono in blu, nel nome o
+      nel percorso; il percorso è in grigio accanto al nome. Una cartella usata spesso sale.
+- [ ] **Sottocartelle:** trova le sottocartelle della cartella aperta, delle altre schede, dei
+      preferiti e delle recenti più usate (queste arrivano dal thread un attimo dopo l'apertura:
+      la voce attiva non deve saltare).
+- [ ] **Percorso scritto:** `C:\` elenca le cartelle di C:; `C:\Us` filtra; Tab sulla voce scende
+      (`C:\Users\`); Backspace risale. `%APPDATA%\` funziona. Un percorso che non esiste: Invio
+      dà l'errore solito nella barra di stato. Unità di rete lenta: "caricamento…" e niente blocchi.
+- [ ] **Tastiera:** ↑ ↓ PagSu PagGiù; Invio apre; Ctrl+Invio apre in una nuova scheda in
+      background; Esc svuota, il secondo Esc chiude; Home/Fine/Ctrl+frecce/Ctrl+V nella casella.
+- [ ] **Mouse:** la voce sotto il mouse diventa attiva; clic apre; clic centrale o Ctrl+clic in
+      una nuova scheda; rotellina scorre; clic fuori chiude senza fare altro; un doppio clic su una
+      voce non apre anche il file che nella lista sta sotto.
+- [ ] **Tooltip** su una voce: percorso, quante volte è stata aperta e quando, "Tra i preferiti".
+- [ ] **F12** con il pannello appena usato: righe "Vai a: apertura", "ricerca a ogni tasto" e
+      "sottocartelle (sul thread)" con valori sensati (apertura e ricerca sotto 1 ms).
+- [ ] **Aspetto:** misure, colori, larghezza (al massimo 600 px a scala 100%), nome lungo
+      troncato con "…". Ti va bene il percorso troncato alla fine ("…") come dice DESIGN.md?
+- [ ] **Log:** dopo le prove `build\z-f-log.txt` non ha voci "vai a: ricerca lenta".
+- [ ] **Da decidere:** cambiando scheda dalla barra del titolo con il pannello aperto, il
+      pannello resta aperto con le voci di prima. Va chiuso?
+
+## 0b. Rettangolo di selezione e colonne (z-f-dev)
+
+Claude l'ha provato a schermo in una cartella di prova con 123 file finti e in WinSxS (solo
+selezione). Ha funzionato:
+- rettangolo dalla colonna Data, dalla parte vuota della colonna Nome e dallo spazio sotto le righe (anche verso l'alto);
+- selezione mentre si muove;
+- scorrimento automatico portando il mouse sulla barra di stato;
+- clic sullo spazio vuoto che toglie la selezione;
+- trascinamento dei due bordi e doppio clic per adattare;
+- larghezze salvate in `impostazioni.txt`;
+- log pulito.
+
+Misurato: aggiornamento del rettangolo al massimo 0,01 ms e adattamento 0,11 ms su 30.734 voci, frame 0,17 ms.
+Le larghezze di prova sono state tolte da `impostazioni.txt`: si riparte da 150 e 100.
+
+Non ha potuto provare quello che richiede un tasto premuto insieme al mouse:
+
+- [ ] **Ctrl+rettangolo** alterna le righe toccate (quelle già selezionate si deselezionano);
+      **Shift+rettangolo** le aggiunge alla selezione che c'era.
+- [ ] **Esc a metà rettangolo:** il rettangolo sparisce e torna la selezione di prima del clic.
+      **Esc a metà trascinamento di un bordo:** torna la larghezza di prima.
+- [ ] **Aspetto:** il fondo `C_MARQUEE` (azzurro al 20% circa) e il contorno 1 px ti piacciono?
+      Angoli squadrati come Windows: va bene?
+- [ ] **Cursore ↔** sopra i bordi dell'intestazione, con la linea verticale sottile (non si vedeva
+      negli screenshot). Un clic sul bordo non deve ordinare.
+- [ ] **Dove parte cosa:** dal nome di una voce non selezionata parte il
+      rettangolo (provato da Claude); da icona e nome di una voce già selezionata il trascinamento
+      dei file (provato da Claude: parte, e senza destinazione non fa niente). Per trascinare un
+      file non selezionato prima lo si clicca. Prova anche un
+      trascinamento vero verso un'altra cartella di prova.
+- [ ] **Scorrimento:** la velocità vicino al bordo e oltre ti sembra giusta? Parte già quando il
+      mouse è sull'ultima riga visibile: se dà fastidio si riduce la fascia.
+- [ ] **Finestra stretta:** stringendo la finestra il nome resta leggibile e cedono prima Data,
+      poi Dimensione; riallargandola tornano le larghezze scelte.
+- [ ] **Tasto destro e doppio clic** fuori dal nome si comportano come prima (menu, apre).
+
+Corretti dopo le prove (z-f-dev, MSVC senza avvisi), provati da Claude in una cartella di prova:
+- dopo Annulla nella finestra "Accesso alla cartella negato" non compare più "Spostato in …".
+  La shell rispondeva S_OK anche dopo Annulla. Ora la chiamata dura quanto la finestra di Windows
+  (misurato 9,2 s e 4,9 s), poi si conta sul disco cosa è arrivato: 0 elementi, nessun avviso.
+  Spostando un file e due file in una cartella normale: "Spostato in dest" e "2 elementi spostati
+  in dest" (62 ms);
+- con la finestra larga circa 1000 px e 7 elementi selezionati, i tempi spariscono invece di
+  sovrapporsi; con una sola voce selezionata tornano.
+
+- [ ] **Copia e collegamento verificati:** Claude non ha potuto tenere premuti Ctrl o Alt durante
+      il trascinamento. Prova Ctrl+trascinamento verso un'altra cartella ("Copiato in …"), verso
+      una cartella dove il file c'è già e scegli "Salta" (nessun avviso), e Alt+trascinamento
+      ("Collegamento creato in …").
+- [ ] **Allegati e altre app** (elementi senza percorso): ora dopo il rilascio non compare
+      l'avviso, perché l'esito non si può verificare. Va bene così?
+
+Per le prove di trascinamento conviene una cartella di prova con file finti, non file veri.
+Dopo ogni prova: guarda `build\z-f-log.txt` (all'avvio è normale solo `messaggio lento 0x8002`).
+
+## 1. Pannelli e scorciatoie
+
+- [ ] **Pannello F12:** ora ha il fondo `C_MENU` (un po' più chiaro di prima), l'ombra e la
+      dissolvenza d'ingresso, come menu e tooltip. Va bene così?
+- [ ] **Menu identici a prima:** file, sfondo, ≡, scheda, preferito. Ogni voce ha la stessa
+      scorciatoia di prima.
+- [ ] Nel menu ≡, la riga della versione **non** mostra "Ctrl+,".
+- [ ] Nel menu di una cartella selezionata, "Aggiungi ai preferiti" **non** mostra Ctrl+D e
+      aggiunge quella cartella, non quella aperta.
+- [ ] "Apri in nuova scheda" funziona dalla lista e dal menu di un preferito.
+- [ ] Opzioni (Ctrl+,): la riga "Clic centrale — Apre una cartella in una nuova scheda" (prima era
+      "Clic centrale su una cartella — La apre in una nuova scheda"); la ricerca trova ancora tutto.
+
+## 2. Trascinamento
+
+Già provato da Claude con due finestre di [z]f affiancate: spostamento, Ctrl+copia, tasto destro
+con il menu, aggiunta ai preferiti, rilascio su un preferito, su una scheda, sul percorso.
+Restano da provare:
+
+- [ ] **[z]f → Explorer** e **Explorer → [z]f**: sposta sulla stessa unità, copia su un'altra.
+- [ ] **[z]f → desktop** e **[z]f → browser** (per esempio un caricamento in una pagina web).
+- [ ] **Da un'app che non è la shell** (un allegato da un client di posta, un'immagine dal
+      browser): deve copiare; se Windows non mostra la scritta accanto al cursore, la scrive [z]f
+      in un piccolo pannello.
+- [ ] **Unità di rete o chiavetta:** il rilascio non deve bloccare l'interfaccia (la shell lavora
+      su un thread); il log non deve mostrare "trascinamento lento".
+- [ ] **Molti file o file grandi:** compare l'avanzamento di Explorer; [z]f resta reattivo.
+- [ ] **Conflitto di nomi:** compare la finestra di Explorer per sostituire o saltare.
+- [ ] **Tasto destro, menu:** quando si apre, la voce predefinita è evidenziata, ma
+      l'evidenziazione sparisce appena muovi il mouse. Ti va bene, o vuoi che resti?
+- [ ] **Tasto destro da un'altra app:** clic fuori dal menu o Esc lo chiudono e l'altra app non
+      resta bloccata.
+- [ ] **Selezione multipla:** selezionare più file, cliccarne uno e trascinare → si trascinano
+      tutti; un clic senza trascinare lascia selezionato solo quello.
+- [ ] **Scheda:** tenendo il file fermo su una scheda per mezzo secondo, si apre.
+- [ ] **Scorrimento:** trascinando vicino al bordo alto o basso della lista, la lista scorre.
+- [ ] **F12:** le righe "trascinamento: registrazione (OLE)", "rilascio e operazione (thread)"
+      (ora dura tutta l'operazione, finestre di Windows comprese) e "chiamata più lenta (UI)"
+      hanno valori sensati.
+
+## 3. Da decidere
+
+- [ ] Riordinare i preferiti trascinandoli: oggi il clic su un preferito naviga alla pressione del
+      tasto (più veloce). Per trascinarli bisognerebbe navigare al rilascio.
+- [ ] **Menu completo della shell su un thread suo** (250–550 ms sul thread dell'interfaccia a ogni
+      apertura): segnato tra i debiti di CLAUDE.md, con il piano. Da fare quando decidi.
+- [ ] **Inizio di un trascinamento con migliaia di voci** (550 ms per 20.300): vedi la sezione 0000000.
+- [ ] Debiti trovati (in CLAUDE.md): scorciatoie scritte a mano nei tooltip e in "Ctrl+D aggiunge"
+      (quelle del menu della shell vengono ora da `kShortcuts`); numeri sparsi in `options.cpp` e
+      `tooltip.cpp`.

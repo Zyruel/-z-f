@@ -1,0 +1,11 @@
+#!/bin/sh
+# main si aggiorna solo con una pull request da dev. GitHub lo impone gia'; questo controllo
+# ferma l'errore prima, sul PC. Si attiva una volta per copia del repository con:
+# git config core.hooksPath .githooks
+while read local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    echo "[z]f: push diretto su main bloccato. Si lavora su dev; main si aggiorna con una pull request." >&2
+    exit 1
+  fi
+done
+exit 0

@@ -1,0 +1,101 @@
+# [z]f — novità
+
+Cosa cambia in ogni versione, dalla più recente. Dalla 1.0 le versioni seguono il Semantic
+Versioning: `1.0.0-beta.N` sono le beta, `1.0.0-rc.N` le candidate al rilascio, `1.0.0` la prima
+stabile; poi `1.0.1` per le correzioni, `1.1.0` per le funzioni nuove. Fino alla 0.28 le versioni
+erano `0.N`. Ogni rilascio, dalla 1.0.0-beta.2, ha un tag `v<versione>` e una
+[Release su GitHub](https://github.com/Zyruel/-z-f/releases) con l'exe. Le prove a mano di ogni
+versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
+[`ARCHITETTURA.md`](docs/ARCHITETTURA.md).
+
+## 1.0.0-beta.2 (novembre 2026)
+
+Prima versione pubblica: il codice è su GitHub con licenza MIT e la cronologia del repository
+riparte da qui. Per chi usa [z]f è uguale alla 1.0.0-beta.1.
+
+## 1.0.0-beta.1 (novembre 2026)
+
+Prima beta della 1.0. I percorsi di rete di Windows (quelli creati con "Aggiungi un percorso di
+rete", per esempio una condivisione del NAS senza lettera) compaiono sotto Questo PC dopo le
+unità, come in Explorer: barra laterale, Questo PC nella lista, menu "›" del percorso e "Vai a".
+Da questa versione il lavoro di ogni giorno sta nel branch `dev` e `main` contiene solo le
+versioni rilasciate.
+
+## 0.28
+
+Cambia la parte bassa della finestra: la barra laterale arriva in fondo e si allarga trascinandone
+il bordo, come l'anteprima (doppio clic: larghezza predefinita); il filtro sta a sinistra nella
+barra di stato, allineato alla lista, i contatori di cartelle e file vanno a destra nella barra di
+stato e i tempi misurati hanno una barra loro, solo con l'opzione "Barra dei tempi". I preferiti
+stanno rientrati sotto il loro titolo, si riordinano trascinandoli e si tolgono col cestino che
+compare sotto il mouse (due clic: il primo chiede conferma sul posto, senza dialoghi). Sotto
+"Questo PC" ci sono le unità, come nell'albero di Explorer (sezioni 0000000000000000000 e
+000000000000000000 di `prove\da-verificare.md`).
+
+## 0.27
+
+Porta la destinazione dei collegamenti: nelle cartelle con dei .lnk una colonna
+"Destinazione" mostra in grigio dove porta ognuno, e un clic ci va con la voce selezionata ("Apri
+percorso file"), il clic centrale in una nuova scheda. Il formato lo legge un lettore nostro,
+senza la shell: sui 177 collegamenti del PC uguale a Windows e 9 volte più veloce di IShellLink
+(sezione 00000000000000000 di `prove\da-verificare.md`).
+
+## 0.26
+
+Gli zip si aprono come cartelle dentro [z]f, con un
+lettore e un inflate nostri, senza la shell (70.000 voci in 17 ms; aprire, copiare, trascinare e
+anteprima estraggono su un thread), e Incolla funziona anche con file copiati da dentro uno zip in
+Esplora file, da un telefono o da un allegato (sezioni 0000000000000000 e 000000000000000 di
+`prove\da-verificare.md`).
+
+## 0.25
+
+Chiude il controllo del codice: Shift+Canc e Proprietà di molte voci passano dal thread del menu
+della shell (20.000 file: 1,6 s in meno di attesa dell'interfaccia, 8 s su una condivisione), i
+tasti che eseguono un comando vengono dalla tabella delle scorciatoie (con esattamente i
+modificatori scritti: Ctrl+Shift+W non chiude più la scheda), gli ultimi numeri sparsi sono in
+`theme.h` (sezione 00000000000000 di `prove\da-verificare.md`).
+
+## 0.24
+
+Fa partire subito il trascinamento di migliaia di voci (20.000 file: 10,8 ms invece di 550, con
+l'icona del primo elemento come immagine) e toglie l'attesa a fine operazione su migliaia di voci.
+
+## 0.23
+
+Toglie l'ultima attesa lunga del thread dell'interfaccia: il menu completo della shell (200–450 ms
+per caricare le estensioni) si costruisce e si mostra su un thread suo, mentre l'interfaccia
+continua a disegnare.
+
+## 0.22 (novembre 2026)
+
+Il controllo di tutto il codice rispetto ai principi: 26 bug corretti (tra cui la rinomina dopo
+"Nuova cartella", che poteva toccare la voce sbagliata), il thread dell'interfaccia che non tocca
+più il disco né aspetta altri processi nei casi trovati (salvataggi, watcher, registro, appunti,
+"Usa [z]f al posto di Explorer"), icone su due thread, niente duplicati, colori, misure, tempi e
+soglie tutti da `theme.h`, scorciatoie dei tooltip da `kShortcuts`, zero avvisi anche con `/W4`
+(sezioni da 000000 a 00000000000 di `prove\da-verificare.md`).
+
+## 0.21
+
+La dimensione totale delle cartelle (tooltip, colonna Dimensione, anteprima) e il salto dei
+dialoghi Apri e Salva degli altri programmi nella cartella aperta in [z]f.
+
+## 0.20
+
+"Questo PC" nella barra laterale, connetti e disconnetti
+unità di rete, i nomi delle unità di rete come in Explorer e l'opzione per avere il menu completo
+di Windows col tasto destro.
+
+## 0.19
+
+La vista a griglia con miniature (Ctrl+Shift+2/3/4) e annulla e ripeti (Ctrl+Z, Ctrl+Y).
+
+## 0.18
+
+"Vai a", il rettangolo di selezione, le colonne ridimensionabili e il pannello di anteprima.
+
+## Fino alla 0.17
+
+Le fondamenta, descritte in [`ARCHITETTURA.md`](docs/ARCHITETTURA.md). Fino alla 0.15 il programma si
+chiamava zx.

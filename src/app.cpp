@@ -1,0 +1,691 @@
+// [z]f — logica della vista: layout, selezione, filtro, navigazione, ricariche, formattazione.
+
+// Spazio per le colonne dopo il nome (Destinazione, Data, Dimensione): tutto tranne il minimo del nome
+static float colRoom() { return A.listR - A.sbW - A.padX - A.listX - px(ui::COL_NAME_MIN); }
+
+// Colonna Destinazione: in elenco, nelle cartelle con almeno un collegamento (links.cpp)
+static bool linkColumn() { return !A.grid && A.cur && !A.cur->lnk.empty(); }
+
+// Larghezza dell'anteprima che la lista lascia libera con le colonne alla larghezza scelta
+// (chosen) o al minimo: l'anteprima prende solo quello che avanza, così con la finestra stretta cede
+// per prima, e il nome tiene sempre il suo minimo.
+static float previewRoom(bool chosen) {
+    bool link = linkColumn();
+    float cols = chosen ? px(A.colDate) + px(A.colSize) + (link ? px(A.colLink) : 0) : px(ui::COL_MIN) * (link ? 3 : 2);
+    return floorf((float)G.w - A.listX - px(ui::COL_NAME_MIN) - cols - A.padX - A.sbW);
+}
+
+// Anteprima: la larghezza scelta, al massimo PREVIEW_MAX della finestra e quello che la lista
+// lascia. Sotto il minimo si stringono Data e Dimensione; se non basta nemmeno così, sparisce
+// (resta aperta: torna quando c'è spazio).
+static float previewWidth() {
+    if (!A.prevOpen) return 0;
+    float w = std::min(px(A.prevWidth), floorf(G.w * ui::PREVIEW_MAX));
+    w = std::min(w, previewRoom(true));
+    if (w >= px(ui::PREVIEW_MIN)) return w;
+    return previewRoom(false) >= px(ui::PREVIEW_MIN) ? px(ui::PREVIEW_MIN) : 0;
+}
+
+static void layout() {
+    A.rowH = (float)(F.lineH + (int)lroundf(ui::ROW_EXTRA * A.scale)); // non px(): vedi ROW_EXTRA in theme.h
+    A.topH = (float)(int)(A.rowH * ui::PATH_BAR);
+    A.headH = A.rowH;
+    A.statusH = A.rowH;
+    A.sbW = px(ui::SCROLL_W);
+    A.padX = px(ui::PAD_X);
+    // Dall'alto: [schede] [barra del percorso] poi [barra laterale | intestazione + lista]. La
+    // barra laterale arriva in fondo alla finestra; alla sua destra, sotto lista e anteprima, la
+    // barra dei tempi (se scelta) e quella di stato, con il filtro.
+    // Le schede sono sempre visibili: se comparissero alla seconda, il contenuto salterebbe in
+    // basso proprio mentre si sta cliccando.
+    A.tabH = floorf(A.rowH * ui::TAB_BAR);
+    A.tabY = 0;
+    // Barra del titolo: [≡][▯] schede [+] · spazio per trascinare · [–][□][×]
+    A.btnW = A.tabH;
+    A.capW = px(ui::CAPTION_W);
+    A.navW = floorf(A.rowH * ui::NAV_W);
+    A.tabStripX = A.btnW * 2 + px(ui::GAP_S);
+    A.tabStripW = std::max(0.0f, G.w - A.capW * 3 - px(ui::DRAG_MIN) - A.tabStripX - A.rowH * ui::TAB_PLUS_W);
+    A.pathY = A.tabH;
+    A.sideTop = A.pathY + A.topH;
+    A.sideItemH = A.rowH;
+    A.sideW = A.sideVisible ? std::min(px(A.sideWidth), floorf(G.w * ui::SIDE_MAX)) : 0;
+    A.listX = A.sideW;
+    A.listTop = A.sideTop + A.headH;
+    A.timesH = A.timesBar ? A.rowH : 0;
+    A.footH = A.statusH + A.timesH;
+    A.listH = std::max(0.0f, (float)G.h - A.listTop - A.footH);
+    // Filtro: all'inizio della barra di stato, allineato alla lista; la barra laterale resta libera
+    A.fltX = A.listX + px(ui::GAP_S);
+    A.fltW = floorf(std::min(px(ui::FILTER_W), (G.w - A.listX) * ui::FILTER_MAX));
+    A.prevW = previewWidth();
+    A.listR = G.w - A.prevW;
+    // Colonne: Nome prende quello che avanza, Destinazione (se c'è), Data e Dimensione sono
+    // allineate a destra. Se la finestra è stretta si stringono prima Destinazione, poi Data e poi
+    // Dimensione, fino al minimo (senza salvare).
+    A.dateW = px(A.colDate);
+    A.sizeW = px(A.colSize);
+    A.linkW = linkColumn() ? px(A.colLink) : 0;
+    float right = A.listR - A.sbW - A.padX, room = colRoom(), mn = px(ui::COL_MIN);
+    if (A.linkW > 0 && A.linkW + A.dateW + A.sizeW > room) A.linkW = std::max(mn, room - A.dateW - A.sizeW);
+    if (A.linkW + A.dateW + A.sizeW > room) A.dateW = std::max(mn, room - A.sizeW - A.linkW);
+    if (A.linkW + A.dateW + A.sizeW > room) A.sizeW = std::max(mn, room - A.dateW - A.linkW);
+    A.sizeX = right - A.sizeW;
+    A.dateX = A.sizeX - A.dateW;
+    A.linkX = A.dateX - A.linkW;
+    A.nameEnd = A.linkX - A.padX; // senza Destinazione linkX è dateX
+    // Voci: in elenco una colonna alta una riga. In griglia il riquadro della miniatura a GAP_M dai
+    // bordi, sotto il nome su GRID_NAME_LINES righe; le voci di una riga si dividono la larghezza.
+    float lw = A.listR - A.sbW - A.listX;
+    if (A.grid) {
+        float m = px(ui::GAP_S), pad = px(ui::GAP_M);
+        A.thumbPx = px(ui::THUMB_PX[A.thumbSize]);
+        A.cols = std::max(1, (int)((lw - m * 2) / (A.thumbPx + pad * 2)));
+        A.cellW = floorf((lw - m * 2) / A.cols);
+        A.cellX = A.listX + m;
+        A.cellH = pad * 2 + A.thumbPx + px(ui::GAP_S) + ui::GRID_NAME_LINES * (float)F.lineH +
+                  (ui::GRID_NAME_LINES - 1) * px(ui::LINE_GAP);
+    } else {
+        A.thumbPx = 0;
+        A.cols = 1;
+        A.cellW = lw;
+        A.cellX = A.listX;
+        A.cellH = A.rowH;
+    }
+}
+
+// Bordo b tra due colonne: 0 a sinistra di Data, 1 a sinistra di Dimensione, 2 a sinistra di
+// Destinazione (se c'è); a metà dello spazio tra il testo di una colonna e quello della successiva.
+// Ogni bordo comanda la colonna alla sua destra: colChosen è il valore scelto (impostazioni.txt),
+// colShown la larghezza mostrata adesso.
+static float colBorderX(int b) { return (b == 0 ? A.dateX : b == 1 ? A.sizeX : A.linkX) - floorf(A.padX * 0.5f); }
+// Oltre ai bordi delle colonne si trascinano con lo stesso gesto quelli dei pannelli (barra
+// laterale, anteprima): cursore ↔, Esc torna a prima, si salva al rilascio (listmouse.cpp).
+enum { EDGE_SIDE = 3, EDGE_PREVIEW = 4 };
+static float& colChosen(int b) {
+    return b == 0 ? A.colDate : b == 1 ? A.colSize : b == 2 ? A.colLink : b == EDGE_SIDE ? A.sideWidth : A.prevWidth;
+}
+static float colShown(int b) {
+    return b == 0 ? A.dateW : b == 1 ? A.sizeW : b == 2 ? A.linkW : b == EDGE_SIDE ? A.sideW : A.prevW;
+}
+// Bordo di un pannello sotto il mouse: EDGE_SIDE, EDGE_PREVIEW o -1. Barra laterale: COL_GRIP per
+// lato (la lista ha GAP_S di margine), per tutta l'altezza. Anteprima: COL_GRIP verso il pannello,
+// solo GAP_XS verso la lista per non prendere la barra di scorrimento.
+static int panelEdgeAt(int x, int y) {
+    if (y < A.sideTop) return -1;
+    float grip = px(ui::COL_GRIP);
+    if (A.sideW > 0 && x >= A.sideW - grip && x < A.sideW + grip) return EDGE_SIDE;
+    if (A.prevW > 0 && y < G.h - A.footH && x >= A.listR - px(ui::GAP_XS) && x < A.listR + grip) return EDGE_PREVIEW;
+    return -1;
+}
+static int colBorderAt(int x, int y) {
+    if (A.grid) return -1; // in griglia l'intestazione ha solo le etichette per ordinare
+    if (y < A.sideTop || y >= A.listTop || x < A.listX || x >= A.listR - A.sbW) return -1;
+    for (int b = A.linkW > 0 ? 2 : 1; b >= 0; b--)
+        if (fabsf(x - colBorderX(b)) <= px(ui::COL_GRIP)) return b;
+    return -1;
+}
+// Colonna dell'intestazione sotto x; in griglia l'etichetta (sortX, dal disegno), -1 fuori
+static int colAt(int x) {
+    if (A.grid) {
+        for (int c = 0; c < 3; c++)
+            if (x >= A.sortX[c] - px(ui::GAP_S) && x < A.sortX[c + 1] - px(ui::GAP_XL) + px(ui::GAP_S)) return c;
+        return -1;
+    }
+    return x >= colBorderX(1) ? COL_SIZE : x >= colBorderX(0) ? COL_DATE : A.linkW > 0 && x >= colBorderX(2) ? COL_LINK : COL_NAME;
+}
+
+// --- animazioni ---------------------------------------------------------------------------
+// Avvicinamento esponenziale: costante di tempo tau in ms (circa 3·tau per arrivare al 95%).
+static float approach(float v, float target, double dt, float tau, float eps) {
+    if (!A.animations || tau <= 0) return target;
+    float d = target - v;
+    if (fabsf(d) <= eps) return target;
+    A.animActive = true;
+    return v + d * (1.0f - expf(-(float)dt / tau));
+}
+
+// target < 0: nessuna voce sotto il mouse
+static void hoverFadeUpdate(HoverFade& h, int target, double dt) {
+    if (target < 0) target = -1;
+    if (target != h.cur) {
+        if (target >= 0 && target == h.prev) { std::swap(h.cur, h.prev); std::swap(h.a, h.pa); } // ritorno rapido
+        else { if (h.cur >= 0) { h.prev = h.cur; h.pa = h.a; } h.cur = target; h.a = 0; }
+    }
+    h.a = h.cur >= 0 ? approach(h.a, 1, dt, ui::TAU_HOVER_IN, 0.02f) : 0;
+    h.pa = approach(h.pa, 0, dt, ui::TAU_HOVER_OUT, 0.02f);
+    if (h.pa <= 0) h.prev = -1;
+}
+static float hoverAlpha(const HoverFade& h, int i) { return i < 0 ? 0 : i == h.cur ? h.a : i == h.prev ? h.pa : 0; }
+
+static float easeOut(float t) { t = t < 0 ? 0 : (t > 1 ? 1 : t); float u = 1 - t; return 1 - u * u * u; }
+
+static float contentH() { return (float)((A.view.size() + A.cols - 1) / A.cols) * A.cellH; }
+static float maxScroll() { return std::max(0.0f, contentH() - A.listH); }
+static void clampScroll() {
+    A.scrollTarget = std::min(std::max(A.scrollTarget, 0.0f), maxScroll());
+    A.scrollY = std::min(std::max(A.scrollY, 0.0f), maxScroll());
+}
+
+// --- voci: un solo posto per "rettangolo di una voce" e "voce sotto il punto" ----------------
+// Elenco e griglia passano da qui (in elenco: una colonna alta una riga).
+struct Box { float x, y, w, h; };
+// Rettangolo della voce vi: x nella finestra, y nel contenuto (0 = inizio della lista, senza scorrimento)
+static Box itemRect(int vi) {
+    int c = vi % A.cols, r = vi / A.cols;
+    return { A.cellX + c * A.cellW, r * A.cellH, A.cellW, A.cellH };
+}
+// Fondo di hover, selezione e cursore: in elenco con un margine di GAP_S ai lati, in griglia di
+// GAP_XS tutto intorno (le voci vicine non si toccano)
+static Box itemBg(int vi) {
+    Box b = itemRect(vi);
+    if (!A.grid) return { A.listX + px(ui::GAP_S), b.y, b.w - px(ui::GAP_S) * 2, b.h };
+    float m = px(ui::GAP_XS);
+    return { b.x + m, b.y + m, b.w - m * 2, b.h - m * 2 };
+}
+// Griglia: riquadro della miniatura e spazio del nome di una voce (stesse coordinate di itemRect)
+struct CellParts { Box thumb, name; };
+static CellParts gridParts(int vi) {
+    Box b = itemRect(vi);
+    float pad = px(ui::GAP_M), tx = floorf(b.x + (b.w - A.thumbPx) * 0.5f), ny = b.y + pad + A.thumbPx + px(ui::GAP_S);
+    return { { tx, b.y + pad, A.thumbPx, A.thumbPx }, { b.x + px(ui::GAP_S), ny, b.w - px(ui::GAP_S) * 2, b.y + b.h - pad - ny } };
+}
+
+// Voce sotto il punto (coordinate della finestra), -1 se nessuna
+static int itemAt(int x, int y) {
+    if (y < A.listTop || y >= A.listTop + A.listH || x < A.listX || x >= A.listR - A.sbW) return -1;
+    int r = (int)((y - A.listTop + floorf(A.scrollY)) / A.cellH);
+    int c = A.grid ? (int)floorf((x - A.cellX) / A.cellW) : 0;
+    if (r < 0 || c < 0 || c >= A.cols) return -1;
+    int i = r * A.cols + c;
+    return i < (int)A.view.size() ? i : -1;
+}
+// Prima voce visibile (per tenerla in vista quando cambia la geometria)
+static int firstVisibleItem() { return A.cellH > 0 ? (int)(A.scrollY / A.cellH) * A.cols : 0; }
+static void scrollToItem(int vi) {
+    A.scrollY = A.scrollTarget = (float)(vi / A.cols) * A.cellH;
+}
+
+static void ensureVisible() {
+    if (A.view.empty()) return;
+    float top = itemRect(A.sel).y;
+    float s = A.scrollTarget;
+    if (top < s) s = top;
+    else if (top + A.cellH > s + A.listH) s = top + A.cellH - A.listH;
+    A.scrollTarget = A.scrollY = s; // da tastiera: niente animazione, deve sembrare immediato
+    clampScroll();
+}
+
+// ---------------------------------------------------------------------------
+// Selezione multipla
+// ---------------------------------------------------------------------------
+
+static inline bool isSel(uint32_t ei) { return ei < A.selFlags.size() && A.selFlags[ei]; }
+static void selReset() { A.selFlags.assign(A.cur ? A.cur->e.size() : 0, 0); A.anchor = -1; }
+static void selClear() { std::fill(A.selFlags.begin(), A.selFlags.end(), (uint8_t)0); }
+static int viewIndexOf(int ei) {
+    if (ei < 0) return -1;
+    for (int i = 0; i < (int)A.view.size(); i++) if ((int)A.view[i] == ei) return i;
+    return -1;
+}
+static void selOnly(int vi) {
+    selClear();
+    if (vi >= 0 && vi < (int)A.view.size()) { A.selFlags[A.view[vi]] = 1; A.anchor = (int)A.view[vi]; }
+}
+static void selRange(int a, int b) { // indici di vista, inclusi
+    if (a > b) std::swap(a, b);
+    a = std::max(a, 0);
+    b = std::min(b, (int)A.view.size() - 1);
+    for (int i = a; i <= b; i++) A.selFlags[A.view[i]] = 1;
+}
+static int selCount(uint64_t* bytes) {
+    int n = 0;
+    uint64_t b = 0;
+    for (uint32_t ei : A.view)
+        if (A.selFlags[ei]) {
+            n++;
+            if (!(A.cur->e[ei].attr & FILE_ATTRIBUTE_DIRECTORY)) b += A.cur->e[ei].size;
+        }
+    if (bytes) *bytes = b;
+    return n;
+}
+// Toglie dalla selezione ciò che il filtro nasconde: le operazioni future agiranno solo su ciò che si vede
+static void selKeepVisible() {
+    std::vector<uint8_t> vis(A.selFlags.size(), 0);
+    for (uint32_t ei : A.view) vis[ei] = A.selFlags[ei];
+    A.selFlags.swap(vis);
+}
+
+// Applica il filtro all'ordine corrente (sottostringa, maiuscole/minuscole indifferenti)
+static void applyFilter() {
+    double t0 = nowMs();
+    A.view.clear();
+    if (A.filter.empty()) {
+        A.view = A.order;
+    } else {
+        std::wstring needle = A.filter;
+        CharLowerBuffW(&needle[0], (DWORD)needle.size());
+        A.view.reserve(A.order.size());
+        for (uint32_t i : A.order)
+            if (wcsstr(A.cur->lowerName(A.cur->e[i]), needle.c_str())) A.view.push_back(i);
+    }
+    A.filterMs = nowMs() - t0;
+    A.countsDirty = true; // un filtro diverso può dare lo stesso numero di voci, ma non le stesse
+}
+
+static void rebuildView(bool keepSelection) {
+    int before = A.cur ? selCount(nullptr) : 0;
+    uint32_t selEntry = (keepSelection && A.sel >= 0 && A.sel < (int)A.view.size()) ? A.view[A.sel] : UINT32_MAX;
+    applyFilter();
+    A.sel = 0;
+    if (selEntry != UINT32_MAX)
+        for (int i = 0; i < (int)A.view.size(); i++)
+            if (A.view[i] == selEntry) { A.sel = i; break; }
+    // Selezione multipla: restano selezionate le voci ancora visibili.
+    // Una sola voce selezionata è di fatto il cursore: col filtro digitato passa al primo risultato.
+    selKeepVisible();
+    if ((!keepSelection && before <= 1) || selCount(nullptr) == 0) selOnly(A.sel);
+    clampScroll();
+    ensureVisible();
+}
+
+static void resort() {
+    if (!A.cur) return;
+    double t0 = nowMs();
+    if (A.sortCol == COL_SIZE) dirSizeFill(A.cur); // le cartelle col totale già contato
+    sortListing(A.cur, A.order, A.sortCol, A.sortDesc);
+    A.sortMs = nowMs() - t0;
+    rebuildView(true);
+}
+
+static void navigate(const std::wstring& path, int history, const std::wstring& selectName, bool refresh = false) {
+    ListRequest* r = new ListRequest{ A.hwnd, ++A.gen, path, A.sortCol, A.sortDesc, refresh };
+    A.refreshAgain = false; // la lettura che parte ora vede già tutti i cambiamenti arrivati finora
+    if (refresh) {
+        A.refreshInFlight = true;
+        HANDLE h = CreateThread(nullptr, 0, listThread, r, 0, nullptr);
+        if (h) CloseHandle(h); else { delete r; A.refreshInFlight = false; }
+        return;
+    }
+    A.refreshInFlight = false; // la generazione nuova scarta la ricarica in corso
+    A.loading = true;
+    A.loadStart = nowMs();
+    A.loadPath = path;
+    A.pendingHistory = history;
+    A.pendingSelect = selectName;
+    HANDLE h = CreateThread(nullptr, 0, listThread, r, 0, nullptr);
+    if (h) CloseHandle(h); else { delete r; A.loading = false; }
+    SetTimer(A.hwnd, 2, ui::LOADING_AFTER, nullptr); // per mostrare "caricamento…" se è lento
+}
+
+static const wchar_t* errText(DWORD e) {
+    switch (e) {
+    case ERROR_ACCESS_DENIED:    return L"Accesso negato";
+    case ERROR_PATH_NOT_FOUND:
+    case ERROR_FILE_NOT_FOUND:   return L"Percorso non trovato";
+    case ERROR_DIRECTORY:        return L"Non è una cartella";
+    case ERROR_NOT_READY:        return L"Dispositivo non pronto";
+    case ERROR_BAD_NETPATH:      return L"Percorso di rete non trovato";
+    case ERROR_INVALID_NAME:     return L"Nome non valido";
+    case ERROR_BAD_FORMAT:       return L"Archivio zip non valido o non supportato";
+    default:                     return L"Impossibile aprire la cartella";
+    }
+}
+
+
+static void applyRefresh(Listing* l) {
+    // Stato da conservare
+    std::wstring selName, anchorName, renameName;
+    int oldSel = A.sel;
+    if (A.cur && A.sel >= 0 && A.sel < (int)A.view.size()) selName = A.cur->name(A.cur->e[A.view[A.sel]]);
+    // La voce in rinomina per nome suo: il cursore può essersi spostato durante la rinomina
+    if (A.cur && A.renaming && A.renameEntry >= 0 && A.renameEntry < (int)A.cur->e.size())
+        renameName = A.cur->name(A.cur->e[A.renameEntry]);
+    if (A.cur && A.anchor >= 0 && A.anchor < (int)A.cur->e.size()) anchorName = A.cur->name(A.cur->e[A.anchor]);
+    std::unordered_map<std::wstring, int> selNames; // nomi selezionati (insensibili a maiuscole)
+    if (A.cur)
+        for (size_t i = 0; i < A.selFlags.size(); i++)
+            if (A.selFlags[i]) {
+                std::wstring n = A.cur->name(A.cur->e[i]);
+                CharLowerBuffW(&n[0], (DWORD)n.size());
+                selNames[n] = 1;
+            }
+    float sy = A.scrollY, st = A.scrollTarget;
+
+    delete A.cur;
+    A.cur = l;
+    A.order.swap(l->order);
+    std::vector<uint32_t>().swap(l->order);
+    A.sortMs = l->sortMs;
+    applyFilter();
+
+    A.selFlags.assign(l->e.size(), 0);
+    A.anchor = -1;
+    if (!selNames.empty() || !anchorName.empty()) {
+        std::wstring n;
+        for (size_t i = 0; i < l->e.size(); i++) {
+            n.assign(l->name(l->e[i]), l->e[i].nameLen);
+            CharLowerBuffW(&n[0], (DWORD)n.size());
+            if (selNames.count(n)) A.selFlags[i] = 1;
+            if (A.anchor < 0 && !anchorName.empty() && _wcsicmp(l->name(l->e[i]), anchorName.c_str()) == 0) A.anchor = (int)i;
+        }
+    }
+    selKeepVisible();
+    A.sel = -1;
+    if (!selName.empty())
+        for (int i = 0; i < (int)A.view.size(); i++)
+            if (_wcsicmp(l->name(l->e[A.view[i]]), selName.c_str()) == 0) { A.sel = i; break; }
+    if (A.sel < 0) A.sel = std::max(0, std::min(oldSel, (int)A.view.size() - 1)); // eliminato: resta lì
+    if (!A.view.empty() && selCount(nullptr) == 0) selOnly(A.sel); // eliminata: si seleziona quella che ne prende il posto
+    A.scrollY = sy;
+    A.scrollTarget = st;
+    clampScroll();
+
+    // Prima la rinomina già aperta, poi quella della nuova cartella: beginRename imposta già la voce
+    // giusta nella lista nuova, e questo controllo la rimetterebbe su un nome della lista vecchia
+    if (A.renaming) { // la voce in rinomina esiste ancora?
+        A.renameEntry = -1;
+        if (!renameName.empty())
+            for (size_t i = 0; i < l->e.size(); i++)
+                if (_wcsicmp(l->name(l->e[i]), renameName.c_str()) == 0) { A.renameEntry = (int)i; break; }
+        if (A.renameEntry < 0) A.renaming = false;
+    }
+    if (!A.selectAfterRefresh.empty()) { // dopo una rinomina
+        for (int i = 0; i < (int)A.view.size(); i++)
+            if (_wcsicmp(l->name(l->e[A.view[i]]), A.selectAfterRefresh.c_str()) == 0) {
+                A.sel = i;
+                selOnly(i);
+                ensureVisible();
+                A.selectAfterRefresh.clear();
+                if (A.renameAfterRefresh) { A.renameAfterRefresh = false; beginRename(); }
+                break;
+            }
+    }
+    A.refreshCount++;
+    A.refreshLatency = nowMs() - A.refreshStart;
+    A.dirty = true;
+}
+
+static void onListing(Listing* l) {
+    // Risposta superata: chi ha cambiato la generazione ha già sistemato refreshInFlight (navigazione,
+    // cambio di scheda) o ha lanciato una ricarica nuova, che è quella in corso (cartella spostata)
+    if (l->gen != A.gen) { delete l; return; }
+    if (l->refresh) A.refreshInFlight = false;
+    if (l->refresh) {
+        if (l->err) { // la cartella non esiste più
+            std::wstring p = l->path;
+            delete l;
+            folderGone(p);
+            return;
+        }
+        std::wstring oldPath = A.cur ? A.cur->path : L"";
+        applyRefresh(l);
+        dirSizeForget(l->path); // è cambiato qualcosa qui dentro: il totale di qui e di sopra non vale più
+        dirSizeQueueCurrent();
+        linksQueueCurrent(); // collegamenti nuovi o cambiati (gli altri sono già arrivati con la lettura)
+        if (_wcsicmp(oldPath.c_str(), l->path.c_str()) != 0) { // cartella seguita dopo uno spostamento
+            startWatch(l->path);
+            updateTitle();
+        }
+        if (A.refreshAgain) { A.refreshAgain = false; requestRefresh(); }
+        return;
+    }
+    A.loading = false;
+    if (l->err) {
+        wchar_t buf[512];
+        _snwprintf(buf, 511, L"%s: %s (codice %lu)", errText(l->err), l->path.c_str(), (unsigned long)l->err);
+        buf[511] = 0;
+        A.noticeKeep = false; // questo errore sostituisce l'avviso che doveva restare
+        notice(buf, false);
+        if (l->err == ERROR_PATH_NOT_FOUND || l->err == ERROR_FILE_NOT_FOUND || l->err == ERROR_DIRECTORY ||
+            l->err == ERROR_INVALID_NAME)
+            recentForget(l->path); // sparita: "Vai a" non la propone più (un'unità non pronta invece resta)
+        bool first = !A.cur;
+        delete l;
+        A.dirty = true;
+        static bool fellBack = false;
+        if (first && !fellBack) { // il percorso iniziale non esiste: ripiego (una volta) sulla cartella utente
+            fellBack = true;
+            wchar_t home[MAX_PATH];
+            DWORD n = GetEnvironmentVariableW(L"USERPROFILE", home, MAX_PATH);
+            navigate((n && n < MAX_PATH) ? home : L"C:\\", 0, L"");
+        }
+        return;
+    }
+    if (A.cur) {
+        if (A.pendingHistory == 1) { A.back.push_back(A.cur->path); A.fwd.clear(); }
+        else if (A.pendingHistory == 2) { A.fwd.push_back(A.cur->path); }
+        else if (A.pendingHistory == 3) { A.back.push_back(A.cur->path); }
+        delete A.cur;
+    }
+    A.cur = l;
+    recentVisit(l->path);
+    A.order.swap(l->order);
+    std::vector<uint32_t>().swap(l->order);
+    A.sortMs = l->sortMs;
+    A.listFade = 0; // la cartella nuova entra in dissolvenza
+    A.rowFade = A.linkFade = HoverFade();
+    A.linkHover = -1;
+    if (A.noticeKeep) A.noticeKeep = false; // l'avviso spiega proprio questo cambio di cartella
+    else A.error.clear();
+    A.filter.clear();
+    A.view = A.order;
+    A.sel = 0;
+    A.scrollY = A.scrollTarget = 0;
+    if (!A.pendingSelect.empty()) {
+        for (int i = 0; i < (int)A.view.size(); i++)
+            if (_wcsicmp(l->name(l->e[A.view[i]]), A.pendingSelect.c_str()) == 0) { A.sel = i; break; }
+    }
+    selReset();
+    selOnly(A.sel);
+    A.renaming = false;
+    A.menu.open = false;
+    A.grid = viewIsGrid(l->path); // la vista è della cartella (viste.txt)
+    layout();
+    ensureVisible();
+    startWatch(l->path);
+    updateTitle();
+    dirSizeQueueCurrent();
+    linksQueueCurrent();
+    A.dirty = true;
+}
+
+static std::wstring joinPath(const std::wstring& dir, const wchar_t* name) {
+    if (dir.empty()) return name; // unità
+    if (dir.back() == L'\\') return dir + name;
+    return dir + L'\\' + name;
+}
+
+// Percorso su un'unità lenta: di rete (anche \\server\…) o ottica. Lì non si legge niente in
+// background senza che l'utente lo chieda (dimensione delle cartelle), e le letture vanno dopo
+// quelle locali ("Vai a", miniature). Decide dal tipo delle unità già noto (A.drives, riempito dal
+// caricamento veloce della barra laterale): niente disco, ma solo sul thread UI.
+static bool slowPath(const std::wstring& p) {
+    if (p.size() >= 2 && p[0] == L'\\' && p[1] == L'\\') return true;
+    if (p.size() < 2 || p[1] != L':') return false;
+    for (const SideItem& d : A.drives)
+        if (!d.path.empty() && towupper(d.path[0]) == towupper(p[0]))
+            return d.driveType == DRIVE_REMOTE || d.driveType == DRIVE_CDROM;
+    return false;
+}
+
+// File solo online (OneDrive e simili): leggerne il contenuto lo scaricherebbe. Tooltip, anteprima e
+// miniature devono dare la stessa risposta. 0x00400000 = RECALL_ON_DATA_ACCESS, 0x00040000 =
+// RECALL_ON_OPEN (mancano negli SDK vecchi).
+static bool onlineOnly(DWORD attr) { return (attr & (FILE_ATTRIBUTE_OFFLINE | 0x00400000 | 0x00040000)) != 0; }
+
+// \\server\condivisione: sopra c'è solo \\server, che non si può elencare (niente ↑)
+static bool uncShareRoot(std::wstring p) {
+    while (p.size() > 2 && p.back() == L'\\') p.pop_back();
+    if (p.size() < 3 || p[0] != L'\\' || p[1] != L'\\') return false;
+    size_t a = p.find(L'\\', 2);
+    return a != std::wstring::npos && p.find(L'\\', a + 1) == std::wstring::npos;
+}
+
+// Cartella che contiene p e nome di p lì dentro: per salire di livello e per "Apri percorso file"
+// (links.cpp). La radice di un'unità sta in Questo PC (parent ""). Solo testo, niente disco.
+static bool parentOf(std::wstring p, std::wstring& parent, std::wstring& child) {
+    while (p.size() > 3 && p.back() == L'\\') p.pop_back();
+    if (p.size() <= 3 && p.size() >= 2 && p[1] == L':') { // radice di un'unità → Questo PC
+        parent.clear();
+        child = p.substr(0, 2) + L"\\";
+        return true;
+    }
+    size_t k = p.find_last_of(L'\\');
+    if (k == std::wstring::npos) return false;
+    child = p.substr(k + 1);
+    parent = p.substr(0, k);
+    if (parent.size() == 2 && parent[1] == L':') parent += L'\\';
+    return true;
+}
+
+static void goUp() {
+    if (!A.cur || A.cur->path.empty() || uncShareRoot(A.cur->path)) return;
+    std::wstring parent, child;
+    if (parentOf(A.cur->path, parent, child)) navigate(parent, 1, child);
+}
+
+static void goBack() {
+    if (A.back.empty()) return;
+    std::wstring p = A.back.back(); A.back.pop_back();
+    navigate(p, 2, L"");
+}
+
+static void goForward() {
+    if (A.fwd.empty()) return;
+    std::wstring p = A.fwd.back(); A.fwd.pop_back();
+    navigate(p, 3, L"");
+}
+
+static void openSelected() {
+    if (!A.cur || A.sel < 0 || A.sel >= (int)A.view.size()) return;
+    const Entry& e = A.cur->e[A.view[A.sel]];
+    std::wstring full = joinPath(A.cur->path, A.cur->name(e));
+    if (e.attr & FILE_ATTRIBUTE_DIRECTORY) {
+        navigate(full, 1, L"");
+    } else if (A.cur->zipLen) { // un file dentro uno zip: si estrae su un thread, poi si apre (zipout.cpp)
+        zipJobStart(ZJ_OPEN, { A.view[A.sel] });
+    } else if (zipNameEnd(full, full.size())) { // uno zip si apre come una cartella
+        navigate(full, 1, L"");
+    } else {
+        HANDLE h = CreateThread(nullptr, 0, openThread, _wcsdup(full.c_str()), 0, nullptr);
+        if (h) CloseHandle(h);
+    }
+}
+
+// Dentro uno zip niente si modifica: le operazioni che scriverebbero lo dicono e non fanno niente
+static bool zipReadOnly() {
+    if (!A.cur || !A.cur->zipLen) return false;
+    notice(L"L'archivio zip è in sola lettura", false);
+    return true;
+}
+// Comandi della shell (Proprietà, Apri con, menu di Windows, terminale): dentro uno zip non ci sono
+static bool zipNoShell() {
+    if (!A.cur || !A.cur->zipLen) return false;
+    notice(L"Non disponibile dentro un archivio zip", false);
+    return true;
+}
+// Percorso dentro lo zip aperto (o un altro, a vista: un componente che finisce in ".zip"). Per le
+// destinazioni di un trascinamento: in uno zip non si rilascia.
+static bool pathInZip(const std::wstring& p) {
+    if (A.cur && A.cur->zipLen && p.size() >= A.cur->zipLen && !_wcsnicmp(p.c_str(), A.cur->path.c_str(), A.cur->zipLen) &&
+        (p.size() == A.cur->zipLen || p[A.cur->zipLen] == L'\\'))
+        return true;
+    return zipPathLike(p);
+}
+
+static void beginPathEdit() {
+    std::wstring p = A.cur ? A.cur->path : L"";
+    A.pathField.set(p, 0, (int)p.size()); // tutto selezionato: si scrive sopra o si incolla
+    A.editingPath = true;
+    A.dirty = true;
+}
+
+static std::wstring normalizePath(std::wstring p) {
+    // spazi e virgolette (tipico di "Copia come percorso")
+    while (!p.empty() && (p.back() == L' ' || p.back() == L'"')) p.pop_back();
+    size_t a = p.find_first_not_of(L" \"");
+    p = (a == std::wstring::npos) ? L"" : p.substr(a);
+    if (p.find(L'%') != std::wstring::npos) { // %USERPROFILE%, ecc.
+        wchar_t buf[2048];
+        DWORD n = ExpandEnvironmentStringsW(p.c_str(), buf, 2048);
+        if (n && n <= 2048) p = buf;
+    }
+    for (auto& c : p) if (c == L'/') c = L'\\';
+    while (p.size() > 3 && p.back() == L'\\') p.pop_back();
+    if (p.size() == 2 && p[1] == L':') p += L'\\';
+    return p;
+}
+
+// Shift: estende dall'ancora · Ctrl: sposta solo il cursore · nessuno: seleziona solo la nuova voce
+static void moveCursorTo(int vi, bool shift, bool ctrl) {
+    if (A.view.empty()) return;
+    vi = std::max(0, std::min((int)A.view.size() - 1, vi));
+    if (shift) {
+        int av = viewIndexOf(A.anchor);
+        if (av < 0) { av = A.sel; A.anchor = (int)A.view[A.sel]; }
+        if (!ctrl) selClear();
+        selRange(av, vi);
+    } else if (!ctrl) {
+        selOnly(vi);
+    }
+    A.sel = vi;
+    ensureVisible();
+    A.dirty = true;
+}
+
+static void moveSel(int delta) {
+    moveCursorTo(A.sel + delta, GetKeyState(VK_SHIFT) < 0, GetKeyState(VK_CONTROL) < 0);
+}
+
+// ---------------------------------------------------------------------------
+// Formattazione
+// ---------------------------------------------------------------------------
+
+static int fmtDate(uint64_t ft64, wchar_t* buf) {
+    FILETIME ft = { (DWORD)ft64, (DWORD)(ft64 >> 32) }, lt;
+    SYSTEMTIME st;
+    FileTimeToLocalFileTime(&ft, &lt);
+    FileTimeToSystemTime(&lt, &st);
+    return _snwprintf(buf, 31, L"%02u/%02u/%04u %02u:%02u", st.wDay, st.wMonth, st.wYear, st.wHour, st.wMinute);
+}
+
+// Virgola decimale all'italiana: solo i punti tra due cifre (un nome come "GeForce 5070.Ti" non c'è,
+// ma un "x.y" fuori dai numeri resta com'è)
+static void decimalComma(wchar_t* s, int n) {
+    for (int k = 1; k + 1 < n; k++)
+        if (s[k] == L'.' && iswdigit(s[k - 1]) && iswdigit(s[k + 1])) s[k] = L',';
+}
+
+static int fmtSize(uint64_t b, wchar_t* buf) {
+    if (b < 1024) return _snwprintf(buf, 31, L"%llu B", (unsigned long long)b);
+    const wchar_t* u[] = { L"KB", L"MB", L"GB", L"TB" };
+    double v = (double)b / 1024.0;
+    int i = 0;
+    while (v >= 1024.0 && i < 3) { v /= 1024.0; i++; }
+    int n = _snwprintf(buf, 31, v < 10 ? L"%.1f %s" : L"%.0f %s", v, u[i]);
+    decimalComma(buf, n);
+    return n;
+}
+
+// Tipo di unità (GetDriveTypeW) con le parole di Windows: lista di Questo PC, barra laterale e
+// tooltip dicono la stessa cosa
+static const wchar_t* driveKind(UINT t) {
+    switch (t) {
+    case DRIVE_FIXED:     return L"Disco locale";
+    case DRIVE_REMOVABLE: return L"Unità rimovibile";
+    case DRIVE_REMOTE:    return L"Unità di rete";
+    case DRIVE_CDROM:     return L"Unità ottica";
+    case DRIVE_RAMDISK:   return L"Disco RAM";
+    case DRIVE_NETPLACE:  return L"Percorso di rete";
+    default:              return L"Unità";
+    }
+}
+
+static bool thumbRect(float& ty, float& th) {
+    float ch = contentH();
+    if (ch <= A.listH || A.listH <= 0) return false;
+    th = std::max(px(ui::THUMB_MIN), A.listH * A.listH / ch);
+    ty = A.listTop + (A.scrollY / maxScroll()) * (A.listH - th);
+    return true;
+}

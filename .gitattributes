@@ -1,0 +1,2 @@
+# Gli script dei controlli di git li esegue sh: con CRLF non partirebbero.
+.githooks/* text eol=lf
