@@ -20,6 +20,40 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 0000000000000000000000. Miniature: zip, percorsi e unità di rete (z-f-dev, novembre 2026)
+
+Tre correzioni del controllo del codice (`thumbs.cpp`, `preview.cpp`, `icons.cpp`): le miniature
+dentro uno zip si rifanno sempre dallo zip (`thRestart`), i percorsi di rete di Questo PC hanno
+l'icona di cartella anche in griglia e nell'anteprima (`iconSource`, `iconDrive`), le icone delle
+unità di rete e ottiche in Questo PC vanno sui thread della rete.
+
+Provato da Claude con z-f-dev in una cartella di prova, confrontando con la build di prima
+(stesso codice senza le correzioni), griglia grande, F12 aperto:
+- [x] **Zip con 1.200 foto** (640×480), scorrendo fino in fondo e poi di nuovo in cima: la RAM si
+      riempie (89–92 MB, circa 480 miniature) e le prime voci si rifanno. Prima: 456 richieste
+      alla cache di Windows (cioè alla shell, dentro lo zip) e 1.656 decodifiche WIC solo
+      scendendo. Dopo: nessuna richiesta alla cache di Windows, 1.692 decodifiche WIC scendendo e
+      2.943 a giro finito (1,28 ms l'una), tutte le miniature visibili al ritorno.
+- [x] **Questo PC in griglia, con un percorso di rete che risponde lento** (una condivisione via
+      VPN): prima l'icona del percorso di rete arrivava dopo circa 20 s, le icone delle unità
+      aspettavano in coda dietro di lei e l'anteprima restava su "caricamento…"; poi, aprendo
+      una cartella in griglia, le sue sottocartelle avevano l'icona della condivisione. Dopo:
+      icona di cartella subito, unità subito, anteprima con le informazioni del percorso di rete
+      e l'icona di cartella; le sottocartelle hanno l'icona normale.
+- [x] Registro: solo "attesa vsync lunga" (debito noto). MSVC: zero avvisi.
+- Non provato: le icone delle unità di rete e ottiche sui thread della rete, perché qui non c'è
+  un'unità con la lettera di rete o un lettore ottico.
+
+Restano a Zyruel (servono una rete vera):
+- [ ] **NAS spento o condivisione irraggiungibile**, con un percorso di rete in Questo PC
+      ("Aggiungi un percorso di rete"): Questo PC in griglia mostra subito l'icona di cartella
+      per il percorso di rete; aprendo subito dopo una cartella di foto locale, le miniature
+      arrivano senza aspettare. Le cartelle della griglia non prendono l'icona della condivisione.
+- [ ] **Anteprima (Alt+P) su quel percorso di rete** in Questo PC: icona di cartella, le
+      informazioni del percorso di rete, nessuna attesa.
+- [ ] **Unità di rete scollegata (Z:)** in Questo PC in griglia: le altre unità hanno subito la
+      loro icona; aprendo poi una cartella locale in griglia, le miniature non aspettano Z:.
+
 ## 000000000000000000000. Aggiornamento automatico e riapertura delle schede (1.0.0-beta.3, novembre 2026)
 
 Provato da Claude, senza toccare lo schermo, con `prove\aggiornamenti-prova.py` (server locale al

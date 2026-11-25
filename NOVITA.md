@@ -14,6 +14,11 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
   applicazioni, in Alt+Tab e sul file dell'exe; nitida anche a 16 px.
 - Dopo "Aggiorna" la copia della versione precedente si toglie subito e compare "Aggiornato a
   [z]f …" (prima la versione nuova provava a toglierla mentre la vecchia stava ancora uscendo).
+- Griglia: in uno zip con molte immagini, tornando su quelle già viste le miniature si rifanno
+  dallo zip, senza passare dalla shell (che lì è lenta).
+- Griglia e anteprima di Questo PC: i percorsi di rete hanno l'icona di cartella senza chiedere
+  niente alla rete, e le icone delle unità di rete e ottiche si chiedono a parte. Un NAS spento
+  non ferma più le icone e le miniature delle altre cartelle, e non cambia l'icona delle cartelle.
 
 ## 1.0.0-beta.3 (novembre 2026)
 
