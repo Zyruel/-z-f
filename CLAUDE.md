@@ -61,81 +61,32 @@ documentazione sono in italiano; `shader.hlsl` è solo ASCII.
   - `main` è protetto su GitHub (pull request obbligatoria, anche per gli amministratori) e in
     locale da `.githooks/pre-push`, attivo con `git config core.hooksPath .githooks` (una volta per
     copia del repository), che ferma l'errore prima. Non si scavalca con `--no-verify`.
-- **Per ogni rilascio:**
-  - aggiornare `ZF_VERSION`;
-  - nel README la riga "Versione attuale", in `NOVITA.md` la sezione della versione (con il mese);
-  - salvare una copia in `build\z-f-<versione>.exe` (fino alla 0.28: `build\z-f-0.N.exe`);
-  - firmarla: `build\firma.exe build\z-f-<versione>.exe` scrive `z-f-<versione>.exe.sig` (il
-    programma si compila con `build.bat firma`). La chiave privata è solo sul PC di Zyruel,
-    cifrata in `%LOCALAPPDATA%\z-f-firma\chiave.bin`; senza, [z]f rifiuta l'aggiornamento;
-  - pull request `dev` → `main`, unione, poi tag annotato `v<versione>` sul commit di `main` e
-    Release su GitHub con **l'exe e la sua firma** allegati, con questi nomi esatti (`gh release
-    create`, con `--prerelease` per beta e rc): da lì gli exe già distribuiti si aggiornano da soli.
+- **Rilascio:** con `/rilascio [versione]` (skill in `.claude/skills/rilascio`, la lancia solo
+  Zyruel): versione nei documenti, build, copia in `build\z-f-<versione>.exe` (fino alla 0.28:
+  `build\z-f-0.N.exe`) firmata, pull request `dev` → `main`, tag annotato e Release con l'exe e la
+  firma, da cui gli exe distribuiti si aggiornano da soli. La chiave privata di firma è solo sul PC
+  di Zyruel: senza, [z]f rifiuta l'aggiornamento, e non se ne crea un'altra.
 
-## Compilare
+## Compilare e provare
 
-- **Riferimento, MSVC:** `build.bat`. Trova Visual Studio con vswhere e precompila gli shader con
-  fxc. **Deve uscire senza avvisi:** attenzione a C4244 (int → float), che zig non segnala.
-- **Alternativa:** `build_zig.bat`.
-- **Compilazione incrociata da Linux** (sessione cloud), equivalente:
-  ```
-  python3 -m ziglang c++ -target x86_64-windows-gnu -O2 -std=c++17 -municode -Wall -Wextra \
-    -Wno-unused-parameter -Wno-date-time -DUNICODE -D_UNICODE -DZF_DEV src/z-f.cpp src/z-f.rc -o build/z-f-dev.exe \
-    -Wl,--subsystem,windows -luser32 -lgdi32 -ld3d11 -lshell32 -lole32 -luuid -ladvapi32 -lwinhttp -lbcrypt
-  ```
-  Anche qui: zero avvisi. `ZF_DEV` (anche in `build_zig.bat`): la build di prova non si aggiorna da sola.
-  `src/z-f.rc` (l'icona) lo compila zig stesso, dalla 0.12; MSVC con `rc` in `build.bat`.
-- **Sul PC di Zyruel:** `build.bat` si lancia da PowerShell con `cmd /c '.\build.bat'` dalla
-  cartella del progetto. PowerShell non gestisce le parentesi quadre di `[z]f` nei percorsi
-  (Copy-Item, Get-FileHash): per copiare e verificare gli exe si usa Bash (`cp`, `sha1sum`). Dalla
-  shell Bash i backslash nei testi passati a script (heredoc, sed) possono dimezzarsi o diventare
-  caratteri di controllo: per scrivere percorsi nei file .md si usa lo strumento Edit.
-- **Eseguibili:**
-  - `build\z-f.exe`: la build MSVC, quella che Zyruel usa ed è registrata come file manager predefinito;
-  - `build\z-f-dev.exe`: la build di prova.
+Come si compila e si prova, passo per passo: `/prova` (skill in `.claude/skills/prova`). Le regole:
 
-## Provare
-
+- **Zero avvisi** con MSVC (`cmd /c '.\build.bat'`; attenzione a C4244, int → float, che zig non
+  segnala) e con zig.
+- **Eseguibili:** `build\z-f.exe` è la build MSVC che Zyruel usa, registrata come file manager
+  predefinito; `build\z-f-dev.exe` la build di prova.
+- **PowerShell e `[z]f`:** PowerShell non gestisce le parentesi quadre nei percorsi: gli exe si
+  copiano e verificano con Bash (`cp`, `sha1sum`); i percorsi nei file .md si scrivono con lo
+  strumento Edit (da Bash i backslash possono rovinarsi).
 - **Su un PC vero, non a memoria.** Zyruel preferisce che le prove le faccia Claude quando può (con
   il controllo dello schermo); altrimenti gli si chiede uno screenshot.
-- **Istanza unica:** se [z]f è già aperto, avviare un altro [z]f consegna la cartella alla finestra
-  esistente ed esce.
-  - per una finestra di prova separata: `prove\dev.bat`, che passa `--new-window`;
-  - qualsiasi opzione `--` apre una finestra separata.
-- **Altre prove in `prove\`:**
-  - `istanza.bat`: istanza unica e `/select`;
-  - `avvio.bat [volte] [exe]`: tempi di avvio con `--prova-avvio` (nel registro "prova avvio: …";
-    ogni avvio porta una finestra in primo piano, quindi solo a PC libero);
-  - `predefinito.bat`: [z]f al posto di Explorer;
-  - `hw.bat`, `warp.bat`, `ibrido.bat`: GPU;
-  - `aggiornamenti-prova.py <cartella>`: un server locale che fa da GitHub, per provare
-    l'aggiornamento con `--aggiorna-da=http://127.0.0.1:8766` su una **copia** dell'exe in una
-    cartella di prova (l'exe viene sostituito). Le finestre di prova si chiudono per PID o per
-    cartella, mai per nome: `taskkill /IM z-f.exe` chiuderebbe anche quelle di Zyruel.
-- **Dopo ogni prova:** controllare `build\z-f-log.txt`. All'avvio sono normali due voci dello stesso
-  evento, il passaggio WARP → GPU: `primo Present GPU` (15–30 ms, il driver prepara la swapchain
-  nuova; fino a novembre 2026 si chiamava `Present lento`) e `messaggio lento 0x8002`, che lo
-  contiene (circa 30 ms). Può comparire `messaggio lento 0x0006`, con dentro `0x0281`: è il primo
-  fuoco della finestra, in cui Windows avvia il Text Input Framework (di solito 12 ms, a volte
-  25–80; `prove\ime-avvio.cpp`). Dopo la 0.25 succede dopo il primo frame (F12, "attivazione"),
-  quindi non ritarda più il contenuto (`da-verificare.md` sezione 00000000000000).
+- **Rispetto per Zyruel:** se sta usando il PC (con un'app a schermo intero, per esempio), non si
+  tocca schermo né tastiera; non si interferisce con le sue finestre di [z]f (le prove in z-f-dev,
+  in una finestra separata con `prove\dev.bat`; le finestre di prova si chiudono per PID, mai
+  `taskkill /IM`); le prove col mouse nella lista in una cartella di prova con file finti.
 - **Non scrivere nel registro** al posto di Zyruel: l'interruttore "Usa [z]f al posto di Explorer"
   lo usa lui.
-- **Sessione cloud con il PC collegato:**
-  - **Copia sul PC:**
-    - si copia con `device_commit_files` e si verifica sempre con `sha1sum`;
-    - la copia appena scritta in `outputs` a volte non è ancora pronta: se lo sha1 non torna, si ripete il commit;
-    - un exe in esecuzione è bloccato: va chiuso prima di sovrascriverlo.
-  - **Avvio e mouse:**
-    - non usare `open_application` per un programma di confronto già aperto, perché ne apre una finestra nuova: per portarlo davanti basta cliccarlo;
-    - attenzione a dove si clicca nella barra del titolo di [z]f: a destra ci sono riduci, ingrandisci e chiudi.
-  - **Prove col mouse nella lista:** si fanno in una cartella di prova con file finti, mai in
-    cartelle vere. Il trascinamento dei file parte da icona e nome di una voce selezionata, e in
-    una cartella con nomi lunghi il nome occupa tutta la colonna: un punto che sembra vuoto può
-    avviare uno spostamento vero (è successo in WinSxS, annullato). Prima di premere, uno zoom sul punto.
-  - **Rispetto per Zyruel:**
-    - se Zyruel sta usando il PC (con un'app a schermo intero, per esempio), non si tocca schermo né tastiera;
-    - non si interferisce con le sue finestre di [z]f: per le prove si usa z-f-dev in una finestra separata.
+- **Dopo ogni prova:** controllare `build\z-f-log.txt` (le voci normali dell'avvio sono in `/prova`).
 
 ## Convenzioni del codice
 
@@ -245,14 +196,10 @@ tutte le finestre, e la riapertura delle schede all'avvio (`tabs.cpp`); prove ne
   con cosa servirebbe e cosa le frena rispetto ai principi;
 - `docs/da-sistemare.md`: le piccole correzioni e le scelte minori da confermare con Zyruel.
 
-Nota sulle prove: lo strumento che controlla lo schermo non lascia cliccare nei dialoghi Apri/Salva;
-il salto "al ritorno" lo prova Zyruel.
-
 Prima di cominciare una funzione: rileggere `docs/DESIGN.md` e la parte di `docs/ARCHITETTURA.md` che la
 riguarda.
 Dopo:
-- misurare;
-- controllare il log;
+- misurare e controllare il log (`/prova`);
 - aggiornare `docs/ARCHITETTURA.md` (funzione, misure, tabella dei moduli), `NOVITA.md` (sezione della
   versione in corso) e `docs/DESIGN.md`; il README solo se cambia qualcosa per chi usa [z]f (elenco
   "Cosa sa fare", scorciatoie), restando breve;
