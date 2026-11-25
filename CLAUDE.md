@@ -255,4 +255,7 @@ Dopo:
 - aggiornare `docs/ARCHITETTURA.md` (funzione, misure, tabella dei moduli), `NOVITA.md` (sezione della
   versione in corso) e `docs/DESIGN.md`; il README solo se cambia qualcosa per chi usa [z]f (elenco
   "Cosa sa fare", scorciatoie), restando breve;
-- zero avvisi con MSVC.
+- zero avvisi con MSVC;
+- `/controllo` (skill in `.claude/skills/controllo`) sui file cambiati: le regole di questo file e
+  di `docs/DESIGN.md`, controllate sul codice, con un resoconto e senza correzioni automatiche
+  (prima di un rilascio, o quando serve, `/controllo tutto`).

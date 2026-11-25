@@ -2,3 +2,4 @@ build/
 *.pdb
 *.obj
 *.ilk
+.claude/settings.local.json
