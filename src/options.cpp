@@ -22,8 +22,9 @@ struct ShortcutGroup { const wchar_t* title; Shortcut* items; int n; };
 static Shortcut kNav[] = {
     { { K(M_OPEN, 0, VK_RETURN), { L"doppio clic", 0 } }, L"Apre la cartella o il file" },
     { { K(M_UP, KA, VK_UP), { L"Backspace", 0 } }, L"Cartella superiore (Backspace: se non c'è un filtro)" },
-    { { K(M_BACK, KA, VK_LEFT), { L"tasto laterale indietro", 0 } }, L"Indietro" },
-    { { K(M_FWD, KA, VK_RIGHT), { L"tasto laterale avanti", 0 } }, L"Avanti" },
+    // Anche i tasti del browser e i gesti del touchpad (WM_APPCOMMAND, in input.cpp)
+    { { K(M_BACK, KA, VK_LEFT), { L"tasto laterale indietro", 0 }, { L"gesto Indietro del touchpad", 0 } }, L"Indietro" },
+    { { K(M_FWD, KA, VK_RIGHT), { L"tasto laterale avanti", 0 }, { L"gesto Avanti del touchpad", 0 } }, L"Avanti" },
     { { { L"Clic su un segmento del percorso", 0 } }, L"Va a quella cartella" },
     { { { L"Clic su › nel percorso", 0 } }, L"Sottocartelle" },
     { { { L"Clic sulla destinazione di un collegamento", 0 }, { L"clic centrale", 0 } }, L"Apre il percorso del file (in una nuova scheda)" },

@@ -50,6 +50,16 @@ static void onClipSet(ClipSet* c) {
     notice(m, false);
 }
 
+// Indietro, Avanti, Ricarica senza la tastiera normale: tasti laterali del mouse, tasti del
+// browser delle tastiere multimediali, gesti del touchpad. Sotto le opzioni e "Vai a" non si naviga
+static void historyCmd(int id) {
+    if (OP.open || gotoIsOpen()) return;
+    menuClose();
+    CmdCtx c;
+    c.target = A.tab;
+    menuRun(id, c);
+}
+
 static void onKey(WPARAM vk, bool alt) {
     bool ctrl = GetKeyState(VK_CONTROL) < 0, shift = GetKeyState(VK_SHIFT) < 0;
     if (vk == VK_ESCAPE && (mqCancel() || colDragEnd(false) || favMouseUp(false, false) || favDisarm())) return; // rettangolo, bordo, preferito trascinato: si torna a prima; cestino: niente conferma
@@ -398,6 +408,9 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         return 0;
     case WM_KEYDOWN:
         tipHide();
+        // Tasti del browser e multimediali (li mandano anche i gesti del touchpad "Spostamento
+        // indietro/avanti"): DefWindowProc li trasforma in WM_APPCOMMAND, qui sotto
+        if (wp >= VK_BROWSER_BACK && wp <= VK_LAUNCH_APP2) break;
         onKey(wp, false);
         return 0;
     case WM_SYSKEYDOWN:
@@ -683,9 +696,18 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         return 0;
     }
     case WM_XBUTTONDOWN:
-        if (OP.open || gotoIsOpen()) return TRUE;
-        if (GET_XBUTTON_WPARAM(wp) == XBUTTON1) goBack(); else goForward();
+        historyCmd(GET_XBUTTON_WPARAM(wp) == XBUTTON1 ? M_BACK : M_FWD);
         return TRUE;
+    case WM_XBUTTONUP: // già eseguito alla pressione: niente WM_APPCOMMAND da DefWindowProc, si navigherebbe due volte
+        return TRUE;
+    case WM_APPCOMMAND: { // tasti del browser, gesti del touchpad, tasti laterali sopra la barra del titolo
+        int c = GET_APPCOMMAND_LPARAM(lp);
+        int id = c == APPCOMMAND_BROWSER_BACKWARD ? M_BACK : c == APPCOMMAND_BROWSER_FORWARD ? M_FWD
+               : c == APPCOMMAND_BROWSER_REFRESH ? M_REFRESH : 0;
+        if (!id) break; // volume, musica…: a Windows
+        historyCmd(id);
+        return TRUE;
+    }
     case WM_CLOSE:
         if (closeDeferred()) return 0; // operazioni sui file in corso: si chiude quando finiscono
         break;

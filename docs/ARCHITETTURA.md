@@ -530,6 +530,14 @@ thread, ognuna rifà la ricerca) si misura a parte con `prove\vai-a-misura.cpp`.
   Le scorciatoie delle voci vengono da `kShortcuts` (`options.cpp`, `shortcutFor`). Regole del
   menu (voci disattivate o assenti, scambio con `menu_completo`): `DESIGN.md`, "Menu
   contestuale".
+- **Indietro e Avanti senza la tastiera normale** (`historyCmd`, `input.cpp`): i tasti laterali
+  del mouse alla pressione (`WM_XBUTTONDOWN`); i tasti del browser e i gesti del touchpad
+  ("Spostamento indietro/avanti" di Windows) come `WM_APPCOMMAND`. Secondo la documentazione è
+  `DefWindowProc` a trasformare quei tasti in `WM_APPCOMMAND`, quindi `WM_KEYDOWN` lascia passare
+  `VK_BROWSER_BACK`…`VK_LAUNCH_APP2`; con un `WM_KEYDOWN` simulato (`PostMessage`/`SendMessage`)
+  non succede, nemmeno in una finestra qualsiasi: serve il tasto vero.
+  `WM_XBUTTONUP` invece si ferma, altrimenti `DefWindowProc` manderebbe un secondo
+  `WM_APPCOMMAND` e il tasto laterale navigherebbe due volte.
 - **Menu completo della shell** ("Altre opzioni…"; `shell.cpp`): lo costruisce e lo mostra un
   thread suo, con una finestra nascosta sua, mentre l'interfaccia continua a disegnare. Elimina,
   Incolla, Rinomina, Copia e Taglia tornano a [z]f con i percorsi del momento del clic, quindi

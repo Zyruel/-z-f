@@ -579,7 +579,7 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
 | trascina col tasto destro | al rilascio, un menu chiede cosa fare |
 | rotellina | scorre l'elemento sotto il mouse, non quello attivo; le frazioni di scatto dei touchpad si sommano (negli elenchi a righe intere) |
 | Ctrl+rotellina | dimensione del testo; in griglia delle miniature |
-| tasti laterali | indietro / avanti |
+| tasti laterali; tasti Indietro/Avanti della tastiera; gesti del touchpad "Spostamento indietro/avanti" di Windows | indietro / avanti (sopra le opzioni e "Vai a": niente) |
 
 ### Tastiera
 - **Ogni comando ha una scorciatoia**, mostrata nel menu e nel tooltip ed elencata in `kShortcuts`

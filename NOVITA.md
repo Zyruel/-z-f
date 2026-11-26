@@ -10,6 +10,9 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 
 ## In preparazione
 
+- **Gesti del touchpad:** "Spostamento indietro" e "Spostamento avanti" (Impostazioni →
+  Bluetooth e dispositivi → Touchpad) vanno indietro e avanti, come i tasti Indietro, Avanti e
+  Aggiorna delle tastiere che li hanno. Prima [z]f li ignorava.
 - **"Vai a" dal percorso:** il clic sullo spazio vuoto del percorso, Ctrl+L e F4 aprono "Vai a"
   con il percorso della cartella aperta già scritto e selezionato: si vedono subito le sue
   sottocartelle, si continua a scrivere il percorso con i suggerimenti, o si scrive sopra per

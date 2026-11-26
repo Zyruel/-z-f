@@ -20,6 +20,24 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 00000000000000000000000000000000000. Gesti del touchpad e tasti Indietro/Avanti (z-f-dev, novembre 2026)
+
+Compilato senza avvisi (MSVC). Senza schermo (accesso negato), con `WM_APPCOMMAND` mandato alla
+finestra di prova: Indietro e Avanti navigano, sia "da tastiera" sia "da mouse". I tasti
+Indietro/Avanti simulati con `PostMessage`/`SendMessage` non si possono provare così: Windows li
+trasforma in `WM_APPCOMMAND` solo se arrivano da input vero (provato anche con una finestra
+qualsiasi). Log normale.
+
+- [x] **Gesti a tre dita** "Spostamento indietro" e "Spostamento avanti" (Impostazioni →
+      Bluetooth e dispositivi → Touchpad): Indietro e Avanti come Alt+← e Alt+→. Provato da
+      Zyruel su un altro PC con la build di prova: funziona.
+- [ ] Gesti sopra le opzioni e "Vai a": non succede niente; con un menu aperto il menu si chiude.
+- [ ] **Tasti laterali del mouse:** navigano una volta sola per clic (prima della modifica il
+      rilascio non arrivava mai a Windows; ora lo ferma `WM_XBUTTONUP`). Sopra la barra del titolo
+      ora navigano anche lì.
+- [ ] **Tastiera con i tasti del browser** (Indietro, Avanti, Aggiorna), se c'è: navigano e
+      ricaricano. Volume e tasti della musica funzionano come prima.
+
 ## 0000000000000000000000000000000000. Destinazione dei collegamenti su un'unità di rete (z-f-dev, novembre 2026)
 
 Compilato senza avvisi (MSVC). Con `build\collegamenti-prova.exe`: un collegamento costruito
