@@ -51,6 +51,10 @@ documentazione sono in italiano; `shader.hlsl` è solo ASCII.
   su `main` o push forzati: li ferma `.claude/hooks/regole.sh`, e `main` è protetto anche su
   GitHub e da `.githooks/pre-push` (attivo con `git config core.hooksPath .githooks`, una volta
   per copia del repository).
+- **Bilancio:** dopo un rilascio, `/bilancio` (skill in `.claude/skills/bilancio`, la lancia solo
+  Zyruel) valuta come si è lavorato nel ciclo: processo, decisioni, skill, script, permessi.
+  Prende i dati dalle trascrizioni delle sessioni e da git e scrive un resoconto privato in
+  `build\bilanci\`; si applicano solo le proposte che Zyruel sceglie.
 - **Repository pubblico:** nei file e nei messaggi di commit niente dati personali (l'autore è
   Zyruel, mai il nome di battesimo; niente riferimenti ad amici o altre persone; niente percorsi con
   il nome utente, nomi di server, condivisioni e cartelle di lavoro: negli esempi `\\server\…`,

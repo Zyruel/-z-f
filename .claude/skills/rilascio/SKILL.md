@@ -225,3 +225,5 @@ sha256sum "build/z-f-$V.exe"
 - Resoconto a Zyruel: versione, link della pull request e della Release, sha di `main`, le
   dimensioni, e le prove a mano che restano in `prove\da-verificare.md`. Gli exe già distribuiti
   sul canale giusto si aggiornano da soli entro un giorno.
+- In fondo al resoconto, una riga che ricorda il bilancio del ciclo: `/bilancio $V`, meglio in
+  una sessione nuova (skill `bilancio`).
