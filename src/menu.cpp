@@ -386,7 +386,7 @@ static void menuRun(int id, const CmdCtx& c) {
     case M_BACK:      goBack(); break;
     case M_FWD:       goForward(); break;
     case M_UP:        goUp(); break;
-    case M_EDIT_PATH: beginPathEdit(); break;
+    case M_EDIT_PATH: gotoOpenHere(); break;
     case M_SIDEBAR:   sidebarToggle(); break;
     }
     A.dirty = true;

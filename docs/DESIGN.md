@@ -335,7 +335,7 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   programma. Le icone di file e cartelle restano quelle della shell.
 - **Barra del percorso:** percorso a segmenti ("Questo PC › Disco locale (C:) › Users › utente").
   - segmenti con hover come le voci; antenati in `C_DIM`, cartella corrente in `C_TEXT`, separatore "›" in `C_FAINT`;
-  - clic su un segmento: ci va; su "›": menu delle sottocartelle (il "›" resta evidenziato finché il menu è aperto); clic centrale: nuova scheda; spazio vuoto: casella di testo;
+  - clic su un segmento: ci va; su "›": menu delle sottocartelle (il "›" resta evidenziato finché il menu è aperto); clic centrale: nuova scheda; spazio vuoto: "Vai a" dalla cartella aperta (vedi "Vai a");
   - nomi come altrove: unità con la loro etichetta, preferiti con il loro nome;
   - se non c'è spazio i primi livelli finiscono in "…", che li elenca in un menu;
   - a sinistra ← → ↑, a destra ☆, ▦ e ◨ (▦: icona GridView, `C_TEXT` in griglia e `C_DIM` in
@@ -476,7 +476,7 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   - pannello `C_MENU`: titolo in `C_TEXT`, se serve su più righe; poi coppie etichetta (`C_DIM`) / valore (`C_TEXT`); le note senza etichetta in `C_FAINT`;
   - larghezza massima `TIP_MAX_W` (520).
 - **Casella di testo:** fondo `C_INPUT`, selezione `C_SEL_TEXT`, margine interno `FIELD_PAD` (6).
-  Una sola implementazione (`TextField`) per percorso, rinomina, ricerca delle opzioni, "Vai a" e
+  Una sola implementazione (`TextField`) per rinomina, ricerca delle opzioni, "Vai a" e
   ogni campo futuro. Il suggerimento a casella vuota è in `C_FAINT`, `GAP_S` dopo il cursore.
 - **Barra di scorrimento:** solo il cursore, `C_SCROLL`, largo `SCROLL_W` (10) con margine; alto
   almeno `THUMB_MIN` (24).
@@ -531,6 +531,12 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   - senza voci una riga in `C_FAINT`: "Nessuna cartella", "caricamento…" (dopo `LOADING_AFTER`),
     "Impossibile leggere la cartella";
   - campo vuoto: le cartelle recenti, dalla più usata e recente;
+  - **dal percorso** (clic sullo spazio vuoto della barra del percorso, Ctrl+L, F4): si apre con
+    il percorso della cartella aperta e "\" in fondo, tutto selezionato, quindi la cartella stessa
+    e le sue sottocartelle. Scrivendo si sostituisce (ricerca su tutto); Fine o un clic per
+    continuare il percorso. Con il pannello già aperto queste scorciatoie rimettono il percorso;
+    in Questo PC il campo resta vuoto. È l'unico modo di scrivere un percorso: niente casella
+    nella barra;
   - tastiera: ↑ ↓ PagSu PagGiù muovono la voce attiva, il resto va alla casella; Invio apre,
     Ctrl+Invio apre in una nuova scheda in background, Tab completa con la voce attiva e ne mostra
     le sottocartelle, Esc prima svuota il testo e poi chiude;

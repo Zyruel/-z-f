@@ -627,24 +627,39 @@ static void gotoClose() {
     A.dirty = true;
 }
 
-static void gotoOpen() {
-    if (GT.open) { gotoClose(); return; } // la stessa scorciatoia lo richiude
+// Apre il pannello con questo testo, tutto selezionato: si scrive sopra o si incolla. Se è già
+// aperto cambia solo il testo.
+static void gotoStart(const std::wstring& text) {
     double t0 = nowMs();
-    menuClose();
-    optionsClose();
-    tipHide();
-    A.editingPath = false;
-    if (A.renaming) endRename(true); // come un clic fuori dalla casella (dal menu ≡)
-    GT.open = true;
-    GT.openedAt = nowMs();
-    GT.field.set(L"", 0, 0);
+    if (!GT.open) {
+        menuClose();
+        optionsClose();
+        tipHide();
+        if (A.renaming) endRename(true); // come un clic fuori dalla casella (dal menu ≡)
+        GT.open = true;
+        GT.openedAt = nowMs();
+        gotoBuild();
+    }
+    GT.field.set(text, 0, (int)text.size());
     GT.first = 0;
-    gotoBuild();
     gotoSearch(false);
     A.gotoOpenMs = nowMs() - t0;
     A.gotoSearchMax = A.gotoSearchMs;
     A.hover = -1;
     A.dirty = true;
+}
+
+static void gotoOpen() {
+    if (GT.open) { gotoClose(); return; } // la stessa scorciatoia lo richiude
+    gotoStart(L"");
+}
+
+// Dalla cartella aperta (clic sul percorso, Ctrl+L, F4): il suo percorso con "\" in fondo, così si
+// vedono subito le sue sottocartelle, prese dalla lista senza toccare il disco. Questo PC: campo vuoto.
+static void gotoOpenHere() {
+    std::wstring p = A.cur && !A.cur->isDrives ? A.cur->path : L"";
+    if (!p.empty() && p.back() != L'\\') p += L'\\';
+    gotoStart(p);
 }
 
 static void gotoExec(int i, bool newTab) {
@@ -689,7 +704,13 @@ static bool gotoKey(WPARAM vk, bool ctrl, bool shift) {
         }
         break;
     default:
-        if (ctrl && (vk == 'P' || vk == 'G')) { gotoClose(); break; }
+        // Le scorciatoie di "Vai a" (dalla tabella): la sua lo richiude, quella del percorso riparte
+        // dalla cartella aperta
+        if (int cmd = shortcutCmd((UINT)vk, (ctrl ? KC : 0) | (shift ? KS : 0)); cmd == M_GOTO || cmd == M_EDIT_PATH) {
+            if (cmd == M_GOTO) gotoClose();
+            else gotoOpenHere();
+            break;
+        }
         {
             std::wstring before = GT.field.text;
             GT.field.key(A.hwnd, vk, ctrl, shift);

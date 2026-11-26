@@ -21,10 +21,10 @@ bit (provato su Windows 11).
   quindi l'interfaccia non si blocca mai.
 - **Schede** e **barra laterale** con i preferiti (si riordinano trascinandoli) e Questo PC, con
   le unità e i percorsi di rete; si connettono e disconnettono unità di rete.
-- **Percorso a segmenti** cliccabili, con le sottocartelle in un menu su ogni "›"; si può anche
-  scrivere il percorso.
+- **Percorso a segmenti** cliccabili, con le sottocartelle in un menu su ogni "›".
 - **"Vai a"** (Ctrl+P): cerca mentre scrivi tra cartelle recenti, preferiti e le loro
-  sottocartelle.
+  sottocartelle. Dal percorso (clic, Ctrl+L) parte dalla cartella aperta: si scrive il percorso
+  con le sottocartelle suggerite.
 - **Lista:** filtro mentre scrivi, ordinamento naturale, selezione multipla e col rettangolo,
   colonne ridimensionabili, tooltip con le informazioni di file, cartelle e unità.
 - **Anteprima** (Alt+P) di immagini, testo e cartelle, e **griglia con miniature**
@@ -64,7 +64,7 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Clic su un segmento del percorso | Va a quella cartella |
 | Clic su › nel percorso | Sottocartelle |
 | Clic sulla destinazione di un collegamento · clic centrale | Apre il percorso del file (in una nuova scheda) |
-| Ctrl+L · F4 · clic sul percorso vuoto | Scrive il percorso |
+| Ctrl+L · F4 · clic sul percorso vuoto | Vai a dalla cartella aperta: scrive il percorso |
 | Ctrl+P · Ctrl+G | Vai a: cartelle recenti, preferiti, sottocartelle |
 | Ctrl+Invio · clic centrale | Vai a: apre in una nuova scheda |
 | Tab | Vai a: entra nella cartella e mostra le sottocartelle |

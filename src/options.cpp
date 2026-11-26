@@ -27,7 +27,7 @@ static Shortcut kNav[] = {
     { { { L"Clic su un segmento del percorso", 0 } }, L"Va a quella cartella" },
     { { { L"Clic su › nel percorso", 0 } }, L"Sottocartelle" },
     { { { L"Clic sulla destinazione di un collegamento", 0 }, { L"clic centrale", 0 } }, L"Apre il percorso del file (in una nuova scheda)" },
-    { { K(M_EDIT_PATH, KC, 'L'), K(M_EDIT_PATH, 0, VK_F4), { L"clic sul percorso vuoto", 0 } }, L"Scrive il percorso" },
+    { { K(M_EDIT_PATH, KC, 'L'), K(M_EDIT_PATH, 0, VK_F4), { L"clic sul percorso vuoto", 0 } }, L"Vai a dalla cartella aperta: scrive il percorso" },
     { { K(M_GOTO, KC, 'P'), K(M_GOTO, KC, 'G') }, L"Vai a: cartelle recenti, preferiti, sottocartelle" },
     { { { L"Ctrl+Invio", M_GOTO_NEWTAB }, { L"clic centrale", 0 } }, L"Vai a: apre in una nuova scheda" },
     { { { L"Tab", M_GOTO_ENTER } }, L"Vai a: entra nella cartella e mostra le sottocartelle" },
@@ -290,7 +290,6 @@ static void optionsOpen() {
     menuClose();
     tipHide();
     A.renaming = false;
-    A.editingPath = false;
     A.dirty = true;
 }
 

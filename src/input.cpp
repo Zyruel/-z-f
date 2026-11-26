@@ -3,7 +3,6 @@
 // La casella a cui torna un risultato degli appunti, se è ancora aperta
 static TextField* clipField(void* target) {
     if (target == &A.renameField && A.renaming) return &A.renameField;
-    if (target == &A.pathField && A.editingPath) return &A.pathField;
     if (target == &GT.field && gotoIsOpen()) return &GT.field;
     if (target == &OP.search && OP.open) return &OP.search;
     return nullptr;
@@ -62,19 +61,6 @@ static void onKey(WPARAM vk, bool alt) {
         if (vk == VK_RETURN) endRename(true);
         else if (vk == VK_ESCAPE) endRename(false);
         else A.renameField.key(A.hwnd, vk, ctrl, shift);
-        A.dirty = true;
-        return;
-    }
-    if (A.editingPath) {
-        if (vk == VK_RETURN) {
-            A.editingPath = false;
-            std::wstring p = normalizePath(A.pathField.text);
-            if (!p.empty()) navigate(p, 1, L"");
-        } else if (vk == VK_ESCAPE) {
-            A.editingPath = false;
-        } else {
-            A.pathField.key(A.hwnd, vk, ctrl, shift);
-        }
         A.dirty = true;
         return;
     }
@@ -156,7 +142,6 @@ static void onChar(wchar_t c) {
     if (gotoChar(c)) return;
     if (optionsChar(c)) return;
     if (A.renaming) A.renameField.insert(std::wstring(1, c));
-    else if (A.editingPath) A.pathField.insert(std::wstring(1, c));
     else if (A.cur) { A.filter += c; rebuildView(false); }
     A.dirty = true;
 }
@@ -551,7 +536,6 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (A.renaming) endRename(true);
         bool onPath = y >= A.pathY && y < A.pathY + A.topH;
         int chId = chromeHit(x, y);
-        if (A.editingPath && (!onPath || chId != CH_NONE)) { A.editingPath = false; A.dirty = true; }
         if (chId != CH_NONE) { chromeExec(chId); return 0; } // ≡, barra laterale, ← → ↑, ☆
         if (fltClearAt(x, y)) {
             A.filter.clear(); // × del filtro
@@ -567,8 +551,8 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             else if (t >= 0) tabActivate(t);
             return 0;
         }
-        if (onPath) { // segmento → ci va; "›" → sottocartelle; spazio vuoto → modifica del percorso
-            if (!A.editingPath && !crumbClick(x, y)) beginPathEdit();
+        if (onPath) { // segmento → ci va; "›" → sottocartelle; spazio vuoto → "Vai a" dalla cartella aperta
+            if (!crumbClick(x, y)) gotoOpenHere();
             return 0;
         }
         if (int pe = panelEdgeAt(x, y); pe >= 0) { colDragStart(pe, x); return 0; } // bordo di un pannello: larghezza

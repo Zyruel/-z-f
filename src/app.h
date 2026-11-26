@@ -111,8 +111,6 @@ struct App {
     float dragOffset = 0;
 
     std::wstring filter;
-    bool editingPath = false;
-    TextField pathField;
     bool renaming = false;
     TextField renameField;
     int renameEntry = -1;
@@ -345,6 +343,7 @@ static void recentVisit(const std::wstring& path);   // goto.cpp: cartella apert
 static void recentForget(const std::wstring& path);  // goto.cpp: cartella che non esiste più
 static void recentLoaded(const std::vector<std::wstring>& lines); // goto.cpp: recenti.txt letto all'avvio
 static void gotoOpen();                              // goto.cpp
+static void gotoOpenHere();                          // goto.cpp: dalla cartella aperta (clic sul percorso, Ctrl+L, F4)
 static bool gotoIsOpen();                            // goto.cpp
 static void drawGoto();                              // goto.cpp
 static bool gotoTipTarget(int x, int y, int& index); // goto.cpp: voce sotto il mouse, per il tooltip

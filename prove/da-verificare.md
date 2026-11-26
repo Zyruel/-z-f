@@ -20,6 +20,24 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 000000000000000000000000000000000. "Vai a" dal percorso (z-f-dev, novembre 2026)
+
+Compilato senza avvisi (MSVC). Provato da Zyruel su un altro PC ("direi che funziona"); Claude
+non l'ha provato con lo schermo. Restano da spuntare uno per uno, in z-f-dev (`prove\dev.bat`):
+
+- [ ] Clic sullo spazio vuoto del percorso, Ctrl+L e F4: si apre "Vai a" con il percorso della
+  cartella aperta e "\" in fondo, tutto selezionato; sotto, la cartella stessa e le sue
+  sottocartelle, subito (vengono dalla lista, niente "caricamento…").
+- [ ] Scrivendo subito si cerca su tutto (il percorso selezionato sparisce); Fine e poi lettere:
+  si filtrano le sottocartelle; Backspace fino alla "\" precedente: le cartelle del livello sopra.
+- [ ] Ctrl+V di un percorso copiato ci va con Invio; un percorso che non esiste: avviso come prima.
+- [ ] Con "Vai a" già aperto (Ctrl+P), Ctrl+L o F4 mettono il percorso della cartella aperta;
+  Ctrl+P lo richiude.
+- [ ] In Questo PC: si apre con il campo vuoto (le cartelle recenti). Dentro uno zip: le
+  sottocartelle dello zip aperto.
+- [ ] Clic su un segmento o su "›" fa come prima; un secondo clic sul percorso vuoto con il
+  pannello aperto lo chiude.
+
 ## 00000000000000000000000000000000. Destinazione mai più larga di Nome (z-f-dev, novembre 2026)
 
 Compilato senza avvisi. Provato da Zyruel su un altro PC con l'anteprima aperta ("decisamente

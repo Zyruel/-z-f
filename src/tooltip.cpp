@@ -351,7 +351,6 @@ static bool tipBuild() {
         break;
     }
     case TIP_PATH: {
-        if (A.editingPath) return false;
         int id = T.index;
         if (id == CRUMB_ELL) { T.title = L"Livelli superiori"; break; }
         if (id >= 0 && id / 2 < (int)CB.segs.size()) {

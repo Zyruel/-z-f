@@ -495,7 +495,10 @@ tooltip su un JPEG), nessun file scaricato.
 Un clic su un segmento ci va con selezionata la cartella da cui si arriva. Le sottocartelle del
 menu "›" le legge `readSubfolders` su un thread, ordinate come la lista; se
 la lettura supera `LOADING_AFTER` (150 ms) il menu si apre subito con "caricamento…". I menu lunghi
-scorrono (`menuAdd`, `menuPlace`). Lo spazio vuoto apre la casella di testo (`TextField`).
+scorrono (`menuAdd`, `menuPlace`). Lo spazio vuoto apre "Vai a" dalla cartella aperta
+(`gotoOpenHere`): il percorso con "\" in fondo è un percorso scritto, e le sottocartelle vengono
+dalla `Listing` già aperta (`gotoDirFromListing`), senza disco. Così scrivere un percorso e
+cercare una cartella sono un solo componente.
 
 **Come funziona: "Vai a"** (`goto.cpp`; pannello in `DESIGN.md`, "Vai a").
 

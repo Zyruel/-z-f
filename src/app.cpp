@@ -602,12 +602,6 @@ static bool pathInZip(const std::wstring& p) {
     return zipPathLike(p);
 }
 
-static void beginPathEdit() {
-    std::wstring p = A.cur ? A.cur->path : L"";
-    A.pathField.set(p, 0, (int)p.size()); // tutto selezionato: si scrive sopra o si incolla
-    A.editingPath = true;
-    A.dirty = true;
-}
 
 static std::wstring normalizePath(std::wstring p) {
     // spazi e virgolette (tipico di "Copia come percorso")
