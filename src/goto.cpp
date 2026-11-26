@@ -756,8 +756,10 @@ static bool gotoMouseDown(int x, int y, bool middle, bool ctrl) {
 }
 
 // Il secondo clic di un doppio clic arriva quando il pannello si è già chiuso: non deve aprire
-// la voce che nella lista, sotto, si trova in quel punto
+// la voce che nella lista, sotto, si trova in quel punto. Un doppio clic sul percorso vuoto l'ha
+// appena aperto con il primo clic: il secondo non lo richiude.
 static bool gotoDblClk(int x, int y, bool ctrl) {
+    if (GT.open && y >= A.pathY && y < A.pathY + A.topH && nowMs() - GT.openedAt < GetDoubleClickTime()) return true;
     if (GT.open) return gotoMouseDown(x, y, false, ctrl);
     return nowMs() - GT.closedAt < GetDoubleClickTime();
 }

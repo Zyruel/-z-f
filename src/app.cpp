@@ -602,7 +602,6 @@ static bool pathInZip(const std::wstring& p) {
     return zipPathLike(p);
 }
 
-
 static std::wstring normalizePath(std::wstring p) {
     // spazi e virgolette (tipico di "Copia come percorso")
     while (!p.empty() && (p.back() == L' ' || p.back() == L'"')) p.pop_back();

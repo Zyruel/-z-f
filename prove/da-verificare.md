@@ -69,6 +69,8 @@ non l'ha provato con lo schermo. Restano da spuntare uno per uno, in z-f-dev (`p
   sottocartelle dello zip aperto.
 - [ ] Clic su un segmento o su "›" fa come prima; un secondo clic sul percorso vuoto con il
   pannello aperto lo chiude.
+- [ ] Doppio clic sullo spazio vuoto del percorso: "Vai a" si apre e resta aperto (prima della
+  correzione il secondo clic lo richiudeva subito).
 
 ## 00000000000000000000000000000000. Destinazione mai più larga di Nome (z-f-dev, novembre 2026)
 

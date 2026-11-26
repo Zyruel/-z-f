@@ -580,7 +580,7 @@ static void drawOptions(double dt) {
     sw(OP.defaultState == 1, OP.knobDefault, OPT_DEFAULT);
     cy += rowH * 2 - px(ui::GAP_S);
     label(L"Una finestra per ogni cartella aperta da fuori",
-          L"Invece di una scheda nella finestra principale. Una finestra occupa da 40 a 70 MB, una scheda meno di 1");
+          L"Invece di una scheda nella finestra principale. Una finestra occupa da 40 a 70 MB, una scheda meno di 1 MB");
     sw(A.separateWindows, OP.knobSeparate, OPT_SEPARATE);
     cy += rowH * 2 - px(ui::GAP_S);
     label(L"Menu completo di Windows col tasto destro",
