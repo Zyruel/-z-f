@@ -299,12 +299,12 @@ static DWORD zipParse(HANDLE f, uint64_t fsize, ZipArchive& z) {
             bool last = s > wname.size() || wname.find_first_not_of(L'\\', s) == std::wstring::npos;
             if (last) lastParent = parent;
             lc = comp;
-            bool ascii = true;
+            bool lcAscii = true;
             for (wchar_t& c : lc) {
-                if (c >= 0x80) ascii = false;
+                if (c >= 0x80) lcAscii = false;
                 else if (c >= L'A' && c <= L'Z') c = (wchar_t)(c + 32);
             }
-            if (!ascii) CharLowerBuffW(&lc[0], (DWORD)lc.size());
+            if (!lcAscii) CharLowerBuffW(&lc[0], (DWORD)lc.size());
             uint32_t idx = child(parent, !last || isDir);
             parent = idx;
             any = true;

@@ -556,6 +556,10 @@ static void pvDir(const PvReq& r, PvRes& o) {
         ZipRef z = zipResolve(r.path, alen);
         if (!z.z || z.err) {
             o.err = z.err ? z.err : ERROR_BAD_FORMAT;
+        } else if (!z.z->isDir(z.z->nodes[z.node])) {
+            // Uno zip dentro uno zip è un file dell'archivio esterno: il suo contenuto non si legge senza
+            // estrarlo, e pvBuild ripiega sulle informazioni di un file (non "Cartella vuota")
+            o.err = ERROR_DIRECTORY;
         } else {
             const ZipNode& n = z.z->nodes[z.node];
             zipFill(l, *z.z, z.node, kPvDirMax, &o.more);

@@ -746,7 +746,9 @@ lettore nostro, senza dipendenze e senza zipfldr della shell.
   la cartella in cui si è non conta per un programma esterno.
 - **Anteprima e miniature:** immagini e testo si estraggono in memoria (`zipReadMem`; WIC da un
   `IWICStream`; del testo solo i primi 256 KB, poi l'inflate si ferma). Lo zip stesso, selezionato
-  in una cartella normale, mostra nell'anteprima il suo contenuto. Le icone sono per
+  in una cartella normale, mostra nell'anteprima il suo contenuto; uno zip dentro uno zip invece
+  mostra le informazioni di un file (`pvDir` risponde `ERROR_DIRECTORY` e `pvBuild` ripiega su
+  `pvInfo`), perché il suo contenuto non si legge senza estrarlo. Le icone sono per
   estensione (dentro lo zip il file non c'è sul disco). Le miniature vengono sempre da WIC, anche
   quando si rifanno dopo che l'atlante o la RAM le hanno tolte (`thRestart`).
 - **Sola lettura:** l'archivio non si osserva; F5 lo rilegge se è cambiato.

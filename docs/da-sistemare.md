@@ -22,9 +22,6 @@ quel codice, o tutti insieme in un momento tranquillo. Quando una voce è fatta 
   uscita dopo 2,5–3,9 s ogni volta. Fino alla correzione del mutex (chiuso ora in `WM_DESTROY`)
   faceva aspettare 4,7 s chi apriva una cartella o uno zip subito dopo; ora non fa più aspettare
   nessuno, ma il processo resta vivo lo stesso.
-- [ ] **Avviso C4456 con `/W4` in `zip.cpp`** (0.26, riga 302: un secondo `ascii` nasconde quello
-  della riga 262). Con `/W3` di `build.bat` non compare; dalla 0.22 il codice era pulito anche con
-  `/W4`. Basta rinominare la variabile interna.
 - [ ] **Collegamenti senza LinkInfo** (colonna Destinazione, `lnk.cpp`). Il nostro lettore prende
   il percorso dalla LinkInfo, dalla variabile d'ambiente o dal percorso relativo; un collegamento
   che ha solo l'elenco di elementi della shell (IDList) resta senza destinazione. Sui 177 del PC
@@ -48,11 +45,6 @@ quel codice, o tutti insieme in un momento tranquillo. Quando una voce è fatta 
   `iconSource` un file solo online ha l'icona per estensione (`ICON_EXT`, la stessa immagine
   generica, una richiesta per tipo invece di una per file da 15–40 ms), così allo scaricamento
   la chiave cambia e l'icona vera arriva da sola.
-- [ ] **Anteprima di uno zip dentro uno zip** (novembre 2026, visto provando lo zip nello zip).
-  Selezionando `interno.zip` dentro `esterno.zip`, l'anteprima dice "Cartella vuota" e in fondo
-  "vuota · 722 MB": dentro lo zip la voce è trattata come una cartella senza figli, perché il suo
-  contenuto non si legge senza estrarla. Proposta: per uno zip dentro uno zip, l'anteprima di un
-  file (icona, tipo e dimensione) invece di quella di una cartella vuota.
 - [ ] **Spostare la preparazione delle icone dopo il primo frame?** (novembre 2026, dal controllo
   di tutto il codice). `iconInit` (`main.cpp`) avvia prima del primo frame il thread delle icone
   per estensione (`IQ_EXT`), che chiama subito `CoInitializeEx` e `SHGetFileInfoW`: così shell32

@@ -42,7 +42,7 @@ static const GUID kIidShellFolder = { 0x000214e6, 0x0000, 0x0000, { 0xc0, 0x00, 
 
 enum { TK_NONE, TK_IMAGE, TK_SHELL };              // che miniatura può avere un file
 enum { THS_NEW, THS_READY, THS_NONE };                // stato: da fare, pronta, niente (si usa l'icona)
-enum { SRC_CACHE, SRC_WIC, SRC_SHELL, SRC_ICON };  // fonte (anche indice delle statistiche in F12)
+enum : uint8_t { SRC_CACHE, SRC_WIC, SRC_SHELL, SRC_ICON };  // fonte (anche indice delle statistiche in F12)
 enum { POOL_FAST, POOL_WIC, POOL_SHELL, POOL_NET, POOL_N };
 enum { TR_OK, TR_MISS, TR_FAIL, TR_DROP };         // DROP: superata, non provata
 
