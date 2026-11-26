@@ -20,6 +20,47 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 00000000000000000000000000. Barra laterale: prima le unità locali, poi rete e ottiche (z-f-dev, novembre 2026)
+
+Correzione del controllo del codice (`sidebar.cpp`): le unità si leggevano tutte nell'ordine
+delle lettere, rete e ottiche comprese, e si consegnavano insieme ai nomi dei preferiti. Un'unità
+di rete verso un server spento tratteneva etichetta e spazio delle altre unità e il nome di un
+preferito appena aggiunto, a ogni ritorno sulla finestra. Ora il thread della barra legge solo le
+voci locali (unità fisse, rimovibili, RAM e i preferiti su di esse); unità di rete e ottiche,
+percorsi di rete e preferiti su di loro li legge dopo un altro thread, una voce alla volta,
+consegnata appena pronta. Intanto si vedono col nome generico ("Unità di rete (G:)") o con quello
+della lettura precedente. Un'unità ottica si rilegge solo all'avvio e quando Windows segnala un
+disco inserito o tolto, non a ogni ritorno sulla finestra (il DVD si avviava ogni volta).
+
+Provato da Claude senza toccare lo schermo (finestre di prova ridotte a icona), con Y: connessa a
+`\\localhost\C$` (tolta alla fine) e un ritardo di 8 s su ogni unità di rete, aggiunto solo nelle
+build di prova, per simulare un server spento; le build scrivevano nel registro i nomi della barra
+all'arrivo di ogni risultato:
+- [x] **build di prima:** C:, D:, Y: e i preferiti arrivano tutti insieme a 8111 ms dall'avvio;
+- [x] **build nuova:** C: e D: con nome e spazio e i preferiti locali (anche `C:\Windows`, aggiunto
+      per la prova) a 97–153 ms; Y: a 8113–8173 ms, da sola, con nome ("C$ (Y:)") e spazio;
+- [x] il percorso di rete (un NAS vero, lento) e il preferito `Y:\Windows` arrivano dopo Y:, sullo
+      stesso thread: 3 voci in 23,1 s, senza trattenere niente di locale;
+- [x] **ritorno sulla finestra** (`WM_ACTIVATEAPP` mandato alla finestra di prova) durante la
+      lettura lenta: le voci locali si rileggono in 7 ms; la lettura lenta non si raddoppia, ne
+      riparte una sola alla fine della prima. Un ritorno successivo mostra subito Y: col nome e lo
+      spazio letti prima, mentre li rilegge;
+- [x] thread delle voci locali: 16,6 ms al primo giro, 7,2 ms ai successivi (nuova riga in F12,
+      "barra laterale: voci locali"). Registro: solo le voci d'avvio. MSVC: zero avvisi.
+
+Da provare a mano:
+- [ ] **unità di rete vera con il server spento** (o il NAS spento con una lettera connessa): le
+      altre unità hanno subito nome e spazio, la chiavetta inserita intanto compare con la sua
+      etichetta senza aspettare; l'unità di rete resta "Unità di rete (G:)" (o col nome di prima)
+      finché il server risponde o rinuncia;
+- [ ] **DVD inserito:** compare con la sua etichetta all'inserimento; tornando su [z]f più volte il
+      lettore non si riavvia (Claude non ha potuto mandare `WM_DEVICECHANGE` alla finestra di
+      prova, e qui non c'è un lettore ottico);
+- [ ] **preferito su una condivisione** aggiunto con Ctrl+D: compare subito col nome della
+      cartella; il nome di Windows arriva dopo, senza ritardare quello dei preferiti locali;
+- [ ] F12: le righe "barra laterale: voci locali (thread)" e "barra laterale: rete e ottiche
+      (thread)", con il numero di voci (non viste a schermo).
+
 ## 0000000000000000000000000. Dialoghi Apri/Salva: un salto alla volta (z-f-dev, novembre 2026)
 
 Correzione del controllo del codice (`filedlg.cpp`): tornando a un dialogo due volte di fila con

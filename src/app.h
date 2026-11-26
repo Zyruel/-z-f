@@ -188,7 +188,9 @@ struct App {
     float sideScroll = 0;
     uint64_t sideGen = 0;
     double sideLoadedAt = -1e9;
-    bool favsReady = false;           // preferiti letti dal file (o creati al primo avvio)
+    double sideMs = 0, sideSlowMs = 0; // F12: lettura delle voci locali, ultimo giro di quelle lente (thread)
+    int sideSlowN = 0;                 // F12: voci lente lette nell'ultimo giro
+    bool favsReady = false;          // preferiti letti dal file (o creati al primo avvio)
     bool sideFastDone = false;        // prima lettura veloce (file e lettere delle unità) arrivata
     bool sideStarted = false;         // il thread della barra parte solo dopo il primo frame
 

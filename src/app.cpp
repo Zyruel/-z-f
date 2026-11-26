@@ -496,18 +496,23 @@ static std::wstring joinPath(const std::wstring& dir, const wchar_t* name) {
     return dir + L'\\' + name;
 }
 
+// Tipo dell'unità che contiene p secondo l'elenco drives (A.drives sul thread UI, o quello appena
+// letto dal thread della barra laterale): \\server\… conta come rete, una lettera che non c'è come
+// DRIVE_UNKNOWN. Solo testo, niente disco.
+static UINT pathDriveType(const std::wstring& p, const std::vector<SideItem>& drives) {
+    if (p.size() >= 2 && p[0] == L'\\' && p[1] == L'\\') return DRIVE_REMOTE;
+    if (p.size() < 2 || p[1] != L':') return DRIVE_UNKNOWN;
+    for (const SideItem& d : drives)
+        if (d.drive && towupper(d.path[0]) == towupper(p[0])) return d.driveType;
+    return DRIVE_UNKNOWN;
+}
+static bool slowDriveType(UINT t) { return t == DRIVE_REMOTE || t == DRIVE_CDROM; }
+
 // Percorso su un'unità lenta: di rete (anche \\server\…) o ottica. Lì non si legge niente in
 // background senza che l'utente lo chieda (dimensione delle cartelle), e le letture vanno dopo
-// quelle locali ("Vai a", miniature). Decide dal tipo delle unità già noto (A.drives, riempito dal
-// caricamento veloce della barra laterale): niente disco, ma solo sul thread UI.
-static bool slowPath(const std::wstring& p) {
-    if (p.size() >= 2 && p[0] == L'\\' && p[1] == L'\\') return true;
-    if (p.size() < 2 || p[1] != L':') return false;
-    for (const SideItem& d : A.drives)
-        if (!d.path.empty() && towupper(d.path[0]) == towupper(p[0]))
-            return d.driveType == DRIVE_REMOTE || d.driveType == DRIVE_CDROM;
-    return false;
-}
+// quelle locali ("Vai a", miniature, barra laterale). Decide dal tipo delle unità già noto
+// (A.drives, riempito dal caricamento veloce della barra laterale): niente disco, ma solo sul thread UI.
+static bool slowPath(const std::wstring& p) { return slowDriveType(pathDriveType(p, A.drives)); }
 
 // File solo online (OneDrive e simili): leggerne il contenuto lo scaricherebbe. Tooltip, anteprima e
 // miniature devono dare la stessa risposta. 0x00400000 = RECALL_ON_DATA_ACCESS, 0x00040000 =

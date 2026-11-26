@@ -550,6 +550,12 @@ static void render() {
                 LeaveCriticalSection(&LK.lock);
                 row(L"collegamenti (thread)", L"%.1f ms%s", ms, ex);
             }
+            if (A.sideMs > 0) row(L"barra laterale: voci locali (thread)", L"%.1f ms%s", A.sideMs, L"");
+            if (A.sideSlowN) {
+                wchar_t ex[48];
+                _snwprintf(ex, 47, L" · %d voci", A.sideSlowN); ex[47] = 0;
+                row(L"barra laterale: rete e ottiche (thread)", L"%.1f ms%s", A.sideSlowMs, ex);
+            }
             if (A.fdHookMs > 0) row(L"dialoghi: notifica più lenta (UI)", L"%.3f ms%s", A.fdHookMs, L"");
             if (A.fdJumpUs > 0) row(L"dialoghi: ultimo salto (thread)", L"%.1f ms%s", (double)A.fdJumpUs / 1000, L"");
             int nUndo = 0, nRedo = 0;

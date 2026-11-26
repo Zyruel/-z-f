@@ -229,8 +229,8 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_APP_SIDEBAR:
         onSideLoaded((SideLoad*)lp);
         return 0;
-    case WM_APP_PLACES:
-        onPlaceSpace((PlaceSpace*)lp);
+    case WM_APP_SIDESLOW:
+        onSideSlow((SlowItem*)lp);
         return 0;
     case WM_APP_START:
         onStartTabs((StartTabs*)lp);
@@ -292,9 +292,9 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_APP_THUMB:
         onThumbResults();
         return 0;
-    case WM_DEVICECHANGE: // unità collegata o scollegata
+    case WM_DEVICECHANGE: // unità collegata o scollegata, disco inserito o tolto
         if (wp == 0x8000 /*DBT_DEVICEARRIVAL*/ || wp == 0x8004 /*DBT_DEVICEREMOVECOMPLETE*/) {
-            sideLoad();
+            sideLoad(true);
         }
         return TRUE;
     case WM_ACTIVATEAPP: // tornando su [z]f lo spazio libero può essere cambiato (al massimo ogni 5 s)

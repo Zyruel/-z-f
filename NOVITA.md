@@ -28,6 +28,10 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 - Dialoghi Apri e Salva: tornando al dialogo due volte di fila con cartelle diverse, il dialogo
   entra nell'ultima e il nome proposto resta. Prima i due salti potevano intrecciarsi, e nel caso
   peggiore il dialogo Salva poteva salvare il file con il nome proposto.
+- Barra laterale: un'unità di rete verso un server spento non trattiene più nome e spazio delle
+  altre unità, né il nome di un preferito appena aggiunto. Le unità locali arrivano subito; quelle
+  di rete e ottiche e i percorsi di rete dopo, una alla volta, e intanto mostrano il nome generico
+  o quello di prima. Un DVD si rilegge solo quando lo si inserisce, non a ogni ritorno su [z]f.
 
 ## 1.0.0-beta.3 (novembre 2026)
 

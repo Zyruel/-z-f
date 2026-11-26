@@ -387,6 +387,9 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   - unità di rete: il nome della condivisione come in Explorer ("Condivisione (G:)", o quello dato
     dall'utente), non l'etichetta del disco sul server; `\\server\condivisione` nel tooltip
     ("Percorso di rete"). Nel loro menu, prima di Proprietà, "Disconnetti";
+  - unità di rete e ottiche, percorsi di rete e preferiti su di loro arrivano dopo le voci locali,
+    una alla volta: intanto hanno il nome generico ("Unità di rete (G:)", senza spazio né barra
+    d'uso) o quello della lettura precedente. Niente "caricamento…": la voce c'è già e si completa;
   - **percorsi di rete** di Windows (una condivisione senza lettera, da "Aggiungi un percorso di
     rete"): dopo le unità, sotto Questo PC, come in Explorer. Icona di cartella (quella di
     Explorer, e niente rete per chiederla), il nome dato in Windows, spazio libero e barra d'uso
