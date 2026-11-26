@@ -64,6 +64,7 @@ static void menuOpenSide(float cx, float cy, int i) {
     menuSep();
     if (it->path.empty()) { // Questo PC
         menuAdd(L"Connetti unità di rete\x2026", M_NET_CONNECT);
+        menuAdd(L"Aggiungi percorso di rete\x2026", M_NET_PLACE); // le parole di Windows, come la voce sopra
         menuAdd(L"Proprietà", M_SIDE_PROPS);
     } else if (it->place) {
         menuAdd(L"Proprietà", M_SIDE_PROPS);
@@ -84,6 +85,7 @@ static void menuOpenTab(float cx, float cy, int i) {
     m.kind = MENU_TAB;
     m.target = i;
     menuAdd(L"Nuova scheda", M_TAB_NEW);
+    menuAdd(L"Nuova finestra", M_NEW_WINDOW);
     menuSep();
     menuAdd(L"Chiudi scheda", M_TAB_CLOSE);
     menuAdd(L"Chiudi le altre schede", M_TAB_OTHERS, A.tabs.size() > 1);
@@ -109,52 +111,32 @@ static void menuOpenDrop(float cx, float cy, DWORD allowed, DWORD preferred) {
     menuPlace(cx, cy, true, t0);
 }
 
-// Spazio vuoto della barra delle schede: comandi dell'applicazione
-// Elenco ↔ griglia: la voce mostra la scorciatoia della vista in cui porta (in griglia la
-// dimensione di sempre)
+// Dettagli ↔ Icone: la voce mostra la scorciatoia della vista in cui porta. Tutte le viste sono
+// nel menu della vista, nella barra di stato (menuOpenView)
 static void menuAddView() {
-    if (A.grid) menuAdd(L"Mostra come elenco", M_VIEW_LIST);
-    else menuAdd(L"Mostra come griglia", M_GRID_S + A.thumbSize);
+    if (A.zoom == ZOOM_DETAILS) menuAdd(L"Mostra come icone", M_ICONS_M);
+    else menuAdd(L"Mostra come dettagli", M_VIEW_DETAILS);
 }
 
-static void menuOpenApp(float cx, float cy) {
+// Menu della vista, dal suo controllo nella barra di stato: la vista attuale ha il segno di spunta
+// (le icone solo se lo zoom è uno dei tre delle scorciatoie). Si apre sopra il controllo, allineato
+// al suo bordo destro (cx)
+static void menuOpenView(float cx, float cy) {
     double t0 = nowMs();
     PopupMenu& m = A.menu;
     m.items.clear();
-    m.kind = MENU_TAB;
-    m.target = A.tab;
-    menuAdd(L"Nuova scheda", M_TAB_NEW);
-    menuAdd(L"Nuova finestra", M_NEW_WINDOW);
-    menuAdd(L"Vai a\x2026", M_GOTO);
-    menuAdd(A.prevOpen ? L"Nascondi anteprima" : L"Mostra anteprima", M_PREVIEW);
-    menuAddView();
-    menuSep();
-    menuAdd(undoLabel(false), M_UNDO, undoCan(false));
-    menuAdd(undoLabel(true), M_REDO, undoCan(true));
-    menuSep();
-    int st = defaultState(); // lettura del registro: microsecondi
-    menuAdd(L"Usa [z]f al posto di Explorer", M_SET_DEFAULT, true, st == 1 ? L"attivo" : st == 2 ? L"attivo (altro exe)" : L"");
-    menuAdd(L"Opzioni\x2026", M_OPTIONS);
-    menuSep();
-    m.labels.clear();
-    m.labels.push_back(updMenuLabel()); // versione, o "Aggiorna a [z]f …"; a destra lo stato (update.cpp)
-    menuAdd(m.labels.back().c_str(), M_VERSION, true, L"");
+    m.kind = MENU_VIEW;
+    m.target = -1;
+    static const struct { const wchar_t* label; int id, zoom; } kViews[] = {
+        { L"Dettagli", M_VIEW_DETAILS, ZOOM_DETAILS }, { L"Elenco", M_VIEW_LIST, ZOOM_LIST },
+        { L"Icone piccole", M_ICONS_S, ZOOM_SMALL }, { L"Icone medie", M_ICONS_M, ZOOM_MEDIUM }, { L"Icone grandi", M_ICONS_L, ZOOM_LARGE },
+    };
+    for (const auto& v : kViews) {
+        menuAdd(v.label, v.id);
+        if (v.zoom == A.zoom) m.items.back().icon = 3;
+    }
     menuPlace(cx, cy, false, t0);
-}
-
-// Il risultato di un controllo arriva col menu ≡ aperto: la voce della versione cambia testo
-static void menuVersionRefresh() {
-    PopupMenu& m = A.menu;
-    if (!m.open || m.kind != MENU_TAB) return;
-    for (MenuItem& it : m.items)
-        if (it.id == M_VERSION) {
-            m.labels.push_back(updMenuLabel());
-            it.label = m.labels.back().c_str();
-            float need = (float)textWidth(it.label, (int)wcslen(it.label)) + updIconW() + m.pad * 2 + px(ui::MENU_KEYS_GAP);
-            m.w = floorf(std::min((float)G.w - px(ui::GAP_S), std::max(m.w, need)));
-            m.x = std::max(px(ui::GAP_XS), std::min(m.x, (float)G.w - px(ui::GAP_XS) - m.w));
-            A.dirty = true;
-        }
+    if (m.x + m.w > cx) { m.x = std::max(px(ui::GAP_XS), floorf(cx - m.w)); } // allineato a destra anche se ci starebbe
 }
 
 // cx, cy: coordinate client; screenPt: per il menu della shell; fromKeyboard: evidenzia la prima voce
@@ -198,6 +180,7 @@ static void menuOpen(float cx, float cy, POINT screenPt, bool background, bool f
     } else if (!drives) {
         menuAdd(L"Incolla", M_PASTE, !zip && clipHasFiles());
         menuAdd(undoLabel(false), M_UNDO, undoCan(false)); // dopo Incolla, come in Explorer
+        if (undoCan(true)) menuAdd(undoLabel(true), M_REDO); // Ripeti solo quando c'è, come in Explorer
         menuAdd(L"Nuova cartella", M_NEWFOLDER, !zip);
         menuAdd(L"Aggiorna", M_REFRESH);
         menuAddView();
@@ -211,6 +194,7 @@ static void menuOpen(float cx, float cy, POINT screenPt, bool background, bool f
         menuAddView();
         menuSep();
         menuAdd(L"Connetti unità di rete\x2026", M_NET_CONNECT);
+        menuAdd(L"Aggiungi percorso di rete\x2026", M_NET_PLACE);
         menuSep();
     }
     if (zip) { // la shell non vede dentro lo zip: niente Proprietà né menu di Windows
@@ -234,7 +218,7 @@ static void menuPlace(float cx, float cy, bool fromKeyboard, double t0) {
     for (const MenuItem& it : m.items) {
         if (!it.id) { h += m.sepH; seps = true; continue; }
         lw = std::max(lw, (float)textWidth(it.label, (int)wcslen(it.label)));
-        kw = std::max(kw, it.id == M_VERSION ? updIconW() : (float)textWidth(it.keys, (int)wcslen(it.keys)));
+        kw = std::max(kw, (float)textWidth(it.keys, (int)wcslen(it.keys)));
         if (it.icon) icons = true;
         h += m.ih;
     }
@@ -317,14 +301,15 @@ static void menuRun(int id, const CmdCtx& c) {
         if (!f.empty() || (kind == MENU_SIDE && si)) tabNew(f, false); // "" dalla barra laterale: Questo PC
         break;
     }
-    case M_NET_CONNECT: netStart(true, L""); break;
+    case M_NET_CONNECT: netStart(NET_CONNECT, L""); break;
+    case M_NET_PLACE: netStart(NET_PLACE, L""); break;
     case M_NET_DISCONNECT: {
         std::wstring d = sidePath;
         if (kind != MENU_SIDE) {
             std::vector<uint32_t> sel = selectedEntries();
             d = sel.size() == 1 ? std::wstring(A.cur->name(A.cur->e[sel[0]])) : L"";
         }
-        netStart(false, d);
+        netStart(NET_DISCONNECT, d);
         break;
     }
     case M_FAV_TOGGLE: if (A.cur) favToggle(A.cur->path); break;
@@ -339,13 +324,14 @@ static void menuRun(int id, const CmdCtx& c) {
         break;
     case M_TAB_NEW:     tabNew(A.cur ? A.cur->path : L"", true); break;
     case M_TAB_CLOSE:   tabClose(target); break;
-    case M_SET_DEFAULT: toggleDefault(); break;
     case M_OPTIONS:     optionsOpen(); break;
-    case M_VERSION:     updAction(); break; // versione nuova pronta: riavvia; da scaricare a mano: la Release
     case M_GOTO:        gotoOpen(); break;
     case M_PREVIEW:     previewToggle(); break;
-    case M_GRID_S: case M_GRID_M: case M_GRID_L: viewSet(true, id - M_GRID_S); break;
-    case M_VIEW_LIST:   viewSet(false, -1); break;
+    case M_ICONS_S:       viewZoom(ZOOM_SMALL); break;
+    case M_ICONS_M:       viewZoom(ZOOM_MEDIUM); break;
+    case M_ICONS_L:       viewZoom(ZOOM_LARGE); break;
+    case M_VIEW_LIST:    viewZoom(ZOOM_LIST); break;
+    case M_VIEW_DETAILS: viewZoom(ZOOM_DETAILS); break;
     case M_NEW_WINDOW: { // un'altra finestra di [z]f sulla stessa cartella
         std::wstring exe = exePath(), args = L"\"" + exe + L"\" --new-window";
         if (A.cur && !A.cur->path.empty()) {
@@ -402,8 +388,6 @@ static void menuExec(int i) {
     c.target = m.target;
     c.kind = m.kind;
     std::wstring itemPath = (c.kind == MENU_CRUMB && i < (int)m.paths.size()) ? m.paths[i] : L"";
-    // La versione controlla gli aggiornamenti col menu aperto: l'anello di punti, poi il risultato
-    if (id == M_VERSION && U.st != UP_READY && U.st != UP_MANUAL) { updCheck(true); return; }
     menuClose();
     if (c.kind == MENU_CRUMB) { if (!itemPath.empty()) navigate(itemPath, 1, L""); return; }
     if (c.kind == MENU_DROP) { g_dropChoice = id; return; } // lo esegue chi ha aperto il menu (drag.cpp)
@@ -446,7 +430,7 @@ static void onContextMenu(POINT pt) {
         bool closeHit, plusHit;
         int t = tabHit(c.x, c.y, &closeHit, &plusHit);
         if (t >= 0) { menuOpenTab((float)c.x, (float)c.y, t); return; }
-        if (c.y < A.pathY) { menuOpenApp((float)c.x, (float)c.y); return; }
+        if (c.y < A.pathY) return; // ⚙ e "+": niente menu (lo spazio vuoto ha quello di sistema)
         int si = sideHit(c.x, c.y);
         if (si == -2) si = (int)A.favs.size(); // la freccia è sulla riga di Questo PC: il suo menu
         if (si >= 0) { menuOpenSide((float)c.x, (float)c.y, si); return; }
@@ -460,15 +444,20 @@ static void onContextMenu(POINT pt) {
         background = A.view.empty();
         if (!background) ensureVisible();
         Box b = background ? Box{ A.listX, 0, 0, A.rowH } : itemRect(A.sel);
-        c.x = background || !A.grid ? (LONG)(A.listX + px(ui::MENU_KEYBOARD_X)) : (LONG)(b.x + b.w * 0.5f);
-        c.y = (LONG)(A.listTop + b.y + b.h - A.scrollY);
+        float ox, oy;
+        scrollOffset(ox, oy);
+        if (background) ox = oy = 0;
+        // Dettagli ed Elenco: poco dentro la riga (in Elenco, la sua colonna); Icone: a metà della voce
+        c.x = background || A.zoom == ZOOM_DETAILS ? (LONG)(A.listX + px(ui::MENU_KEYBOARD_X))
+            : listView() ? (LONG)(b.x - ox + px(ui::MENU_KEYBOARD_X)) : (LONG)(b.x + b.w * 0.5f);
+        c.y = (LONG)(A.listTop + b.y + b.h - oy);
         pt = c;
         ClientToScreen(A.hwnd, &pt);
     } else {
         c = pt;
         ScreenToClient(A.hwnd, &c);
         if (A.menu.open && menuInside(c.x, c.y)) return;
-        if (c.y < A.listTop || c.y >= A.listTop + A.listH || c.x < A.listX || c.x >= A.listR - A.sbW) return;
+        if (c.y < A.listTop || c.y >= A.listTop + A.listH || c.x < A.listX || c.x >= itemsRight()) return;
         int r = itemAt(c.x, c.y);
         background = r < 0;
         if (!background) {

@@ -5,6 +5,24 @@ servirebbe, cosa la frena rispetto ai principi di `CLAUDE.md`. Quando un'idea di
 sposta in "Prossimi passi" di `CLAUDE.md` e si toglie da qui. Le piccole correzioni sono in
 `da-sistemare.md`, le prove a mano in `prove\da-verificare.md`.
 
+## Finestre
+
+### Tutte le finestre in un solo processo, con i profili (novembre 2026, dopo la 1.0.0-beta.5)
+
+Oggi ogni finestra è un processo con il suo device Direct3D: circa 75 MB di memoria privata a
+finestra, quasi tutti del driver della GPU (`ARCHITETTURA.md`, misure della memoria). Zyruel
+preferisce lavorare con tutto in una finestra e con una gestione dei profili, che non c'è ancora
+(cosa contiene un profilo è da definire con lui).
+
+- **Cosa servirebbe:** lo stesso device per tutte le finestre, ognuna con la sua swapchain. Un
+  processo con un device per finestra risparmierebbe poco, se la memoria del driver è per device:
+  va misurato prima con un programma in `prove\` che crea due device nello stesso processo. Poi
+  lo stato di ogni finestra (`A`, `G` e gli `static` dei moduli) separato, per esempio un thread
+  per finestra con `thread_local`, e le cache di icone e miniature condivise.
+- **Frena:** un crash chiuderebbe tutte le finestre (si attenua riaprendole con le schede,
+  `tabsSerialize`), e con `thread_local` un thread di lavoro che legge `A` troverebbe una copia
+  vuota senza che nessuno se ne accorga. Ristrutturazione grande.
+
 ## Archivi
 
 ### Modificare gli zip (novembre 2026, dopo la 0.26)
@@ -39,16 +57,6 @@ passano a Windows.
   Andrebbero letti tutti per fare l'elenco, perché non hanno una directory centrale.
 
 ## Rete
-
-### "Aggiungi un percorso di rete…" dal menu di Questo PC (novembre 2026)
-
-I percorsi di rete di Windows ora si vedono sotto Questo PC. Per crearne uno serve oggi Explorer.
-
-- **Cosa servirebbe:** una voce nel menu di Questo PC (barra laterale e sfondo della lista),
-  accanto a "Connetti unità di rete…", che apre la procedura di Windows ("Aggiunta guidata
-  risorse di rete"), come fa Explorer, su un thread; alla chiusura si rilegge la barra
-  (`sideLoad`). Non è un dialogo nostro, come quello per connettere un'unità.
-- **Frena:** poco. Va trovato il modo giusto di aprirla (il comando di Windows non è documentato).
 
 ### Condivisioni visitate (novembre 2026)
 

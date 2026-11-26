@@ -8,7 +8,8 @@
 
 enum TipKind { TIP_NONE, TIP_ROW, TIP_SIDE, TIP_TAB, TIP_TABPLUS, TIP_TABCLOSE, TIP_HEADER, TIP_STATS, TIP_PATH, TIP_DRIVES,
                TIP_CHROME, TIP_FILTER, TIP_GOTO, TIP_FAVDEL, // cestino di un preferito (sidebar.cpp)
-               TIP_LINK }; // destinazione di un collegamento nella colonna Destinazione (links.cpp)
+               TIP_LINK,  // destinazione di un collegamento nella colonna Destinazione (links.cpp)
+               TIP_VIEW }; // vista e zoom nella barra di stato
 
 struct TipInfo {           // risultato del thread
     uint64_t gen = 0;
@@ -261,7 +262,7 @@ static void driveRows(InfoRows& rows, const SideItem& d) {
 }
 
 // Contenuto di una cartella: "3 cartelle, 1.204 file"; "più di …" se la lettura si è fermata prima
-// del fondo; "vuota". Tooltip e piede dell'anteprima.
+// del fondo; "vuota". Nel tooltip (l'anteprima mostra i contatori, come la barra di stato).
 static std::wstring contentLine(int dirs, int files, bool more) {
     if (!dirs && !files && !more) return L"vuota";
     return std::wstring(more ? L"più di " : L"") + withThousands((uint64_t)dirs) + (dirs == 1 ? L" cartella, " : L" cartelle, ") +
@@ -374,7 +375,11 @@ static bool tipBuild() {
         break;
     case TIP_CHROME:
         switch (T.index) {
-        case CH_MENU:    T.title = L"Menu di [z]f"; tipRow(L"", L"Opzioni, nuova finestra, integrazione con Windows"); break;
+        case CH_OPTIONS:
+            T.title = L"Opzioni";
+            tipRow(L"Scorciatoia", shortcutsOf(M_OPTIONS));
+            if (updBadge()) tipRow(L"", updMenuLabel()); // il pallino: cosa c'è da fare nelle opzioni
+            break;
         case CH_SIDEBAR: T.title = A.sideVisible ? L"Nascondi la barra laterale" : L"Mostra la barra laterale"; tipRow(L"Scorciatoia", shortcutsOf(M_SIDEBAR)); break;
         case CH_BACK:
             T.title = L"Indietro";
@@ -391,11 +396,6 @@ static bool tipBuild() {
             T.title = A.cur && favIndex(A.cur->path) >= 0 ? L"Togli dai preferiti" : L"Aggiungi ai preferiti";
             tipRow(L"Scorciatoia", shortcutFor(M_FAV_TOGGLE));
             break;
-        case CH_VIEW:
-            T.title = A.grid ? L"Mostra come elenco" : L"Mostra come griglia";
-            tipRow(L"Scorciatoia", shortcutFor(A.grid ? M_VIEW_LIST : M_GRID_S + A.thumbSize));
-            if (A.grid) tipRow(L"", L"Ctrl+rotellina cambia la dimensione delle miniature");
-            break;
         case CH_PREVIEW:
             T.title = A.prevOpen ? L"Nascondi l'anteprima" : L"Mostra l'anteprima";
             tipRow(L"Scorciatoia", shortcutFor(M_PREVIEW));
@@ -403,6 +403,11 @@ static bool tipBuild() {
             break;
         default: return false;
         }
+        break;
+    case TIP_VIEW:
+        T.title = std::wstring(L"Vista: ") + viewName(A.zoom);
+        tipRow(L"", L"Clic per scegliere la vista");
+        tipRow(L"Zoom", L"Ctrl+rotellina sulla lista, o la rotellina qui");
         break;
     case TIP_FILTER:
         T.title = A.filter.empty() ? L"Filtro" : L"Filtro: " + A.filter;
@@ -456,9 +461,10 @@ static void tipOnTimer() {
     tipShow();
 }
 
-// Dimensioni delle cartelle aggiornate (dirsize.cpp): tooltip, anteprima e colonna
+// Dimensioni delle cartelle aggiornate (dirsize.cpp): tooltip e colonna
 static void onDirSize() {
     InterlockedExchange(&DS.posted, 0);
+    dirSizeRefill(); // il thread del conto può aspettare il pezzo successivo della coda
     if (T.visible && T.kind == TIP_ROW) tipBuild();
     A.dirty = true;
 }
@@ -482,14 +488,15 @@ static void tipTarget(int x, int y, int& kind, int& index) {
     int chId = chromeHit(x, y);
     if (chId != CH_NONE && chId != CH_MIN && chId != CH_MAX && chId != CH_CLOSE) { kind = TIP_CHROME; index = chId; return; }
     if (y >= G.h - A.statusH && x >= A.fltX && x < A.fltX + A.fltW) { kind = TIP_FILTER; return; }
-    if (A.timesH > 0 && x >= A.sideW && y >= G.h - A.footH && y < G.h - A.statusH) { kind = TIP_STATS; return; }
+    if (viewCtlAt(x, y)) { kind = TIP_VIEW; return; }
+    if (A.timesH > 0 && x >= A.sideW && x < A.listR && y >= G.h - A.footH && y < G.h - A.statusH) { kind = TIP_STATS; return; }
     if (t >= 0) { kind = closeHit ? TIP_TABCLOSE : TIP_TAB; index = t; return; }
     if (int ft = favTrashAt(x, y); ft >= 0) { kind = TIP_FAVDEL; index = ft; return; }
     int si = sideHit(x, y);
     if (si >= 0) { kind = TIP_SIDE; index = si; return; }
     if (si == -2 || si == -3) { kind = TIP_DRIVES; index = si; return; }
     if (y >= A.pathY && y < A.pathY + A.topH) { kind = TIP_PATH; index = crumbHit(x, y); return; }
-    if (x < A.listX || x >= A.listR - A.sbW) return;
+    if (x < A.listX || x >= itemsRight()) return;
     if (y >= A.sideTop && y < A.listTop) {
         if (colBorderAt(x, y) >= 0 || A.colDrag >= 0) return; // sul bordo il clic non ordina: niente "Ordina per…"
         kind = TIP_HEADER; index = colAt(x);

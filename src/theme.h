@@ -59,7 +59,7 @@ constexpr float PATH_BAR = 1.45f;  // altezza della riga del percorso, in righe
 constexpr float TAB_BAR = 1.35f;   // altezza della barra del titolo (schede), in righe
 constexpr float TAB_TOP = 5;       // spazio sopra le schede, nella barra del titolo
 constexpr float CAPTION_W = 46;    // pulsanti riduci/ingrandisci/chiudi (come in Windows)
-constexpr float NAV_W = 1.25f;     // pulsanti ← → ↑ ☆, in righe
+constexpr float NAV_W = 1.25f;     // pulsanti della riga del percorso (▯ ← → ↑ ☆ ◨), in righe
 constexpr float DRAG_MIN = 48;     // spazio minimo per trascinare la finestra nella barra del titolo
 constexpr float PAD_X = 12;        // margine orizzontale dei contenuti
 constexpr float SCROLL_W = 10, THUMB_MIN = 24;
@@ -98,10 +98,11 @@ constexpr float ENTER_DY = 4;      // pannelli che compaiono: partono qualche pi
 // al 75%); cambiando scheda la dissolvenza parte da LIST_FADE_TAB (55% di opacità)
 constexpr float LIST_ENTER_DY = 6, LIST_ENTER_COVER = 0.75f, LIST_FADE_TAB = 0.4f;
 constexpr float FILTER_W = 300, FILTER_MAX = 0.4f; // campo del filtro: larghezza, massimo in frazione della barra di stato
+constexpr float FILTER_MIN = 2;   // sotto questa larghezza, in altezze del campo, il filtro non si disegna (lista stretta)
 constexpr float MENU_KEYBOARD_X = 48; // menu aperto da tastiera sullo sfondo o in elenco: distanza dall'inizio della lista
 constexpr float WINDOW_W = 1000, WINDOW_H = 680;   // finestra nuova
 constexpr float WINDOW_MIN_W = 420, WINDOW_MIN_H = 240;
-constexpr float ICON_FONT = 1.15f; // font delle icone (≡, ←, ×…): un po' più grande del testo, come nelle app di Windows
+constexpr float ICON_FONT = 1.15f; // font delle icone (⚙, ←, ×…): un po' più grande del testo, come nelle app di Windows
 constexpr float LINE_GAP = 3;      // interlinea del testo su più righe (tooltip, testo nell'anteprima)
 constexpr float LIST_ICON = 16;    // icone della shell in lista, barra laterale e menu (arrotondate alla scala DPI)
 // Segnaposto delle icone in lista (prima che arrivi l'icona vera), in frazioni del lato dell'icona:
@@ -114,16 +115,18 @@ constexpr float PH_FILE_X = 0.15f, PH_FILE_W = 0.7f;
 // frazione della finestra; icona grande per i file senza anteprima
 constexpr float PREVIEW_W = 360, PREVIEW_MIN = 220, PREVIEW_MAX = 0.5f;
 constexpr float PREVIEW_ICON = 96;
-// Vista a griglia: lato del riquadro delle miniature (piccole, medie, grandi); icona dei file
-// senza miniatura in frazione del riquadro; righe del nome sotto la miniatura
-constexpr float THUMB_PX[3] = { 96, 160, 256 };
+// Vista a icone: lato del riquadro delle miniature per ogni livello di zoom, da 20% a 100% (Ctrl+rotellina;
+// Ctrl+Shift+4/3/2 portano a 40, 70 e 100%: ZOOM_SMALL, ZOOM_MEDIUM, ZOOM_LARGE in app.h); icona
+// dei file senza miniatura in frazione del riquadro; righe del nome sotto la miniatura
+constexpr float THUMB_PX[9] = { 64, 80, 96, 112, 128, 160, 192, 224, 256 };
 constexpr float THUMB_ICON = 0.5f;
 constexpr int GRID_NAME_LINES = 2;
+constexpr float LIST_COL_W = 300;  // vista Elenco (zoom 10%): larghezza di una colonna di voci
 // Anello di punti di un lavoro in corso (controllo dell'aggiornamento): punti fermi, ne gira solo
 // la luminosità, come l'anello di avanzamento di Windows. Diametro in frazione dell'icona
 constexpr int SPIN_DOTS = 8;
 constexpr float SPIN_DOT = 3, SPIN_SIZE = 1.0f, SPIN_MIN_ALPHA = 0.2f;
-// Pallino su ≡ quando c'è una versione nuova pronta: diametro, distanza dall'angolo in alto a destra
+// Pallino su ⚙ quando c'è una versione nuova pronta: diametro, distanza dall'angolo in alto a destra
 constexpr float BADGE = 6, BADGE_INSET = 8;
 
 // --- testo ------------------------------------------------------------------------------
@@ -136,10 +139,11 @@ constexpr float TAU_CURSOR = 24;   // cursore che scivola tra le righe
 constexpr float TAU_LIST_IN = 35;  // cartella nuova che entra
 constexpr float TAU_TAB_LINE = 30; // indicatore della scheda attiva
 constexpr float TAU_SCROLL = 45;   // scorrimento con la rotellina
-constexpr int WHEEL_LINES = 3;     // righe per scatto della rotellina (lista, menu, pannelli; non la griglia)
+constexpr int WHEEL_LINES = 3;     // righe per scatto della rotellina (lista, menu, pannelli; non Icone ed Elenco, che scorrono di una riga o colonna di voci)
 // Durate fisse (ease-out)
 constexpr float DUR_MENU = 90, DUR_TIP = 80, DUR_ICON = 110;
-// Unica animazione continua (DESIGN.md §5): un giro dell'anello di punti, solo mentre un lavoro è in corso
+// Unica animazione continua (DESIGN.md §5): un giro dell'anello di punti, mentre un lavoro è in
+// corso e almeno per un giro (un lavoro breve non è un lampo)
 constexpr float SPIN_PERIOD = 900;
 // Tooltip e avvisi
 constexpr int TIP_DELAY = 500, TIP_DELAY_NEAR = 60, TIP_INFO_WAIT = 150, TIP_NEAR_WINDOW = 400;
@@ -161,6 +165,10 @@ constexpr float MARQUEE_SCROLL_MAX = 6;
 constexpr int WATCH_BATCH = 50;    // notifiche della cartella aperta raggruppate: al massimo una ricarica ogni tanto
 constexpr int SIDE_RELOAD = 5000;  // tornando a [z]f, unità e preferiti si rileggono se più vecchi di così
 constexpr int ZIP_TEMP_KEEP = 3 * 24 * 3600 * 1000; // file estratti da uno zip (%TEMP%\z-f): tolti all'estrazione dopo questo tempo
+// Dimensione delle cartelle (dirsize.cpp): un totale vale DS_FRESH, poi una richiesta lo riconta;
+// il tooltip vede il parziale ogni DS_PROGRESS; la cache oltre il suo limite si pulisce
+// al massimo ogni DS_TRIM_EVERY
+constexpr int DS_FRESH = 60000, DS_PROGRESS = 100, DS_TRIM_EVERY = 15000;
 // Salto dei dialoghi Apri e Salva (filedlg.cpp, sul suo thread): ogni FD_POLL si guarda se il
 // dialogo è pronto, per al massimo FD_WAIT_MAX; poi FD_SETTLE di margine (prima, il comando fa
 // cadere il programma del dialogo). Attesa massima di una risposta del dialogo: FD_MSG_WAIT per il
@@ -171,6 +179,9 @@ constexpr int FD_MSG_WAIT = 500, FD_OK_WAIT = 2000;
 // leggono il testo (text.cpp) riprovano ogni CLIP_RETRY, per al massimo CLIP_WAIT_MAX, come fanno
 // Windows Forms e WPF (10 volte, 100 ms)
 constexpr int CLIP_RETRY = 50, CLIP_WAIT_MAX = 1000;
+// Avvio con la finestra principale non ancora creata (due avvii quasi insieme, main.cpp): chi arriva
+// secondo la cerca ogni FWD_POLL, per al massimo FWD_WAIT, poi diventa lui la principale
+constexpr int FWD_POLL = 10, FWD_WAIT = 3000;
 // Aggiornamento (update.cpp): primo controllo così tanto dopo il primo frame, poi al massimo uno
 // ogni UPD_EVERY secondi (anche a [z]f aperto: la condizione si guarda ogni UPD_TICK ms)
 constexpr int UPD_DELAY = 30000, UPD_TICK = 3600 * 1000;

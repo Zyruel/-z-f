@@ -58,7 +58,7 @@ condivise sono in `app.h`.
 | `zip.cpp` | archivi zip in sola lettura: directory centrale (zip64), albero delle cartelle in memoria, inflate e CRC nostri, estrazione su un thread |
 | `lnk.cpp` | lettore dei collegamenti di Windows (.lnk), senza la shell; percorsi di rete di Windows |
 | `app.h` / `app.cpp` | stato; layout, selezione, filtro, navigazione, ricariche |
-| `dirsize.cpp` | dimensione totale delle cartelle su un thread (urgenti per tooltip e anteprima, coda di sfondo per la colonna), cache |
+| `dirsize.cpp` | dimensione totale delle cartelle su un thread (urgenti per il tooltip, coda di sfondo per la colonna), cache |
 | `links.cpp` | colonna Destinazione dei collegamenti: destinazioni lette su un thread, cache, clic ("Apri percorso file") |
 | `watch.cpp` | aggiornamento in tempo reale (`ReadDirectoryChangesW`), compresi spostamento ed eliminazione della cartella aperta |
 | `icons.cpp` | icone della shell su un thread dedicato, atlante BGRA |
@@ -71,17 +71,17 @@ condivise sono in `app.h`.
 | `update.cpp` | aggiornamento automatico dalle Release di GitHub (WinHTTP, JSON, versioni, impronta e firma con CNG), scambio dell'exe, riavvio di tutte le finestre, icona di stato |
 | `filedlg.cpp` | dialoghi Apri e Salva degli altri programmi nella cartella di [z]f (`SetWinEventHook`, campo del nome da un thread) |
 | `settings.cpp` | impostazioni e salvataggio atomico in background dei file in `%APPDATA%\z-f` |
-| `chrome.cpp` | cornice della finestra: barra del titolo con le schede, pulsanti, area non client, icona della finestra |
+| `chrome.cpp` | cornice della finestra: barra del titolo con le schede, pulsanti (anche quelli della riga del percorso), area non client e menu di sistema (`chromeSysMenu`: `DefWindowProc` non lo apre, perché la barra del titolo per lui è area client), icona della finestra |
 | `crumbs.cpp` | percorso a segmenti cliccabili, menu delle sottocartelle |
 | `tooltip.cpp` | tooltip: contenuto, informazioni lette su un thread (anche per l'anteprima), disegno |
 | `preview.cpp` | pannello di anteprima: immagini (WIC), testo, cartelle, informazioni; lettura e decodifica su un thread |
-| `thumbs.cpp` | vista a griglia: miniature (cache di Windows, WIC, shell, icone) su thread, atlante sulla GPU, vista per cartella (`viste.txt`) |
+| `thumbs.cpp` | vista a icone: miniature (cache di Windows, WIC, shell, icone) su thread, atlante sulla GPU; zoom e vista per cartella (`viste.txt`) |
 | `options.cpp` | pannello delle opzioni, tabella delle scorciatoie (anche per i menu), versione |
 | `goto.cpp` | "Vai a": cartelle recenti (`recenti.txt`), ricerca fuzzy, sottocartelle lette su un thread, pannello |
 | `drag.cpp` | trascinamento dei file: sorgente (oggetto dati della shell), destinazione (IDropTarget), rilascio alla shell su un thread |
 | `zipout.cpp` | dallo zip verso fuori: aprire, copiare e trascinare con i file estratti su un thread in `%TEMP%\z-f` |
 | `listmouse.cpp` | lista col mouse: selezione col rettangolo, colonne ridimensionabili (trascinamento, adattamento al contenuto), bordi dei pannelli |
-| `menu.cpp` | menu contestuale nostro (lista, voci della barra laterale, schede, applicazione) |
+| `menu.cpp` | menu contestuale nostro (lista, voci della barra laterale, schede, rilascio col tasto destro, vista) |
 | `hybrid.cpp` | WARP all'avvio, poi passaggio alla GPU |
 | `input.cpp` | tastiera, mouse, messaggi della finestra |
 | `main.cpp` | avvio, istanza unica e ciclo dei messaggi |
@@ -128,7 +128,18 @@ condivise sono in `app.h`.
 - **Finestre separate** (opzione `finestre_separate`): la principale risponde a `WM_COPYDATA` con
   2 invece di 1 e chi ha avviato [z]f prosegue come una "Nuova finestra" (non principale), dopo
   aver chiuso il suo handle del mutex: altrimenti, chiusa la principale, il mutex resterebbe in
-  vita e l'avvio successivo cercherebbe per 3 secondi una principale che non c'è. L'opzione la
+  vita e l'avvio successivo cercherebbe per 3 secondi una principale che non c'è. Per lo stesso
+  motivo la principale chiude il mutex in `WM_DESTROY`, insieme alla proprietà `z-f.istanza`, e
+  non a fine processo: uscire può durare secondi (vedi "Barra laterale", le voci lente). Prima di
+  chiuderlo scrive i file in coda (`saveFlush`, con dentro `schede.txt`): la principale nuova può
+  partire subito, e senza questo leggerebbe i file di prima. La finestra non c'è più e nessuno
+  aspetta (eccezione scritta in DESIGN §10). Misurato: 0,2–0,8 ms ("chiusura: file salvati" nel
+  registro, a ogni chiusura della principale); con "Riapri le schede" la principale chiusa e
+  riaperta subito (39 ms dopo) ritrova le sue tre schede. L'attesa di una
+  principale non ancora creata è a tempo (`FWD_WAIT`, `FWD_POLL`): a giri di `Sleep(10)` durava
+  4,7 s invece di 3, perché ogni `Sleep` dura un passo del timer di Windows (15,6 ms).
+  Misurato: principale chiusa e cartella aperta subito dopo, la finestra nuova compare 20–23 ms
+  dopo l'avvio del processo (prima 4,7 s). L'opzione la
   conosce solo la principale, che ha già letto le impostazioni: il processo nuovo non tocca il
   disco prima della finestra. L'interruttore può stare in un'altra finestra, che lo comunica a
   tutte con il messaggio registrato `z-f.finestre-separate`.
@@ -166,8 +177,14 @@ condivise sono in `app.h`.
   in `build.bat` e da zig stesso in `build_zig.bat`. La scrive `strumenti\icona.py`, uno script
   Pillow usato una volta come `strumenti\firma.cpp`, che legge i due colori da `theme.h`: 16 e 20
   px disegnate a pixel, le altre dalla stessa geometria agganciata ai pixel, disegnata a 4× e
-  ridotta con una media esatta (BOX: niente aloni scuri). Sotto 256 le immagini sono BMP a 32 bit,
-  il formato classico delle icone; la 256 è PNG, che lì pesa molto meno.
+  ridotta con una media esatta (BOX: niente aloni scuri). Ci sono le misure di ogni DPI comune fino
+  a 225% (28 e 56 per 175%, 36 e 72 per 225%), tutte in PNG. Misurato (novembre 2026): il .ico
+  pesa 8,7 KB, contro 45,7 KB per le sole misure fino a 64 in BMP a 32 bit, e l'exe 37 KB in meno.
+  La prima decodifica PNG del processo porta "icona della finestra" da 1,2 a 2,8 ms (mediane di
+  10 avvii alternati, `prove\avvio.bat`), dopo il primo frame: il contenuto resta a 52–53 ms. Poi
+  ogni misura costa 0,06–0,11 ms, come in BMP (`prove\icona-misure.cpp`). WindowsCodecs.dll non
+  si aggiunge, perché la carica comunque la shell. Le misure che mancavano Windows le ricavava
+  riducendone un'altra, con bordi sfumati e un alone scuro (le immagini di `prove\icona-misure.cpp`).
 
 **Perché così.**
 
@@ -194,7 +211,11 @@ condivise sono in `app.h`.
   resta tra i moduli).
   Ogni finestra in più è un processo con il suo driver: circa 63 MB di working set e 75 di
   privata. La griglia aggiunge l'atlante delle miniature (64 MB sulla GPU) e fino a 96 MB di
-  copie in RAM (sezione Miniature);
+  copie in RAM (sezione Miniature). Una cartella enorme pesa in proporzione: WinSxS (30.734
+  voci, nomi di 95 caratteri in media) porta la finestra da 76 a 98–101 MB di privata. Quasi
+  tutto è la lettura (nomi 5,6 MB, chiavi 6,2, minuscole 5,6, voci 1,2: sezione "Lettura delle
+  cartelle e lista"); la cache delle dimensioni delle cartelle, con 41.000 voci, pesa da 4 a 6 MB
+  (sezione "Dimensione delle cartelle");
 - avvio che consegna la cartella alla principale ed esce: 11–13 ms, processo compreso (il primo
   58 ms, a disco freddo): è anche il costo in più di una finestra separata, prima del suo avvio.
 - con l'icona l'exe cresce di 46 KB, quasi tutti suoi (1.050.624 → 1.097.728 byte); il contenuto
@@ -207,13 +228,32 @@ condivise sono in `app.h`.
 - **Lettura** (`listing.cpp`) su un thread: `FindFirstFileExW` con `FindExInfoBasic` e
   `FIND_FIRST_EX_LARGE_FETCH`. Lo stesso thread prepara i nomi in minuscolo per il filtro e le
   chiavi di ordinamento.
+- **Memoria della lista:** nomi, minuscole e chiavi stanno in tre vettori contigui, senza una
+  stringa per voce. La lista resta in memoria finché la cartella è aperta, quindi alla fine della
+  lettura un vettore con più di `kListSlackMax` (1 MB) di spazio vuoto si restringe (`listTrim`).
+  Le chiavi partono da 1,25 token per carattere (di solito ne servono 1,1): la stima basta e la
+  copia non serve.
 - **Ordinamento naturale** con chiavi precalcolate: ogni nome diventa una volta sola una sequenza
   di token da 16 bit (minuscole, accenti rimossi, numeri confrontati per valore), poi `memcmp`.
   Sostituisce `StrCmpLogicalW` (differenze in "Differenze note rispetto a Explorer").
 - **Filtro** mentre si scrive: sottostringa sui nomi già in minuscolo.
-- **Lista virtualizzata:** si disegnano solo le voci visibili. Elenco e griglia passano dalle
-  stesse funzioni (`itemRect`, `itemBg`, `itemAt`, `gridParts` in `app.cpp`): l'elenco è una
-  griglia di una colonna.
+- **Lista virtualizzata:** si disegnano solo le voci visibili. Dettagli, Elenco e Icone passano
+  dalle stesse funzioni (`itemRect`, `itemBg`, `itemAt`, `gridParts`, `listParts` in `app.cpp`):
+  le voci stanno su *linee* di `perLine` voci (una riga in Dettagli, una riga di celle in Icone,
+  una colonna in Elenco) e lo scorrimento va lungo l'asse delle linee: `lineLen`, `viewLen`,
+  `contentLen` e `scrollOffset` dicono quanto è lunga una linea, quanto se ne vede e di quanto si
+  spostano le voci in x o in y. Così tastiera, rotellina, barra di scorrimento (orizzontale in
+  Elenco), rettangolo, trascinamento e cursore sono un codice solo per le tre viste; il
+  rettangolo tiene il punto di partenza in coordinate del contenuto su tutti e due gli assi. Il
+  bordo destro delle voci è `itemsRight` (`app.h`): prima della barra verticale, e in Elenco, che
+  non ce l'ha, fino al bordo della lista. Quando `layout` cambia la geometria (voci per linea,
+  lunghezza della linea o spazio visibile), il cursore che si vedeva resta in vista
+  (`cursorInView`, poi `ensureVisible`); se l'utente ha scorso lontano dal cursore, la lista resta
+  dov'è. *Perché in `layout`:* le cause sono tante (anteprima, finestra, barra laterale, barra dei
+  tempi) e passano tutte da lì.
+  *Perché un livello di zoom e non una vista più una misura:* Ctrl+rotellina attraversa le viste
+  in un solo gesto (Dettagli → Elenco → Icone), e la cartella si ricorda con un numero.
+  *Misurato:* la cartella di prova da 904 file in Elenco, frame 0,05–0,10 ms, come Dettagli.
 - **Selezione multipla:** la selezione è un flag per voce, quindi resiste a ordinamento, filtro e
   ricariche automatiche, che la ricostruiscono per nome. Il cursore è separato dalla selezione, con
   un'ancora per gli intervalli. Il filtro tiene le voci selezionate che restano visibili; se la
@@ -289,10 +329,14 @@ contenuto salterebbe in basso proprio mentre si clicca.
 - Da dove viene l'icona (percorso vero, cartella o estensione) lo decide una funzione sola,
   `iconSource`, usata anche dalle miniature e dall'anteprima. I percorsi di rete di Questo PC hanno
   l'icona di cartella senza chiedere niente alla rete (`iconDrive`).
-- Anche per i file solo online si chiede il percorso vero: `SHGetFileInfo` su un segnaposto non lo
-  scarica, la shell dà da sé l'icona generica del tipo, come in Explorer.
+- Un file solo online ha l'icona del tipo (`iconSource`), anche se il tipo avrebbe un'icona per
+  file: la shell gli darebbe comunque quella generica, come in Explorer. Così, quando il file si
+  scarica (aprendolo), cambiano gli attributi e con loro la chiave della cache, e l'icona vera
+  arriva da sola; con la chiave per percorso restava quella generica fino al riavvio. Costa anche
+  meno: una richiesta per tipo invece di una per file (15–40 ms l'una).
 - Il secondo e il terzo thread aspettano che il primo abbia preparato le icone di sistema della
-  shell (`shellReady`).
+  shell (`shellReady`). Lo stesso aspetta l'icona grande dell'anteprima e delle miniature
+  (`pvBigIcon`), che usa le stesse icone di sistema su un altro thread.
 - L'alfa si ricava disegnando l'icona due volte, su nero e su bianco. Le icone vanno nell'atlante
   BGRA sulla GPU; finché un'icona non è pronta si vede un segnaposto, che l'icona sostituisce con
   una dissolvenza incrociata, e il thread UI non aspetta mai. Per la cache c'è anche una copia
@@ -308,13 +352,18 @@ contenuto salterebbe in basso proprio mentre si clicca.
   aspettare 20 s la sua icona e quelle delle unità in coda dietro, e passava la sua icona a tutte
   le cartelle.
 - I due thread insieme fallivano la prima chiamata: per questo il secondo aspetta il primo.
+  Misurato con `prove\icona-grande-prova.cpp` (un processo nuovo per volta, la prima
+  `SHGetFileInfo` e l'icona grande di `pvBigIcon` su due thread che partono insieme): una delle
+  due chiamate falliva in 40 processi su 40; con l'attesa, l'icona grande arriva in 40 su 40.
 - Provato con `prove\online-prova.cpp`, che simula OneDrive con l'API Cloud Files di Windows:
   icona piccola, grande e jumbo di .exe, .ico, .lnk, .png e .jpg, nessuno scaricamento. Leggere i
-  primi 256 KB invece scarica il file.
+  primi 256 KB invece scarica il file. Scaricati da fuori un .exe e un .lnk, elenco, griglia e
+  anteprima mostrano la loro icona vera entro un secondo, senza riavviare; nessuno scaricamento da
+  [z]f.
 
-## Miniature e vista a griglia
+## Miniature e vista a icone
 
-**Come funziona** (`thumbs.cpp`; comportamento visibile in `DESIGN.md`, "Vista a griglia").
+**Come funziona** (`thumbs.cpp`; comportamento visibile in `DESIGN.md`, "Viste e zoom").
 
 - **Fonti**, in quest'ordine, per miniatura sul thread:
   1. la cache di Windows (`IThumbnailCache`, solo quelle già pronte), creando l'elemento della
@@ -325,7 +374,8 @@ contenuto salterebbe in basso proprio mentre si clicca.
 
   Le miniature fatte con WIC si chiedono poi alla shell a riposo e a bassa priorità (al massimo
   `kThWarmMax`): entrano nella cache di Windows, anche per Explorer. I file solo online non si
-  leggono.
+  leggono; quando si scaricano (cambiano gli attributi, non data e dimensione) la voce si rifà da
+  capo e la miniatura arriva.
 - **Thread**, tutti sotto la priorità normale e partiti alla prima miniatura: uno per la cache di
   Windows e le icone, metà dei core fisici per WIC (da 2 a 8; 6 sul Ryzen 9 7900), uno per la
   shell, due per le cartelle di rete. In Questo PC le icone delle unità di rete e ottiche
@@ -337,8 +387,14 @@ contenuto salterebbe in basso proprio mentre si clicca.
   Quando nessuna scheda è più in griglia si liberano tutte e due; tornando in griglia le miniature
   arrivano dalla cache di Windows. Al massimo `kThUploadMs` (0,25 ms) di caricamenti sulla GPU per
   frame.
-- **Vista per cartella** in `%APPDATA%\z-f\viste.txt`, le `kViewsMax` (500) più recenti; la
-  dimensione vale per tutte (`griglia_dimensione`).
+- **Zoom per cartella** in `%APPDATA%\z-f\viste.txt`, le `kViewsMax` (500) più recenti: una riga
+  "percorso<TAB>elenco" o "percorso<TAB>icone 40" per ogni cartella non in Dettagli. Le righe
+  "griglia" delle versioni di prima valgono la misura che aveva la griglia: la vecchia
+  `griglia_dimensione` di `impostazioni.txt` (piccole, medie, grandi → 40, 70, 100%; senza, 70%)
+  si legge ancora in `settingsApply`, che arriva prima di `viewsLoaded`, e non si riscrive più. Il
+  file delle viste si riscrive subito nella forma nuova. Ogni livello di Icone ha la sua misura delle miniature: cambiando zoom l'atlante
+  si svuota e le miniature si rifanno alla misura nuova (dalla cache di Windows, meno di 1 ms
+  l'una).
 - F12 mostra fonti, texture, memoria, il tempo di creazione dell'atlante e la prima schermata
   completa.
 
@@ -422,17 +478,28 @@ tooltip su un JPEG), nessun file scaricato.
 
 - Un thread somma i file sotto una cartella senza seguire junction e collegamenti, come Explorer.
   Parte dopo il primo frame.
-- Tooltip e anteprima lo chiedono subito (`DS_TIP`, `DS_PREVIEW`): il totale si aggiorna ogni
-  `kDsProgressMs` (100 ms) mentre cresce, e si ferma se il mouse va altrove.
+- Il tooltip lo chiede subito (`DS_TIP`): il totale si aggiorna ogni
+  `DS_PROGRESS` (100 ms, `theme.h`) mentre cresce, e si ferma se il mouse va altrove.
 - La colonna Dimensione conta in background, con priorità di I/O bassa, le sottocartelle della
-  cartella aperta nell'ordine della vista.
-- I risultati restano in memoria per `kDsFreshMs` (un minuto), con le sottocartelle dirette, così
+  cartella aperta nell'ordine della vista. Il thread UI tiene gli indici delle voci e passa al
+  thread i percorsi a pezzi di `kDsChunk` (256): finito un pezzo, il thread lo dice con
+  `WM_APP_DIRSIZE` e `dirSizeRefill` gli dà il successivo. I percorsi tutti insieme erano 8 MB in
+  WinSxS.
+- I risultati restano in memoria per `DS_FRESH` (un minuto), con le sottocartelle dirette, così
   entrando ci sono già; una copia, uno spostamento, un'eliminazione o una ricarica li dimenticano
   prima.
-- Le unità di rete e ottiche (`slowPath`) si contano solo a richiesta (tooltip, anteprima).
+- La cache ha per chiave un hash a 64 bit del percorso in minuscolo (`dsHash`), non il percorso:
+  circa 100–150 byte a voce invece di 350. Due percorsi con lo stesso hash si confonderebbero, con una
+  probabilità di circa 3·10⁻¹⁰ su 100.000 cartelle. Oltre `kDsCacheMax` (50.000) voci il thread,
+  quando non ha altro da fare, toglie le scadute (`dsTrim`, al massimo ogni `DS_TRIM_EVERY`, 15 s), tranne le
+  sottocartelle della cartella aperta, che la colonna mostra. Lo fa a blocchi di bucket, quindi il
+  thread UI non aspetta il lock più di un blocco.
+- Le unità di rete e ottiche (`slowPath`) si contano solo a richiesta (tooltip).
 
 **Misurato:** tutto C:\ (18 cartelle) in 14,4 s sul thread, con i frame a 0,12 ms (peggiore
-0,35).
+0,35). WinSxS (30.734 cartelle): contate in 6 s, 41.000 voci in cache, da 4 a 6 MB (con i
+percorsi come chiave e in coda erano circa 24). La pulizia, provata con soglie più basse, ha
+tolto 2.842 voci su 10.266 in 0,6 ms, con il lock tenuto al massimo 0,17 ms per blocco.
 
 ## Barra laterale
 
@@ -465,6 +532,12 @@ tooltip su un JPEG), nessun file scaricato.
   come proprietaria, e poi apre l'unità. **Disconnettere** gira su un thread e non forza: con file
   aperti lo dice. Se la cartella aperta è sull'unità da disconnettere si passa prima a "Questo
   PC", perché il watcher la tiene aperta.
+- **Aggiungere un percorso di rete** apre la procedura di Windows ("Aggiunta guidata risorse di
+  rete") con il comando che usa Explorer, letto da dove lo legge Explorer:
+  `CommandStore\shell\Windows.AddNetworkLocation\command` in HKLM (oggi
+  `rundll32 shwebsvc.dll,AddNetPlaceRunDll`). Un thread avvia il processo e aspetta che finisca,
+  poi la barra laterale si rilegge (`sideLoad`): la procedura non dice se ha creato qualcosa, e il
+  percorso nuovo è una cartella in più in `Network Shortcuts`.
 - **Proprietà di Questo PC** apre Impostazioni › Sistema › Informazioni (`ms-settings:about`) su
   un thread.
 - **Preferiti** in `%APPDATA%\z-f\preferiti.txt`: una riga per cartella, con il nome mostrato dopo
@@ -475,10 +548,28 @@ tooltip su un JPEG), nessun file scaricato.
 
 - Una condivisione lenta (provata: 50–60 s per rispondere) non deve trattenere spazio e nomi delle
   unità locali: per questo le voci lente hanno il loro thread, dopo le locali.
+- Chiudendo la finestra mentre `sideSlowThread` aspetta la rete (`volumeRead`), il processo resta
+  vivo finché quella chiamata non torna: Windows non può fermare un thread dentro il redirector di
+  rete, e la richiesta di annullarla, che fa da sé alla fine del processo, il redirector non la
+  onora subito. Non si vede: la finestra sparisce subito e il mutex dell'istanza unica è già
+  chiuso (`WM_DESTROY`). Dopo "Aggiorna" la pulizia della versione di prima aspetta al massimo
+  `UPD_OLD_WAIT` su un thread; se non basta, la copia vecchia si toglie all'avvio dopo. Non c'è
+  rimedio leggero: queste chiamate non hanno una versione asincrona, e un processo a parte per
+  leggerle andrebbe contro la leggerezza.
+  **Misurato** (novembre 2026) con `prove\uscita-prova.cpp`, che legge le pile dei thread del
+  processo finché esce, e segni temporanei nel percorso d'uscita: il nostro codice arriva in fondo
+  (`atexit`) in 0,2 s, poi resta solo `sideSlowThread` dentro `volumeRead`, e il processo esce
+  dopo 3–10 s con un percorso di rete raggiunto via VPN. Nella stessa sessione, a rete sveglia,
+  esce in 0,3–0,6 s, con o senza percorsi di rete; anche con `--gpu=warp` era lento, quindi non è
+  la GPU.
 - Le unità di rete hanno il nome della condivisione e non l'etichetta del disco sul server, che
   spesso è la stessa per tutte.
 - Il dialogo per connettere ha [z]f come proprietaria perché alla chiusura [z]f torni davanti: un
   dialogo di un altro thread darebbe il fuoco alla finestra successiva.
+- La procedura dei percorsi di rete non ha un'interfaccia documentata: il punto d'ingresso in
+  shwebsvc.dll è interno a Windows. Leggendo il comando da `CommandStore` lo si segue se Windows lo
+  cambia. Gira in un processo suo, che non può avere [z]f come proprietaria: è una finestra a sé,
+  come in Explorer, e non blocca connetti e disconnetti (`g_netBusy` non la conta).
 - Un'unità ottica non si rilegge al ritorno sulla finestra: il DVD si avvierebbe ogni volta.
 - `ms-settings:about` sul thread dell'interfaccia costava 222 ms.
 
@@ -487,7 +578,10 @@ tooltip su un JPEG), nessun file scaricato.
 - voci locali: 16,6 ms al primo giro, 7 ms ai successivi; percorsi di rete (`netPlacesRead`)
   0,2–0,35 ms;
 - con un server spento simulato (8 s di attesa su un'unità di rete): voci locali a 97–153 ms
-  dall'avvio, l'unità di rete da sola dopo 8,1 s.
+  dall'avvio, l'unità di rete da sola dopo 8,1 s;
+- "Aggiungi percorso di rete…" (novembre 2026): sul thread dell'interfaccia solo la creazione del
+  thread; la procedura compare 30–140 ms dopo l'avvio del processo (tre giri), e quel processo
+  occupa 4,9 MB di memoria privata finché resta aperta.
 
 ## Percorso a segmenti e "Vai a"
 
@@ -523,9 +617,14 @@ thread, ognuna rifà la ricerca) si misura a parte con `prove\vai-a-misura.cpp`.
 
 - **Menu nostro** (`menu.cpp`), disegnato come il resto dell'interfaccia, con le voci essenziali:
   - sui file: Apri, Apri con, Taglia, Copia, Copia percorso, Rinomina, Elimina, Proprietà;
-  - sullo sfondo: Incolla, Annulla, Nuova cartella (che parte già in rinomina), Aggiorna, Copia
+  - sullo sfondo: Incolla, Annulla (e Ripeti, quando c'è), Nuova cartella (che parte già in rinomina), Aggiorna, Copia
     percorso, Apri terminale qui, Proprietà;
-  - in "Questo PC": "Connetti unità di rete…" sullo sfondo e "Disconnetti" su un'unità di rete.
+  - in "Questo PC": "Connetti unità di rete…" e "Aggiungi percorso di rete…" sullo sfondo,
+    "Disconnetti" su un'unità di rete;
+  - sulle schede: Nuova scheda, Nuova finestra, Chiudi scheda, Chiudi le altre schede.
+
+  Non c'è un menu dell'applicazione: ⚙ apre direttamente le opzioni (`chromeExec`), dove stanno
+  anche l'integrazione con Windows e la versione con l'aggiornamento.
 
   Le scorciatoie delle voci vengono da `kShortcuts` (`options.cpp`, `shortcutFor`). Regole del
   menu (voci disattivate o assenti, scambio con `menu_completo`): `DESIGN.md`, "Menu
@@ -694,7 +793,8 @@ lettore nostro, senza dipendenze e senza zipfldr della shell.
   aperto sui nodi, senza allocazioni. Gli ultimi `kZipKeep` (4) archivi restano in memoria, quindi
   entrare nelle sottocartelle non rilegge niente; se l'archivio cambia (dimensione o data) si
   rilegge. Nomi in UTF-8 (bit 11, o il campo Unicode di Info-ZIP) oppure nella codepage OEM del
-  sistema, come li scrivono Esplora file e 7-Zip (850 in Italia).
+  sistema, come li scrivono Esplora file e 7-Zip (850 in Italia), e non la 437 della specifica:
+  così i nomi sono gli stessi che mostra Esplora file, maiuscole accentate comprese.
 - **Percorsi:** il percorso continua oltre l'archivio (`C:\x\foto.zip\2024\mare`), quindi
   navigazione, schede, "Vai a", preferiti, filtro, ordinamento e griglia funzionano come altrove.
   Su un thread questi percorsi li riconosce `zipSplit`/`zipInside` (un `GetFileAttributes` sul
@@ -720,7 +820,9 @@ lettore nostro, senza dipendenze e senza zipfldr della shell.
   la cartella in cui si è non conta per un programma esterno.
 - **Anteprima e miniature:** immagini e testo si estraggono in memoria (`zipReadMem`; WIC da un
   `IWICStream`; del testo solo i primi 256 KB, poi l'inflate si ferma). Lo zip stesso, selezionato
-  in una cartella normale, mostra nell'anteprima il suo contenuto. Le icone sono per
+  in una cartella normale, mostra nell'anteprima il suo contenuto; uno zip dentro uno zip invece
+  mostra le informazioni di un file (`pvDir` risponde `ERROR_DIRECTORY` e `pvBuild` ripiega su
+  `pvInfo`), perché il suo contenuto non si legge senza estrarlo. Le icone sono per
   estensione (dentro lo zip il file non c'è sul disco). Le miniature vengono sempre da WIC, anche
   quando si rifanno dopo che l'atlante o la RAM le hanno tolte (`thRestart`).
 - **Sola lettura:** l'archivio non si osserva; F5 lo rilegge se è cambiato.
@@ -816,15 +918,21 @@ nessuna conferma del nome, nome proposto intatto.
 
 ## [z]f al posto di Explorer
 
-**Come funziona** (`integration.cpp`; dal menu della barra delle schede o con
+**Come funziona** (`integration.cpp`; dalle opzioni o con
 `z-f.exe --predefinito=si|no`).
 
-- Doppio clic sulle cartelle del desktop, programmi che aprono una cartella, Win+E e l'avvio di
-  `explorer.exe` aprono [z]f.
-- Scrive solo in HKCU: un verbo `[z]f` reso predefinito in `Classes\Directory\shell` e
-  `Classes\Drive\shell` (il verbo `open` di Windows non si tocca) e il comando di
+- Doppio clic sulle cartelle e sugli zip del desktop, programmi che aprono una cartella o uno zip,
+  Win+E e l'avvio di `explorer.exe` aprono [z]f.
+- Scrive solo in HKCU: un verbo `[z]f` reso predefinito in `Classes\Directory\shell`,
+  `Classes\Drive\shell` e `Classes\CompressedFolder\shell` (la classe con cui Windows apre gli
+  zip in Esplora file; il verbo `open` di Windows non si tocca) e il comando di
   `CLSID\{52205fd8-…}\shell\opennewwindow` per Win+E. I valori che c'erano prima si salvano in
   `HKCU\Software\z-f\Ripristino` e si rimettono alla disattivazione.
+- Uno zip passato come argomento si apre come cartella (`resolveStartArg`), non selezionato nella
+  cartella che lo contiene. Se gli zip sono associati a un altro programma (7-Zip, WinRAR) Windows
+  non usa `CompressedFolder` e il verbo resta inerte. Un'integrazione attivata prima della
+  1.0.0-beta.6 non ha gli zip: `defaultState` la riconosce (stato 3) e un clic sull'interruttore
+  li aggiunge, senza scritture nel registro all'avvio.
 - Cestino, Pannello di controllo e gli altri oggetti virtuali restano a Explorer.
 - Si registra l'eseguibile da cui lo si attiva: se lo si sposta o lo si cancella, prima va
   disattivato. L'aggiornamento automatico non cambia il percorso, quindi l'integrazione resta.
@@ -859,7 +967,10 @@ nessuna conferma del nome, nome proposto intatto.
   che esca, al massimo `UPD_OLD_WAIT` (10 s).
 - **Quando non scambia:** se la cartella non è scrivibile o la Release non ha l'exe firmato,
   l'avviso dice che c'è una versione nuova e un clic apre la sua pagina. Mai su un exe in rete né
-  nelle build compilate con `ZF_DEV` (`build_zig.bat`).
+  nelle build compilate con `ZF_DEV` (`build.bat dev`, `build_zig.bat`): lì si controlla solo con
+  un clic sull'icona (`UpdJob::checkOnly`), per vedere l'icona di stato; ci si ferma prima del
+  download e l'ora del controllo non si salva, così quello giornaliero di `z-f.exe`, che usa le
+  stesse impostazioni, non si sposta.
 - **Riavvio di tutte le finestre** (`updRestartAll`, `restartLaunch`): "Aggiorna" manda alle altre
   finestre di [z]f un messaggio registrato (`z-f.riavvio`). Ognuna salva le sue schede in
   `riavvio-<pid>.txt` e la sua posizione, si chiude (con operazioni sui file in corso aspetta che
@@ -892,13 +1003,15 @@ sul thread; con il server spento l'errore arriva dopo 2 s, sempre sul thread.
   `barra_laterale`, `barra_laterale_larghezza`, `barra_tempi`, `animazioni`, `preferiti_aperti`,
   `unita_aperte`, `colonna_data`, `colonna_dimensione`, `colonna_destinazione`, `anteprima`,
   `anteprima_larghezza`, `carattere_anteprima`, `annulla_dopo_riavvio`, `menu_completo`,
-  `dimensione_cartelle`, `dialoghi`, `griglia_dimensione`, `riapri_schede`, `finestre_separate`, `aggiornamenti`,
-  `aggiornamenti_beta`, `aggiornamenti_ultimo`. Il pannello delle opzioni (`options.cpp`) le
+  `dimensione_cartelle`, `dialoghi`, `riapri_schede`, `finestre_separate`, `aggiornamenti`,
+  `aggiornamenti_beta`, `aggiornamenti_ultimo` (e, solo in lettura, `griglia_dimensione` delle
+  versioni fino alla 1.0.0-beta.5). Il pannello delle opzioni (`options.cpp`) le
   cambia con effetto immediato: dimensione e carattere del testo, animazioni, barra laterale, "Usa
   [z]f al posto di Explorer", "Menu completo di Windows col tasto destro", "Dialoghi Apri e Salva
   nella cartella di [z]f", "Dimensione delle cartelle nella colonna", le opzioni di file, avvio e
-  aggiornamenti, l'elenco delle scorciatoie con ricerca. In fondo ha la versione con data e
-  compilatore della build e un collegamento alla cartella delle impostazioni.
+  aggiornamenti, l'elenco delle scorciatoie con ricerca. In fondo ha la versione, che apre la sua
+  Release su GitHub (`kUpdThisRelease`, `updOpenPage` su un thread), e un collegamento alla
+  cartella delle impostazioni.
 - **Lettura all'avvio:** impostazioni, preferiti, viste, recenti, annulla e schede li legge
   `sideFastThread`, e il primo frame lo aspetta al massimo 100 ms.
 - **Mai sovrascritti prima della lettura:** nessuno di questi file si scrive prima che sia stato
@@ -933,7 +1046,7 @@ del Windows SDK, in `build\z-f.res`, che va al link con il resto.
 Oltre alla build di rilascio (`build\z-f.exe`) e a `debug`:
 
 - `build.bat dev` scrive la build di prova `build\z-f-dev.exe`, con le stesse opzioni più `ZF_DEV`
-  (non si aggiorna da sola): si compila anche mentre `z-f.exe` è aperto;
+  (non si aggiorna, controlla solo a richiesta): si compila anche mentre `z-f.exe` è aperto;
 - `build.bat prova prove\x.cpp <librerie>` compila un programma di prova con le opzioni di tutti, e
   l'exe va in `build\`. Il comando esatto è in cima a ogni file di `prove\`.
 
@@ -965,8 +1078,13 @@ solo al primo uso (`/DELAYLOAD`):
   (`iconThread`, `IQ_EXT`), che chiama subito `CoInitializeEx` e `SHGetFileInfoW` per preparare le
   icone di sistema della shell. Il caricamento avviene su quel thread, non su quello
   dell'interfaccia, e così le icone sono pronte prima: per queste due DLL il caricamento ritardato
-  sposta il caricamento su un altro thread, ma non lo evita. Se convenga spostare `iconInit` dopo
-  il primo frame è una domanda aperta in `docs/da-sistemare.md`.
+  sposta il caricamento su un altro thread, ma non lo evita. È un'eccezione voluta: spostare
+  l'avvio dei thread delle icone dopo il primo frame è peggio su tutto. Misurato (novembre 2026,
+  `prove\avvio.bat`, 2 × 20 avvii alternati, mediane prima e dopo lo spostamento): contenuto
+  58–70 → 71–85 ms, prima icona vera 86–99 → 116–131 ms ("prova avvio: icone"). In più il
+  processo, chiuso appena arrivata la prima icona, restava vivo circa 7 s invece di 0,2:
+  probabilmente il thread delle voci lente ancora sulla rete alla chiusura (vedi "Barra laterale",
+  dove è misurato su altre chiusure).
 
 WIC (anteprima e miniature, sul loro thread) e mpr.dll (unità di rete, `LoadLibraryExW`) si
 caricano solo al primo uso.

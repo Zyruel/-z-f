@@ -119,8 +119,10 @@ Come si compila e si prova, passo per passo: `/prova` (skill in `.claude/skills/
     con `SideItem::place`;
     la cartella che contiene un percorso: `parentOf` (`app.cpp`);
   - `notice`;
-  - `drawSpinner` (`render.cpp`), l'anello di punti di un lavoro in corso: l'unica animazione
-    continua, solo dove l'utente guarda (DESIGN.md §5);
+  - `drawSpinner` (`render.cpp`), l'anello di punti di un lavoro in corso (almeno un giro):
+    l'unica animazione continua, solo dove l'utente guarda (DESIGN.md §5);
+  - le barre in fondo, della lista e dell'anteprima: `drawBarBand`, `drawBarCounts`,
+    `drawBarView`/`barViewW` (`render.cpp`), disegnate da destra;
   - le schede da salvare o riaprire: `tabsSerialize`, `tabsRestore` (`tabs.cpp`);
   - l'aggiornamento (`update.cpp`): `updCheck`, `updAction`, `drawUpdateIcon`, e il riavvio di
     tutte le finestre (`updRestartAll`, `restartLaunch`);
@@ -153,7 +155,7 @@ Come si compila e si prova, passo per passo: `/prova` (skill in `.claude/skills/
 
 ## Prossimi passi (concordati, in quest'ordine)
 
-Nessuno in sospeso dopo la 1.0.0-beta.4: le idee non ancora decise sono in `docs/idee.md`, e quando
+Nessuno in sospeso dopo la 1.0.0-beta.6: le idee non ancora decise sono in `docs/idee.md`, e quando
 Zyruel ne sceglie una si scrive qui. Cosa c'è in ogni versione è in `NOVITA.md`. Il monitor di
 Zyruel è a 175%.
 

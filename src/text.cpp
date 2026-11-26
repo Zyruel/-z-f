@@ -52,10 +52,12 @@ struct MonoFont {
 
 // Codici delle icone (uguali nei due font)
 enum : uint32_t {
-    IC_MENU = 0xE700, IC_BACK = 0xE72B, IC_FORWARD = 0xE72A, IC_UP = 0xE74A, IC_SIDEBAR = 0xE90C, IC_PREVIEW = 0xE90D,
+    IC_SETTINGS = 0xE713, IC_BACK = 0xE72B, IC_FORWARD = 0xE72A, IC_UP = 0xE74A, IC_SIDEBAR = 0xE90C, IC_PREVIEW = 0xE90D,
     IC_STAR = 0xE734, IC_STAR_FILL = 0xE735, IC_ADD = 0xE710, IC_CLOSE = 0xE711,
     IC_FILTER = 0xE71C, IC_CHEVRON_DOWN = 0xE70D, IC_CHEVRON_RIGHT = 0xE76C, IC_DELETE = 0xE74D,
-    IC_FOLDER = 0xE8B7, IC_PAGE = 0xE7C3, IC_GRID = 0xE80A,
+    IC_FOLDER = 0xE8B7, IC_PAGE = 0xE7C3, IC_GRID = 0xE80A, IC_DETAILS = 0xE8FD, IC_LIST = 0xE14C, // viste: Icone, Dettagli, Elenco
+    IC_CHECK = 0xE73E, // voce scelta in un menu (la vista)
+    IC_TEXT = 0xE8A5, IC_IMAGE = 0xE91B, IC_INFO = 0xE946, // contenuto dell'anteprima: testo, immagine, informazioni
     IC_MIN = 0xE921, IC_MAX = 0xE922, IC_RESTORE = 0xE923, IC_WCLOSE = 0xE8BB,
     IC_SYNC = 0xE895, IC_DOWNLOAD = 0xE896, IC_DONE = 0xEC61, // aggiornamento: controlla, scarica, aggiornato
 };

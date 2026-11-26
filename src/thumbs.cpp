@@ -42,7 +42,7 @@ static const GUID kIidShellFolder = { 0x000214e6, 0x0000, 0x0000, { 0xc0, 0x00, 
 
 enum { TK_NONE, TK_IMAGE, TK_SHELL };              // che miniatura può avere un file
 enum { THS_NEW, THS_READY, THS_NONE };                // stato: da fare, pronta, niente (si usa l'icona)
-enum { SRC_CACHE, SRC_WIC, SRC_SHELL, SRC_ICON };  // fonte (anche indice delle statistiche in F12)
+enum : uint8_t { SRC_CACHE, SRC_WIC, SRC_SHELL, SRC_ICON };  // fonte (anche indice delle statistiche in F12)
 enum { POOL_FAST, POOL_WIC, POOL_SHELL, POOL_NET, POOL_N };
 enum { TR_OK, TR_MISS, TR_FAIL, TR_DROP };         // DROP: superata, non provata
 
@@ -358,7 +358,8 @@ static void thForget(ThumbEntry& t) { // pixel e posto se ne vanno; la voce si r
     thRestart(t);
 }
 
-// Miniatura della voce e (creata se manca); se il file è cambiato si rifà
+// Miniatura della voce e (creata se manca); se il file è cambiato si rifà, anche quando si è solo
+// scaricato (cambiano gli attributi, non data e dimensione): prima aveva l'icona al posto della miniatura
 static ThumbEntry& thEntry(const Entry& e) {
     std::wstring key = joinPath(A.cur->path, A.cur->name(e));
     auto it = TH.map.find(key);
@@ -371,7 +372,7 @@ static ThumbEntry& thEntry(const Entry& e) {
         t.online = onlineOnly(e.attr);
         t.mtime = e.mtime;
         t.size = e.size;
-    } else if (it->second.mtime != e.mtime || it->second.size != e.size) {
+    } else if (it->second.mtime != e.mtime || it->second.size != e.size || it->second.online != onlineOnly(e.attr)) {
         ThumbEntry& t = it->second;
         thForget(t);
         t.shown = false;
@@ -708,9 +709,9 @@ static bool thVisibleDone() {
 }
 
 static bool anyTabGrid() {
-    if (A.grid) return true;
+    if (gridView()) return true;
     for (int i = 0; i < (int)A.tabs.size(); i++)
-        if (i != A.tab && A.tabs[(size_t)i].grid) return true;
+        if (i != A.tab && A.tabs[(size_t)i].zoom >= ZOOM_ICONS) return true;
     return false;
 }
 
@@ -719,7 +720,7 @@ static void thumbsFrame(int first, int last) {
     TH.frame++;
     if (TH.frameUpMs > 0) { A.th.texMs = TH.frameUpMs; A.th.texMax = std::max(A.th.texMax, TH.frameUpMs); }
     TH.frameUpMs = 0;
-    if (!A.grid || !A.cur) {
+    if (!gridView() || !A.cur) {
         if (TH.active) { thQueuesTakeBack(); TH.active = false; TH.first = TH.last = -1; }
         // Nessuna griglia aperta: tornano liberi la VRAM e anche la RAM (fino a 96 MB di pixel). Le
         // miniature si rifanno se si torna in griglia: dalla cache di Windows costano meno di 1 ms l'una.
@@ -812,31 +813,47 @@ static void drawThumb(int vi, const Box& box, bool hidden, double now) {
 }
 
 // --- vista per cartella (viste.txt) -------------------------------------------------------------
-// Una riga per cartella in griglia: "percorso<TAB>griglia". Le altre sono in elenco.
+// Una riga per cartella non in Dettagli: "percorso<TAB>elenco" o "percorso<TAB>icone 40" (zoom in
+// percento). Le righe "percorso<TAB>griglia" delle versioni di prima valgono la misura che aveva
+// la griglia (griglia_dimensione, A.gridLegacyZoom), e il file si riscrive nella forma nuova.
 static std::wstring viewKey(const std::wstring& path) {
     std::wstring k = path;
     if (!k.empty()) CharLowerBuffW(&k[0], (DWORD)k.size());
     return k;
 }
 
-static bool viewIsGrid(const std::wstring& path) {
-    auto it = A.gridFolders.find(viewKey(path));
-    if (it == A.gridFolders.end()) return false;
-    it->second = ++A.gridUse; // usata di recente: resta tra le kViewsMax
-    return true;
+static int viewZoomOf(const std::wstring& path) {
+    auto it = A.viewFolders.find(viewKey(path));
+    if (it == A.viewFolders.end()) return ZOOM_DETAILS;
+    it->second.use = ++A.viewUse; // usata di recente: resta tra le kViewsMax
+    return it->second.zoom;
+}
+
+// Zoom di una riga di viste.txt (dopo il TAB); -1 se non si capisce
+static int viewParse(const std::wstring& v) {
+    if (v == L"elenco") return ZOOM_LIST;
+    if (v == L"griglia") return A.gridLegacyZoom; // versioni di prima: la misura che aveva la griglia
+    if (v.compare(0, 6, L"icone ") == 0) {
+        int z = _wtoi(v.c_str() + 6) / 10;
+        if (z >= ZOOM_ICONS && z <= ZOOM_MAX) return z;
+    }
+    return -1;
 }
 
 static void viewsSave() {
     if (!A.viewsReady) return; // prima della lettura si riscriverebbe il file con le sole viste nuove: ci pensa viewsLoaded
     std::vector<std::pair<uint32_t, const std::wstring*>> v;
-    for (auto& kv : A.gridFolders) v.push_back({ kv.second, &kv.first });
+    for (auto& kv : A.viewFolders) v.push_back({ kv.second.use, &kv.first });
     std::sort(v.begin(), v.end(), [](const std::pair<uint32_t, const std::wstring*>& a, const std::pair<uint32_t, const std::wstring*>& b) { return a.first > b.first; });
     if ((int)v.size() > kViewsMax) {
-        for (size_t i = kViewsMax; i < v.size(); i++) A.gridFolders.erase(*v[i].second);
+        for (size_t i = kViewsMax; i < v.size(); i++) A.viewFolders.erase(*v[i].second);
         v.resize(kViewsMax);
     }
     std::string d;
-    for (auto& p : v) d += toUtf8(*p.second) + "\tgriglia\r\n";
+    for (auto& p : v) {
+        int z = A.viewFolders[*p.second].zoom;
+        d += toUtf8(*p.second) + (z == ZOOM_LIST ? std::string("\telenco") : "\ticone " + std::to_string(z * 10)) + "\r\n";
+    }
     saveDataAsync(L"viste.txt", std::move(d));
 }
 
@@ -853,51 +870,51 @@ static void viewRelayout(int first) {
     A.dirty = true;
 }
 
-// viste.txt letto all'avvio. Le griglie scelte prima del suo arrivo restano, come le più recenti, e si salvano.
+// viste.txt letto all'avvio. Le viste scelte prima del suo arrivo restano, come le più recenti, e si salvano.
 static void viewsLoaded(const std::vector<std::wstring>& lines) {
     std::vector<std::wstring> early;
-    for (auto& kv : A.gridFolders) early.push_back(kv.first);
+    for (auto& kv : A.viewFolders) early.push_back(kv.first);
     uint32_t n = (uint32_t)lines.size();
+    bool old = false; // righe "griglia": il file si riscrive nella forma nuova
     for (uint32_t i = 0; i < n; i++) { // dalla più recente: le prime hanno il numero più alto
         const std::wstring& l = lines[i];
         size_t tab = l.find(L'\t');
-        if (tab == std::wstring::npos || l.compare(tab + 1, std::wstring::npos, L"griglia") != 0) continue;
+        if (tab == std::wstring::npos) continue;
+        int z = viewParse(l.substr(tab + 1));
+        if (z < 0) continue;
+        old = old || l.compare(tab + 1, std::wstring::npos, L"griglia") == 0;
         std::wstring k = viewKey(l.substr(0, tab));
-        if (!A.gridFolders.count(k)) A.gridFolders[k] = n - i;
+        if (!A.viewFolders.count(k)) A.viewFolders[k] = { n - i, z };
     }
-    A.gridUse = std::max(A.gridUse, n);
+    A.viewUse = std::max(A.viewUse, n);
     A.viewsReady = true;
-    for (const std::wstring& k : early) A.gridFolders[k] = ++A.gridUse;
-    if (!early.empty()) viewsSave();
-    if (A.cur && !A.grid && viewIsGrid(A.cur->path)) { // la prima cartella è arrivata prima del file
-        int first = firstVisibleItem();
-        A.grid = true;
-        viewRelayout(first);
+    for (const std::wstring& k : early) A.viewFolders[k].use = ++A.viewUse;
+    if (!early.empty() || old) viewsSave();
+    if (A.cur && A.zoom == ZOOM_DETAILS) { // la prima cartella è arrivata prima del file
+        int z = viewZoomOf(A.cur->path);
+        if (z != ZOOM_DETAILS) {
+            int first = firstVisibleItem();
+            A.zoom = z;
+            viewRelayout(first);
+        }
     }
 }
 
-// Elenco o griglia (size: dimensione delle miniature, -1 quella di prima). Si ricorda per cartella.
-static void viewSet(bool grid, int size) {
+// Livello di zoom della cartella corrente: Dettagli, Elenco o Icone (menu, scorciatoie,
+// Ctrl+rotellina). Si ricorda per cartella; Dettagli, la vista di partenza, non si scrive.
+static void viewZoom(int zoom) {
+    zoom = std::max((int)ZOOM_DETAILS, std::min((int)ZOOM_MAX, zoom));
+    if (zoom == A.zoom) return;
     int first = firstVisibleItem();
-    bool changed = grid != A.grid;
-    if (size >= 0 && size <= 2 && size != A.thumbSize) {
-        A.thumbSize = size;
-        settingsSave();
-        changed = true;
-    }
-    if (!changed) return;
-    if (A.cur && grid != A.grid) {
+    if (A.cur) {
         std::wstring k = viewKey(A.cur->path);
-        if (grid) A.gridFolders[k] = ++A.gridUse;
-        else A.gridFolders.erase(k);
+        if (zoom == ZOOM_DETAILS) A.viewFolders.erase(k);
+        else A.viewFolders[k] = { ++A.viewUse, zoom };
         viewsSave();
     }
-    A.grid = grid;
+    A.zoom = zoom;
     viewRelayout(first);
 }
 
-// Ctrl+rotellina in griglia: piccole ↔ medie ↔ grandi
-static void thumbSizeStep(int delta) {
-    int s = std::max(0, std::min(2, A.thumbSize + delta));
-    if (s != A.thumbSize) viewSet(true, s);
-}
+// Ctrl+rotellina: un livello per scatto (Dettagli ↔ Elenco ↔ Icone 20% … 100%)
+static void zoomStep(int delta) { viewZoom(A.zoom + delta); }

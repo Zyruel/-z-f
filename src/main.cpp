@@ -75,7 +75,9 @@ static void resolveStartArg(std::wstring arg, std::wstring& path, std::wstring& 
     if (n && n < 1024) arg = full;
     // Prima della finestra: qui il thread non serve ancora l'interfaccia
     DWORD at = GetFileAttributesW(longPath(arg).c_str());
-    if (sel || (at != INVALID_FILE_ATTRIBUTES && !(at & FILE_ATTRIBUTE_DIRECTORY))) {
+    bool file = at != INVALID_FILE_ATTRIBUTES && !(at & FILE_ATTRIBUTE_DIRECTORY);
+    // Uno zip (doppio clic fuori da [z]f, con l'integrazione: integration.cpp) si apre come una cartella
+    if (sel || (file && !zipNameEnd(arg, arg.size()))) {
         while (arg.size() > 3 && arg.back() == L'\\') arg.pop_back();
         size_t k = arg.find_last_of(L'\\');
         if (k != std::wstring::npos && arg.size() > 3) {
@@ -89,12 +91,17 @@ static void resolveStartArg(std::wstring arg, std::wstring& path, std::wstring& 
 
 // Consegna la cartella a una finestra di [z]f già aperta (Forward)
 static Forward forwardToRunning(const std::wstring& path, const std::wstring& select) {
-    // Il mutex resta aperto per tutta la vita del processo: dice "[z]f principale in esecuzione".
+    // Il mutex resta aperto finché c'è la finestra principale (si chiude nel suo WM_DESTROY,
+    // input.cpp): dice "[z]f principale in esecuzione".
     // Serve per i due avvii quasi simultanei: il secondo aspetta che la finestra del primo esista.
     HANDLE m = CreateMutexW(nullptr, FALSE, L"Local\\z-f-istanza");
+    g_instanceMutex = m; // se non si consegna, la principale diventa questa (FWD_NONE)
     if (!m || GetLastError() != ERROR_ALREADY_EXISTS) return FWD_NONE;
     HWND w = nullptr;
-    for (int i = 0; i < 300 && !(w = findMainInstance()); i++) Sleep(10);
+    // A tempo, non a giri: Sleep(10) dura un passo del timer di Windows (15,6 ms), e 300 giri
+    // erano 4,7 s invece di 3
+    ULONGLONG until = GetTickCount64() + ui::FWD_WAIT;
+    while (!(w = findMainInstance()) && GetTickCount64() < until) Sleep(ui::FWD_POLL);
     if (!w) return FWD_NONE;
     DWORD pid = 0;
     GetWindowThreadProcessId(w, &pid);
@@ -106,8 +113,9 @@ static Forward forwardToRunning(const std::wstring& path, const std::wstring& se
     if (r == 1) return FWD_DONE;
     if (r != kForwardNew) return FWD_NONE;
     // Una finestra separata non tiene il mutex: chiusa la principale, il prossimo avvio la diventa
-    // senza aspettare (findMainInstance non troverebbe nessuno per 3 secondi)
+    // senza aspettare (findMainInstance non troverebbe nessuno per FWD_WAIT)
     CloseHandle(m);
+    g_instanceMutex = nullptr;
     return FWD_NEW;
 }
 
@@ -167,7 +175,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     // La finestra principale riceve le cartelle aperte da fuori. Quella che si riapre dopo un
     // aggiornamento tiene anche il mutex, così chi avvia [z]f dopo la trova (forwardToRunning)
     A.mainInstance = !newWindow || principal;
-    if (principal) CreateMutexW(nullptr, FALSE, L"Local\\z-f-istanza");
+    if (principal) g_instanceMutex = CreateMutexW(nullptr, FALSE, L"Local\\z-f-istanza");
     g_msgRestart = RegisterWindowMessageW(L"z-f.riavvio");
     g_msgSeparate = RegisterWindowMessageW(L"z-f.finestre-separate");
 
@@ -303,6 +311,8 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     A.dirty = true;
 
     MSG msg;
+    double probeIconsFrom = 0;           // --prova-avvio: si aspettano le prime icone da qui
+    const UINT kProbeIconWait = 2000;    // ms; se non arrivano, si chiude lo stesso
     for (;;) {
         if (!A.dirty && !animating()) {
             if (GetMessageW(&msg, nullptr, 0, 0) <= 0) break;
@@ -335,7 +345,8 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
             if (startupProbe) { // --prova-avvio: i tempi nel registro, poi si chiude
                 hitchLog("prova avvio: contenuto", activateLater, A.startupMs);
                 hitchLog("prova avvio: primo fuoco", GetForegroundWindow() == A.hwnd, A.stActivate);
-                PostMessageW(A.hwnd, WM_CLOSE, 0, 0);
+                probeIconsFrom = nowMs(); // si chiude quando arriva la prima icona vera (qui sotto)
+                SetTimer(A.hwnd, 16, kProbeIconWait, nullptr); // sveglia il ciclo se le icone non arrivano
             }
             A.sideStarted = true;
             appIconSet();
@@ -345,6 +356,13 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
             linksQueueCurrent();   // destinazioni dei collegamenti, per lo stesso motivo
             fdStart();             // dialoghi Apri e Salva
             updStartup();          // aggiornamento: pulizia della versione precedente, primo controllo più tardi
+        }
+        // --prova-avvio: quando compare la prima icona vera al posto dei segnaposto (dall'avvio del processo)
+        if (probeIconsFrom > 0 && (I.firstAt > 0 || nowMs() - probeIconsFrom >= kProbeIconWait)) {
+            hitchLog("prova avvio: icone", I.firstAt > 0, I.firstAt);
+            hitchLog("prova avvio: icona fin.", sysMetric(SM_CXICON), A.iconMs); // appIconSet, codice = misura grande
+            probeIconsFrom = 0;
+            PostMessageW(A.hwnd, WM_CLOSE, 0, 0);
         }
     }
     saveFlush();

@@ -8,6 +8,78 @@ erano `0.N`. Ogni rilascio, dalla 1.0.0-beta.2, ha un tag `v<versione>` e una
 versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 [`ARCHITETTURA.md`](docs/ARCHITETTURA.md).
 
+## 1.0.0-beta.6 (novembre 2026)
+
+- **L'anteprima ha la sua barra in fondo**, fatta come la barra di stato della lista e alla stessa
+  altezza: a destra il tipo di contenuto (Dettagli per una cartella, Testo, Immagine,
+  Informazioni) e prima i dati, cioè i contatori di cartelle e file con le icone, oppure codifica,
+  righe e dimensione di un testo, o misure, dimensione e formato di un'immagine. Il totale di una
+  cartella non c'è più nell'anteprima (resta nella colonna Dimensione e nel tooltip), e
+  l'anteprima non lo fa più contare.
+- **Anteprima a tutta altezza:** come la barra laterale, arriva fino in fondo alla finestra. La
+  barra di stato (filtro, contatori, vista) e la barra dei tempi stanno sotto la lista, tra i due
+  pannelli, perché parlano della lista; la riga d'informazione dell'anteprima è alla stessa altezza
+  della barra di stato. Con la lista stretta il filtro si accorcia invece di finire sotto i
+  contatori.
+- **Niente più menu ≡:** il pulsante in alto a sinistra è ora ⚙ e apre direttamente le opzioni.
+  Le voci del menu stavano già altrove: nuova scheda con "+" e Ctrl+T, "Vai a…" con Ctrl+P o un
+  clic sul percorso, anteprima con ◨ e Alt+P, vista nella barra di stato, annulla e ripeti con
+  Ctrl+Z e Ctrl+Y o dal menu dello sfondo (dove ora c'è anche "Ripeti", quando serve), "Usa [z]f
+  al posto di Explorer" e versione nelle opzioni. Una versione nuova si annuncia con il pallino su
+  ⚙, e in fondo alle opzioni "Aggiorna a [z]f …" si clicca per intero. Il tasto destro sullo
+  spazio vuoto della barra del titolo apre ora il menu di sistema di Windows.
+- **La versione in fondo alle opzioni porta alla sua Release** su GitHub, con le novità e i
+  download; data e compilatore della build non ci sono più. Un clic sull'icona accanto controlla
+  gli aggiornamenti, e l'anello di punti resta almeno un giro, così si vede anche quando GitHub
+  risponde in un attimo. Anche la build di prova controlla, ma solo con quel clic, e non scarica.
+- **Nuova finestra con Ctrl+N** (come in Explorer), e nel menu delle schede accanto a "Nuova
+  scheda". Prima era solo nel menu ≡.
+- **▯ accanto a ←:** il pulsante della barra laterale è sceso dalla barra del titolo alla riga del
+  percorso, all'altro capo rispetto a ◨. I due pulsanti dei pannelli sono sulla stessa riga, ognuno
+  sopra il pannello che apre. Il doppio clic su ▯, ☆ e ◨ non annulla più il primo clic.
+- **Zoom della lista con Ctrl+rotellina:** non cambia più il testo di tutta la finestra, ma solo
+  la lista, passando per le viste: Dettagli (0%), **Elenco** (10%, nuova: icona e nome in colonne
+  che scorrono in orizzontale, quante ne servono per l'altezza della finestra) e Icone da 20% a
+  100%, con nove misure di miniature invece di tre. Lo zoom si ricorda per cartella, come prima la
+  griglia; le cartelle che erano in griglia si aprono in Icone piccole, medie o grandi, con la
+  misura che aveva la griglia. Il testo si ingrandisce
+  ancora con Ctrl +/−.
+- **Il cursore resta in vista** quando la lista cambia misura (anteprima aperta o chiusa,
+  finestra ridimensionata, barra laterale allargata), se prima si vedeva: in Elenco la sua
+  colonna non finisce più fuori vista a destra.
+- **La vista è nella barra di stato**, a destra dei contatori di cartelle e file, dopo una
+  barretta: icona e nome della vista; un clic apre il menu delle viste (Dettagli, Elenco, Icone
+  piccole, medie e grandi), la rotellina lì sopra cambia lo zoom. Il pulsante ▦ della barra del
+  percorso non c'è più. Nuova scorciatoia Ctrl+Shift+5 per Elenco; Ctrl+Shift+6 resta Dettagli.
+- **Aggiungi percorso di rete…** nel menu di Questo PC (barra laterale e sfondo della lista),
+  accanto a "Connetti unità di rete…": apre la procedura di Windows, come Explorer, e quando la si
+  chiude il percorso nuovo compare sotto Questo PC. Prima per crearne uno serviva Explorer.
+- **Zip al posto di Explorer:** con "Usa [z]f al posto di Explorer" anche il doppio clic su uno
+  zip fuori da [z]f (desktop, Download, il browser che apre un file scaricato) lo apre in [z]f
+  come una cartella, invece che in Esplora file. Chi aveva già attivato l'opzione vede
+  "Attivo senza gli zip": un clic sull'interruttore li aggiunge. Se gli zip sono associati a un
+  altro programma (7-Zip, WinRAR) restano a quello.
+- **Aprire una cartella subito dopo aver chiuso [z]f:** la finestra compariva dopo quasi 5
+  secondi (doppio clic sul desktop, Win+E, una cartella aperta da un altro programma). Ora compare
+  subito, e con "Riapri le schede" ritrova quelle appena chiuse.
+- **Meno memoria nelle cartelle enormi:** in WinSxS (30.734 cartelle) una finestra occupava 126 MB
+  e ora da 98 a 101; nella cartella utente resta sui 76. La lista non tiene più spazio vuoto
+  riservato durante la lettura, e il conto delle dimensioni delle cartelle non tiene più in
+  memoria un percorso completo per ogni cartella. Inoltre la sua memoria non cresce più con ogni
+  cartella grande visitata finché la finestra resta aperta.
+- **Anteprima di uno zip dentro uno zip:** diceva "Cartella vuota"; ora mostra icona, tipo,
+  dimensione e data, come per gli altri file dentro uno zip.
+- **Icona grande nell'anteprima all'avvio:** con l'anteprima già aperta, a volte il primo file
+  senza anteprima restava senza l'icona grande (e così una miniatura della griglia). Ora c'è
+  sempre.
+- **Icona più nitida a 175% e 225%:** l'icona di [z]f ha ora anche le misure di questi schermi,
+  invece di essere ridotta da Windows con i bordi sfumati. Il file dell'icona pesa 8,7 KB invece
+  di 45,7, e l'exe è più piccolo di 37 KB.
+- **File solo online (OneDrive e simili) appena scaricati:** un programma, un collegamento o
+  un'icona restavano con l'icona generica, e una foto senza miniatura, fino al riavvio di [z]f.
+  Ora l'icona vera e la miniatura arrivano da sole appena il file si scarica.
+- Il codice torna senza avvisi anche con `/W4`.
+
 ## 1.0.0-beta.5 (novembre 2026)
 
 - **Gesti del touchpad:** "Spostamento indietro" e "Spostamento avanti" (Impostazioni →

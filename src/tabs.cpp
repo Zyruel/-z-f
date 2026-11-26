@@ -19,7 +19,7 @@ static void tabSwap(TabState& t) {
     A.fwd.swap(t.fwd);
     std::swap(A.sortCol, t.sortCol);
     std::swap(A.sortDesc, t.sortDesc);
-    std::swap(A.grid, t.grid);
+    std::swap(A.zoom, t.zoom);
 }
 
 // Nome breve di una cartella: "Documenti", "C:\", "Questo PC"

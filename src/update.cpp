@@ -5,12 +5,14 @@
 // dimensione, impronta SHA-256 (quella che dà GitHub) e firma ECDSA P-256 (chiave privata solo sul
 // PC di chi pubblica: strumenti\firma.cpp), poi lo mette al posto di quello in uso con due
 // rinomine (Windows permette di rinominare un exe in esecuzione): z-f.exe → z-f.old.exe, il nuovo
-// → z-f.exe. La versione nuova parte al prossimo avvio, o subito con ≡ › "Aggiorna", che chiude e
+// → z-f.exe. La versione nuova parte al prossimo avvio, o subito dalle opzioni ("Aggiorna"), che chiude e
 // riapre tutte le finestre di [z]f con le loro schede (riavvio-<pid>.txt, tabs.cpp).
 // Il thread dell'interfaccia non tocca mai la rete né il disco: riceve solo il risultato.
 // winhttp.dll e bcrypt.dll si caricano sul thread, al primo controllo (MSVC: /DELAYLOAD).
 
 static const wchar_t kUpdApi[] = L"https://api.github.com/repos/Zyruel/-z-f/releases?per_page=10";
+// La Release di questa versione (novità e download): la apre un clic sulla versione nelle opzioni
+static const wchar_t kUpdThisRelease[] = L"https://github.com/Zyruel/-z-f/releases/tag/v" ZF_VERSION;
 
 // Chiave pubblica della firma dei rilasci (BCRYPT_ECCPUBLIC_BLOB: "ECS1", 32, X, Y)
 static const uint8_t kUpdKey[72] = {
@@ -31,6 +33,7 @@ static struct Upd {
     std::wstring version;  // versione nuova (UP_READY, UP_MANUAL)
     std::wstring page;     // pagina della sua Release (UP_MANUAL: si scarica a mano)
     std::wstring base;     // --aggiorna-da=<url>: un server di prova al posto di GitHub (releases.json)
+    double checkAt = 0;    // inizio dell'ultimo controllo: l'anello resta almeno un giro (drawUpdateIcon)
 } U;
 
 static UINT g_msgRestart = 0; // "riavviati con l'exe nuovo", tra le finestre di [z]f (RegisterWindowMessage)
@@ -338,6 +341,7 @@ struct UpdJob {
     uint64_t gen;
     bool beta, manual;
     std::wstring exe, api;
+    bool checkOnly = false; // build di prova: si controlla, ma non si scarica né si sostituisce l'exe
     int st = UP_ERROR;
     bool rejected = false; // scaricato ma rifiutato (impronta o firma): si dice sempre, anche nel controllo automatico
     std::wstring version, page, err;
@@ -373,6 +377,7 @@ static DWORD WINAPI updThread(void* p) {
     if (!ver.empty() && (ver[0] == 'v' || ver[0] == 'V')) ver.erase(0, 1);
     j->version = fromUtf8(ver);
     j->page = fromUtf8(rel->str("html_url"));
+    if (j->checkOnly) { j->st = UP_MANUAL; j->err = L"la build di prova non si sostituisce"; updFinish(j); return 0; }
     // L'exe e la sua firma tra i file della Release
     std::string name = "z-f-" + ver + ".exe", exeUrl, sigUrl;
     long long size = -1;
@@ -446,11 +451,13 @@ static DWORD WINAPI updThread(void* p) {
 
 // --- thread dell'interfaccia ----------------------------------------------------------------
 
-// manual: chiesto dall'utente (clic sulla versione): risponde sempre con un avviso
+// manual: chiesto dall'utente (clic sull'icona accanto alla versione): risponde sempre con un avviso
 static void updCheck(bool manual) {
     if (U.running || U.st == UP_READY) return;
+    bool checkOnly = false;
 #ifdef ZF_DEV
-    if (U.base.empty()) { if (manual) notice(L"Build di prova: si aggiorna ricompilando", true); return; }
+    // La build di prova si aggiorna ricompilando: controlla solo a richiesta, per provare l'icona
+    if (U.base.empty()) { if (!manual) return; checkOnly = true; }
 #endif
     // Il controllo automatico lo fa solo la finestra principale (con il server di prova, ogni finestra)
     if (!manual && (!A.updAuto || (!A.mainInstance && U.base.empty()))) return;
@@ -460,15 +467,15 @@ static void updCheck(bool manual) {
         return;
     }
     UpdJob* j = new UpdJob{ A.hwnd, ++U.gen, updBeta(), manual, exe, U.base.empty() ? std::wstring(kUpdApi) : U.base + L"/releases.json" };
+    j->checkOnly = checkOnly;
     HANDLE h = CreateThread(nullptr, 0, updThread, j, 0, nullptr);
     if (!h) { delete j; return; }
     CloseHandle(h);
     U.running = true;
     U.st = UP_CHECKING;
+    U.checkAt = nowMs();
     A.dirty = true;
 }
-
-static void menuVersionRefresh(); // menu.cpp: la voce della versione cambia col risultato
 
 static void onUpdate(UpdJob* j) {
     std::unique_ptr<UpdJob> own(j);
@@ -480,14 +487,14 @@ static void onUpdate(UpdJob* j) {
     hitchLog("aggiornamento: controllo", (unsigned)j->st, j->checkMs);
     if (j->downloadMs > 0) hitchLog("aggiornamento: download", (unsigned)j->st, j->downloadMs);
     if (!j->err.empty()) hitchLog(("aggiornamento: " + toUtf8(j->err)).c_str(), (unsigned)j->st, 0); // il perché, per chi legge il registro
-    if (j->st != UP_ERROR) { A.updLast = unixNow(); settingsSave(); }
+    // La build di prova non sposta il controllo giornaliero di z-f.exe (le impostazioni sono le stesse)
+    if (j->st != UP_ERROR && !j->checkOnly) { A.updLast = unixNow(); settingsSave(); }
     std::wstring v = L"[z]f " + j->version;
-    if (j->st == UP_READY) notice(v + L" è pronto: parte al prossimo avvio, o subito da \x2261 \x203A Aggiorna", true);
-    else if (j->st == UP_MANUAL) notice(L"C'è " + v + L", ma " + j->err + L": si scarica da \x2261", false);
+    if (j->st == UP_READY) notice(v + L" è pronto: parte al prossimo avvio, o subito dalle opzioni", true);
+    else if (j->st == UP_MANUAL) notice(L"C'è " + v + L", ma " + j->err + L": si scarica dalle opzioni", false);
     else if (j->manual && j->st == UP_CURRENT) notice(L"[z]f " ZF_VERSION L" è l'ultima versione", true);
     else if (j->rejected) notice(v + L" scaricato e scartato: " + j->err, false);
     else if (j->manual) notice(L"Aggiornamenti non controllati: " + j->err, false);
-    menuVersionRefresh();
     A.dirty = true;
 }
 
@@ -508,13 +515,17 @@ static void updRestartAll() {
     restartBegin(true);
 }
 
-// Clic sulla versione (menu ≡, opzioni): aggiorna, apre la Release, o controlla di nuovo
+// Una pagina web nel browser predefinito: ShellExecute può metterci, la chiama un thread
+static void updOpenPage(const wchar_t* url) {
+    HANDLE h = CreateThread(nullptr, 0, openThread, _wcsdup(url), 0, nullptr);
+    if (h) CloseHandle(h);
+}
+
+// Clic sull'icona accanto alla versione nelle opzioni: aggiorna, apre la Release, o controlla di nuovo
 static void updAction() {
     if (U.st == UP_READY) updRestartAll();
-    else if (U.st == UP_MANUAL && !U.page.empty()) {
-        HANDLE h = CreateThread(nullptr, 0, openThread, _wcsdup(U.page.c_str()), 0, nullptr);
-        if (h) CloseHandle(h);
-    } else updCheck(true);
+    else if (U.st == UP_MANUAL && !U.page.empty()) updOpenPage(U.page.c_str());
+    else updCheck(true);
 }
 
 // Fine processo, dopo saveFlush: la finestra si riapre con l'exe nuovo, dov'era
@@ -591,7 +602,10 @@ static void onUpdClean() {
 static float updIconW() { return (float)FI.lineH; }
 
 static void drawUpdateIcon(float x, float y, float w, float h, float k) {
-    if (U.st == UP_CHECKING) { drawSpinner(x + w * 0.5f, y + h * 0.5f, floorf(FI.lineH * ui::SPIN_SIZE), fadeA(C_DIM, k)); return; }
+    // Un controllo dura 300–800 ms, meno di un giro: l'anello resta fino al giro intero, se no si
+    // vedrebbe solo un lampo. Senza animazioni l'anello è fermo, e il risultato si mostra subito
+    bool spin = U.st == UP_CHECKING || (A.animations && U.checkAt > 0 && nowMs() - U.checkAt < ui::SPIN_PERIOD);
+    if (spin) { drawSpinner(x + w * 0.5f, y + h * 0.5f, floorf(FI.lineH * ui::SPIN_SIZE), fadeA(C_DIM, k)); return; }
     uint32_t cp = IC_SYNC, col = C_FAINT;
     if (U.st == UP_CURRENT) { cp = IC_DONE; col = C_DIM; }
     else if (U.st == UP_READY || U.st == UP_MANUAL) { cp = IC_DOWNLOAD; col = C_ACCENT; }
@@ -600,7 +614,7 @@ static void drawUpdateIcon(float x, float y, float w, float h, float k) {
 
 static bool updBadge() { return U.st == UP_READY || U.st == UP_MANUAL; }
 
-// Testo della voce della versione (menu ≡)
+// Testo della versione nel piede delle opzioni e nel tooltip di ⚙
 static std::wstring updMenuLabel() {
     if (U.st == UP_READY) return L"Aggiorna a [z]f " + U.version;
     if (U.st == UP_MANUAL) return L"Scarica [z]f " + U.version;

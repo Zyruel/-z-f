@@ -74,7 +74,9 @@ può (con il controllo dello schermo); altrimenti gli si chiede uno screenshot. 
 - `memoria.ps1 -Ids <pid>[,<pid>…]`: working set, memoria privata, memoria GPU, thread e handle
   di ogni PID (da Bash: `powershell -NoProfile -File 'prove\memoria.ps1' -Ids <pid>`);
 - `avvio.bat [volte] [exe]`: tempi di avvio con `--prova-avvio` (nel registro "prova avvio:
-  contenuto" e "prova avvio: primo fuoco"; predefiniti 10 volte e `build\z-f-dev.exe`). Ogni
+  contenuto", "primo fuoco", "icone", cioè la prima icona vera al posto dei segnaposto, e "icona
+  fin.", l'icona della finestra con la misura grande nel codice; la finestra si chiude dopo la
+  prima icona; predefiniti 10 volte e `build\z-f-dev.exe`). Ogni
   avvio porta una finestra in primo piano: **solo a PC libero**;
 - `predefinito.bat`: [z]f al posto di Explorer (apre cartelle come un altro programma e simula
   Win+E); `ripristina-explorer.bat` è l'emergenza che rimette Explorer;
@@ -88,11 +90,18 @@ può (con il controllo dello schermo); altrimenti gli si chiede uno screenshot. 
   `anteprima-prova.py` (anteprima);
 - misure e confronti a parte, senza interfaccia: `zip-prova.cpp`, `collegamenti-prova.cpp`,
   `dialoghi-prova.cpp`, `shell-verbi.cpp`, `vai-a-misura.cpp`, `costi-frame.cpp`,
-  `ime-avvio.cpp` (come si compilano è scritto in cima a ognuno);
+  `ime-avvio.cpp`, `icona-grande-prova.cpp`, `icona-misure.cpp` (l'icona di [z]f a ogni misura
+  da 100% a 225% senza cambiare il DPI: tempo e immagine); come si compilano è scritto in cima a
+  ognuno;
 - `online-prova.cpp`: file solo online senza OneDrive (una radice di sincronizzazione finta con
   l'API Cloud Files di Windows). `passi` misura le chiamate di [z]f su segnaposto nuovi;
   `attendi <secondi>` resta in ascolto mentre si prova z-f-dev sulla cartella con
   `prove\dev.bat`, e alla fine dice quanti file ha scaricato ogni processo.
+- `uscita-prova.cpp <pid> [secondi]`: cosa tiene vivo un processo dopo la chiusura. Si avvia
+  subito dopo `taskkill //PID <pid>` (senza `/F`) e scrive le pile dei thread quando cambiano,
+  fino all'uscita (solo nomi di modulo e offset: per le funzioni di [z]f si ricompila con
+  `LINK='/MAP:build\z-f-dev.map' cmd //c '.\build.bat dev'` e si cercano gli offset nel .map,
+  base `0x140000000`).
 - `appunti-prova.cpp`: gli appunti occupati da un altro programma. `occupa <secondi>
   [senza-finestra]` li tiene aperti, `fermo <secondi>` li possiede e non risponde ai messaggi
   (chi li svuota lo aspetta), `chi` dice proprietario e testo; si prova intanto Copia percorso o
@@ -155,7 +164,11 @@ segnalare:
   `prove\ime-avvio.cpp`). Dopo la 0.25 succede dopo il primo frame (F12, "attivazione"), quindi
   non ritarda più il contenuto (`prove\da-verificare.md` sezione 00000000000000);
 - `attesa vsync lunga` (40–110 ms) è un debito tecnico noto (CLAUDE.md): si segnala solo se
-  cambia.
+  cambia;
+- `chiusura: file salvati` a ogni chiusura della finestra principale (0,2–0,8 ms): si segnala
+  solo se supera qualche millisecondo;
+- il passaggio WARP → GPU può arrivare anche come `messaggio lento 0x0113` (circa 50 ms, al
+  posto di `0x8002`): è il timer che lo rimanda se l'interfaccia è occupata (`hybrid.cpp`).
 
 Tutto il resto si legge e si spiega.
 

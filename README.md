@@ -4,7 +4,7 @@ File explorer per Windows, veloce e leggero: C++ con Win32 e Direct3D 11, senza 
 dipendenze. L'obiettivo è che ogni operazione sembri istantanea. È gratuito e il codice è
 libero, con [licenza MIT](LICENSE).
 
-**Versione attuale: 1.0.0-beta.5.** Cosa cambia in ogni versione è in [`NOVITA.md`](NOVITA.md).
+**Versione attuale: 1.0.0-beta.6.** Cosa cambia in ogni versione è in [`NOVITA.md`](NOVITA.md).
 
 ## Scaricare
 
@@ -20,15 +20,17 @@ bit (provato su Windows 11).
   millisecondo e, quando non succede niente, non usa CPU. Il disco si legge sempre in background,
   quindi l'interfaccia non si blocca mai.
 - **Schede** e **barra laterale** con i preferiti (si riordinano trascinandoli) e Questo PC, con
-  le unità e i percorsi di rete; si connettono e disconnettono unità di rete.
+  le unità e i percorsi di rete; si connettono e disconnettono unità di rete e si aggiungono
+  percorsi di rete.
 - **Percorso a segmenti** cliccabili, con le sottocartelle in un menu su ogni "›".
 - **"Vai a"** (Ctrl+P): cerca mentre scrivi tra cartelle recenti, preferiti e le loro
   sottocartelle. Dal percorso (clic, Ctrl+L) parte dalla cartella aperta: si scrive il percorso
   con le sottocartelle suggerite.
 - **Lista:** filtro mentre scrivi, ordinamento naturale, selezione multipla e col rettangolo,
   colonne ridimensionabili, tooltip con le informazioni di file, cartelle e unità.
-- **Anteprima** (Alt+P) di immagini, testo e cartelle, e **griglia con miniature**
-  (Ctrl+Shift+2/3/4).
+- **Anteprima** (Alt+P) di immagini, testo e cartelle.
+- **Viste con lo zoom** (Ctrl+rotellina): Dettagli, Elenco a colonne, Icone con le miniature da
+  piccole a molto grandi; la vista si ricorda per cartella.
 - **Operazioni sui file** con il motore di Explorer (avanzamento, conflitti, permessi), **annulla e
   ripeti** (Ctrl+Z, Ctrl+Y), trascinamento da e verso le altre app, rinomina nella riga.
 - **Zip come cartelle**, in sola lettura: si sfogliano e se ne aprono, copiano e trascinano fuori
@@ -39,15 +41,15 @@ bit (provato su Windows 11).
   l'opzione "Menu completo di Windows col tasto destro".
 - **Dialoghi Apri e Salva** degli altri programmi: entrano nella cartella aperta in [z]f.
 - **Al posto di Explorer**, con l'opzione "Usa [z]f al posto di Explorer": le cartelle aperte da
-  Windows e Win+E aprono [z]f. Scrive solo nelle impostazioni dell'utente e si annulla con lo
+  Windows, gli zip e Win+E aprono [z]f. Scrive solo nelle impostazioni dell'utente e si annulla con lo
   stesso interruttore.
 - **Una finestra sola:** aprire una cartella con [z]f già aperto aggiunge una scheda (o, con
   l'opzione "Una finestra per ogni cartella aperta da fuori", apre una finestra nuova). Con
   l'opzione "Riapri le schede all'avvio" si riparte dalle schede che c'erano alla chiusura.
 - **Si aggiorna da solo:** una volta al giorno guarda se c'è una versione nuova, la scarica, ne
-  controlla la firma e la installa per il prossimo avvio. Lo stato è accanto alla versione, nel
-  menu ≡: da lì "Aggiorna" riavvia subito [z]f con le stesse schede. Si spegne nelle opzioni.
-- **Opzioni** (Ctrl+,) con effetto immediato.
+  controlla la firma e la installa per il prossimo avvio. Un pallino su ⚙ lo segnala, e in fondo
+  alle opzioni "Aggiorna" riavvia subito [z]f con le stesse schede. Si spegne nelle opzioni.
+- **Opzioni** (⚙ in alto a sinistra, Ctrl+,) con effetto immediato.
 
 ## Scorciatoie
 
@@ -110,6 +112,7 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Tasto | Azione |
 |---|---|
 | Ctrl+T | Nuova scheda |
+| Ctrl+N | Nuova finestra sulla stessa cartella |
 | Ctrl+W · clic centrale sulla scheda | Chiude la scheda |
 | Ctrl+Tab · Ctrl+Shift+Tab | Scheda successiva · precedente |
 | Ctrl+1…8 · Ctrl+9 | Scheda n · ultima scheda |
@@ -122,8 +125,9 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 |---|---|
 | Ctrl+B | Mostra o nasconde la barra laterale |
 | Alt+P | Mostra o nasconde l'anteprima |
-| Ctrl+Shift+2 · Ctrl+Shift+3 · Ctrl+Shift+4 | Griglia: miniature grandi · medie · piccole |
-| Ctrl+Shift+6 | Elenco |
+| Ctrl+Shift+2 · Ctrl+Shift+3 · Ctrl+Shift+4 | Icone grandi · medie · piccole (zoom 100 · 70 · 40%) |
+| Ctrl+Shift+5 · Ctrl+Shift+6 | Elenco · Dettagli |
+| Ctrl+rotellina | Zoom della lista: Dettagli, Elenco, Icone da 20 a 100% |
 | Trascina il bordo di un pannello · doppio clic | Larghezza di barra laterale o anteprima · predefinita |
 | Clic sull'intestazione | Ordina per colonna (di nuovo: al contrario) |
 | Trascina il bordo di una colonna · doppio clic | Larghezza della colonna · adatta al contenuto |
@@ -131,9 +135,8 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Trascina tra i preferiti | Aggiunge le cartelle ai preferiti |
 | Trascina un preferito | Lo sposta tra gli altri (solo l'ordine) |
 | Clic su Preferiti · sulla freccia di Questo PC | Chiude o riapre i preferiti · le unità |
-| Ctrl+rotellina · Ctrl+/− | Dimensione del testo |
+| Ctrl+/− | Dimensione del testo |
 | Ctrl+0 | Dimensione del testo predefinita |
-| Ctrl+rotellina in griglia | Dimensione delle miniature |
 | Ctrl+, | Opzioni |
 | F12 | Statistiche e tempi |
 

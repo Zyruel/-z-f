@@ -20,6 +20,253 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 0000000000000000000000000000000000000000000000. Correzioni del controllo prima della 1.0.0-beta.6 (z-f-dev, novembre 2026)
+
+Dal `/controllo cambiati`: doppio clic su ⚙ e sulla versione, Ctrl+rotellina con le opzioni
+aperte, menu di sistema sullo spazio vuoto della barra del titolo. Compilato senza avvisi (MSVC).
+
+Provato da Claude in z-f-dev (cartella `build\`):
+- [x] doppio clic su ⚙: le opzioni si aprono e restano aperte (prima si richiudevano subito);
+- [x] Ctrl+rotellina sopra le opzioni (`WM_MOUSEWHEEL` con `MK_CONTROL` mandato da uno script:
+      lo strumento dello schermo non tiene Ctrl con la rotellina): la vista resta Dettagli; a
+      opzioni chiuse lo stesso messaggio porta in Elenco;
+- [x] tasto destro sullo spazio vuoto della barra del titolo: il menu di sistema (Sposta,
+      Ridimensiona, Riduci a icona, Ingrandisci, Chiudi) sotto il mouse; Esc lo chiude;
+- [x] registro: solo le voci normali dell'avvio, niente "messaggio lento" per il menu.
+
+Restano:
+- [ ] doppio clic sulla versione in fondo alle opzioni: una sola scheda del browser (non provato
+      per non aprire pagine nel browser di Zyruel);
+- [ ] menu di sistema: con la finestra ingrandita "Ripristina" attivo e Sposta, Ridimensiona,
+      Ingrandisci disattivati; una voce scelta (Riduci a icona) funziona.
+
+## 000000000000000000000000000000000000000000000. Versione nelle opzioni come collegamento (z-f-dev, novembre 2026)
+
+Tolti data e compilatore dal piede delle opzioni; la versione apre la sua Release su GitHub;
+l'anello del controllo resta almeno un giro. Compilato senza avvisi (MSVC).
+
+Provato da Claude in z-f-dev:
+- [x] piede: "[z]f 1.0.0-beta.5" e l'icona subito dopo;
+- [x] con `--aggiorna-da=http://127.0.0.1:9` un clic sull'icona mostra l'anello, poi le frecce
+      circolari e l'avviso "Aggiornamenti non controllati";
+- [x] la Release `v1.0.0-beta.5` esiste (`gh release view`);
+- [x] z-f-dev controlla con un clic sull'icona (prima diceva solo "Build di prova"): ↻, l'anello,
+      poi il cerchio con la spunta; nel registro "aggiornamento: controllo 0x0002 604.9 ms".
+- [x] Zyruel: hover e clic sulla versione vanno ("tutto ok").
+
+Restano:
+- [ ] con `build\z-f.exe` un clic sull'icona mostra l'anello per circa un giro, poi la spunta;
+- [ ] con una versione nuova pronta, "Aggiorna a [z]f …" si clicca ancora per intero (niente
+      collegamento).
+
+## 00000000000000000000000000000000000000000000. Banda in fondo all'anteprima (z-f-dev, novembre 2026)
+
+La riga d'informazione dell'anteprima diventa una banda come la barra di stato: a destra il tipo
+di contenuto, prima i dati. Senza il totale della cartella. Compilato senza avvisi (MSVC).
+
+Provato da Claude in z-f-dev, nella cartella di `anteprima-prova.py`, a finestra ingrandita:
+- [x] cartella vuota: "🗀 0 🗋 0 │ Dettagli"; molti_file: "🗀 1 🗋 3000 │ Dettagli";
+- [x] dati.json: "ASCII · 1 riga · 75 B │ Testo";
+- [x] foto_grande.png: "4000 × 3000 · 363 KB · PNG │ Immagine";
+- [x] binario.bin: solo "Informazioni", senza barretta;
+- [x] la banda continua la barra di stato della lista, divisa dal bordo dell'anteprima;
+- [x] registro: solo le voci normali dell'avvio e "attesa vsync lunga".
+
+Restano:
+- [ ] una cartella con più di 5000 voci: i numeri col "+";
+- [ ] "caricamento…" (cartella lenta, di rete): la banda c'è, vuota;
+- [ ] un'unità di Questo PC e una cartella illeggibile: Informazioni, e Dettagli senza contatori;
+- [ ] anteprima stretta: i dati di un'immagine finiscono in "…" prima della barretta;
+- [ ] a 175% (Zyruel).
+
+## 0000000000000000000000000000000000000000000. Anteprima a tutta altezza (z-f-dev, novembre 2026)
+
+L'anteprima arriva in fondo alla finestra come la barra laterale; barra di stato e barra dei
+tempi stanno sotto la lista, tra i due pannelli. Il filtro si accorcia se non ci sta. Compilato
+senza avvisi (MSVC).
+
+Provato da Claude in z-f-dev (C:\Windows\Web):
+- [x] il separatore dell'anteprima scende fino in fondo; la riga d'informazione ("1 cartella,
+      0 file · 1,0 MB") è sulla linea del testo della barra di stato;
+- [x] contatori e vista finiscono prima del bordo dell'anteprima;
+- [x] il bordo dell'anteprima si trascina all'altezza della barra di stato; lì il doppio clic
+      rimette la larghezza predefinita;
+- [x] anteprima larga al massimo (la lista al minimo): "Filtra 4 elem…" si accorcia e resta a
+      distanza dai contatori; scrivendo "wa" il campo mostra testo e ×, Esc lo toglie;
+- [x] barra dei tempi accesa: sotto la sola lista, finisce in "…" prima del bordo; l'anteprima
+      non si accorcia;
+- [x] registro: solo le voci normali dell'avvio.
+
+Restano:
+- [ ] clic sulla vista (menu) e rotellina sopra (zoom) con l'anteprima aperta;
+- [ ] rotellina sulla parte bassa dell'anteprima, con un testo o una cartella lunghi: scorre;
+- [ ] tooltip della barra dei tempi solo sopra la lista;
+- [ ] finestra così stretta che il filtro sparisce (meno di `FILTER_MIN` altezze): scrivendo nella
+      lista il filtro funziona lo stesso;
+- [ ] anteprima chiusa: barra di stato larga quanto prima;
+- [ ] a 175% (Zyruel).
+
+## 000000000000000000000000000000000000000000. ⚙ al posto del menu ≡, ▯ nella riga del percorso (z-f-dev, novembre 2026)
+
+Il menu ≡ non c'è più: il pulsante in alto a sinistra è ⚙ e apre le opzioni. ▯ è sceso nella
+riga del percorso, a sinistra di ←, gemello di ◨. "Nuova finestra" ha Ctrl+N ed è nel menu della
+scheda; "Ripeti" è nel menu dello sfondo quando c'è. Compilato senza avvisi (MSVC).
+
+Provato da Claude in z-f-dev (C:\Windows\Web, poi C:\):
+- [x] barra del titolo: ⚙, schede, "+"; riga del percorso: ▯ ← → ↑ … ☆ ◨, con ▯ e ◨ in
+      `C_TEXT` a pannelli aperti;
+- [x] ▯ nasconde e rimostra la barra laterale; doppio clic su ◨ la chiude una volta sola (prima
+      il secondo clic la riapriva);
+- [x] tooltip di ⚙: "Opzioni · Scorciatoia Ctrl+,"; un clic apre le opzioni;
+- [x] tasto destro sulla scheda: Nuova scheda Ctrl+T, Nuova finestra Ctrl+N, Chiudi scheda,
+      Chiudi le altre schede;
+- [x] Ctrl+N apre un'altra finestra sulla stessa cartella;
+- [x] registro: solo le voci normali dell'avvio e "attesa vsync lunga".
+
+Restano:
+- [ ] **a 175%** (Zyruel): ⚙ e ▯ ben centrati, e la distanza fra ▯ e ← uguale a quella fra ☆ e ◨;
+- [ ] **versione nuova pronta** (`aggiornamenti-prova.py`): pallino su ⚙, tooltip con "Aggiorna a
+      [z]f …", piede delle opzioni con "Aggiorna a [z]f …" in `C_TEXT` cliccabile insieme alla
+      freccia; l'avviso dice "… o subito dalle opzioni";
+- [ ] "Ripeti …" nel menu dello sfondo dopo un Ctrl+Z, assente senza niente da ripetere;
+- [ ] tasto destro su ⚙ e su "+": nessun menu.
+
+## 00000000000000000000000000000000000000000. Zoom della lista e vista nella barra di stato (z-f-dev, novembre 2026)
+
+Ctrl+rotellina passa per Dettagli (0%), Elenco (10%, nuovo) e Icone da 20 a 100%; il controllo
+della vista è nella barra di stato, il pulsante ▦ della riga del percorso non c'è più. Compilato
+senza avvisi (MSVC).
+
+Provato da Claude in z-f-dev, nella cartella di prova di `griglia-prova.py` (904 file):
+- [x] Ctrl+Shift+5: Elenco, colonne di voci, barra di scorrimento orizzontale in fondo; la
+      rotellina scorre di una colonna a scatto.
+- [x] Rotellina sul controllo della vista: Elenco → Icone 20% → 50% → 100% (si ferma lì).
+- [x] Clic sul controllo: menu sopra, allineato a destra, con la spunta sulla vista attuale e le
+      scorciatoie; "Dettagli" ci torna.
+- [x] Elenco da tastiera: → di una colonna, ↓ di una voce, Fine fino all'ultima colonna; la
+      lista segue il cursore.
+- [x] Elenco col rettangolo: prende le voci di due colonne (16 selezionate); Ctrl+A con
+      l'anteprima aperta: la colonna tagliata a destra non entra più nell'anteprima (corretto).
+- [x] F2 in Elenco: la casella sta nella colonna; Esc annulla. Tooltip del controllo.
+- [x] Registro: solo le voci normali dell'avvio e attese vsync note. Frame 0,05–0,10 ms.
+
+Provato da Zyruel, a 175%:
+- [x] **Ctrl+rotellina** sulla lista (lo strumento dello schermo non manda il Ctrl con la
+      rotellina: Claude l'aveva provato solo dalla rotellina sul controllo, stesso codice).
+- [x] La barretta tra contatori e vista (1 px `C_LINE`).
+- [x] Le icone di Dettagli (BulletedList) ed Elenco (List) nel font di Windows 11.
+
+Da provare:
+- [ ] Elenco: trascinare file da una colonna e su una cartella in un'altra colonna, con lo
+      scorrimento vicino ai bordi sinistro e destro.
+- [x] Una cartella che era in griglia (viste.txt vecchio) si apre con la misura che aveva la
+      griglia, e il file si riscrive nella forma nuova: provato da Claude con `APPDATA` in una
+      cartella di prova, `griglia_dimensione=2` e una riga "griglia" → la riga diventa
+      "icone 100" (Icone grandi). Senza `griglia_dimensione` resta Icone medie.
+- [x] Elenco senza la striscia vuota a destra (dopo la revisione dei push): le colonne arrivano al
+      bordo della lista, il mouse prende le voci anche lì (tooltip), Fine mostra l'ultima colonna
+      intera; con l'anteprima aperta le colonne si fermano al suo bordo. Provato da Claude in
+      z-f-dev, 400 file finti.
+- [x] Il cursore resta in vista quando cambia la geometria (`layout`): in Elenco, con la lista in
+      fondo, Alt+P lascia visibile la colonna del cursore (prima finiva a destra, fuori vista);
+      con la lista scorsa lontano dal cursore, Alt+P non la sposta. Provato da Claude in z-f-dev.
+- [ ] Lo stesso ridimensionando la finestra (anche in altezza, che in Elenco cambia le voci per
+      colonna) e trascinando il bordo della barra laterale, in Dettagli, Elenco e Icone.
+
+## 0000000000000000000000000000000000000000. "Aggiungi percorso di rete…" in Questo PC (z-f-dev, novembre 2026)
+
+La voce apre la procedura di Windows con il comando di Explorer (letto da `CommandStore`); alla
+chiusura la barra laterale si rilegge. Compilato senza avvisi (MSVC).
+
+Provato da Claude in z-f-dev:
+- [x] Menu di Questo PC nella barra laterale: Apri, Apri in nuova scheda, Connetti unità di
+      rete…, Aggiungi percorso di rete…, Proprietà.
+- [x] La procedura si apre in primo piano; creato un percorso verso `\\localhost\C$` (senza
+      "Apri il percorso di rete…" all'ultima pagina): dopo Fine compare subito sotto Questo PC.
+      Tolto il percorso di prova e riaperta la procedura, con Annulla la barra si rilegge e la
+      voce sparisce.
+- [x] Registro: niente di nuovo oltre il passaggio WARP → GPU all'avvio.
+
+Resta a Zyruel:
+- [ ] La voce nel **menu dello sfondo** di Questo PC (lista): stessa procedura.
+- [ ] Con **"Apri il percorso di rete quando si sceglie il pulsante Fine"** spuntata (com'è di
+      solito): il percorso si apre (in [z]f se è il file manager predefinito) e compare sotto
+      Questo PC.
+
+## 000000000000000000000000000000000000000. File solo online appena scaricati: icona e miniatura (z-f-dev, novembre 2026)
+
+Un file solo online ha ora l'icona del tipo (`iconSource`), così quando si scarica la chiave
+cambia e l'icona vera arriva da sola; le miniature si rifanno anche quando cambiano solo gli
+attributi (`thEntry`). Compilato senza avvisi (MSVC).
+
+Provato da Claude con `prove\online-prova.cpp attendi` e z-f-dev sulla cartella dei segnaposto:
+- [x] All'apertura .exe, .lnk, .ico, .png e .jpg hanno l'icona generica, nessuno scaricamento da
+      z-f-dev (4 scaricamenti in tutto, tutti di `cat`, quelli chiesti apposta).
+- [x] Scaricati da Bash `regedit.exe` e `AdGuard.lnk`: in elenco, entro un secondo, l'icona vera
+      (e la destinazione del .lnk); `z-f.ico`, ancora online, resta generica.
+- [x] In griglia, scaricato il .png: la miniatura e l'anteprima grande arrivano da sole.
+- [x] Registro: solo il passaggio WARP → GPU all'avvio.
+
+Resta a Zyruel (serve OneDrive vero):
+- [ ] In una cartella di OneDrive, un .exe o un .lnk "solo online": icona generica; aperto (si
+      scarica), in [z]f l'icona diventa quella vera senza riavviare. Lo stesso per una foto in
+      griglia: dopo averla aperta compare la miniatura.
+
+## 00000000000000000000000000000000000000. Icona con le misure di 175% e 225%, in PNG (z-f-dev, novembre 2026)
+
+Compilato senza avvisi (MSVC). Provato da Claude a 100%: la finestra prende 32 e 16 px, 10 avvii
+alternati con l'icona di prima, contenuto uguale (52–53 ms), "icona della finestra" 1,2 → 2,8 ms;
+le misure 28, 36, 56 e 72 viste con `prove\icona-misure.cpp`, nitide. Lo schermo era al 100%:
+a 175% dal vero non l'ha visto nessuno.
+
+- [ ] **A 175%**, con `prove\dev.bat`: l'icona nella barra delle applicazioni, in Alt+Tab e nella
+      barra del titolo è nitida, senza bordi sfumati né alone scuro intorno a "[z]" (prima Windows
+      riduceva la 32 e la 64).
+- [ ] **Esplora file** sulla cartella `build\`, in Icone grandi e in Dettagli: l'icona di
+      `z-f-dev.exe` è nitida (Windows può tenere in cache quella di prima: se sembra vecchia,
+      basta una copia dell'exe con un altro nome).
+
+## 0000000000000000000000000000000000000. Zip al posto di Explorer (z-f-dev, novembre 2026)
+
+Compilato senza avvisi (MSVC). Provato da Claude: `z-f-dev.exe --new-window <prova.zip>` apre la
+finestra dentro lo zip (prima: la cartella che lo contiene, con lo zip selezionato). Log normale.
+Il registro non l'ha toccato Claude: l'interruttore lo usa Zyruel.
+
+- [ ] **Con l'integrazione già attiva da prima:** le opzioni dicono "Attivo senza gli zip: un clic
+      li aggiunge" (menu ≡: "attivo (senza zip)"); un clic → "attivo", e l'avviso dice "cartelle,
+      unità e zip".
+- [x] **Doppio clic su uno zip** sul desktop (provato da Zyruel sul desktop) e in Download (anche dall'elenco dei download del
+      browser): si apre in [z]f, dentro lo zip, come scheda della finestra principale.
+- [ ] **Tasto destro su uno zip** in Esplora file: "Apri in [z]f" in grassetto, "Estrai tutto…"
+      ancora lì.
+- [ ] **Zip cifrato** aperto in [z]f, doppio clic su un file: si apre ancora in Esplora file (il
+      ripiego di `zipout.cpp`), senza tornare in [z]f.
+- [x] **Chiudere e riaprire subito** (riprovato da Zyruel col doppio clic sul desktop: risolto) (corretto dopo le prove di Zyruel: una volta su due la
+      finestra compariva dopo 4,7 s): doppio clic sullo zip, chiusura, di nuovo doppio clic,
+      più volte di fila. Misurato da Claude chiudendo la principale con `WM_CLOSE`: 20–23 ms
+      (prima 4,7 s).
+- [x] **Schede riaperte dopo una chiusura veloce** (dopo la revisione dei push: la principale
+      scrive i file in coda prima di liberare il mutex): provato da Claude con z-f-dev come
+      principale (z-f.exe chiuso) e `APPDATA` di prova con `riapri_schede=1`: tre schede, chiusura
+      con `WM_CLOSE` e riavvio subito, la principale nuova parte 39 ms dopo e riapre le tre
+      schede. "chiusura: file salvati" nel registro: 0,2 e 0,8 ms.
+- [ ] Lo stesso con `build\z-f.exe` e le schede vere di Zyruel.
+- [ ] **Disattivando:** gli zip tornano a Esplora file (`HKCU\Software\Classes\CompressedFolder\shell`
+      senza valore predefinito, senza il verbo `z-f`); idem con `prove\ripristina-explorer.bat`.
+
+## 000000000000000000000000000000000000. Memoria delle cartelle enormi (z-f-dev, novembre 2026)
+
+Compilato senza avvisi (MSVC; zig non è installato). Provato da Claude su WinSxS con
+`prove\memoria.ps1`: 126 → 98–101 MB di privata. La colonna Dimensione mostra i totali (screenshot)
+e il conto arriva in fondo (30.720 cartelle in 6 s). La pulizia della cache è stata provata con
+soglie abbassate apposta (tiene le sottocartelle della cartella aperta). Log normale.
+
+- [ ] **Colonna Dimensione in una cartella grande, nell'uso normale:** i totali compaiono come
+      prima, dall'alto verso il basso, anche cambiando scheda a metà conto e tornando.
+- [ ] **Pulizia della cache con le soglie vere:** dopo qualche cartella grande (WinSxS, System32,
+      un `node_modules`) e più di un minuto, la colonna della cartella aperta resta piena.
+      Ordinare per dimensione mette ancora in ordine le cartelle già contate.
+
 ## 00000000000000000000000000000000000. Gesti del touchpad e tasti Indietro/Avanti (z-f-dev, novembre 2026)
 
 Compilato senza avvisi (MSVC). Senza schermo (accesso negato), con `WM_APPCOMMAND` mandato alla
@@ -637,7 +884,8 @@ in una cartella di prova con degli zip; `prove\prova.zip` va bene, oppure se ne 
 
 **Scelta da confermare:** i nomi senza il bit UTF-8 si leggono nella codepage OEM del sistema (come
 li scrivono Esplora file e 7-Zip), non sempre in 437 come dice la specifica: in Italia (850) le
-lettere accentate comuni sono uguali, ma À, Á e simili no. Segnata in `docs/da-sistemare.md`.
+lettere accentate comuni sono uguali, ma À, Á e simili no. Confermata da Zyruel (26/11/2026): si
+resta con la OEM, come Esplora file.
 
 ## 000000000000000. Incolla da uno zip (0.26, novembre 2026)
 

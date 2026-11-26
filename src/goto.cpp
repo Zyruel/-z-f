@@ -635,7 +635,7 @@ static void gotoStart(const std::wstring& text) {
         menuClose();
         optionsClose();
         tipHide();
-        if (A.renaming) endRename(true); // come un clic fuori dalla casella (dal menu ≡)
+        if (A.renaming) endRename(true); // come un clic fuori dalla casella
         GT.open = true;
         GT.openedAt = nowMs();
         gotoBuild();

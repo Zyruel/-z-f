@@ -1,7 +1,7 @@
 // [z]f — impostazioni e salvataggio dei file di [z]f in %APPDATA%\z-f.
 //
 // impostazioni.txt: righe "chiave=valore" (UTF-8), modificabili a mano.
-//   dimensione=13          dimensione del testo in pixel a scala 100% (Ctrl+rotellina, Ctrl +/−, Ctrl+0)
+//   dimensione=13          dimensione del testo in pixel a scala 100% (Ctrl +/−, Ctrl+0)
 //   carattere=Segoe UI     famiglia del testo (se non è installata si torna a Segoe UI)
 //   barra_laterale=1       Ctrl+B
 //   barra_laterale_larghezza=210  in pixel a scala 100% (trascinando il bordo; doppio clic: predefinita)
@@ -17,12 +17,13 @@
 //   carattere_anteprima=Cascadia Mono  testo nell'anteprima (se non è installato: Cascadia Mono, Consolas)
 //   annulla_dopo_riavvio=0 1: la cronologia di Ctrl+Z si salva in annulla.txt e si ritrova al riavvio
 //   menu_completo=0        1: il tasto destro apre il menu completo della shell (Shift quello di [z]f)
-//   dimensione_cartelle=1  0: la colonna Dimensione non conta le cartelle (tooltip e anteprima sì)
+//   dimensione_cartelle=1  0: la colonna Dimensione non conta le cartelle (il tooltip sì)
 //   dialoghi=1             0: i dialoghi Apri e Salva degli altri programmi non saltano alla cartella di [z]f
-//   griglia_dimensione=1  miniature della griglia: 0 piccole, 1 medie, 2 grandi (la vista è per cartella, in viste.txt)
+//   griglia_dimensione=1   (fino alla 1.0.0-beta.5) misura della griglia: si legge solo per le righe
+//                          "griglia" di viste.txt, che diventano Icone piccole, medie o grandi
 //   riapri_schede=0        1: la finestra principale riapre all'avvio le schede che aveva alla chiusura (schede.txt)
 //   finestre_separate=0    1: una cartella aperta da fuori (doppio clic, altri programmi) apre una finestra nuova, non una scheda
-//   aggiornamenti=1        0: niente controllo automatico degli aggiornamenti (≡ › versione controlla lo stesso)
+//   aggiornamenti=1        0: niente controllo automatico degli aggiornamenti (il clic sulla versione nelle opzioni controlla lo stesso)
 //   aggiornamenti_beta=1   anche le beta; senza la riga: sì se la versione in uso è una beta
 //   aggiornamenti_ultimo=0 ultimo controllo degli aggiornamenti (secondi dal 1970): uno al giorno
 // Si leggono all'avvio sul thread veloce della barra laterale (il thread UI non tocca il disco)
@@ -144,7 +145,7 @@ static void saveDataAsync(const wchar_t* name, std::string data) {
 // --- impostazioni -------------------------------------------------------------------------
 // impostazioni.txt arriva dal thread veloce della barra laterale, e l'attesa all'avvio (main.cpp)
 // dura al massimo 100 ms: con il disco lento (antivirus, avvio a freddo) l'utente può cambiare
-// un'impostazione prima (Ctrl+rotellina, ▯, un bordo). Salvare allora riscriverebbe il file con i
+// un'impostazione prima (Ctrl +/−, ▯, un bordo). Salvare allora riscriverebbe il file con i
 // valori predefiniti. Così si ricordano solo le chiavi cambiate rispetto all'avvio; arrivato il file,
 // i loro valori si rimettono sopra quelli letti e si salva (settingsLoaded).
 // Lo stesso vale per gli altri file letti all'avvio: preferiti (favAdopt), viste (viewsLoaded),
@@ -172,7 +173,6 @@ static std::string settingsText() {
     d += std::string("menu_completo=") + (A.shellMenu ? "1" : "0") + "\r\n";
     d += std::string("dimensione_cartelle=") + (A.dirSizes ? "1" : "0") + "\r\n";
     d += std::string("dialoghi=") + (A.dialogJump ? "1" : "0") + "\r\n";
-    d += "griglia_dimensione=" + std::to_string(A.thumbSize) + "\r\n";
     d += std::string("riapri_schede=") + (A.reopenTabs ? "1" : "0") + "\r\n";
     d += std::string("finestre_separate=") + (A.separateWindows ? "1" : "0") + "\r\n";
     d += std::string("aggiornamenti=") + (A.updAuto ? "1" : "0") + "\r\n";
@@ -230,7 +230,11 @@ static bool settingsApply(const std::vector<std::wstring>& lines) {
         else if (k == L"menu_completo") A.shellMenu = v == L"1";
         else if (k == L"dimensione_cartelle") A.dirSizes = v != L"0";
         else if (k == L"dialoghi") A.dialogJump = v != L"0";
-        else if (k == L"griglia_dimensione") { int n = _wtoi(v.c_str()); if (n >= 0 && n <= 2) A.thumbSize = n; }
+        else if (k == L"griglia_dimensione") { // fino alla 1.0.0-beta.5: non si riscrive, decide solo le righe "griglia" di viste.txt
+            static const int kOld[] = { ZOOM_SMALL, ZOOM_MEDIUM, ZOOM_LARGE };
+            int n = _wtoi(v.c_str());
+            if (n >= 0 && n <= 2) A.gridLegacyZoom = kOld[n];
+        }
         else if (k == L"riapri_schede") A.reopenTabs = v == L"1";
         else if (k == L"finestre_separate") A.separateWindows = v == L"1";
         else if (k == L"aggiornamenti") A.updAuto = v != L"0";
@@ -266,7 +270,7 @@ static bool settingsLoaded(const std::vector<std::wstring>& lines) {
     return font;
 }
 
-// Ctrl+rotellina, Ctrl +/−: dimensione del testo; delta 0 = predefinita
+// Ctrl +/−: dimensione del testo; delta 0 = predefinita (Ctrl+rotellina è lo zoom della lista)
 static void fontSizeStep(int delta) {
     int px = delta ? std::min(ui::FONT_MAX, std::max(ui::FONT_MIN, F.px + delta)) : ui::FONT_PX;
     if (px == F.px) return;

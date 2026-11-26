@@ -1,4 +1,4 @@
-// [z]f — pannello delle opzioni (Ctrl+, · menu della barra delle schede).
+// [z]f — pannello delle opzioni (⚙ · Ctrl+,).
 //
 // Pannello sovrapposto, come menu e tooltip: si chiude con Esc, con la × o cliccando fuori.
 // Ogni opzione ha effetto subito e si salva in impostazioni.txt. Le scorciatoie vengono da una
@@ -68,6 +68,7 @@ static Shortcut kFiles[] = {
 };
 static Shortcut kTabs[] = {
     { { K(M_TAB_NEW, KC, 'T') }, L"Nuova scheda" },
+    { { K(M_NEW_WINDOW, KC, 'N') }, L"Nuova finestra sulla stessa cartella" },
     { { K(M_TAB_CLOSE, KC, 'W'), { L"clic centrale sulla scheda", 0 } }, L"Chiude la scheda" },
     { { { L"Ctrl+Tab", 0 }, { L"Ctrl+Shift+Tab", 0 } }, L"Scheda successiva · precedente" },
     { { { L"Ctrl+1…8", 0 }, { L"Ctrl+9", 0 } }, L"Scheda n · ultima scheda" },
@@ -77,9 +78,10 @@ static Shortcut kTabs[] = {
 static Shortcut kView[] = {
     { { K(M_SIDEBAR, KC, 'B') }, L"Mostra o nasconde la barra laterale" },
     { { K(M_PREVIEW, KA, 'P') }, L"Mostra o nasconde l'anteprima" },
-    { { K(M_GRID_L, KC | KS, '2'), K(M_GRID_M, KC | KS, '3'), K(M_GRID_S, KC | KS, '4') },
-      L"Griglia: miniature grandi · medie · piccole" },
-    { { K(M_VIEW_LIST, KC | KS, '6') }, L"Elenco" },
+    { { K(M_ICONS_L, KC | KS, '2'), K(M_ICONS_M, KC | KS, '3'), K(M_ICONS_S, KC | KS, '4') },
+      L"Icone grandi · medie · piccole (zoom 100 · 70 · 40%)" },
+    { { K(M_VIEW_LIST, KC | KS, '5'), K(M_VIEW_DETAILS, KC | KS, '6') }, L"Elenco · Dettagli" },
+    { { { L"Ctrl+rotellina", 0 } }, L"Zoom della lista: Dettagli, Elenco, Icone da 20 a 100%" },
     { { { L"Trascina il bordo di un pannello", 0 }, { L"doppio clic", 0 } }, L"Larghezza di barra laterale o anteprima · predefinita" },
     { { { L"Clic sull'intestazione", 0 } }, L"Ordina per colonna (di nuovo: al contrario)" },
     { { { L"Trascina il bordo di una colonna", 0 }, { L"doppio clic", 0 } }, L"Larghezza della colonna · adatta al contenuto" },
@@ -87,9 +89,8 @@ static Shortcut kView[] = {
     { { { L"Trascina tra i preferiti", 0 } }, L"Aggiunge le cartelle ai preferiti" },
     { { { L"Trascina un preferito", 0 } }, L"Lo sposta tra gli altri (solo l'ordine)" },
     { { { L"Clic su Preferiti", 0 }, { L"sulla freccia di Questo PC", 0 } }, L"Chiude o riapre i preferiti · le unità" },
-    { { { L"Ctrl+rotellina", 0 }, { L"Ctrl+/−", 0 } }, L"Dimensione del testo" },
+    { { { L"Ctrl+/−", 0 } }, L"Dimensione del testo" },
     { { { L"Ctrl+0", 0 } }, L"Dimensione del testo predefinita" },
-    { { { L"Ctrl+rotellina in griglia", 0 } }, L"Dimensione delle miniature" },
     { { K(M_OPTIONS, KC, VK_OEM_COMMA) }, L"Opzioni" },
     { { { L"F12", 0 } }, L"Statistiche e tempi" },
 };
@@ -198,7 +199,7 @@ static std::wstring shortcutsOf(int cmd) {
 enum OptId { OPT_NONE = -1, OPT_CLOSE = 1, OPT_FONT_MINUS, OPT_FONT_PLUS, OPT_FACE_PREV, OPT_FACE_NEXT,
              OPT_ANIM, OPT_SIDEBAR, OPT_DEFAULT, OPT_FOLDER, OPT_PREVIEW, OPT_MONO_PREV, OPT_MONO_NEXT,
              OPT_UNDO_PERSIST, OPT_SHELL_MENU, OPT_DIR_SIZES, OPT_DIALOGS, OPT_TIMES,
-             OPT_REOPEN, OPT_UPDATES, OPT_BETA, OPT_UPD_ACT, OPT_SEPARATE };
+             OPT_REOPEN, OPT_UPDATES, OPT_BETA, OPT_UPD_ACT, OPT_SEPARATE, OPT_VERSION };
 
 struct OptionsPanel {
     bool open = false;
@@ -247,24 +248,6 @@ static std::wstring faceStep(const std::vector<std::wstring>& faces, const std::
     int n = (int)faces.size(), i = 0;
     for (int k = 0; k < n; k++) if (!_wcsicmp(faces[k].c_str(), cur.c_str())) i = k;
     return n ? faces[(i + d + n) % n] : cur;
-}
-
-static std::wstring buildInfo() {
-#if defined(_MSC_VER) && !defined(__clang__)
-    const wchar_t* comp = L"MSVC";
-#else
-    const wchar_t* comp = L"zig/clang";
-#endif
-    // __DATE__ = "Nov 25 2026"
-    static const char* mon[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
-    const char* d = __DATE__;
-    int m = 0;
-    for (int i = 0; i < 12; i++) if (!strncmp(d, mon[i], 3)) m = i + 1;
-    wchar_t b[96];
-    std::wstring year(d + 7, d + 11);
-    _snwprintf(b, 95, L"[z]f %s · compilato il %02d/%02d/%s con %s", ZF_VERSION, atoi(d + 4), m, year.c_str(), comp);
-    b[95] = 0;
-    return b;
 }
 
 static void optionsOpen() {
@@ -356,6 +339,7 @@ static void optionsExec(int id) {
     case OPT_UPDATES:    A.updAuto = !A.updAuto; settingsSave(); break;
     case OPT_BETA:       A.updBeta = updBeta() ? 0 : 1; settingsSave(); break;
     case OPT_UPD_ACT:    updAction(); break; // controlla, aggiorna, o apre la Release
+    case OPT_VERSION:    updOpenPage(kUpdThisRelease); break; // novità e download di questa versione
     case OPT_FOLDER: {
         std::wstring p = zfDataPath(L"");
         if (!p.empty()) p.pop_back(); // senza "\" finale
@@ -377,10 +361,13 @@ static int optionsHit(int x, int y) {
 }
 
 // --- input: true se l'evento è stato gestito dal pannello ------------------------------
-static bool optionsMouseDown(int x, int y) {
+// again: secondo clic di un doppio clic. Conta come un clic, tranne su versione e aggiornamento:
+// aprirebbero la pagina due volte (o ripeterebbero l'aggiornamento)
+static bool optionsMouseDown(int x, int y, bool again = false) {
     if (!OP.open) return false;
     if (x < OP.x || x >= OP.x + OP.w || y < OP.y || y >= OP.y + OP.h) { optionsClose(); return true; } // clic fuori
     int id = optionsHit(x, y);
+    if (again && (id == OPT_VERSION || id == OPT_UPD_ACT)) return true;
     if (id != OPT_NONE) optionsExec(id);
     return true;
 }
@@ -446,7 +433,7 @@ static void drawOptions(double dt) {
     auto hit = [&](float x, float y, float w, float h, int id) {
         // solo la parte dentro l'area visibile è cliccabile
         float y0 = std::max(y, OP.viewTop), y1 = std::min(y + h, OP.viewBottom);
-        if (id == OPT_CLOSE || id == OPT_FOLDER || id == OPT_UPD_ACT) { y0 = y; y1 = y + h; } // titolo e piede non scorrono
+        if (id == OPT_CLOSE || id == OPT_FOLDER || id == OPT_UPD_ACT || id == OPT_VERSION) { y0 = y; y1 = y + h; } // titolo e piede non scorrono
         if (y1 > y0) OP.hits.push_back({ x, y0, w, y1 - y0, id });
     };
     auto hov = [&](float x, float y, float w, float h, int id) {
@@ -478,15 +465,27 @@ static void drawOptions(double dt) {
     float footH = rowH + px(ui::GAP_S);
     float fy = y + h - footH;
     rect(x + 1, fy, w - 2, 1, fadeA(C_LINE, k));
-    std::wstring info = buildInfo();
+    // Con una versione nuova (il pallino su ⚙) il testo dice cosa fa il clic ("Aggiorna a [z]f …")
+    // e si clicca tutto, non solo l'icona: è il solo posto da cui si aggiorna. Altrimenti la
+    // versione è un collegamento alla sua Release (novità e download) e l'icona controlla di nuovo
+    bool upd = updBadge();
+    std::wstring info = updMenuLabel();
     float infoEnd = x + w * 0.6f - updIconW() - px(ui::GAP_M);
-    drawText(x + pad, fy + floorf((footH - F.lineH) * 0.5f), info, fadeA(C_FAINT, k), infoEnd);
-    {   // dopo la versione, lo stato dell'aggiornamento: un clic controlla, aggiorna o apre la Release
-        float iw = updIconW(), ix = std::min(infoEnd, x + pad + (float)textWidth(info.c_str(), (int)info.size())) + px(ui::GAP_M);
+    {
+        float tx = x + pad, tEnd = std::min(infoEnd, tx + (float)textWidth(info.c_str(), (int)info.size()));
+        float iw = updIconW(), ix = tEnd + px(ui::GAP_M);
         float iy = fy + floorf((footH - A.rowH) * 0.5f);
-        hov(ix - px(ui::GAP_S), iy, iw + px(ui::GAP_M), A.rowH, OPT_UPD_ACT);
+        float ihx = ix - px(ui::GAP_S), ihw = iw + px(ui::GAP_M); // l'icona, con GAP_S per lato
+        float thx = tx - px(ui::GAP_S), thw = tEnd + px(ui::GAP_S) - thx; // il testo, con GAP_S per lato
+        if (upd) { ihw += ihx - thx; ihx = thx; } // un solo controllo: testo e icona
+        else {
+            hov(thx, iy, thw, A.rowH, OPT_VERSION);
+            hit(thx, iy, thw, A.rowH, OPT_VERSION);
+        }
+        hov(ihx, iy, ihw, A.rowH, OPT_UPD_ACT);
+        drawText(tx, fy + floorf((footH - F.lineH) * 0.5f), info, fadeA(upd ? C_TEXT : C_FAINT, k), infoEnd);
         drawUpdateIcon(ix, iy, iw, A.rowH, k);
-        hit(ix - px(ui::GAP_S), iy, iw + px(ui::GAP_M), A.rowH, OPT_UPD_ACT);
+        hit(ihx, iy, ihw, A.rowH, OPT_UPD_ACT);
     }
     const wchar_t* fl = L"Cartella delle impostazioni";
     float flw = (float)textWidth(fl, (int)wcslen(fl)) + px(ui::GAP_M) * 2;
@@ -577,7 +576,8 @@ static void drawOptions(double dt) {
     section(L"Integrazione con Windows");
     label(L"Usa [z]f al posto di Explorer",
           OP.defaultState == 2 ? L"Attivo con un altro eseguibile di [z]f: un clic lo assegna a questo"
-                               : L"Doppio clic sulle cartelle, Win+E, programmi che aprono una cartella");
+          : OP.defaultState == 3 ? L"Attivo senza gli zip: un clic li aggiunge"
+                                 : L"Doppio clic sulle cartelle e sugli zip, Win+E, programmi che aprono una cartella");
     sw(OP.defaultState == 1, OP.knobDefault, OPT_DEFAULT);
     cy += rowH * 2 - px(ui::GAP_S);
     label(L"Una finestra per ogni cartella aperta da fuori",

@@ -1,7 +1,11 @@
 // [z]f — cornice della finestra disegnata da [z]f: le schede stanno nella barra del titolo.
 //
-//   [≡][▯] [scheda][scheda][+]   ·····trascina·····   [–][□][×]
-//   [←][→][↑]  Questo PC › Disco locale (C:) › Users              [☆][◨]
+//   [⚙] [scheda][scheda][+]   ·····trascina·····   [–][□][×]
+//   [▯][←][→][↑]  Questo PC › Disco locale (C:) › Users           [☆][◨]
+//
+// La barra del titolo è della finestra (schede, opzioni, pulsanti di sistema); la riga del percorso
+// di quello che si guarda (navigazione, preferito, pannelli). ▯ e ◨ sono gemelli: stessa riga,
+// ognuno sopra il bordo del pannello che apre.
 //
 // L'area client arriva fino al bordo superiore (WM_NCCALCSIZE); WM_NCHITTEST dice a Windows cos'è
 // ogni punto: bordo superiore per ridimensionare, spazio vuoto per trascinare (doppio clic:
@@ -9,9 +13,10 @@
 // Windows 11 il pulsante ingrandisci mostra gli snap layout). I clic sui pulsanti arrivano come
 // messaggi non client e li gestisce [z]f.
 
-enum ChromeId { CH_NONE = -1, CH_MENU = 1, CH_SIDEBAR, CH_MIN, CH_MAX, CH_CLOSE, CH_BACK, CH_FWD, CH_UP, CH_STAR,
-               CH_VIEW,       // elenco ↔ griglia
-               CH_PREVIEW }; // anteprima: l'ultimo a destra nella riga del percorso
+// La vista (Dettagli, Elenco, Icone) non è qui: sta nella barra di stato, accanto ai contatori
+enum ChromeId { CH_NONE = -1, CH_OPTIONS = 1, CH_MIN, CH_MAX, CH_CLOSE, // barra del titolo
+               CH_SIDEBAR, CH_BACK, CH_FWD, CH_UP,                      // riga del percorso, a sinistra
+               CH_STAR, CH_PREVIEW };                                   // a destra: l'anteprima è l'ultimo
 
 typedef int(WINAPI* PFN_GetSystemMetricsForDpi)(int, UINT);
 static PFN_GetSystemMetricsForDpi pGetSystemMetricsForDpi;
@@ -59,15 +64,14 @@ struct Chrome {
 static bool chromeRect(int id, float& x, float& y, float& w, float& h) {
     float W = (float)G.w;
     switch (id) {
-    case CH_MENU:    x = 0;                y = 0; w = A.btnW; h = A.tabH; return true;
-    case CH_SIDEBAR: x = A.btnW;           y = 0; w = A.btnW; h = A.tabH; return true;
+    case CH_OPTIONS: x = 0;                y = 0; w = A.btnW; h = A.tabH; return true;
     case CH_MIN:     x = W - A.capW * 3;   y = 0; w = A.capW; h = A.tabH; return true;
     case CH_MAX:     x = W - A.capW * 2;   y = 0; w = A.capW; h = A.tabH; return true;
     case CH_CLOSE:   x = W - A.capW;       y = 0; w = A.capW; h = A.tabH; return true;
-    case CH_BACK: case CH_FWD: case CH_UP:
-        x = px(ui::GAP_S) + (id - CH_BACK) * A.navW; y = A.pathY + floorf((A.topH - A.rowH) * 0.5f);
+    case CH_SIDEBAR: case CH_BACK: case CH_FWD: case CH_UP: // a sinistra: ▯ ← → ↑
+        x = px(ui::GAP_S) + (id - CH_SIDEBAR) * A.navW; y = A.pathY + floorf((A.topH - A.rowH) * 0.5f);
         w = A.navW; h = A.rowH; return true;
-    case CH_STAR: case CH_VIEW: case CH_PREVIEW: // a destra: ☆ ▦ ◨
+    case CH_STAR: case CH_PREVIEW: // a destra: ☆ ◨
         x = W - px(ui::GAP_S) - A.navW * (CH_PREVIEW + 1 - id); y = A.pathY + floorf((A.topH - A.rowH) * 0.5f);
         w = A.navW; h = A.rowH; return true;
     }
@@ -75,7 +79,7 @@ static bool chromeRect(int id, float& x, float& y, float& w, float& h) {
 }
 
 static int chromeHit(int px_, int py) {
-    for (int id = CH_MENU; id <= CH_PREVIEW; id++) {
+    for (int id = CH_OPTIONS; id <= CH_PREVIEW; id++) {
         float x, y, w, h;
         if (chromeRect(id, x, y, w, h) && px_ >= x && px_ < x + w && py >= y && py < y + h) return id;
     }
@@ -93,7 +97,6 @@ static bool chromeEnabled(int id) {
 }
 
 static int favIndex(const std::wstring& path); // sidebar.cpp
-static void menuOpenApp(float cx, float cy);    // menu.cpp
 
 // ▯, Ctrl+B, opzioni: mostra o nasconde la barra laterale (la lista si sposta: niente hover vecchio)
 static void sidebarToggle() {
@@ -107,7 +110,7 @@ static void sidebarToggle() {
 static void chromeExec(int id) {
     if (!chromeEnabled(id)) return;
     switch (id) {
-    case CH_MENU:    menuOpenApp(0, A.tabH); break;
+    case CH_OPTIONS: optionsOpen(); break;
     case CH_SIDEBAR: sidebarToggle(); break;
     case CH_MIN:     ShowWindow(A.hwnd, SW_MINIMIZE); break;
     case CH_MAX:     ShowWindow(A.hwnd, IsZoomed(A.hwnd) ? SW_RESTORE : SW_MAXIMIZE); break;
@@ -116,7 +119,6 @@ static void chromeExec(int id) {
     case CH_FWD:     goForward(); break;
     case CH_UP:      goUp(); break;
     case CH_STAR:    favToggle(A.cur->path); break;
-    case CH_VIEW:    viewSet(!A.grid, -1); break;
     case CH_PREVIEW: previewToggle(); break;
     }
     A.dirty = true;
@@ -161,6 +163,24 @@ static void chromeSetHover(int id) {
 }
 
 // true se il messaggio è stato gestito (va restituito 0)
+// Tasto destro sullo spazio vuoto della barra del titolo: il menu di sistema. DefWindowProc non lo
+// mostra, perché per lui lì è area client (WM_NCCALCSIZE): lo si apre qui, con le voci abilitate
+// come le abilita Windows, e il comando scelto torna a DefWindowProc come WM_SYSCOMMAND.
+static void chromeSysMenu(HWND hwnd, int x, int y) {
+    HMENU m = GetSystemMenu(hwnd, FALSE);
+    if (!m) return;
+    bool max = IsZoomed(hwnd);
+    EnableMenuItem(m, SC_RESTORE, max ? MF_ENABLED : MF_GRAYED);
+    EnableMenuItem(m, SC_MOVE, max ? MF_GRAYED : MF_ENABLED);
+    EnableMenuItem(m, SC_SIZE, max ? MF_GRAYED : MF_ENABLED);
+    EnableMenuItem(m, SC_MAXIMIZE, max ? MF_GRAYED : MF_ENABLED);
+    EnableMenuItem(m, SC_MINIMIZE, MF_ENABLED);
+    EnableMenuItem(m, SC_CLOSE, MF_ENABLED);
+    g_shellCalls++; // ciclo modale del menu: il tempo è dell'utente, non va nel registro
+    int cmd = (int)TrackPopupMenu(m, TPM_RETURNCMD | TPM_RIGHTBUTTON, x, y, 0, hwnd, nullptr);
+    if (cmd) PostMessageW(hwnd, WM_SYSCOMMAND, (WPARAM)cmd, 0);
+}
+
 static bool chromeNcMouse(HWND hwnd, UINT msg, WPARAM wp) {
     int id = ncToChrome(wp);
     switch (msg) {
@@ -209,8 +229,8 @@ static void drawChromeButton(int id, bool toolbar) {
     uint32_t col = !en ? C_FAINT : (closeBtn && a > 0.5f) ? C_ON_CLOSE : (toolbar ? C_DIM : C_TEXT);
     uint32_t cp = 0;
     switch (id) {
-    case CH_MENU:    cp = IC_MENU; break;
-    case CH_SIDEBAR: cp = IC_SIDEBAR; col = A.sideVisible ? col : C_DIM; break;
+    case CH_OPTIONS: cp = IC_SETTINGS; break;
+    case CH_SIDEBAR: cp = IC_SIDEBAR; if (A.sideVisible) col = C_TEXT; break; // aperta: come ◨ con l'anteprima
     case CH_MIN:     cp = IC_MIN; break;
     case CH_MAX:     cp = IsZoomed(A.hwnd) ? IC_RESTORE : IC_MAX; break;
     case CH_CLOSE:   cp = IC_WCLOSE; break;
@@ -223,11 +243,10 @@ static void drawChromeButton(int id, bool toolbar) {
         if (fav) col = C_ACCENT;
         break;
     }
-    case CH_VIEW:    cp = IC_GRID; if (A.grid && en) col = C_TEXT; break; // in griglia: come ◨ aperta
-    case CH_PREVIEW: cp = IC_PREVIEW; if (A.prevOpen && en) col = C_TEXT; break; // aperta: come ▯ con la barra laterale
+    case CH_PREVIEW: cp = IC_PREVIEW; if (A.prevOpen) col = C_TEXT; break; // aperta: come ▯ con la barra laterale
     }
     drawUiIcon(x, y, w, h, cp, col);
-    if (id == CH_MENU && updBadge()) { // versione nuova pronta: un pallino su ≡, dove sta "Aggiorna"
+    if (id == CH_OPTIONS && updBadge()) { // versione nuova pronta: un pallino su ⚙, le opzioni dicono "Aggiorna"
         float b = px(ui::BADGE), in = px(ui::BADGE_INSET);
         rrect(floorf(x + w - in - b * 0.5f), floorf(y + in - b * 0.5f), b, b, b * 0.5f, C_ACCENT);
     }
@@ -235,18 +254,17 @@ static void drawChromeButton(int id, bool toolbar) {
 
 static void drawChromeTitle(double dt) {
     hoverFadeUpdate(CH.fade, CH.hover, dt);
-    drawChromeButton(CH_MENU, false);
-    drawChromeButton(CH_SIDEBAR, false);
+    drawChromeButton(CH_OPTIONS, false);
     drawChromeButton(CH_MIN, false);
     drawChromeButton(CH_MAX, false);
     drawChromeButton(CH_CLOSE, false);
 }
 
 static void drawChromeToolbar() {
+    drawChromeButton(CH_SIDEBAR, true);
     drawChromeButton(CH_BACK, true);
     drawChromeButton(CH_FWD, true);
     drawChromeButton(CH_UP, true);
     drawChromeButton(CH_STAR, true);
-    drawChromeButton(CH_VIEW, true);
     drawChromeButton(CH_PREVIEW, true);
 }

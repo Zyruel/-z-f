@@ -1,5 +1,4 @@
-// [z]f — pannello di anteprima (Alt+P · ≡ → "Mostra anteprima" · pulsante a destra nella riga del
-// percorso).
+// [z]f — pannello di anteprima (Alt+P · pulsante ◨ a destra nella riga del percorso).
 //
 // A destra della lista mostra la voce sotto il cursore: immagini (decodificate con WIC), testo (con
 // la codifica riconosciuta), il contenuto delle cartelle; per tutto il resto l'icona grande della
@@ -211,6 +210,10 @@ static void pvScaleDown(const uint32_t* src, int sw, int sh, int stride, std::ve
 // senza anteprima, le unità e (in griglia) le cartelle. Le icone che non hanno la misura grande la shell le mette in un
 // angolo di 256 px: il ritaglio le riporta alla loro misura (non si ingrandiscono).
 static void pvBigIcon(const PvReq& r, PvRes& o) {
+    // Come i thread delle icone (iconThread): finché il thread IQ_EXT non ha fatto la prima
+    // SHGetFileInfo, una chiamata insieme alla sua fallisce (all'avvio con l'anteprima aperta
+    // restava senza icona; prove\icona-grande-prova.cpp: 40 processi su 40 senza l'attesa, 0 con).
+    WaitForSingleObject(I.shellReady, INFINITE);
     const wchar_t* ext = fileExt(r.path);
     bool dir = r.icon == ICON_DIR, real = r.icon == ICON_REAL;
     std::wstring fake = dir ? std::wstring(L"cartella") : std::wstring(L"file") + (ext ? ext : L"");
@@ -556,13 +559,16 @@ static void pvDir(const PvReq& r, PvRes& o) {
         ZipRef z = zipResolve(r.path, alen);
         if (!z.z || z.err) {
             o.err = z.err ? z.err : ERROR_BAD_FORMAT;
+        } else if (!z.z->isDir(z.z->nodes[z.node])) {
+            // Uno zip dentro uno zip è un file dell'archivio esterno: il suo contenuto non si legge senza
+            // estrarlo, e pvBuild ripiega sulle informazioni di un file (non "Cartella vuota")
+            o.err = ERROR_DIRECTORY;
         } else {
             const ZipNode& n = z.z->nodes[z.node];
             zipFill(l, *z.z, z.node, kPvDirMax, &o.more);
             o.info.dirs = (int)n.dirs;
             o.info.files = (int)n.files;
             o.info.zip = true;
-            o.fileSize = n.size; // il totale del contenuto, nel piede
         }
         o.readMs = nowMs() - t0;
         double t1 = nowMs();
@@ -711,16 +717,17 @@ static void pvSetResult(PvRes* o) {
     if (o && !o->px.empty()) A.prevTexMs = nowMs() - t0;
 }
 
-// Geometria del pannello: contenuto tra x0 e x1, da bodyTop a bodyBot; riga d'informazione in footY
+// Geometria del pannello: contenuto tra x0 e x1, da bodyTop a bodyBot; banda in fondo da footY
 struct PvGeom { float x0, x1, top, bodyTop, bodyBot, footY, bot; };
 static PvGeom pvGeom() {
     PvGeom g;
     g.x0 = A.listR + 1 + A.padX;
     g.x1 = (float)G.w - A.padX;
     g.top = A.sideTop;
-    g.bot = (float)G.h - A.footH;
+    g.bot = (float)G.h; // fino in fondo, come la barra laterale: la banda in fondo continua la
+                        // barra di stato della lista
     g.bodyTop = A.sideTop + A.headH + px(ui::GAP_M);
-    g.footY = g.bot - A.rowH;
+    g.footY = g.bot - A.statusH;
     g.bodyBot = g.footY - px(ui::GAP_S);
     return g;
 }
@@ -774,7 +781,6 @@ static void previewOnTimer(UINT_PTR id) {
 
 // Niente da mostrare (cartella vuota, pannello chiuso): le richieste in corso diventano superate
 static void pvClear() {
-    if (PV.want) dirSizeAsk(DS_PREVIEW, L"");
     PV.want = false;
     PV.item = PvItem();
     PV.shown = PvItem();
@@ -810,8 +816,6 @@ static void previewSync() {
             it.mtime = e.mtime;
             // Una ricarica della cartella non rilegge un file che non è cambiato
             if (!PV.want || it.path != PV.item.path || it.mtime != PV.item.mtime || it.size != PV.item.size || it.attr != PV.item.attr) {
-                bool dir = !it.drive && (it.attr & FILE_ATTRIBUTE_DIRECTORY) && !(it.attr & FILE_ATTRIBUTE_REPARSE_POINT) && !l->zipLen;
-                dirSizeAsk(DS_PREVIEW, dir ? it.path : L""); // cartella: il totale nel piede
                 PV.item = std::move(it);
                 PV.want = true;
                 pvRequest(false);
@@ -918,7 +922,7 @@ static void pvTextScroll(int delta) {
 
 // --- input ----------------------------------------------------------------------------------
 static bool previewWheel(int x, int y, float lines) {
-    if (A.prevW <= 0 || x < A.listR || y < A.sideTop || y >= G.h - A.footH) return false;
+    if (A.prevW <= 0 || x < A.listR || y < A.sideTop) return false;
     if (!PV.res) return true;
     PV.wheelAcc -= lines * ui::WHEEL_LINES; // righe a scatto come la lista; i touchpad danno frazioni
     int d = (int)PV.wheelAcc;
@@ -934,8 +938,19 @@ static bool previewWheel(int x, int y, float lines) {
 }
 
 // --- disegno --------------------------------------------------------------------------------
-static void pvFoot(const PvGeom& g, const std::wstring& t) {
-    drawText(g.x0, g.footY + floorf((A.rowH - F.lineH) * 0.5f), t, C_FAINT, g.x1);
+// Banda in fondo, con le parti della barra di stato della lista (render.cpp): a destra il tipo
+// di contenuto, come la vista della lista ma senza fondo sotto il mouse, perché non si sceglie
+// (dipende dalla voce); prima i dati, se ci sono (data). Restituisce il bordo destro libero.
+static float pvBar(const PvGeom& g, uint32_t icon, const wchar_t* name, bool data) {
+    static const wchar_t* const kNames[] = { viewName(ZOOM_DETAILS), L"Testo", L"Immagine", L"Informazioni" };
+    return drawBarView((float)G.w - A.padX + px(ui::GAP_S), g.footY, barViewW(kNames, 4), icon, name, 0, data);
+}
+
+// Dati prima del tipo di contenuto, in C_DIM come i contatori, allineati a destra; se non ci stanno
+// finiscono in "…"
+static void pvBarData(const PvGeom& g, float right, const std::wstring& t) {
+    float w = (float)textWidth(t.c_str(), (int)t.size());
+    drawText(std::max(g.x0, right - w), g.footY + floorf((A.statusH - F.lineH) * 0.5f), t, C_DIM, right);
 }
 
 static void pvNote(const PvGeom& g, const wchar_t* t) {
@@ -955,6 +970,7 @@ static void drawPvText(const PvGeom& g) {
     fmtSize(kPvTextMax, lim);
     if (o.truncated) foot += L" \x00B7 primi " + std::wstring(lim) + L" di " + b;
     else if (!o.text.empty()) foot += L" \x00B7 " + withThousands((uint64_t)o.lineCount) + (o.lineCount == 1 ? L" riga" : L" righe") + L" \x00B7 " + b;
+    pvBarData(g, pvBar(g, IC_TEXT, L"Testo", true), foot);
     if (o.text.empty() && pvLineCount() <= 1) { pvNote(g, L"File vuoto"); return; }
     int n = pvLineCount();
     PV.top = std::max(0, std::min(PV.top, n - 1));
@@ -975,7 +991,6 @@ static void drawPvText(const PvGeom& g) {
         }
     }
     drawPanelScroll((float)G.w, g.bodyTop, rows * lh, PV.top, std::max(1, whole), n, 1);
-    pvFoot(g, foot);
 }
 
 static void drawPvImage(const PvGeom& g) {
@@ -990,7 +1005,7 @@ static void drawPvImage(const PvGeom& g) {
     fmtSize(PV.shown.size, b);
     std::wstring foot = std::to_wstring(o.imgW) + L" \x00D7 " + std::to_wstring(o.imgH) + L" \x00B7 " + b;
     if (o.format[0]) foot += L" \x00B7 " + std::wstring(o.format);
-    pvFoot(g, foot);
+    pvBarData(g, pvBar(g, IC_IMAGE, L"Immagine", true), foot);
 }
 
 static void drawPvDir(const PvGeom& g) {
@@ -1021,22 +1036,15 @@ static void drawPvDir(const PvGeom& g) {
         drawText(nameX, y + textOff, l->name(e), (int)e.nameLen, hidden ? C_FAINT : C_TEXT, nameEnd);
     }
     drawPanelScroll((float)G.w, top, rows * rh, PV.dirFirst, rows, n, 1);
-    wchar_t f[32];
-    std::wstring foot = contentLine(o.info.dirs, o.info.files, o.more); // come nel tooltip
-    DirSize d;
-    bool computing = false;
-    if (o.info.zip) { // zip: il totale lo dà l'archivio
-        fmtSize(o.fileSize, f);
-        foot += std::wstring(L" \x00B7 ") + f;
-    } else if (dirSizeGet(PV.shown.path, d, computing) && (d.files || !d.denied)) { // totale di tutto il contenuto (dirsize.cpp)
-        fmtSize(d.bytes, f);
-        foot += std::wstring(L" \x00B7 ") + (computing ? L"almeno " : L"") + f + (computing ? L"\x2026" : L"");
-    }
-    if (!o.err) pvFoot(g, foot);
+    // Le righe sono quelle di Dettagli: icona, nome, dimensione. Prima i contatori, come la lista
+    // (il totale della cartella no: sta nella colonna Dimensione e nel tooltip)
+    float right = pvBar(g, viewIcon(ZOOM_DETAILS), viewName(ZOOM_DETAILS), !o.err);
+    if (!o.err) drawBarCounts(right, g.footY, o.info.dirs, o.info.files, o.more);
 }
 
 static void drawPvInfo(const PvGeom& g) {
     const PvRes& o = *PV.res;
+    pvBar(g, IC_INFO, L"Informazioni", false); // i dati sono già nelle righe
     float y = g.bodyTop + px(ui::GAP_L);
     if (G.prevSrv && o.w > 0) {
         float x = floorf(g.x0 + (g.x1 - g.x0 - o.w) * 0.5f);
@@ -1059,7 +1067,7 @@ static void drawPvInfo(const PvGeom& g) {
     for (auto& r : rows) labW = std::max(labW, (float)textWidth(r.first.c_str(), (int)r.first.size()));
     float vx = g.x0 + labW + px(ui::TIP_COL_GAP);
     for (auto& r : rows) {
-        if (y + F.lineH > g.bot - px(ui::GAP_S)) break;
+        if (y + F.lineH > g.bodyBot) break;
         if (r.first.empty()) drawText(g.x0, y, r.second, C_FAINT, g.x1);
         else { drawText(g.x0, y, r.first, C_DIM); drawText(vx, y, r.second, C_TEXT, g.x1); }
         y += lh;
@@ -1074,6 +1082,7 @@ static void drawPreview() {
     rect(x, g.top, W - x, A.headH, C_HEADER);
     rect(x, g.top + A.headH - 1, W - x, 1, C_LINE);
     rect(x, g.top, 1, g.bot - g.top, A.colDrag == EDGE_PREVIEW ? C_SEL_EDGE : C_LINE);
+    drawBarBand(x + 1, W, g.footY, A.statusH); // sempre, come la barra di stato; il contenuto la riempie
     if (!PV.want) return;
     // Il contenuto precedente resta finché arriva il nuovo; dopo LOADING_AFTER si vedono il nome
     // e "caricamento…". Senza contenuto precedente il nome si vede subito.

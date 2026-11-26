@@ -114,8 +114,18 @@ static uint32_t buildKey(const wchar_t* s, int n, uint16_t* out) {
     return (uint32_t)(o - out);
 }
 
+// Spazio vuoto tollerato in un vettore della lista: oltre, lo si restituisce con una copia (circa
+// 0,15 ms per MB, sul thread di lettura). La lista resta in memoria finché la cartella è aperta.
+static constexpr size_t kListSlackMax = 1 << 20;
+
+template <class V> static void listTrim(V& v) {
+    if ((v.capacity() - v.size()) * sizeof(v[0]) > kListSlackMax) v.shrink_to_fit();
+}
+
 static void buildKeys(Listing* l) {
-    l->keys.resize(l->names.size() * 2 + 64);
+    // Di solito 1,1 token per carattere (WinSxS: 6,2 MB di chiavi per 5,6 di nomi). La stima di
+    // prima, il doppio, lasciava vuoti 5 MB in WinSxS; una stima che basta evita anche la copia
+    l->keys.resize(l->names.size() * 5 / 4 + kKeyMax);
     uint32_t pos = 0;
     for (Entry& x : l->e) {
         size_t need = pos + kKeyMax;
@@ -125,6 +135,7 @@ static void buildKeys(Listing* l) {
         pos += x.keyLen;
     }
     l->keys.resize(pos);
+    listTrim(l->keys); // solo dopo un raddoppio (nomi pieni di cifre)
 }
 
 static inline int keyCmp(const Listing* l, const Entry& x, const Entry& y) {
@@ -265,6 +276,9 @@ static DWORD WINAPI listThread(void* p) {
     l->enumMs = nowMs() - t0;
 
     double t1 = nowMs();
+    // La crescita dei vettori durante la lettura lascia spazio vuoto: in WinSxS 2,5 MB nei nomi
+    listTrim(l->names);
+    listTrim(l->e);
     buildKeys(l);
     // Minuscole preparate una volta qui: il filtro diventa una ricerca di sottostringa semplice
     // (StrStrIW su 30k nomi lunghi costava circa 100 ms a ogni tasto)

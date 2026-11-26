@@ -8,6 +8,8 @@ for %%v in (z-f zx) do (
   reg delete "HKCU\Software\Classes\Drive\shell\%%v" /f >nul 2>nul
   reg query "HKCU\Software\Classes\Directory\shell" /ve 2>nul | find "%%v" >nul && reg delete "HKCU\Software\Classes\Directory\shell" /ve /f >nul
   reg query "HKCU\Software\Classes\Drive\shell" /ve 2>nul | find "%%v" >nul && reg delete "HKCU\Software\Classes\Drive\shell" /ve /f >nul
+  reg delete "HKCU\Software\Classes\CompressedFolder\shell\%%v" /f >nul 2>nul
+  reg query "HKCU\Software\Classes\CompressedFolder\shell" /ve 2>nul | find "%%v" >nul && reg delete "HKCU\Software\Classes\CompressedFolder\shell" /ve /f >nul
   reg query "HKCU\Software\Classes\CLSID\{52205fd8-5dfb-447d-801a-d0b52f2e83e1}\shell\opennewwindow\command" /ve 2>nul | find /i "%%v" >nul && reg delete "HKCU\Software\Classes\CLSID\{52205fd8-5dfb-447d-801a-d0b52f2e83e1}" /f >nul
   reg delete "HKCU\Software\%%v\Ripristino" /f >nul 2>nul
 )

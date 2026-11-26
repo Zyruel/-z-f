@@ -169,7 +169,7 @@ con grep prima di segnalare.
   `itemRect`/`itemBg`/`itemAt`/`gridParts` (`app.cpp`). `A.rowH` in sé è legittimo (altezze di
   barre, menu, barra laterale): si segnala solo dove calcola una voce della lista, perché in
   griglia sbaglierebbe.
-- **`drawSpinner`** solo mentre un lavoro è davvero in corso e dove l'utente sta guardando
+- **`drawSpinner`** solo mentre un lavoro è davvero in corso (più il resto del primo giro) e dove l'utente sta guardando
   (DESIGN §5).
 - Stati, colori e testi come DESIGN §2, §6 e §9: gerarchia del testo col colore e mai con
   dimensione o grassetto; un solo carattere (eccezione: il testo nell'anteprima); testi in
@@ -188,6 +188,7 @@ con grep prima di segnalare.
   `TextField`/`drawField`, `slowPath`/`onlineOnly`/`driveKind`/`uncShareRoot`,
   `clipSetFiles`/`hdropPaths`, `clipSetText`/`clipAskText`, `zipSplit`/`zipInside`/`zipReadMem`/`zipJobStart`,
   `linkRead`/`linkOf`/`linkReveal`, `netPlacesRead`, `parentOf`, `notice`, `drawSpinner`,
+  `drawBarBand`/`drawBarCounts`/`drawBarView` (barre in fondo, lista e anteprima),
   `tabsSerialize`/`tabsRestore`, `updCheck`/`updAction`/`drawUpdateIcon`/`updRestartAll`/
   `restartLaunch`, la cornice (`chrome.cpp`). Anche due funzioni nostre quasi uguali in moduli
   diversi.
@@ -219,6 +220,8 @@ con grep prima di segnalare.
 
 - Il `MessageBox` se Direct3D non parte all'avvio (`main.cpp`; DESIGN §1.7).
 - `dwmFlush` nel passaggio WARP → GPU, una volta; l'attesa della GPU con F12 aperto (DESIGN §10).
+- `saveFlush` a finestra già distrutta: fine processo (`main.cpp`), `WM_ENDSESSION` e `WM_DESTROY`
+  della principale prima di liberare il mutex (`input.cpp`; DESIGN §10).
 - L'avvio prima del primo frame (`main.cpp`): la consegna della cartella a un [z]f già aperto,
   l'attesa del thread del driver con "solo GPU", la breve attesa delle prime letture.
 - I debiti tecnici noti di CLAUDE.md (l'attesa vsync lunga, i ritocchi da 1 px): non si

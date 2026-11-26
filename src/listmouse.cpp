@@ -5,9 +5,10 @@
 // vuota della colonna Nome, Destinazione, Data, Dimensione, margine, spazio sotto le righe) parte il
 // rettangolo, oltre la soglia di trascinamento di Windows. Il clic vale subito, come sempre;
 // se poi parte il rettangolo si riparte dalla selezione che c'era prima del clic.
-// Prende le righe che tocca in altezza; senza tasti sostituisce la selezione, Ctrl alterna,
-// Shift aggiunge. Il punto di partenza è in coordinate del contenuto: resta sulla sua riga anche
-// quando la lista scorre. Esc rimette la selezione di prima.
+// In Dettagli prende le righe che tocca in altezza, in Elenco e Icone le voci che tocca; senza
+// tasti sostituisce la selezione, Ctrl alterna, Shift aggiunge. Il punto di partenza è in
+// coordinate del contenuto: resta sulla sua voce anche quando la lista scorre (in Elenco in
+// orizzontale). Esc rimette la selezione di prima.
 //
 // Colonne: i bordi si afferrano nell'intestazione (colBorderAt, in app.cpp); ogni bordo comanda la
 // colonna alla sua destra. Doppio clic: adatta quella colonna al testo più largo. Le larghezze si
@@ -21,7 +22,7 @@ struct Marquee {
     bool armed = false;         // tasto premuto nella lista, fuori da icona e nome
     bool active = false;        // oltre la soglia: il rettangolo c'è
     POINT down = {};            // dove è stato premuto (client)
-    float y0 = 0;               // inizio in coordinate del contenuto (riga + scorrimento)
+    float x0 = 0, y0 = 0;       // inizio in coordinate del contenuto (itemRect: con lo scorrimento)
     int x = 0, y = 0;           // ultima posizione del mouse (client, anche fuori dalla finestra)
     int mode = MQ_REPLACE;
     const Listing* cur = nullptr; // cartella su cui è partito: se cambia (ricarica, scheda) si smette
@@ -31,25 +32,42 @@ struct Marquee {
 
 static bool boxHit(const Box& b, float x, float y) { return x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h; }
 
-// Il tasto è stato premuto su icona e nome di una riga, o su miniatura e nome di una voce della
-// griglia (se è selezionata, lì parte il trascinamento dei file)
+// Punto della finestra in coordinate del contenuto (quelle di itemRect)
+static void toContent(float x, float y, float& cx, float& cy) {
+    float ox, oy;
+    scrollOffset(ox, oy);
+    cx = x + ox;
+    cy = y - A.listTop + oy;
+}
+
+// Il tasto è stato premuto su icona e nome di una voce (Dettagli, Elenco), o su miniatura e nome
+// (Icone): se è selezionata, lì parte il trascinamento dei file
 static bool itemGrabHit(int r, int x, int y) {
-    if (A.grid) {
+    float cx, cy;
+    toContent((float)x, (float)y, cx, cy);
+    if (gridView()) {
         CellParts p = gridParts(r);
-        float cy = y - A.listTop + floorf(A.scrollY);
-        return boxHit(p.thumb, (float)x, cy) || boxHit(p.name, (float)x, cy);
+        return boxHit(p.thumb, cx, cy) || boxHit(p.name, cx, cy);
     }
     const Entry& e = A.cur->e[A.view[r]];
-    float nameEnd = std::min(A.nameX + (float)textWidth(A.cur->name(e), (int)e.nameLen), A.nameEnd);
+    float tw = (float)textWidth(A.cur->name(e), (int)e.nameLen);
+    if (listView()) {
+        RowParts p = listParts(r);
+        return cx >= p.iconX && cx < std::min(p.nameX + tw, p.nameEnd) + px(ui::GAP_S);
+    }
+    float nameEnd = std::min(A.nameX + tw, A.nameEnd);
     return x >= A.iconX && x < nameEnd + px(ui::GAP_S);
 }
 
-// Griglia: voce nella cella che contiene il punto (x finestra, y contenuto), riportata tra le voci che ci sono
-static int gridCellAt(float x, float cy) {
-    int n = (int)A.view.size();
-    int c = std::max(0, std::min(A.cols - 1, (int)floorf((x - A.cellX) / A.cellW)));
-    int r = std::max(0, (int)(cy / A.cellH));
-    return std::max(0, std::min(n - 1, r * A.cols + c));
+// Elenco e Icone: voce nella cella che contiene il punto (coordinate del contenuto), riportata
+// tra le voci che ci sono
+static int cellAt(float cx, float cy) {
+    int n = (int)A.view.size(), pl = A.perLine;
+    int across = (int)floorf((cx - A.cellX) / A.cellW), along = (int)floorf(cy / A.cellH);
+    int line = listView() ? across : along, k = listView() ? along : across;
+    line = std::max(0, line);
+    k = std::max(0, std::min(pl - 1, k));
+    return std::max(0, std::min(n - 1, line * pl + k));
 }
 
 static void mqEnd() {
@@ -71,7 +89,7 @@ static void mqPress(int x, int y, int r, bool shift, bool ctrl) {
     MQ.armed = true;
     MQ.down = { x, y };
     MQ.x = x; MQ.y = y;
-    MQ.y0 = (float)y - A.listTop + floorf(A.scrollY);
+    toContent((float)x, (float)y, MQ.x0, MQ.y0);
     MQ.mode = shift ? MQ_ADD : ctrl ? MQ_TOGGLE : MQ_REPLACE;
     if (r >= 0) {
         if (ctrl && !shift) { // Ctrl+clic: alterna
@@ -95,9 +113,11 @@ static void mqUpdate() {
     if (!MQ.active) return;
     if (A.cur != MQ.cur || A.selFlags.size() != MQ.base.size()) { mqEnd(); return; } // la cartella è cambiata
     double t0 = nowMs();
-    float sy = floorf(A.scrollY);
-    float yc = std::min(std::max((float)MQ.y, A.listTop), A.listTop + A.listH) - A.listTop + sy;
+    float xc, yc; // il mouse, dentro la lista, in coordinate del contenuto
+    toContent(std::min(std::max((float)MQ.x, A.listX), itemsRight()),
+              std::min(std::max((float)MQ.y, A.listTop), A.listTop + A.listH), xc, yc);
     float top = std::min(MQ.y0, yc), bot = std::max(MQ.y0, yc);
+    float left = std::min(MQ.x0, xc), right = std::max(MQ.x0, xc);
     int n = (int)A.view.size();
     if (MQ.mode == MQ_REPLACE) selClear();
     else memcpy(A.selFlags.data(), MQ.base.data(), MQ.base.size());
@@ -106,22 +126,31 @@ static void mqUpdate() {
         A.selFlags[ei] = MQ.mode == MQ_TOGGLE ? !MQ.base[ei] : 1;
     };
     bool any = false;
-    if (A.grid) { // le voci di cui tocca miniatura o nome
-        float l0 = A.listX, r0 = A.listR - A.sbW;
-        float dx = (float)MQ.down.x, mx = (float)MQ.x;
-        float xa = std::min(std::max(std::min(dx, mx), l0), r0), xb = std::min(std::max(std::max(dx, mx), l0), r0);
-        int ra = std::max(0, (int)(top / A.cellH)), rb = std::min((n - 1) / A.cols, (int)(bot / A.cellH));
+    if (gridView()) { // le voci di cui tocca miniatura o nome
+        int ra = std::max(0, (int)(top / A.cellH)), rb = std::min((n - 1) / A.perLine, (int)(bot / A.cellH));
         for (int r = ra; r <= rb; r++)
-            for (int c = 0; c < A.cols; c++) {
-                int i = r * A.cols + c;
+            for (int c = 0; c < A.perLine; c++) {
+                int i = r * A.perLine + c;
                 if (i >= n) break;
                 CellParts p = gridParts(i);
                 float x0 = std::min(p.thumb.x, p.name.x), x1 = std::max(p.thumb.x + p.thumb.w, p.name.x + p.name.w);
-                if (x0 < xb && x1 > xa && p.thumb.y < bot && p.name.y + p.name.h > top) { take(i); any = true; }
+                if (x0 < right && x1 > left && p.thumb.y < bot && p.name.y + p.name.h > top) { take(i); any = true; }
             }
+    } else if (listView()) { // le voci di cui tocca il fondo, colonna per colonna
+        int ca = std::max(0, (int)floorf((left - A.cellX) / A.cellW)), cb = std::min((n - 1) / A.perLine, (int)floorf((right - A.cellX) / A.cellW));
+        int ka = std::max(0, (int)(top / A.cellH)), kb = std::min(A.perLine - 1, (int)(bot / A.cellH));
+        for (int c = ca; c <= cb; c++)
+            for (int k = ka; k <= kb; k++) {
+                int i = c * A.perLine + k;
+                if (i >= n) break;
+                Box b = itemBg(i);
+                if (b.x < right && b.x + b.w > left) { take(i); any = true; }
+            }
+    }
+    if (gridView() || listView()) {
         if (any) { // ancora dove è partito, cursore dove è il mouse
-            A.anchor = (int)A.view[gridCellAt((float)MQ.down.x, MQ.y0)];
-            A.sel = gridCellAt((float)MQ.x, yc);
+            A.anchor = (int)A.view[cellAt(MQ.x0, MQ.y0)];
+            A.sel = cellAt(xc, yc);
         }
     } else { // le righe che tocca in altezza
         int i0 = std::max(0, (int)(top / A.cellH)), i1 = std::min(n - 1, (int)(bot / A.cellH));
@@ -161,13 +190,15 @@ static bool mqMouseMove(int x, int y, WPARAM wp) {
     return true;
 }
 
-// Timer: vicino ai bordi (una riga di testo, anche in griglia: con le miniature grandi una fascia
+// Timer: vicino ai bordi (una riga di testo, anche in Icone: con le miniature grandi una fascia
 // alta una cella farebbe partire lo scorrimento da mezzo schermo) o oltre, la lista scorre; più il
-// mouse è lontano, più veloce
+// mouse è lontano, più veloce. In Elenco i bordi sono quelli a sinistra e a destra
 static void mqTick() {
     if (!MQ.active) { KillTimer(A.hwnd, 10); return; }
-    float y = (float)MQ.y, edgeTop = A.listTop + A.rowH, edgeBot = A.listTop + A.listH - A.rowH;
-    float d = y < edgeTop ? y - edgeTop : y > edgeBot ? y - edgeBot : 0;
+    bool lst = listView();
+    float m = (float)(lst ? MQ.x : MQ.y);
+    float edgeLo = (lst ? A.listX : A.listTop) + A.rowH, edgeHi = (lst ? itemsRight() : A.listTop + A.listH) - A.rowH;
+    float d = m < edgeLo ? m - edgeLo : m > edgeHi ? m - edgeHi : 0;
     if (d != 0 && maxScroll() > 0) {
         float k = std::min(ui::MARQUEE_SCROLL_MAX, 1 + fabsf(d) / A.rowH);
         A.scrollTarget += (d < 0 ? -1 : 1) * A.rowH * ui::DRAG_SCROLL * k;
@@ -192,10 +223,12 @@ static bool mqCancel() {
 // Contorno 1 px C_SEL_EDGE, fondo C_MARQUEE, angoli squadrati come in Windows; dentro la lista
 static void drawMarquee() {
     if (!MQ.active) return;
-    float top = A.listTop, bot = A.listTop + A.listH, l0 = A.listX, r0 = A.listR - A.sbW;
-    float ya = std::min(std::max(A.listTop + MQ.y0 - floorf(A.scrollY), top), bot);
+    float top = A.listTop, bot = A.listTop + A.listH, l0 = A.listX, r0 = itemsRight();
+    float ox, oy;
+    scrollOffset(ox, oy);
+    float ya = std::min(std::max(A.listTop + MQ.y0 - oy, top), bot);
     float yb = std::min(std::max((float)MQ.y, top), bot);
-    float xa = std::min(std::max((float)MQ.down.x, l0), r0), xb = std::min(std::max((float)MQ.x, l0), r0);
+    float xa = std::min(std::max(MQ.x0 - ox, l0), r0), xb = std::min(std::max((float)MQ.x, l0), r0);
     float x = floorf(std::min(xa, xb)), y = floorf(std::min(ya, yb));
     float w = std::max(1.0f, floorf(std::max(xa, xb)) - x), h = std::max(1.0f, floorf(std::max(ya, yb)) - y);
     rect(x, y, w, h, C_MARQUEE);

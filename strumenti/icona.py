@@ -8,7 +8,11 @@
 # Le misure piccole (16 e 20 px) hanno un disegno a pixel fatto a mano: ridotto da quello grande,
 # "[z]" diventerebbe una macchia. Dalla 24 in su la geometria è la stessa, con i bordi agganciati
 # ai pixel della misura finale; si disegna a 4× e si riduce, così diagonale e angoli sono sfumati.
-# Sotto 256 le immagini sono BMP a 32 bit (le legge qualunque Windows), la 256 è PNG (più piccola).
+# Ci sono le misure di ogni DPI comune (100% 16/32, 125% 20/40, 150% 24/48, 175% 28/56, 200% 32/64,
+# 225% 36/72): una misura che manca Windows la ricava riducendo un'altra, e i bordi agganciati ai
+# pixel diventano sfumati con un alone (prove\icona-misure.cpp). Tutte in PNG: il file pesa 8,7 KB
+# invece dei 62 in BMP a 32 bit; Windows legge i PNG a ogni misura da Vista, e la prima
+# decodifica costa all'avvio circa 1,6 ms in più, dopo il primo frame (ARCHITETTURA).
 
 import io
 import os
@@ -32,7 +36,7 @@ def colore(nome):
 
 FONDO = colore("C_BG")
 ACCENTO = colore("C_ACCENT")
-MISURE = [16, 20, 24, 32, 40, 48, 64, 256]
+MISURE = [16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 256]
 SS = 4  # sovracampionamento (riduzione con BOX: media esatta, senza aloni scuri)
 
 # Disegni a pixel delle misure piccole: "#" è l'accento, il resto è fondo
@@ -129,22 +133,6 @@ def grande(s):
     return img.resize((s, s), Image.BOX)
 
 
-def bmp32(img):
-    """Immagine di un .ico in formato BMP: BGRA dal basso, poi la maschera AND (tutta a zero)."""
-    s = img.size[0]
-    px = img.load()
-    righe = []
-    for y in range(s - 1, -1, -1):
-        r = bytearray()
-        for x in range(s):
-            R_, G, B, A = px[x, y]
-            r += bytes((B, G, R_, A))
-        righe.append(bytes(r))
-    maschera = b"\0" * (((s + 31) // 32) * 4 * s)
-    testa = struct.pack("<IiiHHIIiiII", 40, s, s * 2, 1, 32, 0, 0, 0, 0, 0, 0)
-    return testa + b"".join(righe) + maschera
-
-
 def png(img):
     b = io.BytesIO()
     img.save(b, "PNG", optimize=True)
@@ -154,7 +142,7 @@ def png(img):
 def main():
     uscita = os.path.join(QUI, "..", "src", "z-f.ico")
     immagini = {s: (piccola(s) if s in PIXEL else grande(s)) for s in MISURE}
-    dati = [png(immagini[s]) if s >= 256 else bmp32(immagini[s]) for s in MISURE]
+    dati = [png(immagini[s]) for s in MISURE]
     voci, pos = b"", 6 + 16 * len(MISURE)
     for s, b in zip(MISURE, dati):
         voci += struct.pack("<BBBBHHII", s % 256, s % 256, 0, 0, 1, 32, len(b), pos)
