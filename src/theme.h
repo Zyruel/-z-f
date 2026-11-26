@@ -143,6 +143,7 @@ constexpr float SPIN_PERIOD = 900;
 // Tooltip e avvisi
 constexpr int TIP_DELAY = 500, TIP_DELAY_NEAR = 60, TIP_INFO_WAIT = 150, TIP_NEAR_WINDOW = 400;
 constexpr int NOTICE_INFO = 2500, NOTICE_ERROR = 4000;
+constexpr int NOTICE_RENEW = NOTICE_INFO / 2; // un avviso che vale finché dura un lavoro ("Estrazione…") si rinnova prima di scadere
 constexpr int LOADING_AFTER = 150; // "caricamento…" solo se la lettura supera questo tempo
 // Anteprima: una lettura che dura più di così (rete) non trattiene la successiva, che parte su
 // un altro thread

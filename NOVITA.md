@@ -42,6 +42,9 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
   stesso thread del menu completo, e intanto [z]f continua a rispondere. Prima una cartella su
   una condivisione lenta o spenta bloccava la finestra finché la rete rispondeva, e con "Apri
   con…" aperto [z]f non si ridisegnava.
+- Zip dentro uno zip: se durante l'estrazione si va in un'altra cartella o scheda, [z]f resta lì
+  invece di portare di forza nello zip estratto. Il trascinamento da uno zip compare nei tempi di
+  F12 come gli altri.
 
 ## 1.0.0-beta.3 (novembre 2026)
 

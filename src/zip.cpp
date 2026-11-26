@@ -916,6 +916,8 @@ struct ZipJob {
     std::wstring archive;               // l'archivio sul disco
     std::vector<std::wstring> items;    // percorsi completi delle voci, dentro l'archivio
     uint32_t firstAttr = 0;             // attributi della prima (immagine trascinata)
+    int tab = 0;                        // scheda e cartella da cui è partita (uno zip nello zip si
+    std::wstring from;                  // apre solo se l'utente è ancora lì)
     // risultato
     std::vector<std::wstring> out;      // percorsi estratti (le voci riuscite, nello stesso ordine)
     DWORD openErr = 0;                  // l'archivio non si legge

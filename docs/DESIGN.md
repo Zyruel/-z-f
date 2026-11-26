@@ -281,7 +281,9 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
     `LOADING_AFTER`, l'avviso informativo "Estrazione dall'archivio…" resta finché finisce. Copia
     dà "Estratto e copiato: foto.jpg" / "Estratti e copiati 3 elementi"; un errore dice cosa e perché
     ("Impossibile estrarre a.txt: è danneggiato (e altri 2)"). Il trascinamento parte quando i file
-    ci sono, col tasto ancora premuto, ed è sempre una copia;
+    ci sono, col tasto ancora premuto, ed è sempre una copia. Uno zip dentro uno zip si apre nella
+    lista solo se l'utente è ancora nella scheda e nella cartella da cui l'ha chiesto (l'esito di
+    un lavoro non lo porta mai via da dove è andato nel frattempo); un file si apre comunque;
   - un file cifrato o compresso in un modo che [z]f non conosce si lascia a Windows: avviso
     informativo ("a.txt è cifrato: si apre in Esplora file") ed Esplora file selezionato sulla voce.
 - **Rettangolo di selezione** (`listmouse.cpp`):

@@ -44,3 +44,8 @@ quel codice, o tutti insieme in un momento tranquillo. Quando una voce è fatta 
   `iconSource` un file solo online ha l'icona per estensione (`ICON_EXT`, la stessa immagine
   generica, una richiesta per tipo invece di una per file da 15–40 ms), così allo scaricamento
   la chiave cambia e l'icona vera arriva da sola.
+- [ ] **Anteprima di uno zip dentro uno zip** (novembre 2026, visto provando lo zip nello zip).
+  Selezionando `interno.zip` dentro `esterno.zip`, l'anteprima dice "Cartella vuota" e in fondo
+  "vuota · 722 MB": dentro lo zip la voce è trattata come una cartella senza figli, perché il suo
+  contenuto non si legge senza estrarla. Proposta: per uno zip dentro uno zip, l'anteprima di un
+  file (icona, tipo e dimensione) invece di quella di una cartella vuota.

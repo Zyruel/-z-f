@@ -20,6 +20,31 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 00000000000000000000000000000. Zip: zip nello zip e trascinamento misurato (z-f-dev, novembre 2026)
+
+Correzione del controllo del codice (`zipout.cpp`, `drag.cpp`): uno zip dentro uno zip, finita
+l'estrazione, si apriva sempre, anche se intanto l'utente era andato altrove; ora solo se è
+l'ultima richiesta e la scheda e la cartella sono quelle di partenza (un file si apre sempre).
+L'inizio del trascinamento da uno zip (oggetto dei file e immagine, sul thread UI) ora si misura
+come quello di molte voci, con la stessa funzione (`dragObjectFor`).
+
+Provato da Claude su z-f-dev, in una cartella di prova con uno zip di 8 MB che contiene uno zip
+di 722 MB (estrazione 480 ms):
+- [x] doppio clic su interno.zip e attesa: si entra nella copia estratta, come prima;
+- [x] doppio clic su interno.zip e subito Backspace: si resta nella cartella superiore anche
+      quando l'estrazione finisce (nel registro "zip: estrazione");
+- [x] doppio clic su interno.zip e subito Ctrl+T: si resta nella scheda nuova; chiusa quella,
+      la prima scheda è ancora nello zip esterno;
+- [x] trascinamento di nota.txt da dentro lo zip: parte (immagine e divieto sopra lo zip), F12
+      "copia, taglia, trascina, menu (UI)" 4,23 ms; 600 file trascinati e rilasciati nella stessa
+      cartella: 1,41 ms, nessun file spostato;
+- [x] registro: solo le voci normali e "zip: estrazione"; MSVC: zero avvisi.
+
+Da provare a mano:
+- [ ] trascinare da uno zip su un'altra app (il desktop, una cartella di Explorer): la copia
+      arriva come prima;
+- [ ] doppio clic su due file di fila dentro uno zip: si aprono tutti e due (scelta voluta).
+
 ## 0000000000000000000000000000. Proprietà e "Apri con…" sul thread del menu della shell (z-f-dev, novembre 2026)
 
 Correzione del controllo del codice (`shell.cpp`, `menu.cpp`): le Proprietà di una voce sola,
