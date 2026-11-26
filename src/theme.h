@@ -98,6 +98,7 @@ constexpr float ENTER_DY = 4;      // pannelli che compaiono: partono qualche pi
 // al 75%); cambiando scheda la dissolvenza parte da LIST_FADE_TAB (55% di opacità)
 constexpr float LIST_ENTER_DY = 6, LIST_ENTER_COVER = 0.75f, LIST_FADE_TAB = 0.4f;
 constexpr float FILTER_W = 300, FILTER_MAX = 0.4f; // campo del filtro: larghezza, massimo in frazione della barra di stato
+constexpr float FILTER_MIN = 2;   // sotto questa larghezza, in altezze del campo, il filtro non si disegna (lista stretta)
 constexpr float MENU_KEYBOARD_X = 48; // menu aperto da tastiera sullo sfondo o in elenco: distanza dall'inizio della lista
 constexpr float WINDOW_W = 1000, WINDOW_H = 680;   // finestra nuova
 constexpr float WINDOW_MIN_W = 420, WINDOW_MIN_H = 240;

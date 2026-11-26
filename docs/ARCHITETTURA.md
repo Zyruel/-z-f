@@ -58,7 +58,7 @@ condivise sono in `app.h`.
 | `zip.cpp` | archivi zip in sola lettura: directory centrale (zip64), albero delle cartelle in memoria, inflate e CRC nostri, estrazione su un thread |
 | `lnk.cpp` | lettore dei collegamenti di Windows (.lnk), senza la shell; percorsi di rete di Windows |
 | `app.h` / `app.cpp` | stato; layout, selezione, filtro, navigazione, ricariche |
-| `dirsize.cpp` | dimensione totale delle cartelle su un thread (urgenti per tooltip e anteprima, coda di sfondo per la colonna), cache |
+| `dirsize.cpp` | dimensione totale delle cartelle su un thread (urgenti per il tooltip, coda di sfondo per la colonna), cache |
 | `links.cpp` | colonna Destinazione dei collegamenti: destinazioni lette su un thread, cache, clic ("Apri percorso file") |
 | `watch.cpp` | aggiornamento in tempo reale (`ReadDirectoryChangesW`), compresi spostamento ed eliminazione della cartella aperta |
 | `icons.cpp` | icone della shell su un thread dedicato, atlante BGRA |
@@ -465,7 +465,7 @@ tooltip su un JPEG), nessun file scaricato.
 
 - Un thread somma i file sotto una cartella senza seguire junction e collegamenti, come Explorer.
   Parte dopo il primo frame.
-- Tooltip e anteprima lo chiedono subito (`DS_TIP`, `DS_PREVIEW`): il totale si aggiorna ogni
+- Il tooltip lo chiede subito (`DS_TIP`): il totale si aggiorna ogni
   `DS_PROGRESS` (100 ms, `theme.h`) mentre cresce, e si ferma se il mouse va altrove.
 - La colonna Dimensione conta in background, con priorità di I/O bassa, le sottocartelle della
   cartella aperta nell'ordine della vista. Il thread UI tiene gli indici delle voci e passa al

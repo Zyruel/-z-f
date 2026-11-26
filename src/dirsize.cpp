@@ -1,9 +1,9 @@
-// [z]f — dimensione totale delle cartelle: tooltip, anteprima, colonna Dimensione.
+// [z]f — dimensione totale delle cartelle: tooltip, colonna Dimensione.
 //
 // Un thread solo, con priorità di I/O bassa per il lavoro di sfondo, somma i file sotto una
 // cartella. Non segue collegamenti e junction (come Explorer): niente giri infiniti né doppi conti.
 // Due tipi di richieste:
-//  - urgenti (tooltip, anteprima): una per chi chiede, sostituita dalla successiva; il totale si
+//  - urgenti (tooltip): una per chi chiede, sostituita dalla successiva; il totale si
 //    vede mentre cresce, aggiornato ogni DS_PROGRESS;
 //  - di sfondo (colonna Dimensione): le sottocartelle della cartella aperta, nell'ordine della
 //    vista; la coda ricomincia a ogni cartella nuova. Una richiesta urgente le interrompe: la
@@ -25,7 +25,7 @@ struct DirSize {
     uint64_t parent = 0;    // dsHash della cartella che la contiene (dsTrim)
 };
 
-enum { DS_TIP = 0, DS_PREVIEW = 1, DS_SLOTS = 2 };
+enum { DS_TIP = 0, DS_SLOTS = 1 }; // chi chiede con urgenza: un posto ciascuno
 
 static constexpr size_t kDsChunk = 256;       // percorsi passati al thread in una volta (sfondo)
 static constexpr size_t kDsCacheMax = 50000;  // voci in cache oltre le quali si tolgono le scadute
@@ -312,7 +312,7 @@ static bool dirSizeGet(const std::wstring& path, DirSize& out, bool& computing) 
     return known || computing;
 }
 
-// Richiesta urgente (tooltip, anteprima); path vuoto: non serve più (si ferma il conto)
+// Richiesta urgente (tooltip); path vuoto: non serve più (si ferma il conto)
 static void dirSizeAsk(int slot, const std::wstring& path) {
     dsStart();
     EnterCriticalSection(&DS.lock);

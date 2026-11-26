@@ -35,9 +35,9 @@ static void layout() {
     A.statusH = A.rowH;
     A.sbW = px(ui::SCROLL_W);
     A.padX = px(ui::PAD_X);
-    // Dall'alto: [schede] [barra del percorso] poi [barra laterale | intestazione + lista]. La
-    // barra laterale arriva in fondo alla finestra; alla sua destra, sotto lista e anteprima, la
-    // barra dei tempi (se scelta) e quella di stato, con il filtro.
+    // Dall'alto: [schede] [barra del percorso] poi [barra laterale | intestazione + lista |
+    // anteprima]. I due pannelli arrivano in fondo alla finestra; tra loro, sotto la lista, la barra
+    // dei tempi (se scelta) e quella di stato, con il filtro: sono del corpo centrale.
     // Le schede sono sempre visibili: se comparissero alla seconda, il contenuto salterebbe in
     // basso proprio mentre si sta cliccando.
     A.tabH = floorf(A.rowH * ui::TAB_BAR);
@@ -57,11 +57,13 @@ static void layout() {
     A.timesH = A.timesBar ? A.rowH : 0;
     A.footH = A.statusH + A.timesH;
     A.listH = std::max(0.0f, (float)G.h - A.listTop - A.footH);
-    // Filtro: all'inizio della barra di stato, allineato alla lista; la barra laterale resta libera
-    A.fltX = A.listX + px(ui::GAP_S);
-    A.fltW = floorf(std::min(px(ui::FILTER_W), (G.w - A.listX) * ui::FILTER_MAX));
     A.prevW = previewWidth();
     A.listR = G.w - A.prevW;
+    // Filtro: all'inizio della barra di stato, allineato alla lista. Questa è la larghezza voluta:
+    // quella mostrata (fltW) la decide il disegno, che con la lista stretta la cede a contatori e vista
+    A.fltX = A.listX + px(ui::GAP_S);
+    A.fltWant = floorf(std::min(px(ui::FILTER_W), (A.listR - A.listX) * ui::FILTER_MAX));
+    A.fltW = A.fltWant;
     // Colonne: Nome prende quello che avanza, Destinazione (se c'è), Data e Dimensione sono
     // allineate a destra. Se la finestra è stretta si stringono prima Destinazione, poi Data e poi
     // Dimensione, fino al minimo (senza salvare); Destinazione inoltre non supera Nome (linkMax).
@@ -120,14 +122,14 @@ static float& colChosen(int b) {
 static float colShown(int b) {
     return b == 0 ? A.dateW : b == 1 ? A.sizeW : b == 2 ? A.linkW : b == EDGE_SIDE ? A.sideW : A.prevW;
 }
-// Bordo di un pannello sotto il mouse: EDGE_SIDE, EDGE_PREVIEW o -1. Barra laterale: COL_GRIP per
-// lato (la lista ha GAP_S di margine), per tutta l'altezza. Anteprima: COL_GRIP verso il pannello,
-// solo GAP_XS verso la lista per non prendere la barra di scorrimento.
+// Bordo di un pannello sotto il mouse: EDGE_SIDE, EDGE_PREVIEW o -1. Tutti e due per tutta
+// l'altezza. Barra laterale: COL_GRIP per lato (la lista ha GAP_S di margine). Anteprima: COL_GRIP
+// verso il pannello, solo GAP_XS verso la lista per non prendere la barra di scorrimento.
 static int panelEdgeAt(int x, int y) {
     if (y < A.sideTop) return -1;
     float grip = px(ui::COL_GRIP);
     if (A.sideW > 0 && x >= A.sideW - grip && x < A.sideW + grip) return EDGE_SIDE;
-    if (A.prevW > 0 && y < G.h - A.footH && x >= A.listR - px(ui::GAP_XS) && x < A.listR + grip) return EDGE_PREVIEW;
+    if (A.prevW > 0 && x >= A.listR - px(ui::GAP_XS) && x < A.listR + grip) return EDGE_PREVIEW;
     return -1;
 }
 static int colBorderAt(int x, int y) {

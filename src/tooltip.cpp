@@ -262,7 +262,7 @@ static void driveRows(InfoRows& rows, const SideItem& d) {
 }
 
 // Contenuto di una cartella: "3 cartelle, 1.204 file"; "più di …" se la lettura si è fermata prima
-// del fondo; "vuota". Tooltip e piede dell'anteprima.
+// del fondo; "vuota". Nel tooltip (l'anteprima mostra i contatori, come la barra di stato).
 static std::wstring contentLine(int dirs, int files, bool more) {
     if (!dirs && !files && !more) return L"vuota";
     return std::wstring(more ? L"più di " : L"") + withThousands((uint64_t)dirs) + (dirs == 1 ? L" cartella, " : L" cartelle, ") +
@@ -489,7 +489,7 @@ static void tipTarget(int x, int y, int& kind, int& index) {
     if (chId != CH_NONE && chId != CH_MIN && chId != CH_MAX && chId != CH_CLOSE) { kind = TIP_CHROME; index = chId; return; }
     if (y >= G.h - A.statusH && x >= A.fltX && x < A.fltX + A.fltW) { kind = TIP_FILTER; return; }
     if (viewCtlAt(x, y)) { kind = TIP_VIEW; return; }
-    if (A.timesH > 0 && x >= A.sideW && y >= G.h - A.footH && y < G.h - A.statusH) { kind = TIP_STATS; return; }
+    if (A.timesH > 0 && x >= A.sideW && x < A.listR && y >= G.h - A.footH && y < G.h - A.statusH) { kind = TIP_STATS; return; }
     if (t >= 0) { kind = closeHit ? TIP_TABCLOSE : TIP_TAB; index = t; return; }
     if (int ft = favTrashAt(x, y); ft >= 0) { kind = TIP_FAVDEL; index = ft; return; }
     int si = sideHit(x, y);

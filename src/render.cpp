@@ -154,6 +154,53 @@ static uint32_t viewIcon(int zoom) { return zoom == ZOOM_DETAILS ? IC_DETAILS : 
 // Controllo della vista nella barra di stato (il disegno lo misura)
 static bool viewCtlAt(int x, int y) { return A.viewW > 0 && y >= G.h - A.statusH && x >= A.viewX && x < A.viewX + A.viewW; }
 
+// --- barre in fondo: della lista (barra di stato, barra dei tempi) e dell'anteprima -----------
+// Le stesse parti nei due pannelli, così l'anteprima si legge come la lista. Si disegnano da
+// destra: ogni funzione riceve il bordo destro libero e restituisce quello per la parte prima.
+
+// Fondo C_BAR con la linea C_LINE in alto
+static void drawBarBand(float x0, float x1, float y, float h) {
+    rect(x0, y, x1 - x0, h, C_BAR);
+    rect(x0, y, x1 - x0, 1, C_LINE);
+}
+
+// Larghezza del blocco della vista: quanto il nome più largo tra quelli possibili, perché cambiando
+// vista quello che sta prima non si sposti
+static float barViewW(const wchar_t* const* names, int n) {
+    float tw = 0;
+    for (int i = 0; i < n; i++) tw = std::max(tw, (float)textWidth(names[i], (int)wcslen(names[i])));
+    float pad = px(ui::GAP_S);
+    return pad + (float)F.lineH + px(ui::GAP_S) + tw + pad;
+}
+
+// La vista: icona in C_FAINT e nome in C_DIM, largo w; hover > 0 ne disegna il fondo (solo dove si
+// clicca). Prima, a GAP_M, la barretta verticale che la separa dai dati (sep: solo se ci sono)
+static float drawBarView(float right, float y0, float w, uint32_t icon, const wchar_t* name, float hover, bool sep) {
+    float fy = y0 + px(ui::GAP_XS), fh = A.statusH - px(ui::GAP_XS) * 2;
+    float iw = (float)F.lineH, pad = px(ui::GAP_S), x = right - w;
+    if (hover > 0) rrect(x, fy, w, fh, px(ui::R_S), fadeA(C_HOVER, hover));
+    drawUiIcon(x + pad, y0, iw, A.statusH, icon, C_FAINT);
+    drawText(x + pad + iw + px(ui::GAP_S), y0 + floorf((A.statusH - F.lineH) * 0.5f), name, (int)wcslen(name), C_DIM);
+    float bar = x - px(ui::GAP_M);
+    if (sep) rect(bar, fy + px(ui::GAP_XS), 1, fh - px(ui::GAP_XS) * 2, C_LINE);
+    return bar - px(ui::GAP_L);
+}
+
+// Contatori di cartelle e file con le loro icone; more: la lettura si è fermata prima del fondo
+// (anteprima di una cartella enorme), i numeri sono un minimo e hanno un "+"
+static float drawBarCounts(float right, float y0, int dirs, int files, bool more) {
+    wchar_t nd[16], nf[16];
+    int dn = _snwprintf(nd, 15, more ? L"%d+" : L"%d", dirs), fn = _snwprintf(nf, 15, more ? L"%d+" : L"%d", files);
+    float iw = (float)F.lineH, ig = px(ui::GAP_S), y = y0 + floorf((A.statusH - F.lineH) * 0.5f);
+    float x = right - (iw + ig + textWidth(nd, dn) + px(ui::GAP_L) + iw + ig + textWidth(nf, fn));
+    float left = x;
+    drawUiIcon(x, y0, iw, A.statusH, IC_FOLDER, C_FAINT);
+    x = drawText(x + iw + ig, y, nd, dn, C_DIM) + px(ui::GAP_L);
+    drawUiIcon(x, y0, iw, A.statusH, IC_PAGE, C_FAINT);
+    drawText(x + iw + ig, y, nf, fn, C_DIM);
+    return left;
+}
+
 // Fondo di una voce (finestra): selezione e hover arrotondati R_S, come le liste di Windows 11
 static void drawItemBg(int vi, float x, float y, float w, float h) {
     float ha = hoverAlpha(A.rowFade, vi), r = px(ui::R_S);
@@ -428,76 +475,41 @@ static void render() {
     }
 
     // --- in basso: barra dei tempi e barra di stato (con il filtro) ---
-    // La barra laterale arriva in fondo alla finestra: queste stanno alla sua destra, sotto lista e
-    // anteprima.
-    float sy0 = H - A.statusH, bx0 = A.sideW;
-    rect(bx0, sy0, W - bx0, A.statusH, C_BAR);
-    rect(bx0, sy0, W - bx0, 1, C_LINE);
+    // Barra laterale e anteprima arrivano in fondo alla finestra: queste stanno tra le due, sotto la
+    // lista, perché parlano della lista (filtro, contatori, vista).
+    float sy0 = H - A.statusH, bx0 = A.sideW, bx1 = A.listR;
+    drawBarBand(bx0, bx1, sy0, A.statusH);
     if (A.timesH > 0) { // tempi misurati, solo con l'opzione (barra_tempi)
         float ty0 = sy0 - A.timesH;
-        rect(bx0, ty0, W - bx0, A.timesH, C_BAR);
-        rect(bx0, ty0, W - bx0, 1, C_LINE);
+        drawBarBand(bx0, bx1, ty0, A.timesH);
         if (A.cur) {
             wchar_t t[256];
             int n = _snwprintf(t, 255,
                 L"lettura %.2f ms · chiavi %.2f · ordinamento %.2f · filtro %.2f · frame %.2f · avvio %.0f ms · F12",
                 A.cur->enumMs, A.cur->keyMs, A.sortMs, A.filterMs, A.frameMs, A.startupMs);
             decimalComma(t, n);
-            drawText(bx0 + A.padX, ty0 + textOff, t, n, C_FAINT, W - A.padX);
+            drawText(bx0 + A.padX, ty0 + textOff, t, n, C_FAINT, bx1 - A.padX);
         }
     }
     {
         wchar_t buf[256];
         float y = sy0 + textOff;
-        // Campo del filtro, sempre visibile: si scrive ovunque nella lista, qui si vede
         float fy = sy0 + px(ui::GAP_XS), fh = A.statusH - px(ui::GAP_XS) * 2, fx = A.fltX;
-        bool filtering = !A.filter.empty();
-        rrect(fx, fy, A.fltW, fh, px(ui::R_S), C_INPUT);
-        if (filtering) rect(fx + px(ui::R_S) * 0.5f, fy + fh - px(ui::EDGE), A.fltW - px(ui::R_S), px(ui::EDGE), C_ACCENT);
-        // Imbuto nella colonna delle icone della lista e testo in quella dei nomi: il campo, che
-        // comincia come lo sfondo delle righe, si legge allineato alla lista
-        drawUiIcon(A.iconX, fy, (float)I.size, fh, IC_FILTER, filtering ? C_ACCENT : C_FAINT);
-        float tx = A.nameX;
-        A.fltClearW = filtering ? fh : 0;
-        hoverFadeUpdate(A.fltFade, filtering && A.fltClearHover ? 0 : -1, dt); // × in dissolvenza come ogni hover
-        if (filtering) {
-            float ex = drawText(tx, y, A.filter, C_TEXT, fx + A.fltW - fh);
-            rect(ex + 1, y, std::max(1.0f, floorf(s)), (float)F.lineH, C_ACCENT);
-            float ha = hoverAlpha(A.fltFade, 0);
-            if (ha > 0) rrect(fx + A.fltW - fh, fy, fh, fh, px(ui::R_S), fadeA(C_HOVER_STRONG, ha));
-            drawUiIcon(fx + A.fltW - fh, fy, fh, fh, IC_CLOSE, A.fltClearHover ? C_TEXT : C_DIM);
-        } else if (A.cur) {
-            int n = _snwprintf(buf, 63, L"Filtra %zu elementi\x2026", A.cur->e.size());
-            drawText(tx, y, buf, n, C_FAINT, fx + A.fltW - px(ui::GAP_S));
-        }
         // A destra la vista con lo zoom; prima, dopo una barretta, contatori di cartelle e file (della
         // vista, quindi rispettano il filtro) e la selezione; dopo il filtro avvisi e
-        // "caricamento…", che si fermano prima della parte destra
-        float leftX = fx + A.fltW + px(ui::GAP_L);
-        float rightX = W - A.padX + px(ui::GAP_S); // il fondo del controllo della vista sporge di GAP_S
+        // "caricamento…", che si fermano prima della parte destra. Si calcola prima la parte destra:
+        // con la lista stretta il filtro si accorcia per lasciarle posto.
+        float rightX = bx1 - A.padX + px(ui::GAP_S); // il fondo del controllo della vista sporge di GAP_S
         {
-            // Vista: icona e nome; si clicca (menu delle viste) e ci si gira la rotellina (zoom). Sotto
-            // il mouse, e col suo menu aperto, ha il fondo dei pulsanti della barra del percorso.
-            // Largo sempre quanto il nome più largo: cambiando vista i contatori accanto non si spostano
-            float tw = 0;
-            for (int z = ZOOM_DETAILS; z <= ZOOM_ICONS; z++) {
-                const wchar_t* nm = viewName(z);
-                tw = std::max(tw, (float)textWidth(nm, (int)wcslen(nm)));
-            }
-            const wchar_t* name = viewName(A.zoom);
-            int nn = (int)wcslen(name);
-            float iw = (float)F.lineH, pad = px(ui::GAP_S);
-            float w = pad + iw + px(ui::GAP_S) + tw + pad;
-            float x = rightX - w;
-            A.viewX = x; A.viewW = w;
+            // Vista: si clicca (menu delle viste) e ci si gira la rotellina (zoom). Sotto il mouse, e col
+            // suo menu aperto, ha il fondo dei pulsanti della barra del percorso. Largo sempre quanto il
+            // nome più largo: cambiando vista i contatori accanto non si spostano
+            static const wchar_t* const kNames[] = { viewName(ZOOM_DETAILS), viewName(ZOOM_LIST), viewName(ZOOM_ICONS) };
+            float w = barViewW(kNames, 3);
+            A.viewX = rightX - w; A.viewW = w;
             hoverFadeUpdate(A.viewFade, A.viewHover ? 0 : -1, dt);
             float ha = A.menu.open && A.menu.kind == MENU_VIEW ? 1.0f : hoverAlpha(A.viewFade, 0);
-            if (ha > 0) rrect(x, fy, w, fh, px(ui::R_S), fadeA(C_HOVER, ha));
-            drawUiIcon(x + pad, sy0, iw, A.statusH, viewIcon(A.zoom), C_FAINT);
-            drawText(x + pad + iw + px(ui::GAP_S), y, name, nn, C_DIM);
-            rightX = x - px(ui::GAP_M);
-            rect(rightX, fy + px(ui::GAP_XS), 1, fh - px(ui::GAP_XS) * 2, C_LINE); // la barretta
-            rightX -= px(ui::GAP_L);
+            rightX = drawBarView(rightX, sy0, w, viewIcon(A.zoom), viewName(A.zoom), ha, true);
         }
         if (A.cur) {
             static const void* cFor = nullptr;
@@ -508,15 +520,35 @@ static void render() {
                 for (uint32_t ei : A.view) if (A.cur->e[ei].attr & FILE_ATTRIBUTE_DIRECTORY) cDirs++;
                 cFor = A.cur; cN = A.view.size(); A.countsDirty = false;
             }
-            wchar_t nd[16], nf[16];
-            int dn = _snwprintf(nd, 15, L"%d", cDirs), fn = _snwprintf(nf, 15, L"%d", (int)A.view.size() - cDirs);
-            float iw = (float)F.lineH, ig = px(ui::GAP_S);
-            float x = rightX - (iw + ig + textWidth(nd, dn) + px(ui::GAP_L) + iw + ig + textWidth(nf, fn));
-            rightX = x;
-            drawUiIcon(x, sy0, iw, A.statusH, IC_FOLDER, C_FAINT);
-            x = drawText(x + iw + ig, y, nd, dn, C_DIM) + px(ui::GAP_L);
-            drawUiIcon(x, sy0, iw, A.statusH, IC_PAGE, C_FAINT);
-            drawText(x + iw + ig, y, nf, fn, C_DIM);
+            rightX = drawBarCounts(rightX, sy0, cDirs, (int)A.view.size() - cDirs, false);
+        }
+        // Campo del filtro, sempre visibile (si scrive ovunque nella lista, qui si vede), largo quanto
+        // vuole il layout ma mai sopra i contatori; troppo stretto per servire, non si disegna
+        A.fltW = std::min(A.fltWant, floorf(rightX - px(ui::GAP_L) - fx));
+        if (A.fltW < fh * ui::FILTER_MIN) A.fltW = 0;
+        bool filtering = !A.filter.empty();
+        A.fltClearW = filtering && A.fltW > 0 ? fh : 0;
+        hoverFadeUpdate(A.fltFade, A.fltClearW > 0 && A.fltClearHover ? 0 : -1, dt); // × in dissolvenza come ogni hover
+        if (A.fltW > 0) {
+            rrect(fx, fy, A.fltW, fh, px(ui::R_S), C_INPUT);
+            if (filtering) rect(fx + px(ui::R_S) * 0.5f, fy + fh - px(ui::EDGE), A.fltW - px(ui::R_S), px(ui::EDGE), C_ACCENT);
+            // Imbuto nella colonna delle icone della lista e testo in quella dei nomi: il campo, che
+            // comincia come lo sfondo delle righe, si legge allineato alla lista
+            drawUiIcon(A.iconX, fy, (float)I.size, fh, IC_FILTER, filtering ? C_ACCENT : C_FAINT);
+            float tx = A.nameX;
+            if (filtering) {
+                float ex = drawText(tx, y, A.filter, C_TEXT, fx + A.fltW - fh);
+                rect(ex + 1, y, std::max(1.0f, floorf(s)), (float)F.lineH, C_ACCENT);
+                float ha = hoverAlpha(A.fltFade, 0);
+                if (ha > 0) rrect(fx + A.fltW - fh, fy, fh, fh, px(ui::R_S), fadeA(C_HOVER_STRONG, ha));
+                drawUiIcon(fx + A.fltW - fh, fy, fh, fh, IC_CLOSE, A.fltClearHover ? C_TEXT : C_DIM);
+            } else if (A.cur) {
+                int n = _snwprintf(buf, 63, L"Filtra %zu elementi\x2026", A.cur->e.size());
+                drawText(tx, y, buf, n, C_FAINT, fx + A.fltW - px(ui::GAP_S));
+            }
+        }
+        float leftX = fx + A.fltW + px(ui::GAP_L);
+        if (A.cur) {
             uint64_t bytes = 0;
             int k = selCount(&bytes);
             if (k > 1) {

@@ -105,7 +105,7 @@ arrotonda per difetto, così i bordi cadono su pixel interi.
 - **Unica eccezione: il testo dentro l'anteprima** (codice, log) usa un carattere a spaziatura
   fissa, Cascadia Mono (altrimenti Consolas), alla stessa dimensione: in Segoe UI il codice perde
   l'allineamento. È contenuto del file, non interfaccia; si sceglie nelle opzioni
-  (`carattere_anteprima`). Intestazione, righe d'informazione e note dell'anteprima restano in
+  (`carattere_anteprima`). Intestazione, banda in fondo e note dell'anteprima restano in
   Segoe UI.
 - **Testo su più righe** (tooltip, testo nell'anteprima): interlinea `LINE_GAP` (3).
 - **ClearType** se Windows lo usa, altrimenti scala di grigi.
@@ -180,13 +180,16 @@ uno esistente basta con una piccola estensione.
 [⚙] [scheda][scheda][+]  ·····trascina·····              [–][□][×]    barra del titolo (C_TABBAR)
 [▯][←][→][↑]  Questo PC › Disco locale (C:) › Users             [☆][◨]    riga del percorso (C_BAR)
 Preferiti ˅  │ Nome ↑              Data       Dimensione │ foto.jpg         intestazione (C_HEADER)
-  Desktop    │ …                                         │  [immagine]      lista (C_BG) │ anteprima (C_BG)
-Unità ˅      │                                           │ 4032 × 3024 · …
-             │ lettura 0,18 ms · … · avvio 93 ms · F12                      barra dei tempi (C_BAR, opzione)  Disco (D:) │ [⏷ Filtra 72 elementi…]  avvisi   3 selezionati · 🗀 53  🗋 19 │ ☰ Dettagli   barra di stato (C_BAR)
+  Desktop    │ …                                         │                  lista (C_BG) │ anteprima (C_BG)
+Unità ˅      │                                           │  [immagine]
+  Disco (D:) │ lettura 0,18 ms · … · avvio 93 ms · F12   │                  barra dei tempi (C_BAR, opzione)
+             │ [⏷ Filtra 72 elementi…]  🗀 53 🗋 19 │ ☰ Dettagli │ 4032 × 3024 · … │ 🖼 Immagine   barre in fondo (C_BAR)
 ```
 
-La barra laterale arriva in fondo alla finestra, libera. Barra dei tempi e barra di stato (con il
-filtro a sinistra) stanno alla sua destra, sotto lista e anteprima.
+Barra laterale e anteprima sono le due colonne della finestra e arrivano in fondo, libere. Barra
+dei tempi e barra di stato (con il filtro a sinistra, contatori e vista a destra) parlano della
+lista e stanno sotto di lei, tra le due. L'anteprima ha in fondo la sua banda, fatta delle stesse
+parti e alla stessa altezza: le due bande si leggono come una sola, divisa dal bordo del pannello.
 
 Sopra, quando servono: menu, tooltip, pannello delle opzioni, "Vai a" (sotto la riga del percorso), F12.
 
@@ -228,7 +231,7 @@ doppione.
     `C_FAINT`; una cartella illeggibile resta vuota. Si conta in background, una cartella alla
     volta nell'ordine della vista; ordinando per Dimensione le cartelle usano il totale già noto.
     Nel tooltip la riga "Dimensione" ("2,9 GB  (3.128.245.592 byte) · 17.812 file"; mentre
-    conta "almeno 1,2 GB…"; "accesso negato"); nell'anteprima di una cartella il totale nel piede.
+    conta "almeno 1,2 GB…"; "accesso negato").
 - **Intestazione colonne:** testo `C_DIM`, freccia ↑/↓ sulla colonna di ordinamento. Clic per
   ordinare, di nuovo per invertire.
   - **bordi tra le colonne** (Nome|Data e Data|Dimensione; con i collegamenti Nome|Destinazione e
@@ -363,14 +366,25 @@ doppione.
     gemelli, in `C_TEXT` se il pannello è aperto e `C_DIM` se è chiuso. La vista non sta qui: è
     nella barra di stato.
 - **Pannello di anteprima** (Alt+P · ◨, `preview.cpp`): non è un
-  pannello sovrapposto ma una parte della finestra, a destra della lista, dall'intestazione alla
-  barra di stato; la lista finisce alla sua sinistra (`A.listR`).
+  pannello sovrapposto ma una parte della finestra, a destra della lista, dall'intestazione al
+  fondo della finestra, come la barra laterale; lista, barra dei tempi e barra di stato finiscono
+  alla sua sinistra (`A.listR`).
   - fondo `C_BG` come la lista, separatore verticale 1 px `C_LINE`; in alto un'intestazione alta
     una riga e allineata a quella delle colonne (`C_HEADER`, linea `C_LINE` sotto) con il nome
     della voce in `C_TEXT` (è il contenuto, non un'etichetta);
-  - contenuto a `PAD_X` dai lati e `GAP_M` sotto l'intestazione; in fondo una riga d'informazione
-    in `C_FAINT`, alta una riga (codifica · righe · dimensione, oppure larghezza × altezza ·
-    dimensione · formato, oppure "N cartelle, M file");
+  - contenuto a `PAD_X` dai lati e `GAP_M` sotto l'intestazione;
+  - **banda in fondo**, sempre, come la barra di stato e con le sue stesse parti (`drawBarBand`,
+    `drawBarCounts`, `drawBarView` in `render.cpp`): fondo `C_BAR` alto `statusH`, linea `C_LINE`
+    in alto, alla stessa altezza della barra di stato. All'estremo destro il **tipo di contenuto**,
+    disegnato come il controllo della vista ma senza fondo sotto il mouse, perché non si sceglie:
+    "Dettagli" (cartella, con l'icona di Dettagli: le righe sono quelle), "Testo" (Document),
+    "Immagine" (Photo), "Informazioni" (Info: gli altri file e le unità); largo quanto il più
+    largo dei quattro, così i dati prima non si spostano. Prima, dopo la barretta, i **dati** in
+    `C_DIM`: per una cartella i contatori di cartelle e file con le icone, come la lista ("+"
+    dopo i numeri se la lettura si è fermata prima del fondo); per un testo codifica · righe ·
+    dimensione; per un'immagine larghezza × altezza · dimensione · formato. Informazioni non ha
+    dati (sono già nelle righe), e senza dati non c'è la barretta. Il totale di una cartella non
+    c'è: sta nella colonna Dimensione e nel tooltip;
   - **immagine**: centrata nello spazio, 1:1 (la decodifica la riduce già alla misura), mai
     ingrandita; nessuna cornice, nessuna scacchiera dietro la trasparenza;
   - **testo**: carattere dell'anteprima (sezione 4), `C_TEXT`, a capo sulle parole, interlinea
@@ -434,13 +448,15 @@ doppione.
     `COL_GRIP` per lato, per tutta l'altezza): cursore ↔, bordo in `C_SEL_EDGE` mentre lo si
     trascina, Esc torna a prima, doppio clic torna a `SIDE_W`; si salva al rilascio
     (`barra_laterale_larghezza`). Una barra più larga toglie spazio prima all'anteprima.
-- **Barra di stato** (a destra della barra laterale, sotto lista e anteprima):
-  - a sinistra, a `GAP_S` dall'inizio della lista, il **campo del filtro**, sempre visibile: largo
-    `FILTER_W` (al massimo `FILTER_MAX` della barra), fondo `C_INPUT`; l'imbuto sta nella colonna
+- **Barra di stato** (sotto la lista, tra barra laterale e anteprima):
+  - a sinistra, a `GAP_S` dall'inizio della lista, il **campo del filtro**: largo `FILTER_W` (al
+    massimo `FILTER_MAX` della barra), ma mai sopra i contatori, a `GAP_L` da loro; con la lista
+    tanto stretta da lasciargli meno di `FILTER_MIN` (2) altezze del campo non si disegna (il filtro si scrive
+    lo stesso). Fondo `C_INPUT`; l'imbuto sta nella colonna
     delle icone della lista e il testo in quella dei nomi (`A.iconX`, `A.nameX`); vuoto mostra
     "Filtra N elementi…" in `C_FAINT`; attivo ha la sottolineatura `C_ACCENT` e la × per
     toglierlo. Si scrive in qualsiasi punto della lista;
-  - all'estremo destro il **controllo della vista**: icona della vista (BulletedList, List,
+  - all'estremo destro, prima del bordo dell'anteprima, il **controllo della vista**: icona della vista (BulletedList, List,
     GridView) in `C_FAINT` e nome ("Dettagli", "Elenco", "Icone") in `C_DIM`, largo sempre
     quanto il nome più largo, così cambiando vista non si sposta niente. Sotto il mouse, e finché
     il suo menu è aperto, fondo `C_HOVER` arrotondato `R_S` come i pulsanti della riga del
@@ -455,7 +471,7 @@ doppione.
     parte destra.
 - **Barra dei tempi** (opzione "Barra dei tempi", `barra_tempi`, spenta di solito): sopra la barra
   di stato, alta una riga, stessa larghezza; i tempi misurati in `C_FAINT` da `PAD_X`, con il
-  tooltip che li spiega. Accesa, lista e anteprima si accorciano di una riga.
+  tooltip che li spiega. Accesa, la lista si accorcia di una riga; l'anteprima no.
 - **Avvisi** (`notice`): una riga a sinistra nella barra di stato.
   - informazione in `C_ACCENT` per 2,5 s, errore in `C_ERR` per 4 s;
   - ogni azione che non ha un effetto visibile immediato dà un avviso ("Percorso copiato", "Aggiunta ai preferiti");

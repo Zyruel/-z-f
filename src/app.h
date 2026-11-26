@@ -271,6 +271,7 @@ struct App {
     float sortX[4] = {};              // Elenco e Icone: etichette di ordinamento nell'intestazione (inizi e fine)
     float btnW, capW, navW, tabStripX, tabStripW; // barra del titolo e riga del percorso
     float fltX = 0, fltW = 0, fltClearW = 0;      // campo del filtro, a sinistra nella barra di stato
+    float fltWant = 0;                            // larghezza voluta del filtro (layout); fltW è quella che ci sta
     bool fltClearHover = false, countsDirty = false;
     // Avvio, riapertura delle schede e riavvio dopo un aggiornamento (tabs.cpp, main.cpp)
     bool reopenTabs = false;   // riapri_schede: la finestra principale riapre le sue schede all'avvio

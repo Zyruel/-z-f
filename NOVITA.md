@@ -10,6 +10,17 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 
 ## In preparazione
 
+- **L'anteprima ha la sua barra in fondo**, fatta come la barra di stato della lista e alla stessa
+  altezza: a destra il tipo di contenuto (Dettagli per una cartella, Testo, Immagine,
+  Informazioni) e prima i dati, cioè i contatori di cartelle e file con le icone, oppure codifica,
+  righe e dimensione di un testo, o misure, dimensione e formato di un'immagine. Il totale di una
+  cartella non c'è più nell'anteprima (resta nella colonna Dimensione e nel tooltip), e
+  l'anteprima non lo fa più contare.
+- **Anteprima a tutta altezza:** come la barra laterale, arriva fino in fondo alla finestra. La
+  barra di stato (filtro, contatori, vista) e la barra dei tempi stanno sotto la lista, tra i due
+  pannelli, perché parlano della lista; la riga d'informazione dell'anteprima è alla stessa altezza
+  della barra di stato. Con la lista stretta il filtro si accorcia invece di finire sotto i
+  contatori.
 - **Niente più menu ≡:** il pulsante in alto a sinistra è ora ⚙ e apre direttamente le opzioni.
   Le voci del menu stavano già altrove: nuova scheda con "+" e Ctrl+T, "Vai a…" con Ctrl+P o un
   clic sul percorso, anteprima con ◨ e Alt+P, vista nella barra di stato, annulla e ripeti con

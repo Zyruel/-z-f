@@ -20,6 +20,53 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 00000000000000000000000000000000000000000000. Banda in fondo all'anteprima (z-f-dev, novembre 2026)
+
+La riga d'informazione dell'anteprima diventa una banda come la barra di stato: a destra il tipo
+di contenuto, prima i dati. Senza il totale della cartella. Compilato senza avvisi (MSVC).
+
+Provato da Claude in z-f-dev, nella cartella di `anteprima-prova.py`, a finestra ingrandita:
+- [x] cartella vuota: "🗀 0 🗋 0 │ Dettagli"; molti_file: "🗀 1 🗋 3000 │ Dettagli";
+- [x] dati.json: "ASCII · 1 riga · 75 B │ Testo";
+- [x] foto_grande.png: "4000 × 3000 · 363 KB · PNG │ Immagine";
+- [x] binario.bin: solo "Informazioni", senza barretta;
+- [x] la banda continua la barra di stato della lista, divisa dal bordo dell'anteprima;
+- [x] registro: solo le voci normali dell'avvio e "attesa vsync lunga".
+
+Restano:
+- [ ] una cartella con più di 5000 voci: i numeri col "+";
+- [ ] "caricamento…" (cartella lenta, di rete): la banda c'è, vuota;
+- [ ] un'unità di Questo PC e una cartella illeggibile: Informazioni, e Dettagli senza contatori;
+- [ ] anteprima stretta: i dati di un'immagine finiscono in "…" prima della barretta;
+- [ ] a 175% (Zyruel).
+
+## 0000000000000000000000000000000000000000000. Anteprima a tutta altezza (z-f-dev, novembre 2026)
+
+L'anteprima arriva in fondo alla finestra come la barra laterale; barra di stato e barra dei
+tempi stanno sotto la lista, tra i due pannelli. Il filtro si accorcia se non ci sta. Compilato
+senza avvisi (MSVC).
+
+Provato da Claude in z-f-dev (C:\Windows\Web):
+- [x] il separatore dell'anteprima scende fino in fondo; la riga d'informazione ("1 cartella,
+      0 file · 1,0 MB") è sulla linea del testo della barra di stato;
+- [x] contatori e vista finiscono prima del bordo dell'anteprima;
+- [x] il bordo dell'anteprima si trascina all'altezza della barra di stato; lì il doppio clic
+      rimette la larghezza predefinita;
+- [x] anteprima larga al massimo (la lista al minimo): "Filtra 4 elem…" si accorcia e resta a
+      distanza dai contatori; scrivendo "wa" il campo mostra testo e ×, Esc lo toglie;
+- [x] barra dei tempi accesa: sotto la sola lista, finisce in "…" prima del bordo; l'anteprima
+      non si accorcia;
+- [x] registro: solo le voci normali dell'avvio.
+
+Restano:
+- [ ] clic sulla vista (menu) e rotellina sopra (zoom) con l'anteprima aperta;
+- [ ] rotellina sulla parte bassa dell'anteprima, con un testo o una cartella lunghi: scorre;
+- [ ] tooltip della barra dei tempi solo sopra la lista;
+- [ ] finestra così stretta che il filtro sparisce (meno di `FILTER_MIN` altezze): scrivendo nella
+      lista il filtro funziona lo stesso;
+- [ ] anteprima chiusa: barra di stato larga quanto prima;
+- [ ] a 175% (Zyruel).
+
 ## 000000000000000000000000000000000000000000. ⚙ al posto del menu ≡, ▯ nella riga del percorso (z-f-dev, novembre 2026)
 
 Il menu ≡ non c'è più: il pulsante in alto a sinistra è ⚙ e apre le opzioni. ▯ è sceso nella
