@@ -759,7 +759,7 @@ static bool gotoMouseDown(int x, int y, bool middle, bool ctrl) {
 // la voce che nella lista, sotto, si trova in quel punto. Un doppio clic sul percorso vuoto l'ha
 // appena aperto con il primo clic: il secondo non lo richiude.
 static bool gotoDblClk(int x, int y, bool ctrl) {
-    if (GT.open && y >= A.pathY && y < A.pathY + A.topH && nowMs() - GT.openedAt < GetDoubleClickTime()) return true;
+    if (GT.open && onPathBar(y) && nowMs() - GT.openedAt < GetDoubleClickTime()) return true;
     if (GT.open) return gotoMouseDown(x, y, false, ctrl);
     return nowMs() - GT.closedAt < GetDoubleClickTime();
 }

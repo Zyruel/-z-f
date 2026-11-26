@@ -593,6 +593,10 @@ static bool zipNoShell() {
     notice(L"Non disponibile dentro un archivio zip", false);
     return true;
 }
+
+// y sulla riga del percorso (segmenti, "›", spazio vuoto): il clic e il doppio clic la riconoscono allo stesso modo
+static bool onPathBar(int y) { return y >= A.pathY && y < A.pathY + A.topH; }
+
 // Percorso dentro lo zip aperto (o un altro, a vista: un componente che finisce in ".zip"). Per le
 // destinazioni di un trascinamento: in uno zip non si rilascia.
 static bool pathInZip(const std::wstring& p) {

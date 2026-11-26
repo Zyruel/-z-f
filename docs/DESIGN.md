@@ -607,7 +607,7 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   `TIP_INFO_WAIT` (150 ms), così compare già completo invece di allargarsi sotto gli occhi.
 - Ogni elemento interattivo ha un tooltip che dice cosa fa e la sua scorciatoia. La scorciatoia
   viene da `kShortcuts`, come nei menu: `shortcutsOf` dà tutte le alternative di un comando
-  ("Alt+← · tasto laterale indietro"). Un comando senza voce di menu ha comunque un id (`M_BACK`,
+  ("Alt+← · tasto Indietro del mouse o della tastiera"). Un comando senza voce di menu ha comunque un id (`M_BACK`,
   `M_SIDEBAR`…) per legarlo ai suoi tasti; nel tooltip va in una riga con l'etichetta
   ("Scorciatoia", "Modifica", "Togli il filtro").
 

@@ -547,7 +547,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (gotoMouseDown(x, y, false, (wp & MK_CONTROL) != 0)) return 0;
         if (optionsMouseDown(x, y)) return 0;
         if (A.renaming) endRename(true);
-        bool onPath = y >= A.pathY && y < A.pathY + A.topH;
+        bool onPath = onPathBar(y);
         int chId = chromeHit(x, y);
         if (chId != CH_NONE) { chromeExec(chId); return 0; } // ≡, barra laterale, ← → ↑, ☆
         if (fltClearAt(x, y)) {

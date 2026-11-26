@@ -59,8 +59,8 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 |---|---|
 | Invio · doppio clic | Apre la cartella o il file |
 | Alt+↑ · Backspace | Cartella superiore (Backspace: se non c'è un filtro) |
-| Alt+← · tasto laterale indietro · gesto Indietro del touchpad | Indietro |
-| Alt+→ · tasto laterale avanti · gesto Avanti del touchpad | Avanti |
+| Alt+← · tasto Indietro del mouse o della tastiera · gesto Indietro del touchpad | Indietro |
+| Alt+→ · tasto Avanti del mouse o della tastiera · gesto Avanti del touchpad | Avanti |
 | Clic su un segmento del percorso | Va a quella cartella |
 | Clic su › nel percorso | Sottocartelle |
 | Clic sulla destinazione di un collegamento · clic centrale | Apre il percorso del file (in una nuova scheda) |
@@ -68,7 +68,7 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Ctrl+P · Ctrl+G | Vai a: cartelle recenti, preferiti, sottocartelle |
 | Ctrl+Invio · clic centrale | Vai a: apre in una nuova scheda |
 | Tab | Vai a: entra nella cartella e mostra le sottocartelle |
-| F5 | Ricarica |
+| F5 · tasto Aggiorna della tastiera | Ricarica |
 
 ### Selezione
 

@@ -23,8 +23,8 @@ static Shortcut kNav[] = {
     { { K(M_OPEN, 0, VK_RETURN), { L"doppio clic", 0 } }, L"Apre la cartella o il file" },
     { { K(M_UP, KA, VK_UP), { L"Backspace", 0 } }, L"Cartella superiore (Backspace: se non c'è un filtro)" },
     // Anche i tasti del browser e i gesti del touchpad (WM_APPCOMMAND, in input.cpp)
-    { { K(M_BACK, KA, VK_LEFT), { L"tasto laterale indietro", 0 }, { L"gesto Indietro del touchpad", 0 } }, L"Indietro" },
-    { { K(M_FWD, KA, VK_RIGHT), { L"tasto laterale avanti", 0 }, { L"gesto Avanti del touchpad", 0 } }, L"Avanti" },
+    { { K(M_BACK, KA, VK_LEFT), { L"tasto Indietro del mouse o della tastiera", 0 }, { L"gesto Indietro del touchpad", 0 } }, L"Indietro" },
+    { { K(M_FWD, KA, VK_RIGHT), { L"tasto Avanti del mouse o della tastiera", 0 }, { L"gesto Avanti del touchpad", 0 } }, L"Avanti" },
     { { { L"Clic su un segmento del percorso", 0 } }, L"Va a quella cartella" },
     { { { L"Clic su › nel percorso", 0 } }, L"Sottocartelle" },
     { { { L"Clic sulla destinazione di un collegamento", 0 }, { L"clic centrale", 0 } }, L"Apre il percorso del file (in una nuova scheda)" },
@@ -32,7 +32,7 @@ static Shortcut kNav[] = {
     { { K(M_GOTO, KC, 'P'), K(M_GOTO, KC, 'G') }, L"Vai a: cartelle recenti, preferiti, sottocartelle" },
     { { { L"Ctrl+Invio", M_GOTO_NEWTAB }, { L"clic centrale", 0 } }, L"Vai a: apre in una nuova scheda" },
     { { { L"Tab", M_GOTO_ENTER } }, L"Vai a: entra nella cartella e mostra le sottocartelle" },
-    { { K(M_REFRESH, 0, VK_F5) }, L"Ricarica" },
+    { { K(M_REFRESH, 0, VK_F5), { L"tasto Aggiorna della tastiera", 0 } }, L"Ricarica" },
 };
 static Shortcut kSel[] = {
     { { { L"↑ ↓", 0 }, { L"PagSu PagGiù", 0 }, { L"Home Fine", 0 } }, L"Muove il cursore e seleziona" },
@@ -174,8 +174,9 @@ static std::wstring shortcutText(const Shortcut& s) {
     return t;
 }
 
-// Tutte le alternative di un comando, per i tooltip: "Alt+← · tasto laterale indietro". La riga
-// intera se il comando è il solo della riga; altrimenti (Ctrl+C · Ctrl+X · Ctrl+V) il suo tasto.
+// Tutte le alternative di un comando, per i tooltip: "Alt+← · tasto Indietro del mouse o della
+// tastiera". La riga intera se il comando è il solo della riga; altrimenti (Ctrl+C · Ctrl+X ·
+// Ctrl+V) il suo tasto.
 static std::wstring shortcutsOf(int cmd) {
     if (!cmd) return L"";
     shortcutsReady();

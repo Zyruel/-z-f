@@ -71,6 +71,9 @@ non l'ha provato con lo schermo. Restano da spuntare uno per uno, in z-f-dev (`p
   pannello aperto lo chiude.
 - [ ] Doppio clic sullo spazio vuoto del percorso: "Vai a" si apre e resta aperto (prima della
   correzione il secondo clic lo richiudeva subito).
+- [ ] **Misura:** in System32, F4 con F12 aperto: "Vai a: apertura" e "ricerca a ogni tasto"; il
+  valore va in ARCHITETTURA ("Vai a", riga "Misurato:"). Non presa da Claude: in questa sessione
+  i tasti mandati alla finestra di prova da un altro processo non arrivano.
 
 ## 00000000000000000000000000000000. Destinazione mai più larga di Nome (z-f-dev, novembre 2026)
 
