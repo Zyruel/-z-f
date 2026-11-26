@@ -8,7 +8,7 @@ erano `0.N`. Ogni rilascio, dalla 1.0.0-beta.2, ha un tag `v<versione>` e una
 versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 [`ARCHITETTURA.md`](docs/ARCHITETTURA.md).
 
-## In preparazione
+## 1.0.0-beta.6 (novembre 2026)
 
 - **L'anteprima ha la sua barra in fondo**, fatta come la barra di stato della lista e alla stessa
   altezza: a destra il tipo di contenuto (Dettagli per una cartella, Testo, Immagine,
