@@ -62,7 +62,7 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Alt+→ · tasto laterale avanti | Avanti |
 | Clic su un segmento del percorso | Va a quella cartella |
 | Clic su › nel percorso | Sottocartelle |
-| Clic su una destinazione · clic centrale | Apre il percorso del file (in una nuova scheda) |
+| Clic sulla destinazione di un collegamento · clic centrale | Apre il percorso del file (in una nuova scheda) |
 | Ctrl+L · F4 · clic sul percorso vuoto | Scrive il percorso |
 | Ctrl+P · Ctrl+G | Vai a: cartelle recenti, preferiti, sottocartelle |
 | Ctrl+Invio · clic centrale | Vai a: apre in una nuova scheda |
@@ -129,8 +129,9 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Ctrl+D | Aggiunge o toglie dai preferiti |
 | Trascina tra i preferiti | Aggiunge le cartelle ai preferiti |
 | Trascina un preferito | Lo sposta tra gli altri (solo l'ordine) |
-| Clic su Preferiti · sulla freccia di Questo PC | Chiude o riapre la sezione |
-| Ctrl+rotellina · Ctrl+/− · Ctrl+0 | Dimensione del testo · predefinita |
+| Clic su Preferiti · sulla freccia di Questo PC | Chiude o riapre i preferiti · le unità |
+| Ctrl+rotellina · Ctrl+/− | Dimensione del testo |
+| Ctrl+0 | Dimensione del testo predefinita |
 | Ctrl+rotellina in griglia | Dimensione delle miniature |
 | Ctrl+, | Opzioni |
 | F12 | Statistiche e tempi |

@@ -18,7 +18,9 @@ quel codice, o tutti insieme in un momento tranquillo. Quando una voce è fatta 
   visto durante le prove delle miniature). La finestra sparisce subito, ma `z-f-dev.exe` (e anche
   la build di prima, alla pari) esce dopo 1 s di solito e dopo 5–8 s una volta su tre: misurato
   con `taskkill /PID` sulla cartella di prova, 9 chiusure. Forse un thread che a quel punto sta
-  ancora aspettando (spazio dei percorsi di rete, shell). Nessun effetto visibile; da capire con
+  ancora aspettando (spazio dei percorsi di rete, shell). Rivisto il 26/11 con un percorso di rete
+  lento (F12 "barra laterale: rete e ottiche" 47 s per una voce): vivo più di 10 s dopo la
+  chiusura, poi uscito. Nessun effetto visibile; da capire con
   un dump del processo in quel momento, e da guardare se l'aggiornamento (`updRestartAll`) aspetta
   l'uscita delle finestre.
 - [ ] **Avviso C4456 con `/W4` in `zip.cpp`** (0.26, riga 302: un secondo `ascii` nasconde quello
@@ -61,3 +63,15 @@ quel codice, o tutti insieme in un momento tranquillo. Quando una voce è fatta 
   l'evento di `iconInit` servono già a `iconSetSize` e al primo frame: si sposterebbe solo l'avvio
   del thread). Decide
   Zyruel; se resta dov'è, scriverlo come eccezione voluta in ARCHITETTURA.
+- [ ] **Icona: misure piccole in PNG?** (novembre 2026, dal controllo prima della 1.0.0-beta.4).
+  In `src\z-f.ico` le misure sotto 256 sono BMP a 32 bit (`strumenti\icona.py`, riga 11) e pesano
+  42,8 dei 45,7 KB del file, quasi tutto l'aumento dell'exe; in PNG peserebbero molto meno.
+  Windows Vista e successivi leggono PNG a ogni misura. Da misurare prima di decidere: dimensione
+  dell'exe e `A.iconMs` in F12 ("icona della finestra": `LoadImageW` deve decomprimere il PNG),
+  con le due versioni del .ico. Decide Zyruel.
+- [ ] **Icona: misure 28 e 56 px (ed eventualmente 36 e 72)** (novembre 2026, stesso controllo).
+  A 175% (il monitor di Zyruel) Windows chiede 28 px per l'icona piccola e 56 per la grande, che il
+  .ico non ha (`MISURE` in `strumenti\icona.py`): le ricava riducendo 32 e 64 (o 24 e 48), e i
+  bordi agganciati ai pixel escono dai pixel. A 225% servirebbero 36 e 72. Aggiungerle allunga il
+  file (vedi la voce sopra: in PNG pesano poco). Da misurare come sopra, e da guardare a 175% la
+  barra delle applicazioni e Alt+Tab prima e dopo. Decide Zyruel.

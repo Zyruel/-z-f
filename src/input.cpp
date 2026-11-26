@@ -27,7 +27,9 @@ static void onClipText(void* target, const std::wstring& t) {
 }
 
 // Esito della scrittura negli appunti (clipSetText). Se non è riuscita, un Taglia rimette il testo
-// nella casella, selezionato, purché la casella sia ancora aperta e com'era dopo il taglio
+// nella casella, selezionato, purché la casella sia ancora aperta e com'era dopo il taglio.
+// L'avviso di errore solo se è ancora l'ultima copia chiesta: un tentativo vecchio che scade dopo
+// una copia più recente non deve dire che gli appunti non hanno il testo (il Taglia si rimette comunque).
 static void onClipSet(ClipSet* c) {
     if (c->skipped) return; // una copia più recente l'ha sostituita
     if (c->ok) {
@@ -41,6 +43,7 @@ static void onClipSet(ClipSet* c) {
         f->caret = c->at + (int)c->text.size();
         clipFieldChanged(f);
     }
+    if (c->gen != g_clipSetGen) return;
     std::wstring m = c->fail;
     if (!c->holder.empty()) m += L": gli appunti sono aperti da " + c->holder;
     else if (c->err == ERROR_ACCESS_DENIED) m += L": gli appunti sono aperti da un altro programma";

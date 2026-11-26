@@ -112,13 +112,18 @@ static void netPlacesAdd(std::vector<SideItem>& out) {
 
 // Etichetta, file system e spazio del volume che contiene root (con la barra finale). Può
 // aspettare: un'unità ottica o di rete, una condivisione che non risponde. Solo sul thread.
+// La voce arriva con i valori della lettura prima: se questa fallisce (disco tolto, server spento)
+// non devono restare, quindi si parte da zero, come un'unità vuota.
 static std::wstring volumeRead(SideItem& it, const std::wstring& root) {
     wchar_t label[MAX_PATH + 1] = {}, fs[32] = {};
+    it.fs.clear();
+    it.free = it.total = 0;
     // niente "inserire un disco"; per questo thread solo (SetErrorMode vale per tutto il processo)
     DWORD oldMode = 0;
     SetThreadErrorMode(SEM_FAILCRITICALERRORS, &oldMode);
     bool ready = GetVolumeInformationW(root.c_str(), label, MAX_PATH + 1, nullptr, nullptr, nullptr, fs, 32) != 0;
-    it.fs = fs;
+    if (ready) it.fs = fs;
+    else label[0] = 0;
     ULARGE_INTEGER fr, tot;
     if (ready && GetDiskFreeSpaceExW(root.c_str(), &fr, &tot, nullptr)) { it.free = fr.QuadPart; it.total = tot.QuadPart; }
     SetThreadErrorMode(oldMode, nullptr);
@@ -300,14 +305,16 @@ static bool slowCopy(SideItem& to, const SideItem& from) {
 // Una voce lenta letta: nelle voci attuali con lo stesso percorso e tipo (la barra può essere
 // cambiata intanto); dei preferiti solo il nome, come in onSideLoaded
 static void onSideSlow(SlowItem* r) {
+    static bool favChanged = false; // preferiti rinominati in questo giro: si salvano una volta, alla fine
     if (r->done) {
         A.sideSlowMs = r->ms;
         A.sideSlowN = r->n;
+        if (favChanged) { favChanged = false; favSave(); }
         if (g_slowAgain) sideSlowStart();
     } else if (r->fav) {
         for (SideItem& f : A.favs)
             if (samePath(f.path, r->it.path)) {
-                if (f.label != r->it.label) { f.label = r->it.label; favSave(); }
+                if (f.label != r->it.label) { f.label = r->it.label; favChanged = true; }
                 break;
             }
     } else {
@@ -672,7 +679,7 @@ static void drawSidebar(double dt) {
             rrect(bx, y + floorf((A.sideItemH - ph) * 0.5f), pw, ph, pw * 0.5f, cur ? C_SEL_EDGE : C_SEL_EDGE_PARENT);
         }
         float iy = y + floorf((A.sideItemH - iconS) * 0.5f);
-        const IconEntry* ie = it.drive ? iconForKey(it.path, it.path, 0, false, false)
+        const IconEntry* ie = it.drive ? iconForKey(it.path, it.path, 0, false, false, slowDriveType(it.driveType))
                             : it.path.empty() ? iconForKey(L"<questo-pc>", kThisPc, 0, false, false)
                                               : iconForKey(L"<dir>", L"cartella", FILE_ATTRIBUTE_DIRECTORY, true, false);
         if (ie) drawIcon(x0 + pad + indent, iy, *ie, C_ICON);

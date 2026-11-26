@@ -120,6 +120,8 @@ static const wchar_t* errWhy(DWORD err) {
          : err == ERROR_SHARING_VIOLATION                          ? L"il file è in uso"
          : err == ERROR_ACCESS_DENIED                              ? L"accesso negato"
          : err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND ? L"non esiste più"
+         : err == ERROR_BAD_NETPATH || err == ERROR_BAD_NET_NAME   ? L"percorso di rete non trovato"
+         : err == ERROR_NOT_READY                                  ? L"dispositivo non pronto"
                                                                    : L"errore";
 }
 

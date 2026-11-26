@@ -28,7 +28,7 @@ static float drawPanelItem(float x, float w, float y, float ih, float pad, bool 
     if (hot) rrect(x + px(ui::GAP_S), y, w - px(ui::GAP_M), ih, px(ui::R_S), fadeA(C_SEL, k));
     float tx = x + pad;
     if (icon) { // cartella o unità: stessa icona della lista
-        const IconEntry* ie = icon == 2 && iconPath ? iconForKey(*iconPath, *iconPath, 0, false, false)
+        const IconEntry* ie = icon == 2 && iconPath ? iconForKey(*iconPath, *iconPath, 0, false, false, slowPath(*iconPath))
                                                     : iconForKey(L"<dir>", L"cartella", FILE_ATTRIBUTE_DIRECTORY, true, false);
         if (ie) drawIcon(tx, y + floorf((ih - I.size) * 0.5f), *ie, fadeA(dim ? C_ICON_HIDDEN : C_ICON, k));
     }

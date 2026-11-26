@@ -73,6 +73,8 @@ struct ThumbReq {
     int box = 0, src = SRC_CACHE;
     bool icon = false, image = false, local = true;
     bool drive = false;          // un'unità di Questo PC (iconDrive: non un percorso di rete)
+    bool slowDrive = false;      // l'unità è di rete o ottica (il tipo letto con la lista, non da A.drives)
+    bool inZip = false;          // la voce è dentro uno zip: l'icona si sceglie come la chiave (thIconKeyFor)
     uint64_t gen = 0, sizeGen = 0;
 };
 
@@ -243,7 +245,7 @@ static int thFromShell(ThCtx& c, const std::wstring& dir, const std::wstring& na
 }
 
 static int thIconWork(const ThumbReq& r, ThumbRes& o) {
-    int src = iconSource(r.name.c_str(), r.attr, r.drive, zipPathLike(r.dir)); // come la chiave (thIconKeyFor)
+    int src = iconSource(r.name.c_str(), r.attr, r.drive, r.inZip); // come la chiave (thIconKeyFor)
     PvReq pr{ nullptr, 0, joinPath(r.dir, r.name.c_str()), r.attr, r.drive, src, 0, 0, r.box, nullptr };
     PvRes pres;
     pvBigIcon(pr, pres);
@@ -521,9 +523,10 @@ static void thPush(std::vector<ThumbReq>* add) {
 }
 
 // Icone: quelle chieste al file vero (per file, o un'unità) toccano il disco, e su un'unità di rete
-// o ottica vanno sui thread della rete; in Questo PC (TH.remote falso) decide il tipo dell'unità.
+// o ottica vanno sui thread della rete; in Questo PC (TH.remote falso) decide il tipo dell'unità,
+// quello letto con la lista (un'unità appena connessa può non essere ancora in A.drives).
 static int thPoolFor(const ThumbReq& r, bool perFile) {
-    if (r.icon) return perFile && (r.drive ? slowPath(r.name) : TH.remote) ? POOL_NET : POOL_FAST;
+    if (r.icon) return perFile && (r.drive ? r.slowDrive : TH.remote) ? POOL_NET : POOL_FAST;
     return r.src == SRC_SHELL ? POOL_SHELL : TH.remote ? POOL_NET : r.src == SRC_WIC ? POOL_WIC : POOL_FAST;
 }
 
@@ -560,6 +563,7 @@ static void thSync(int first, int last) {
             if (ic.state == THS_NEW && !ic.queued) {
                 ThumbReq r;
                 r.key = key; r.dir = A.cur->path; r.name = name; r.attr = e.attr; r.drive = iconDrive(A.cur, e);
+                r.slowDrive = r.drive && slowDriveType((UINT)e.size); r.inZip = A.cur->zipLen != 0;
                 r.box = std::max(1, (int)(TH.forBox * ui::THUMB_ICON)); r.icon = true; r.sizeGen = TH.sizeGen;
                 ic.queued = true;
                 int pool = thPoolFor(r, perFile);
@@ -592,6 +596,7 @@ static void thApply() {
             if (ic.state != THS_NEW || ic.queued) return;
             ic.queued = true;
             q.icon = true;
+            q.inZip = t.inZip;
             q.box = std::max(1, (int)(TH.forBox * ui::THUMB_ICON));
         } else {
             q.key = r.key; q.src = t.src; q.box = r.box; q.image = t.kind == TK_IMAGE;

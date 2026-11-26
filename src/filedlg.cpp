@@ -18,12 +18,18 @@
 // Apri/Salva potrebbe confermare il nome appena rimesso dal primo (Salva salverebbe il file). Se
 // durante un salto si torna con un'altra cartella, vale l'ultima: il salto in corso si lascia se
 // non ha ancora toccato il campo del nome, altrimenti finisce e poi si fa l'ultima.
+// Che la cartella esista si controlla prima, fuori dal turno, con un thread per richiesta
+// (fdCheckThread): su una condivisione che non risponde il controllo aspetta il timeout di rete, e
+// dentro il turno farebbe aspettare in fila le richieste più nuove.
 struct FdWork {
     HWND dlg = nullptr;
     SRWLOCK lock = SRWLOCK_INIT; // solo per copiare want e i contatori: mai tenuto durante un messaggio
-    std::wstring want;           // cartella dell'ultima richiesta
-    unsigned gen = 0, taken = 0; // richieste arrivate, richieste prese dal thread
-    bool running = false;        // c'è un thread su questo dialogo
+    std::wstring want;           // cartella dell'ultima richiesta controllata
+    double wantAt = 0;           // quando è arrivata
+    unsigned gen = 0;            // richieste arrivate (thread UI)
+    unsigned ready = 0;          // l'ultima richiesta controllata, da fare (il suo gen)
+    unsigned taken = 0;          // l'ultima presa dal thread del salto
+    bool running = false;        // c'è un thread del salto su questo dialogo
 };
 
 struct FdDialog { HWND h; std::wstring lastPath; double lastFgAt; std::shared_ptr<FdWork> work; };
@@ -84,14 +90,14 @@ static bool fdStale(FdWork* w, unsigned gen) {
 // Un salto: aspetta il dialogo pronto, scrive la cartella nel campo del nome, preme Apri/Salva e
 // rimette il nome. Fino a che il campo non è cambiato, una richiesta più nuova fa lasciare questa;
 // dopo si va fino in fondo, perché solo così il nome proposto torna al suo posto.
-static void fdJump(FdWork* w, const std::wstring& path, unsigned gen) {
+// FD_WAIT_MAX vale dalla richiesta (askedAt): oltre, l'utente lavora già nel dialogo, e un salto
+// che arriva dopo lo porterebbe via da dove si trova.
+static void fdJump(FdWork* w, const std::wstring& path, unsigned gen, double askedAt) {
     double t0 = nowMs();
-    DWORD at = GetFileAttributesW(longPath(path).c_str());
-    if (at == INVALID_FILE_ATTRIBUTES || !(at & FILE_ATTRIBUTE_DIRECTORY)) return;
     HWND edit = nullptr;
     while (IsWindow(w->dlg) && !fdStale(w, gen)) {
+        if (nowMs() - askedAt >= ui::FD_WAIT_MAX) return; // dialogo che non si costruisce, o salto in ritardo
         if (fdReady(w->dlg) && (edit = fdNameEdit(w->dlg)) != nullptr) break;
-        if (nowMs() - t0 >= ui::FD_WAIT_MAX) return; // un dialogo che non si costruisce: si lascia stare
         Sleep(ui::FD_POLL);
     }
     if (!edit) return;
@@ -110,22 +116,62 @@ static void fdJump(FdWork* w, const std::wstring& path, unsigned gen) {
     InterlockedExchange64(&A.fdJumpUs, (LONG64)((nowMs() - t0) * 1000));
 }
 
-// Il thread di un dialogo: fa l'ultima richiesta finché ne arrivano, poi finisce
+// Il thread del salto di un dialogo: fa l'ultima richiesta controllata finché ne arrivano, poi finisce
 static DWORD WINAPI fdThread(void* p) {
     std::shared_ptr<FdWork> w = std::move(*(std::shared_ptr<FdWork>*)p);
     delete (std::shared_ptr<FdWork>*)p;
     for (;;) {
         AcquireSRWLockExclusive(&w->lock);
-        if (w->taken == w->gen) {
+        if (w->taken == w->ready) {
             w->running = false;
             ReleaseSRWLockExclusive(&w->lock);
             return 0;
         }
         std::wstring path = w->want;
-        unsigned gen = w->taken = w->gen;
+        double askedAt = w->wantAt;
+        unsigned gen = w->taken = w->ready;
         ReleaseSRWLockExclusive(&w->lock);
-        fdJump(w.get(), path, gen);
+        fdJump(w.get(), path, gen, askedAt);
     }
+}
+
+// Il thread del salto, se non c'è già (con il lock non preso)
+static void fdRunJumps(const std::shared_ptr<FdWork>& w) {
+    AcquireSRWLockExclusive(&w->lock);
+    bool start = !w->running && w->taken != w->ready;
+    if (start) w->running = true;
+    ReleaseSRWLockExclusive(&w->lock);
+    if (!start) return; // la richiesta la prende il thread che c'è già, appena finisce
+    auto* p = new std::shared_ptr<FdWork>(w);
+    HANDLE th = CreateThread(nullptr, 0, fdThread, p, 0, nullptr);
+    if (th) { CloseHandle(th); return; }
+    delete p;
+    AcquireSRWLockExclusive(&w->lock);
+    w->running = false;
+    w->taken = w->ready; // persa; la prossima cartella fa partire un thread
+    ReleaseSRWLockExclusive(&w->lock);
+}
+
+// Una richiesta: la cartella c'è ancora? Fuori dal turno del dialogo (vedi FdWork). Passa al salto
+// solo se è ancora l'ultima richiesta e non è passato FD_WAIT_MAX.
+struct FdCheck { std::shared_ptr<FdWork> w; std::wstring path; unsigned gen; double askedAt; };
+static DWORD WINAPI fdCheckThread(void* p) {
+    FdCheck* c = (FdCheck*)p;
+    DWORD at = GetFileAttributesW(longPath(c->path).c_str());
+    if (at != INVALID_FILE_ATTRIBUTES && (at & FILE_ATTRIBUTE_DIRECTORY) && nowMs() - c->askedAt < ui::FD_WAIT_MAX) {
+        FdWork* w = c->w.get();
+        AcquireSRWLockExclusive(&w->lock);
+        bool last = w->gen == c->gen;
+        if (last) {
+            w->want = c->path;
+            w->wantAt = c->askedAt;
+            w->ready = c->gen;
+        }
+        ReleaseSRWLockExclusive(&w->lock);
+        if (last) fdRunJumps(c->w);
+    }
+    delete c;
+    return 0;
 }
 
 // La finestra di [z]f visibile più in alto, tranne skip (FindWindowEx va in ordine di profondità;
@@ -170,25 +216,14 @@ static void CALLBACK fdOnForeground(HWINEVENTHOOK, DWORD, HWND h, LONG obj, LONG
             d->work->dlg = h;
         }
         FdWork* w = d->work.get();
-        // Il thread tiene il lock solo per copiare: qui non si aspetta
+        // I thread tengono il lock solo per copiare: qui non si aspetta. Una richiesta nuova fa
+        // lasciare il salto in corso, se non ha ancora toccato il campo del nome (fdStale).
         AcquireSRWLockExclusive(&w->lock);
-        w->want = A.cur->path;
-        w->gen++;
-        bool start = !w->running;
-        w->running = true;
+        unsigned gen = ++w->gen;
         ReleaseSRWLockExclusive(&w->lock);
-        if (start) { // altrimenti la richiesta la prende il thread che c'è già, appena finisce
-            auto* p = new std::shared_ptr<FdWork>(d->work);
-            HANDLE th = CreateThread(nullptr, 0, fdThread, p, 0, nullptr);
-            if (th) CloseHandle(th);
-            else {
-                delete p;
-                AcquireSRWLockExclusive(&w->lock);
-                w->running = false;
-                w->taken = w->gen; // persa, come prima; la prossima cartella fa partire un thread
-                ReleaseSRWLockExclusive(&w->lock);
-            }
-        }
+        FdCheck* c = new FdCheck{ d->work, A.cur->path, gen, nowMs() };
+        HANDLE th = CreateThread(nullptr, 0, fdCheckThread, c, 0, nullptr);
+        if (th) CloseHandle(th); else delete c; // persa; la prossima cartella ci riprova
     }
     A.fdHookMs = std::max(A.fdHookMs, nowMs() - t0);
 }

@@ -282,8 +282,9 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
     dà "Estratto e copiato: foto.jpg" / "Estratti e copiati 3 elementi"; un errore dice cosa e perché
     ("Impossibile estrarre a.txt: è danneggiato (e altri 2)"). Il trascinamento parte quando i file
     ci sono, col tasto ancora premuto, ed è sempre una copia. Uno zip dentro uno zip si apre nella
-    lista solo se l'utente è ancora nella scheda e nella cartella da cui l'ha chiesto (l'esito di
-    un lavoro non lo porta mai via da dove è andato nel frattempo); un file si apre comunque;
+    lista solo se è l'ultima apertura chiesta e l'utente è ancora nella scheda e nella cartella da
+    cui l'ha chiesto (l'esito di un lavoro non lo porta mai via da dove è andato nel frattempo); un
+    file si apre comunque;
   - un file cifrato o compresso in un modo che [z]f non conosce si lascia a Windows: avviso
     informativo ("a.txt è cifrato: si apre in Esplora file") ed Esplora file selezionato sulla voce.
 - **Rettangolo di selezione** (`listmouse.cpp`):
@@ -452,7 +453,9 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
     laterale) e "Apri con…" passano dallo stesso thread: la finestra di Windows (conferma,
     Proprietà, Apri con) compare quando la shell è pronta (20.000 file: circa 3 s per la
     conferma; una condivisione lenta: quanto la rete) e l'interfaccia intanto continua. Un clic
-    nell'attesa non la annulla: l'ha chiesta l'utente, ed è una finestra che aspetta;
+    nell'attesa non la annulla: l'ha chiesta l'utente, ed è una finestra che aspetta. Se Windows
+    non trova l'elemento la finestra non compare, e un avviso di errore dice cosa e perché
+    ("Impossibile aprire le Proprietà di Condivisione (G:): percorso di rete non trovato (codice 53)");
   - **dialoghi Apri e Salva degli altri programmi** (`filedlg.cpp`, opzione `dialoghi`): non
     sono nostri e non si disegnano, ma entrano nella cartella aperta nell'ultima finestra di [z]f
     usata, appena si aprono e quando ci si torna dopo aver cambiato cartella in [z]f. Nessun avviso
@@ -530,8 +533,9 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   quadrato arrotondato `C_BG`, gli stessi due colori dell'interfaccia. Forma geometrica, senza font:
   parentesi quadre con asta e grazie dello stesso spessore, "z" minuscola centrata fra le due.
   - misure: 16, 20, 24, 32, 40, 48, 64 (BMP a 32 bit) e 256 (PNG);
-  - 16 e 20 hanno un disegno a pixel fatto a mano, tratti di 2 px: ridotto da quello grande,
-    "[z]" diventerebbe una macchia. Dalla 24 in su la stessa geometria con i bordi agganciati ai
+  - 16 e 20 hanno un disegno a pixel fatto a mano, tratti di 2 px tranne le grazie delle
+    parentesi, di 1 px: ridotto da quello
+    grande, "[z]" diventerebbe una macchia. Dalla 24 in su la stessa geometria con i bordi agganciati ai
     pixel, angolo `0,22 ×` la misura; dalla 32 un margine trasparente di 1/32 della misura;
   - la finestra la prende alla misura del suo schermo (`appIconSet`, `chrome.cpp`), dopo il
     primo frame e a ogni cambio di DPI;

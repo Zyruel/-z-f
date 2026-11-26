@@ -21,7 +21,7 @@ static uint64_t zipJobStart(int kind, std::vector<uint32_t> items) {
     j->archive = A.cur->path.substr(0, A.cur->zipLen);
     for (uint32_t ei : items) j->items.push_back(joinPath(A.cur->path, A.cur->name(A.cur->e[ei])));
     j->firstAttr = A.cur->e[items[0]].attr;
-    j->tab = A.tab;
+    j->tab = A.tabs[(size_t)A.tab].id;
     j->from = A.cur->path;
     InterlockedExchange64(&g_zipLatest[kind], (LONG64)j->gen);
     HANDLE h = CreateThread(nullptr, 0, zipJobThread, j, 0, nullptr);
@@ -105,7 +105,7 @@ static void onZipJob(ZipJob* j) {
             // Un file invece si apre sempre, anche se superato: ogni doppio clic è una richiesta,
             // come fuori dagli zip, e la cartella in cui si è non conta per un programma esterno.
             if (zipNameEnd(j->out[0], j->out[0].size())) {
-                if (latest && A.tab == j->tab && A.cur && !A.loading && A.cur->path == j->from) navigate(j->out[0], 1, L"");
+                if (latest && A.tabs[(size_t)A.tab].id == j->tab && A.cur && !A.loading && A.cur->path == j->from) navigate(j->out[0], 1, L"");
             } else if (HANDLE h = CreateThread(nullptr, 0, openThread, _wcsdup(j->out[0].c_str()), 0, nullptr)) CloseHandle(h);
         } else if (j->err == ZE_CRYPT || j->err == ZE_METHOD) { // lo lasciamo a Windows: Esplora file, sulla voce
             notice(first + L" " + zipWhy(j->err) + L": si apre in Esplora file", true);

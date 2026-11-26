@@ -41,13 +41,17 @@ static void enableDarkMenus(HWND w) {
     if (allow) allow(w, TRUE);
 }
 
-static IShellFolder* bindFolder(const std::wstring& path) {
+// hr: perché non c'è (per l'avviso di un comando della shell)
+static IShellFolder* bindFolder(const std::wstring& path, HRESULT* hr = nullptr) {
     std::wstring p = path.empty() ? kThisPc : path;
     PIDLIST_ABSOLUTE pidl = nullptr;
-    if (FAILED(SHParseDisplayName(p.c_str(), nullptr, &pidl, 0, nullptr))) return nullptr;
+    HRESULT h = SHParseDisplayName(p.c_str(), nullptr, &pidl, 0, nullptr);
     IShellFolder* sf = nullptr;
-    SHBindToObject(nullptr, pidl, nullptr, IID_IShellFolder, (void**)&sf);
-    CoTaskMemFree(pidl);
+    if (SUCCEEDED(h)) {
+        h = SHBindToObject(nullptr, pidl, nullptr, IID_IShellFolder, (void**)&sf);
+        CoTaskMemFree(pidl);
+    }
+    if (hr) *hr = h;
     return sf;
 }
 
@@ -184,9 +188,10 @@ static bool clipSetFiles(const std::vector<uint32_t>& items, bool cut) {
 // shell sul thread del menu, con la finestra di [z]f come proprietaria dei dialoghi. Il thread resta
 // vivo dopo il primo uso (un'estensione può lasciargli finestre); se è ancora occupato da un comando
 // lungo, il menu successivo parte su un altro.
-// Sullo stesso thread vanno i comandi della shell senza menu (shellVerb: Shift+Canc, Proprietà, Apri
-// con, Copia e Taglia di unità): costruire l'oggetto della shell costa quanto per il menu, e su una
-// condivisione che non risponde aspetta il timeout di rete.
+// Sullo stesso thread vanno i comandi della shell senza menu: shellVerb sulle voci della lista
+// (Shift+Canc, Proprietà, Apri con, Copia e Taglia di unità) e shellVerbPath su un percorso intero
+// (Proprietà della cartella aperta e delle voci della barra laterale): costruire l'oggetto della
+// shell costa quanto per il menu, e su una condivisione che non risponde aspetta il timeout di rete.
 
 enum SmCmd { SM_NONE, SM_PASTE, SM_REFRESH, SM_RENAME, SM_RECYCLE, SM_PASTE_INTO, SM_COPY, SM_CUT };
 enum { SM_ID_PASTE = 0x8001, SM_ID_REFRESH = 0x8002, SM_THREADS_MAX = 4 };
@@ -202,6 +207,7 @@ struct SmReq {
     std::vector<std::wstring> names;             // voci (vuoto: sfondo)
     std::wstring path;                           // comando su un percorso intero, non su voci di folder (shellVerbPath)
     std::wstring cursorName;                     // voce del cursore: è lei che si rinomina
+    std::wstring what;                           // comando senza menu: su cosa, per l'avviso di errore
     bool background = false, drives = false, shift = false, pasteOk = false;
     POINT pt = {};
     std::wstring pasteLabel, refreshLabel, pasteDest;
@@ -209,8 +215,10 @@ struct SmReq {
 struct SmRes {
     int slot, cmd = SM_NONE, items = 0;
     bool verb = false;
+    HRESULT verbErr = S_OK;                      // comando: perché la shell non ha trovato le voci
+    std::string verbName;
     double buildMs = -1;                         // menu: costruzione; comando: tutto prima di InvokeCommand
-    std::wstring folder, cursorName, pasteDest;
+    std::wstring folder, cursorName, pasteDest, what;
     std::vector<std::wstring> names;
 };
 struct SmCtx { IContextMenu2* cm2 = nullptr; IContextMenu3* cm3 = nullptr; }; // sottomenu delle estensioni
@@ -246,44 +254,52 @@ static LRESULT CALLBACK smWndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
 // Menu della shell per un percorso intero, chiesto alla cartella che lo contiene (come Explorer):
 // vale per file, cartelle, unità (la cartella è Questo PC) e \\server\condivisione (è \\server).
 // Sul thread del menu: il percorso si analizza qui, e su una rete che non risponde aspetta.
-static IContextMenu* smMenuForPath(HWND w, const std::wstring& path) {
+// hr: perché non c'è
+static IContextMenu* smMenuForPath(HWND w, const std::wstring& path, HRESULT* hr = nullptr) {
     void* obj = nullptr;
     PIDLIST_ABSOLUTE pidl = nullptr;
-    if (SUCCEEDED(SHParseDisplayName(path.c_str(), nullptr, &pidl, 0, nullptr))) {
+    HRESULT h = SHParseDisplayName(path.c_str(), nullptr, &pidl, 0, nullptr);
+    if (SUCCEEDED(h)) {
         IShellFolder* parent = nullptr;
         PCUITEMID_CHILD child = nullptr;
-        if (SUCCEEDED(SHBindToParent(pidl, IID_IShellFolder, (void**)&parent, &child))) {
-            parent->GetUIObjectOf(w, 1, &child, IID_IContextMenu, nullptr, &obj);
+        h = SHBindToParent(pidl, IID_IShellFolder, (void**)&parent, &child);
+        if (SUCCEEDED(h)) {
+            h = parent->GetUIObjectOf(w, 1, &child, IID_IContextMenu, nullptr, &obj);
             parent->Release();
         }
         CoTaskMemFree(pidl);
     }
+    if (hr) *hr = h;
     return (IContextMenu*)obj;
 }
 
-// Menu della shell per le voci di folder (sfondo se names è vuoto), sul thread del menu
-static IContextMenu* smMenuFor(HWND w, const std::wstring& folder, const std::vector<std::wstring>& names) {
+// Menu della shell per le voci di folder (sfondo se names è vuoto), sul thread del menu.
+// hr: perché non c'è (l'ultima voce che la shell non ha trovato)
+static IContextMenu* smMenuFor(HWND w, const std::wstring& folder, const std::vector<std::wstring>& names, HRESULT* hr = nullptr) {
     // Percorso di rete in Questo PC: la voce è un \\server\condivisione intero, che Questo PC non
     // sa interpretare
     if (folder.empty() && names.size() == 1 && names[0].size() > 2 && names[0][0] == L'\\' && names[0][1] == L'\\')
-        return smMenuForPath(w, names[0]);
-    IShellFolder* sf = bindFolder(folder);
-    if (!sf) return nullptr;
+        return smMenuForPath(w, names[0], hr);
+    HRESULT h = S_OK;
+    IShellFolder* sf = bindFolder(folder, &h);
     void* obj = nullptr;
-    if (names.empty()) {
-        sf->CreateViewObject(w, IID_IContextMenu, &obj);
-    } else {
+    if (sf && names.empty()) {
+        h = sf->CreateViewObject(w, IID_IContextMenu, &obj);
+    } else if (sf) {
         std::vector<LPITEMIDLIST> pidls;
         pidls.reserve(names.size());
         for (const std::wstring& n : names) {
             LPITEMIDLIST child = nullptr;
-            if (SUCCEEDED(sf->ParseDisplayName(w, nullptr, (LPWSTR)n.c_str(), nullptr, &child, nullptr))) pidls.push_back(child);
+            HRESULT hp = sf->ParseDisplayName(w, nullptr, (LPWSTR)n.c_str(), nullptr, &child, nullptr);
+            if (SUCCEEDED(hp)) pidls.push_back(child);
+            else h = hp;
         }
         if (!pidls.empty())
-            sf->GetUIObjectOf(w, (UINT)pidls.size(), (LPCITEMIDLIST*)pidls.data(), IID_IContextMenu, nullptr, &obj);
+            h = sf->GetUIObjectOf(w, (UINT)pidls.size(), (LPCITEMIDLIST*)pidls.data(), IID_IContextMenu, nullptr, &obj);
         for (LPITEMIDLIST p : pidls) CoTaskMemFree(p);
     }
-    sf->Release();
+    if (sf) sf->Release();
+    if (hr) *hr = h;
     return (IContextMenu*)obj;
 }
 
@@ -308,19 +324,23 @@ static void smInvoke(IContextMenu* cm, const SmReq* r, LPCSTR verbA, LPCWSTR ver
 
 // Comando senza menu (shellVerb, shellVerbPath). Si esegue anche se nel frattempo l'utente ha
 // cliccato altrove: lo ha chiesto lui, e le finestre che apre (conferma, Proprietà, Apri con) sono
-// quelle che aspetta. Il tempo si misura anche se la shell non trova il percorso (rete che non risponde).
+// quelle che aspetta. Il tempo si misura anche se la shell non trova il percorso (rete che non
+// risponde); allora non compare niente, e l'avviso lo dà il thread UI (onShellMenu).
 static void smRunVerb(HWND w, const SmReq* r, SmRes* res) {
     res->verb = true;
+    res->verbName = r->verb;
+    res->what = r->what;
     res->items = r->path.empty() ? (int)r->names.size() : 1;
     double t0 = nowMs();
-    IContextMenu* cm = r->path.empty() ? smMenuFor(w, r->folder, r->names) : smMenuForPath(w, r->path);
+    HRESULT hr = S_OK;
+    IContextMenu* cm = r->path.empty() ? smMenuFor(w, r->folder, r->names, &hr) : smMenuForPath(w, r->path, &hr);
     // Alcune implementazioni vogliono QueryContextMenu prima di InvokeCommand.
     // CMF_DEFAULTONLY la tiene leggera: niente estensioni da caricare ("openas" funziona lo stesso).
     HMENU m = cm ? CreatePopupMenu() : nullptr;
     if (m) cm->QueryContextMenu(m, 0, 1, 0x7FFF, CMF_DEFAULTONLY);
     res->buildMs = nowMs() - t0;
     if (res->buildMs > ui::LOG_MENU) hitchLog("comando della shell lento", (unsigned)res->items, res->buildMs);
-    if (!cm) return;
+    if (!cm) { res->verbErr = FAILED(hr) ? hr : E_FAIL; return; }
     std::wstring verbW(r->verb.begin(), r->verb.end()); // ASCII
     smInvoke(cm, r, r->verb.c_str(), verbW.c_str(), r->shift, false, false);
     DestroyMenu(m);
@@ -500,6 +520,7 @@ static void shellVerb(const char* verb) {
     for (uint32_t ei : items) r->names.emplace_back(A.cur->name(A.cur->e[ei]), A.cur->e[ei].nameLen);
     r->drives = A.cur->isDrives;
     r->shift = GetKeyState(VK_SHIFT) < 0; // lo stato dei tasti è per thread: si legge qui
+    r->what = items.size() == 1 ? r->names[0] : std::to_wstring(items.size()) + L" elementi";
     smSend(r, L"Windows è ancora occupato con un altro comando");
 }
 
@@ -507,13 +528,34 @@ static void shellVerb(const char* verb) {
 // cartella aperta e delle voci della barra laterale (unità, percorsi di rete). Non
 // SHObjectProperties sul thread UI: la finestra avrebbe il suo thread, ma l'analisi del percorso no,
 // e una cartella su una condivisione che non risponde fermerebbe l'interfaccia per il timeout di rete.
-static void shellVerbPath(const char* verb, const std::wstring& path) {
+// what: il nome da dire nell'avviso di errore (vuoto: l'ultima parte del percorso, o tutto se è una radice)
+static void shellVerbPath(const char* verb, const std::wstring& path, const std::wstring& what = L"") {
     if (path.empty()) return;
     SmReq* r = new SmReq;
     r->main = A.hwnd;
     r->verb = verb;
     r->path = path;
+    size_t k = path.find_last_of(L'\\');
+    r->what = !what.empty() ? what : k != std::wstring::npos && k + 1 < path.size() ? path.substr(k + 1) : path;
     smSend(r, L"Windows è ancora occupato con un altro comando");
+}
+
+// Un comando della shell senza menu che non è partito (la shell non ha trovato le voci): cosa e
+// perché, perché altrimenti non comparirebbe niente
+static void smVerbFailed(const SmRes* r) {
+    const char* v = r->verbName.c_str();
+    std::wstring t = !strcmp(v, "properties") ? L"Impossibile aprire le Proprietà di "
+                   : !strcmp(v, "openas")     ? L"Impossibile mostrare \"Apri con\" per "
+                   : !strcmp(v, "delete")     ? L"Impossibile eliminare "
+                   : !strcmp(v, "copy")       ? L"Impossibile copiare "
+                   : !strcmp(v, "cut")        ? L"Impossibile tagliare "
+                                              : L"Impossibile eseguire il comando su ";
+    wchar_t code[32];
+    if (HRESULT_FACILITY(r->verbErr) == FACILITY_WIN32) _snwprintf(code, 31, L"%lu", (unsigned long)HRESULT_CODE(r->verbErr));
+    else _snwprintf(code, 31, L"0x%08lX", (unsigned long)r->verbErr);
+    code[31] = 0;
+    DWORD e = HRESULT_FACILITY(r->verbErr) == FACILITY_WIN32 ? (DWORD)HRESULT_CODE(r->verbErr) : 0;
+    notice(t + r->what + L": " + errWhy(e) + L" (codice " + code + L")", false);
 }
 
 // Fine di un menu o di un comando (WM_APP_SHELLMENU): le voci che fa [z]f, con i percorsi del
@@ -522,6 +564,7 @@ static void onShellMenu(SmRes* r) {
     if (r->slot >= 0 && r->slot < (int)g_sm.size()) g_sm[(size_t)r->slot].busy = false;
     if (r->buildMs >= 0 && r->verb) { A.verbMs = r->buildMs; A.verbItems = r->items; }
     else if (r->buildMs >= 0) { A.menuMs = r->buildMs; A.menuItems = r->items; }
+    if (r->verb && FAILED(r->verbErr)) smVerbFailed(r);
     bool here = A.cur && !_wcsicmp(A.cur->path.c_str(), r->folder.c_str());
     std::vector<std::wstring> paths;
     for (const std::wstring& n : r->names) paths.push_back(joinPath(r->folder, n.c_str()));
@@ -644,7 +687,7 @@ static void copyPaths(bool folder) {
                              one ? L"Impossibile copiare il percorso" : L"Impossibile copiare i percorsi" });
 }
 
-// Proprietà della selezione o della cartella aperta: sempre dal thread del menu (shellVerb)
+// Proprietà della selezione (shellVerb) o della cartella aperta (shellVerbPath): sempre dal thread del menu
 static void showProperties(bool folder) {
     if (!A.cur || zipNoShell()) return;
     if (folder) shellVerbPath("properties", A.cur->path);

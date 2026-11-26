@@ -47,7 +47,11 @@ struct PopupMenu {
 
 // Stato di una scheda. Quello della scheda attiva vive direttamente in App (il codice della vista
 // non sa nulla delle schede); cambiare scheda scambia i campi: O(1), nessuna copia.
+static uint32_t g_tabIds = 0; // thread UI
 struct TabState {
+    // Chi è la scheda, anche quando chiudendone una prima cambia il suo indice (l'esito di un lavoro
+    // la ritrova così). Ogni scheda costruita ne ha uno nuovo; spostarla lo conserva.
+    uint32_t id = ++g_tabIds;
     Listing* cur = nullptr;
     std::vector<uint32_t> order, view;
     std::vector<uint8_t> selFlags;
@@ -302,6 +306,7 @@ enum FsOp { FS_RENAME, FS_MKDIR };                // fileops.cpp: operazioni dir
 static void fsStart(int op, const std::wstring& a, const std::wstring& b, const std::wstring& name); // fileops.cpp
 static void pasteFiles(const std::wstring& dest = L""); // fileops.cpp: incolla i file degli appunti (vuoto: cartella aperta)
 static bool shellDropInto(HWND hwnd, IDataObject* data, const std::wstring& path, DWORD fx, POINTL pt, HRESULT& hr); // drag.cpp: rilascio alla shell, su un thread
+static const wchar_t* errWhy(DWORD err);          // fileops.cpp: perché un elemento non si è potuto usare, per gli avvisi
 static void deleteSelected();                     // fileops.cpp: selezione nel Cestino
 static void recyclePaths(std::vector<std::wstring> src); // fileops.cpp: questi percorsi nel Cestino
 static bool closeDeferred();                      // fileops.cpp: WM_CLOSE con operazioni sui file in corso

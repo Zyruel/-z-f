@@ -41,7 +41,8 @@ echo [avviso] fxc non trovato: gli shader saranno compilati all'avvio.
 del /q build\shader_vs.h build\shader_ps.h 2>nul
 
 :compile
-rem Risorse dell'exe (l'icona): rc e' nel Windows SDK, come fxc
+rem Risorse dell'exe (l'icona): rc e' nel Windows SDK, come fxc, ma non e' facoltativo: senza, la
+rem compilazione si ferma (l'exe resterebbe senza icona)
 rc /nologo /fo build\z-f.res src\z-f.rc || goto :fail
 rem shell32 e ole32 si caricano solo al primo uso (icone, menu, appunti), winhttp e bcrypt al primo
 rem controllo degli aggiornamenti: avvio piu' leggero

@@ -20,6 +20,45 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 000000000000000000000000000000. Correzioni del controllo prima della 1.0.0-beta.4 (z-f-dev, novembre 2026)
+
+I punti del controllo delle modifiche di questa versione: spazio delle unità lente azzerato se la
+lettura fallisce (`sidebar.cpp`), avviso quando Proprietà o "Apri con…" non trovano l'elemento
+(`shell.cpp`), controllo della cartella dei dialoghi fuori dal turno e `FD_WAIT_MAX` dalla
+richiesta (`filedlg.cpp`), niente errore degli appunti da un tentativo superato (`input.cpp`),
+icona della griglia in una cartella che si chiama come uno zip e coda delle unità appena
+connesse (`thumbs.cpp`), id stabile delle schede per lo zip nello zip (`zipout.cpp`, `app.h`),
+coda a parte per le icone di rete e ottiche anche in elenco, barra laterale e menu (`icons.cpp`).
+
+Provato da Claude su z-f-dev, in una cartella di prova con file finti:
+- [x] Alt+Invio su un file che la shell non sa trovare (nome con il punto finale, creato con
+      `\\?\`): avviso di errore "Impossibile aprire le Proprietà di fine.: non esiste più
+      (codice 2)"; F12 "comando della shell: preparazione" 3,1 ms;
+- [x] griglia in una cartella vera `x.zip` con due .exe: ognuno ha la sua icona, non quella
+      generica;
+- [x] due Copia percorso di fila con gli appunti occupati (`appunti-prova occupa 1.6`, tasti
+      mandati da uno script): tra la scadenza della prima (nel registro "appunti non scritti",
+      1050 ms) e la riuscita della seconda la barra di stato non mostra errori, poi "Percorso
+      copiato";
+- [x] `dialoghi-prova ritorno` (A e B locali): il dialogo entra in A e poi in B, nessuna conferma
+      del nome, nome proposto intatto; notifica sul thread UI al massimo 0,095 ms;
+- [x] icone dei .exe in `\\localhost\C$\Windows` (elenco): arrivano dalla coda nuova;
+- [x] zip dentro uno zip: si apre come prima;
+- [x] registro: solo le voci normali e quelle delle prove; MSVC: zero avvisi.
+
+Da provare a mano (serve un'unità o una rete che sparisce):
+- [ ] DVD nell'unità ottica, poi tolto (o un'unità di rete verso un server che si spegne): dopo il
+      giro delle voci lente la barra laterale non mostra più spazio libero e barra d'uso, e il
+      tooltip non ha più Capacità, Usato, Libero, come un'unità vuota;
+- [ ] Proprietà (Alt+Invio) della cartella aperta su un NAS spento: dopo l'attesa della rete,
+      l'avviso "Impossibile aprire le Proprietà di …: percorso di rete non trovato (codice 53)" o
+      simile, invece di niente;
+- [ ] dialogo Apri o Salva con [z]f in una cartella su una condivisione che non risponde, poi
+      ritorno con una cartella locale: il dialogo entra subito in quella locale, senza aspettare
+      la rete;
+- [ ] schede: doppio clic su uno zip dentro uno zip grande e, durante l'estrazione, chiusura di
+      una scheda a sinistra: finita l'estrazione si entra lo stesso nello zip interno.
+
 ## 00000000000000000000000000000. Zip: zip nello zip e trascinamento misurato (z-f-dev, novembre 2026)
 
 Correzione del controllo del codice (`zipout.cpp`, `drag.cpp`): uno zip dentro uno zip, finita

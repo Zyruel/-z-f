@@ -27,10 +27,11 @@ static int sysMetric(int m) {
 static int frameY() { return sysMetric(SM_CYFRAME) + sysMetric(SM_CXPADDEDBORDER); }
 
 // Icona della finestra (src\z-f.rc, disegnata da strumenti\icona.py) alla misura dello schermo su
-// cui sta: la grande per Alt+Tab, la piccola per la barra delle applicazioni. Si carica dopo il
-// primo frame e a ogni cambio di DPI: prima della finestra le due icone costavano 1–2 ms (misurato)
+// cui sta, grande e piccola (quale mostrare dove lo decide Windows). Si carica dopo il primo frame
+// e a ogni cambio di DPI: prima della finestra le due LoadImageW costavano 1,3–2,7 ms (misurato)
 // che ritardavano il contenuto; fino ad allora Windows mostra la sua icona generica. Il tempo è in
-// F12; oltre LOG_MSG va nel registro, perché qui non è dentro un messaggio e non si conterebbe.
+// F12; oltre LOG_MSG va nel registro, perché la chiamata dopo il primo frame (main.cpp) non è
+// dentro un messaggio e non si conterebbe (quella di onDpi sì).
 static void appIconSet() {
     static HICON iconBig, iconSmall;
     double t0 = nowMs();

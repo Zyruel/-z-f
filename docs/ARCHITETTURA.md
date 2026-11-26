@@ -260,18 +260,21 @@ contenuto salterebbe in basso proprio mentre si clicca.
 
 **Come funziona** (`icons.cpp`).
 
-- Due thread chiedono le icone alla shell (`SHGetFileInfo`):
+- Tre thread chiedono le icone alla shell (`SHGetFileInfo`):
   - `IQ_EXT`, partito da `iconInit` all'avvio: quasi tutte le icone si risolvono per estensione,
     senza toccare il disco;
   - `IQ_FILE`, partito alla prima richiesta: i tipi con un'icona propria per ogni file (exe, lnk,
-    ico, url…) e le unità usano il percorso reale.
+    ico, url…) e le unità usano il percorso reale;
+  - `IQ_SLOW`, partito alla prima richiesta: gli stessi, su un'unità di rete o ottica (`slowPath`;
+    per le unità di Questo PC il tipo letto con la lista), come i thread della rete delle miniature.
+    Elenco, barra laterale e menu di elenco passano tutti da `iconForKey`, che sceglie la coda.
 - Da dove viene l'icona (percorso vero, cartella o estensione) lo decide una funzione sola,
   `iconSource`, usata anche dalle miniature e dall'anteprima. I percorsi di rete di Questo PC hanno
   l'icona di cartella senza chiedere niente alla rete (`iconDrive`).
 - Anche per i file solo online si chiede il percorso vero: `SHGetFileInfo` su un segnaposto non lo
   scarica, la shell dà da sé l'icona generica del tipo, come in Explorer.
-- Il secondo thread aspetta che il primo abbia preparato le icone di sistema della shell
-  (`shellReady`).
+- Il secondo e il terzo thread aspettano che il primo abbia preparato le icone di sistema della
+  shell (`shellReady`).
 - L'alfa si ricava disegnando l'icona due volte, su nero e su bianco. Le icone vanno nell'atlante
   BGRA sulla GPU; finché un'icona non è pronta si vede un segnaposto, che l'icona sostituisce con
   una dissolvenza incrociata, e il thread UI non aspetta mai. Per la cache c'è anche una copia
@@ -280,7 +283,9 @@ contenuto salterebbe in basso proprio mentre si clicca.
 **Perché così.**
 
 - Il thread a parte per i percorsi reali esiste perché un collegamento su una condivisione
-  scollegata non deve fermare le icone di tutto il resto.
+  scollegata non deve fermare le icone di tutto il resto; quello per la rete e le unità ottiche,
+  perché un'unità di rete che non risponde non deve fermare le icone dei .exe e .lnk locali (la
+  griglia lo faceva già).
 - Le cartelle di rete di Questo PC non chiedono l'icona alla rete: una condivisione lenta faceva
   aspettare 20 s la sua icona e quelle delle unità in coda dietro, e passava la sua icona a tutte
   le cartelle.
@@ -423,7 +428,8 @@ tooltip su un JPEG), nessun file scaricato.
     rete e preferiti su di loro), una voce alla volta, consegnata appena pronta e abbinata per
     percorso e tipo alle voci attuali. Ne gira uno alla volta: le richieste arrivate intanto ne
     fanno uno alla fine. Intanto queste voci hanno il nome generico o i valori della lettura
-    precedente.
+    precedente; una lettura che fallisce (disco tolto, server spento) li azzera, come un'unità
+    vuota. I nomi dei preferiti cambiati si salvano una volta, a fine giro.
 - **Quando si rilegge:** quando si collega o scollega un'unità e quando si torna su [z]f (al
   massimo ogni `SIDE_RELOAD`, 5 s). Un'unità ottica si rilegge solo all'avvio e a
   `WM_DEVICECHANGE` (disco inserito o tolto).
@@ -513,7 +519,9 @@ thread, ognuna rifà la ricerca) si misura a parte con `prove\vai-a-misura.cpp`.
   Copia/Taglia di unità. `shellVerb` agisce sulla selezione con i verbi "delete", "properties",
   "openas", "copy", "cut"; `shellVerbPath` su un percorso intero (Proprietà della cartella aperta
   e delle voci della barra laterale), con l'oggetto chiesto alla cartella che lo contiene. La
-  finestra di "Apri con" è di OpenWith.exe, un processo a parte.
+  finestra di "Apri con" è di OpenWith.exe, un processo a parte. Se la shell non trova le voci
+  (rete che non risponde, cartella sparita) non compare niente: il motivo torna nel risultato
+  (`SmRes::verbErr`) e il thread UI dà l'avviso di errore (`smVerbFailed`).
 - Nel registro "menu della shell lento" e "comando della shell lento" oltre `LOG_MENU` (50 ms, sul
   thread); in F12 "comando della shell: preparazione".
 
@@ -676,7 +684,8 @@ lettore nostro, senza dipendenze e senza zipfldr della shell.
   trascinamento è quello di `dragObjectFor`. Oltre `LOADING_AFTER` la barra di stato dice
   "Estrazione dall'archivio…", rinnovato ogni `NOTICE_RENEW` finché dura.
 - **Uno zip dentro uno zip** si apre in [z]f solo se è l'ultima richiesta di apertura e l'utente è
-  ancora nella scheda e nella cartella da cui l'ha chiesto (salvate nel `ZipJob`) e non ne sta
+  ancora nella scheda e nella cartella da cui l'ha chiesto (salvate nel `ZipJob`; la scheda con
+  `TabState::id`, che non cambia chiudendone un'altra) e non ne sta
   caricando un'altra; la copia estratta resta in `%TEMP%\z-f` e il doppio clic successivo estrae di
   nuovo. Un file invece si apre sempre: ogni doppio clic è una richiesta, come fuori dagli zip, e
   la cartella in cui si è non conta per un programma esterno.
@@ -741,12 +750,18 @@ lettore nostro, senza dipendenze e senza zipfldr della shell.
   il suo elenco), controllando ogni `FD_POLL` per al massimo `FD_WAIT_MAX`, più `FD_SETTLE`
   (150 ms) di margine. Le risposte del dialogo si aspettano al massimo `FD_MSG_WAIT` (campo del
   nome) e `FD_OK_WAIT` (Apri/Salva). Tutti i tempi stanno in `theme.h`.
-- **Un salto alla volta per dialogo** (`FdWork`): ogni dialogo ha al più un thread, che fa
-  l'ultima cartella richiesta finché ne arrivano. Se si torna al dialogo con un'altra cartella
-  durante un salto, conta l'ultima: il salto in corso, finché non ha toccato il campo del nome
-  (attesa del dialogo, margine, lettura del nome), si lascia e si passa subito all'ultima; dopo va
-  fino in fondo, e l'ultima segue. Il thread UI scrive la richiesta sotto un lock che il thread
-  tiene solo per copiarla, quindi non aspetta.
+- **La cartella si controlla fuori dal turno** (`fdCheckThread`, un thread per richiesta): che
+  esista ancora lo chiede `GetFileAttributesW`, che su una condivisione che non risponde aspetta il
+  timeout di rete. La richiesta passa al salto solo se è ancora l'ultima e non è passato
+  `FD_WAIT_MAX` da quando è arrivata.
+- **Un salto alla volta per dialogo** (`FdWork`): ogni dialogo ha al più un thread del salto, che
+  fa l'ultima cartella controllata finché ne arrivano. Se si torna al dialogo con un'altra
+  cartella durante un salto, conta l'ultima: il salto in corso, finché non ha toccato il campo del
+  nome (attesa del dialogo, margine, lettura del nome), si lascia appena arriva la richiesta
+  nuova; dopo va fino in fondo, e l'ultima segue. `FD_WAIT_MAX` vale dalla richiesta, non dall'inizio
+  del salto: un salto che arriverebbe più tardi (dialogo lento a costruirsi, salto precedente da
+  finire) si lascia, perché intanto l'utente lavora già nel dialogo. Il thread UI scrive la
+  richiesta sotto un lock che i thread tengono solo per copiarla, quindi non aspetta.
 - Con più finestre di [z]f agisce l'ultima usata (HWND in memoria condivisa). Il tempo per F12
   (`A.fdJumpUs`, in µs) lo scrivono i thread dei dialoghi con `InterlockedExchange64`.
 
@@ -758,11 +773,17 @@ lettore nostro, senza dipendenze e senza zipfldr della shell.
   primo (Salva salverebbe il file).
 - Un salto che ha già toccato il campo del nome va fino in fondo, perché solo così il nome proposto
   torna al suo posto.
+- Il controllo della cartella dentro il turno faceva aspettare in fila, dietro una condivisione
+  lenta, anche le richieste più nuove. Fuori dal turno i controlli possono essere più d'uno
+  insieme, ma toccano solo il disco: sul campo del nome agisce sempre un thread solo.
 
 **Misurato:** notifica sul thread UI al massimo 0,14 ms, salto 290 ms sul thread (quasi tutto
 attesa del dialogo). Con `prove\dialoghi-prova.cpp ritorno` (Salva, cartelle locali; `ritorno`
 simula il ritorno rapido senza mouse): 220 ms dalla comparsa del dialogo alla cartella, l'ultima in
-coda 180 ms dopo la precedente, un salto lasciato a metà non aggiunge niente (235 ms).
+coda 180 ms dopo la precedente, un salto lasciato a metà non aggiunge niente (235 ms). Con il
+controllo della cartella su un thread suo (novembre 2026, stessa prova): notifica sul thread UI al
+massimo 0,095 ms (crea il thread di controllo), A 254 ms dopo il ritorno, B 210 ms dopo il suo,
+nessuna conferma del nome, nome proposto intatto.
 
 ## [z]f al posto di Explorer
 
@@ -803,8 +824,10 @@ coda 180 ms dopo la precedente, un salto lasciato a metà non aggiunge niente (2
   (Windows permette di rinominare un exe in esecuzione), `z-f.exe.nuovo` → `z-f.exe`; se il
   secondo passo fallisce si rimette il primo. Un'altra finestra che controlla dopo lo scambio trova
   già sul disco l'exe giusto (`z-f.old.exe` c'è e l'impronta di `z-f.exe` coincide) e non scarica
-  di nuovo. Al primo frame la versione nuova cancella `z-f.old.exe` su un thread e dice "Aggiornato
-  a [z]f …".
+  di nuovo. Dopo il primo frame (`updStartup`) la versione nuova cancella `z-f.old.exe` su un
+  thread e dice "Aggiornato a [z]f …". Dopo "Aggiorna" la versione di prima la lancia mentre sta
+  ancora uscendo, e finché il suo processo c'è il suo exe non si può cancellare: il thread aspetta
+  che esca, al massimo `UPD_OLD_WAIT` (10 s).
 - **Quando non scambia:** se la cartella non è scrivibile o la Release non ha l'exe firmato,
   l'avviso dice che c'è una versione nuova e un clic apre la sua pagina. Mai su un exe in rete né
   nelle build compilate con `ZF_DEV` (`build_zig.bat`).
