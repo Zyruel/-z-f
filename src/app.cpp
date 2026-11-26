@@ -4,7 +4,7 @@
 static float colRoom() { return A.listR - A.sbW - A.padX - A.listX - px(ui::COL_NAME_MIN); }
 
 // Colonna Destinazione: in elenco, nelle cartelle con almeno un collegamento (links.cpp)
-static bool linkColumn() { return !A.grid && A.cur && !A.cur->lnk.empty(); }
+static bool linkColumn() { return A.zoom == ZOOM_DETAILS && A.cur && !A.cur->lnk.empty(); }
 
 // Larghezza massima di Destinazione con Data in dateX: mai più larga di Nome. Senza questo
 // limite, con la finestra stretta Nome restava al suo minimo e lo spazio in più andava tutto a
@@ -77,20 +77,29 @@ static void layout() {
     if (A.linkW > 0) A.linkW = std::max(mn, std::min(A.linkW, linkMax(A.dateX)));
     A.linkX = A.dateX - A.linkW;
     A.nameEnd = A.linkX - A.padX; // senza Destinazione linkX è dateX
-    // Voci: in elenco una colonna alta una riga. In griglia il riquadro della miniatura a GAP_M dai
+    // Voci: in Dettagli una colonna di righe. In Icone il riquadro della miniatura a GAP_M dai
     // bordi, sotto il nome su GRID_NAME_LINES righe; le voci di una riga si dividono la larghezza.
+    // In Elenco colonne larghe LIST_COL_W di righe alte una riga, quante ne stanno sopra la barra di
+    // scorrimento orizzontale (alta sbW, in fondo alla lista).
     float lw = A.listR - A.sbW - A.listX;
-    if (A.grid) {
+    if (gridView()) {
         float m = px(ui::GAP_S), pad = px(ui::GAP_M);
-        A.thumbPx = px(ui::THUMB_PX[A.thumbSize]);
-        A.cols = std::max(1, (int)((lw - m * 2) / (A.thumbPx + pad * 2)));
-        A.cellW = floorf((lw - m * 2) / A.cols);
+        A.thumbPx = px(ui::THUMB_PX[A.zoom - ZOOM_ICONS]);
+        A.perLine = std::max(1, (int)((lw - m * 2) / (A.thumbPx + pad * 2)));
+        A.cellW = floorf((lw - m * 2) / A.perLine);
         A.cellX = A.listX + m;
         A.cellH = pad * 2 + A.thumbPx + px(ui::GAP_S) + ui::GRID_NAME_LINES * (float)F.lineH +
                   (ui::GRID_NAME_LINES - 1) * px(ui::LINE_GAP);
+    } else if (listView()) {
+        float m = px(ui::GAP_XS); // più GAP_XS di fondo: le righe cominciano a GAP_S come in Dettagli
+        A.thumbPx = 0;
+        A.cellH = A.rowH;
+        A.perLine = std::max(1, (int)((A.listH - A.sbW) / A.rowH));
+        A.cellW = std::max(1.0f, std::min(px(ui::LIST_COL_W), lw - m * 2));
+        A.cellX = A.listX + m;
     } else {
         A.thumbPx = 0;
-        A.cols = 1;
+        A.perLine = 1;
         A.cellW = lw;
         A.cellX = A.listX;
         A.cellH = A.rowH;
@@ -122,15 +131,15 @@ static int panelEdgeAt(int x, int y) {
     return -1;
 }
 static int colBorderAt(int x, int y) {
-    if (A.grid) return -1; // in griglia l'intestazione ha solo le etichette per ordinare
+    if (A.zoom != ZOOM_DETAILS) return -1; // in Elenco e Icone l'intestazione ha solo le etichette per ordinare
     if (y < A.sideTop || y >= A.listTop || x < A.listX || x >= A.listR - A.sbW) return -1;
     for (int b = A.linkW > 0 ? 2 : 1; b >= 0; b--)
         if (fabsf(x - colBorderX(b)) <= px(ui::COL_GRIP)) return b;
     return -1;
 }
-// Colonna dell'intestazione sotto x; in griglia l'etichetta (sortX, dal disegno), -1 fuori
+// Colonna dell'intestazione sotto x; in Elenco e Icone l'etichetta (sortX, dal disegno), -1 fuori
 static int colAt(int x) {
-    if (A.grid) {
+    if (A.zoom != ZOOM_DETAILS) {
         for (int c = 0; c < 3; c++)
             if (x >= A.sortX[c] - px(ui::GAP_S) && x < A.sortX[c + 1] - px(ui::GAP_XL) + px(ui::GAP_S)) return c;
         return -1;
@@ -163,28 +172,49 @@ static float hoverAlpha(const HoverFade& h, int i) { return i < 0 ? 0 : i == h.c
 
 static float easeOut(float t) { t = t < 0 ? 0 : (t > 1 ? 1 : t); float u = 1 - t; return 1 - u * u * u; }
 
-static float contentH() { return (float)((A.view.size() + A.cols - 1) / A.cols) * A.cellH; }
-static float maxScroll() { return std::max(0.0f, contentH() - A.listH); }
+// --- scorrimento: le voci stanno su linee (righe; colonne in Elenco), che scorrono lungo un asse
+// Lunghezza di una linea e spazio visibile lungo l'asse
+static float lineLen() { return listView() ? A.cellW : A.cellH; }
+static float viewLen() { return listView() ? A.listR - A.sbW - A.listX - (A.cellX - A.listX) * 2 : A.listH; }
+static float contentLen() { return (float)((A.view.size() + A.perLine - 1) / A.perLine) * lineLen(); }
+static float maxScroll() { return std::max(0.0f, contentLen() - viewLen()); }
 static void clampScroll() {
     A.scrollTarget = std::min(std::max(A.scrollTarget, 0.0f), maxScroll());
     A.scrollY = std::min(std::max(A.scrollY, 0.0f), maxScroll());
 }
+// Di quanto lo scorrimento sposta le voci (pixel interi): in y, in Elenco in x
+static void scrollOffset(float& ox, float& oy) {
+    float s = floorf(A.scrollY);
+    ox = listView() ? s : 0;
+    oy = listView() ? 0 : s;
+}
 
 // --- voci: un solo posto per "rettangolo di una voce" e "voce sotto il punto" ----------------
-// Elenco e griglia passano da qui (in elenco: una colonna alta una riga).
+// Dettagli, Elenco e Icone passano da qui (in Dettagli: una colonna alta una riga).
 struct Box { float x, y, w, h; };
-// Rettangolo della voce vi: x nella finestra, y nel contenuto (0 = inizio della lista, senza scorrimento)
+// Rettangolo della voce vi nel contenuto, senza scorrimento: x come nella finestra, y da 0 =
+// inizio della lista. Nella finestra: (x - ox, listTop + y - oy), con scrollOffset.
 static Box itemRect(int vi) {
-    int c = vi % A.cols, r = vi / A.cols;
-    return { A.cellX + c * A.cellW, r * A.cellH, A.cellW, A.cellH };
+    int line = vi / A.perLine, k = vi % A.perLine;
+    if (listView()) return { A.cellX + line * A.cellW, k * A.cellH, A.cellW, A.cellH };
+    return { A.cellX + k * A.cellW, line * A.cellH, A.cellW, A.cellH };
 }
-// Fondo di hover, selezione e cursore: in elenco con un margine di GAP_S ai lati, in griglia di
-// GAP_XS tutto intorno (le voci vicine non si toccano)
+// Fondo di hover, selezione e cursore: in Dettagli con un margine di GAP_S ai lati, in Elenco di
+// GAP_XS ai lati (le colonne non si toccano, le righe sì), in Icone di GAP_XS tutto intorno
 static Box itemBg(int vi) {
     Box b = itemRect(vi);
-    if (!A.grid) return { A.listX + px(ui::GAP_S), b.y, b.w - px(ui::GAP_S) * 2, b.h };
+    if (A.zoom == ZOOM_DETAILS) return { A.listX + px(ui::GAP_S), b.y, b.w - px(ui::GAP_S) * 2, b.h };
     float m = px(ui::GAP_XS);
+    if (listView()) return { b.x + m, b.y, b.w - m * 2, b.h };
     return { b.x + m, b.y + m, b.w - m * 2, b.h - m * 2 };
+}
+// Elenco: icona, inizio e fine del nome di una voce (x come itemRect). Icona e nome stanno nella
+// colonna dove stanno nella riga di Dettagli (A.iconX, A.nameX, misurati dal disegno)
+struct RowParts { float iconX, nameX, nameEnd; };
+static RowParts listParts(int vi) {
+    Box b = itemRect(vi), bg = itemBg(vi);
+    float d = b.x - A.cellX;
+    return { A.iconX + d, A.nameX + d, bg.x + bg.w - px(ui::GAP_S) };
 }
 // Griglia: riquadro della miniatura e spazio del nome di una voce (stesse coordinate di itemRect)
 struct CellParts { Box thumb, name; };
@@ -197,24 +227,28 @@ static CellParts gridParts(int vi) {
 // Voce sotto il punto (coordinate della finestra), -1 se nessuna
 static int itemAt(int x, int y) {
     if (y < A.listTop || y >= A.listTop + A.listH || x < A.listX || x >= A.listR - A.sbW) return -1;
-    int r = (int)((y - A.listTop + floorf(A.scrollY)) / A.cellH);
-    int c = A.grid ? (int)floorf((x - A.cellX) / A.cellW) : 0;
-    if (r < 0 || c < 0 || c >= A.cols) return -1;
-    int i = r * A.cols + c;
+    float ox, oy;
+    scrollOffset(ox, oy);
+    float cx = x + ox - A.cellX, cy = y - A.listTop + oy;
+    int line, k;
+    if (listView()) { line = (int)floorf(cx / A.cellW); k = (int)floorf(cy / A.cellH); }
+    else { line = (int)floorf(cy / A.cellH); k = gridView() ? (int)floorf(cx / A.cellW) : 0; }
+    if (line < 0 || k < 0 || k >= A.perLine) return -1;
+    int i = line * A.perLine + k;
     return i < (int)A.view.size() ? i : -1;
 }
 // Prima voce visibile (per tenerla in vista quando cambia la geometria)
-static int firstVisibleItem() { return A.cellH > 0 ? (int)(A.scrollY / A.cellH) * A.cols : 0; }
+static int firstVisibleItem() { return lineLen() > 0 ? (int)(A.scrollY / lineLen()) * A.perLine : 0; }
 static void scrollToItem(int vi) {
-    A.scrollY = A.scrollTarget = (float)(vi / A.cols) * A.cellH;
+    A.scrollY = A.scrollTarget = (float)(vi / A.perLine) * lineLen();
 }
 
 static void ensureVisible() {
     if (A.view.empty()) return;
-    float top = itemRect(A.sel).y;
+    float top = (float)(A.sel / A.perLine) * lineLen(), len = lineLen(), view = viewLen();
     float s = A.scrollTarget;
     if (top < s) s = top;
-    else if (top + A.cellH > s + A.listH) s = top + A.cellH - A.listH;
+    else if (top + len > s + view) s = top + len - view;
     A.scrollTarget = A.scrollY = s; // da tastiera: niente animazione, deve sembrare immediato
     clampScroll();
 }
@@ -483,7 +517,7 @@ static void onListing(Listing* l) {
     selOnly(A.sel);
     A.renaming = false;
     A.menu.open = false;
-    A.grid = viewIsGrid(l->path); // la vista è della cartella (viste.txt)
+    A.zoom = viewZoomOf(l->path); // la vista è della cartella (viste.txt)
     layout();
     ensureVisible();
     startWatch(l->path);
@@ -687,10 +721,20 @@ static const wchar_t* driveKind(UINT t) {
     }
 }
 
-static bool thumbRect(float& ty, float& th) {
-    float ch = contentH();
-    if (ch <= A.listH || A.listH <= 0) return false;
-    th = std::max(px(ui::THUMB_MIN), A.listH * A.listH / ch);
-    ty = A.listTop + (A.scrollY / maxScroll()) * (A.listH - th);
+// Barra di scorrimento: a destra della lista, in Elenco orizzontale in fondo alla lista. Il binario
+// va da trackStart per trackLen lungo l'asse (x in Elenco, y altrimenti)
+static float trackStart() { return listView() ? A.listX : A.listTop; }
+static float trackLen() { return listView() ? A.listR - A.sbW - A.listX : A.listH; }
+// Il punto (x, y) è sulla barra di scorrimento, con o senza maniglia
+static bool scrollbarAt(int x, int y) {
+    if (listView()) return y >= A.listTop + A.listH - A.sbW && y < A.listTop + A.listH && x >= A.listX && x < A.listR - A.sbW;
+    return x >= A.listR - A.sbW && x < A.listR && y >= A.listTop && y < A.listTop + A.listH;
+}
+// Maniglia: inizio (nella finestra) e lunghezza lungo l'asse; false se non c'è niente da scorrere
+static bool thumbRect(float& t0, float& tl) {
+    float cl = contentLen(), vl = viewLen(), track = trackLen();
+    if (cl <= vl || vl <= 0 || track <= 0) return false;
+    tl = std::max(px(ui::THUMB_MIN), track * vl / cl);
+    t0 = trackStart() + (A.scrollY / maxScroll()) * (track - tl);
     return true;
 }

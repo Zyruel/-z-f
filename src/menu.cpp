@@ -111,11 +111,32 @@ static void menuOpenDrop(float cx, float cy, DWORD allowed, DWORD preferred) {
 }
 
 // Spazio vuoto della barra delle schede: comandi dell'applicazione
-// Elenco ↔ griglia: la voce mostra la scorciatoia della vista in cui porta (in griglia la
-// dimensione di sempre)
+// Dettagli ↔ Icone: la voce mostra la scorciatoia della vista in cui porta. Tutte le viste sono
+// nel menu della vista, nella barra di stato (menuOpenView)
 static void menuAddView() {
-    if (A.grid) menuAdd(L"Mostra come elenco", M_VIEW_LIST);
-    else menuAdd(L"Mostra come griglia", M_GRID_S + A.thumbSize);
+    if (A.zoom == ZOOM_DETAILS) menuAdd(L"Mostra come icone", M_ICONS_M);
+    else menuAdd(L"Mostra come dettagli", M_VIEW_DETAILS);
+}
+
+// Menu della vista, dal suo controllo nella barra di stato: la vista attuale ha il segno di spunta
+// (le icone solo se lo zoom è uno dei tre delle scorciatoie). Si apre sopra il controllo, allineato
+// al suo bordo destro (cx)
+static void menuOpenView(float cx, float cy) {
+    double t0 = nowMs();
+    PopupMenu& m = A.menu;
+    m.items.clear();
+    m.kind = MENU_VIEW;
+    m.target = -1;
+    static const struct { const wchar_t* label; int id, zoom; } kViews[] = {
+        { L"Dettagli", M_VIEW_DETAILS, ZOOM_DETAILS }, { L"Elenco", M_VIEW_LIST, ZOOM_LIST },
+        { L"Icone piccole", M_ICONS_S, ZOOM_SMALL }, { L"Icone medie", M_ICONS_M, ZOOM_MEDIUM }, { L"Icone grandi", M_ICONS_L, ZOOM_LARGE },
+    };
+    for (const auto& v : kViews) {
+        menuAdd(v.label, v.id);
+        if (v.zoom == A.zoom) m.items.back().icon = 3;
+    }
+    menuPlace(cx, cy, false, t0);
+    if (m.x + m.w > cx) { m.x = std::max(px(ui::GAP_XS), floorf(cx - m.w)); } // allineato a destra anche se ci starebbe
 }
 
 static void menuOpenApp(float cx, float cy) {
@@ -347,8 +368,11 @@ static void menuRun(int id, const CmdCtx& c) {
     case M_VERSION:     updAction(); break; // versione nuova pronta: riavvia; da scaricare a mano: la Release
     case M_GOTO:        gotoOpen(); break;
     case M_PREVIEW:     previewToggle(); break;
-    case M_GRID_S: case M_GRID_M: case M_GRID_L: viewSet(true, id - M_GRID_S); break;
-    case M_VIEW_LIST:   viewSet(false, -1); break;
+    case M_ICONS_S:       viewZoom(ZOOM_SMALL); break;
+    case M_ICONS_M:       viewZoom(ZOOM_MEDIUM); break;
+    case M_ICONS_L:       viewZoom(ZOOM_LARGE); break;
+    case M_VIEW_LIST:    viewZoom(ZOOM_LIST); break;
+    case M_VIEW_DETAILS: viewZoom(ZOOM_DETAILS); break;
     case M_NEW_WINDOW: { // un'altra finestra di [z]f sulla stessa cartella
         std::wstring exe = exePath(), args = L"\"" + exe + L"\" --new-window";
         if (A.cur && !A.cur->path.empty()) {
@@ -463,8 +487,13 @@ static void onContextMenu(POINT pt) {
         background = A.view.empty();
         if (!background) ensureVisible();
         Box b = background ? Box{ A.listX, 0, 0, A.rowH } : itemRect(A.sel);
-        c.x = background || !A.grid ? (LONG)(A.listX + px(ui::MENU_KEYBOARD_X)) : (LONG)(b.x + b.w * 0.5f);
-        c.y = (LONG)(A.listTop + b.y + b.h - A.scrollY);
+        float ox, oy;
+        scrollOffset(ox, oy);
+        if (background) ox = oy = 0;
+        // Dettagli ed Elenco: poco dentro la riga (in Elenco, la sua colonna); Icone: a metà della voce
+        c.x = background || A.zoom == ZOOM_DETAILS ? (LONG)(A.listX + px(ui::MENU_KEYBOARD_X))
+            : listView() ? (LONG)(b.x - ox + px(ui::MENU_KEYBOARD_X)) : (LONG)(b.x + b.w * 0.5f);
+        c.y = (LONG)(A.listTop + b.y + b.h - oy);
         pt = c;
         ClientToScreen(A.hwnd, &pt);
     } else {

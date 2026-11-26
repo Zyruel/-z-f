@@ -9,8 +9,8 @@
 // Windows 11 il pulsante ingrandisci mostra gli snap layout). I clic sui pulsanti arrivano come
 // messaggi non client e li gestisce [z]f.
 
+// La vista (Dettagli, Elenco, Icone) non è qui: sta nella barra di stato, accanto ai contatori
 enum ChromeId { CH_NONE = -1, CH_MENU = 1, CH_SIDEBAR, CH_MIN, CH_MAX, CH_CLOSE, CH_BACK, CH_FWD, CH_UP, CH_STAR,
-               CH_VIEW,       // elenco ↔ griglia
                CH_PREVIEW }; // anteprima: l'ultimo a destra nella riga del percorso
 
 typedef int(WINAPI* PFN_GetSystemMetricsForDpi)(int, UINT);
@@ -67,7 +67,7 @@ static bool chromeRect(int id, float& x, float& y, float& w, float& h) {
     case CH_BACK: case CH_FWD: case CH_UP:
         x = px(ui::GAP_S) + (id - CH_BACK) * A.navW; y = A.pathY + floorf((A.topH - A.rowH) * 0.5f);
         w = A.navW; h = A.rowH; return true;
-    case CH_STAR: case CH_VIEW: case CH_PREVIEW: // a destra: ☆ ▦ ◨
+    case CH_STAR: case CH_PREVIEW: // a destra: ☆ ◨
         x = W - px(ui::GAP_S) - A.navW * (CH_PREVIEW + 1 - id); y = A.pathY + floorf((A.topH - A.rowH) * 0.5f);
         w = A.navW; h = A.rowH; return true;
     }
@@ -116,7 +116,6 @@ static void chromeExec(int id) {
     case CH_FWD:     goForward(); break;
     case CH_UP:      goUp(); break;
     case CH_STAR:    favToggle(A.cur->path); break;
-    case CH_VIEW:    viewSet(!A.grid, -1); break;
     case CH_PREVIEW: previewToggle(); break;
     }
     A.dirty = true;
@@ -223,7 +222,6 @@ static void drawChromeButton(int id, bool toolbar) {
         if (fav) col = C_ACCENT;
         break;
     }
-    case CH_VIEW:    cp = IC_GRID; if (A.grid && en) col = C_TEXT; break; // in griglia: come ◨ aperta
     case CH_PREVIEW: cp = IC_PREVIEW; if (A.prevOpen && en) col = C_TEXT; break; // aperta: come ▯ con la barra laterale
     }
     drawUiIcon(x, y, w, h, cp, col);
@@ -247,6 +245,5 @@ static void drawChromeToolbar() {
     drawChromeButton(CH_FWD, true);
     drawChromeButton(CH_UP, true);
     drawChromeButton(CH_STAR, true);
-    drawChromeButton(CH_VIEW, true);
     drawChromeButton(CH_PREVIEW, true);
 }

@@ -28,8 +28,9 @@ bit (provato su Windows 11).
   con le sottocartelle suggerite.
 - **Lista:** filtro mentre scrivi, ordinamento naturale, selezione multipla e col rettangolo,
   colonne ridimensionabili, tooltip con le informazioni di file, cartelle e unità.
-- **Anteprima** (Alt+P) di immagini, testo e cartelle, e **griglia con miniature**
-  (Ctrl+Shift+2/3/4).
+- **Anteprima** (Alt+P) di immagini, testo e cartelle.
+- **Viste con lo zoom** (Ctrl+rotellina): Dettagli, Elenco a colonne, Icone con le miniature da
+  piccole a molto grandi; la vista si ricorda per cartella.
 - **Operazioni sui file** con il motore di Explorer (avanzamento, conflitti, permessi), **annulla e
   ripeti** (Ctrl+Z, Ctrl+Y), trascinamento da e verso le altre app, rinomina nella riga.
 - **Zip come cartelle**, in sola lettura: si sfogliano e se ne aprono, copiano e trascinano fuori
@@ -123,8 +124,9 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 |---|---|
 | Ctrl+B | Mostra o nasconde la barra laterale |
 | Alt+P | Mostra o nasconde l'anteprima |
-| Ctrl+Shift+2 · Ctrl+Shift+3 · Ctrl+Shift+4 | Griglia: miniature grandi · medie · piccole |
-| Ctrl+Shift+6 | Elenco |
+| Ctrl+rotellina | Zoom della lista: Dettagli, Elenco, Icone da 20 a 100% |
+| Ctrl+Shift+2 · Ctrl+Shift+3 · Ctrl+Shift+4 | Icone grandi · medie · piccole |
+| Ctrl+Shift+5 · Ctrl+Shift+6 | Elenco · Dettagli |
 | Trascina il bordo di un pannello · doppio clic | Larghezza di barra laterale o anteprima · predefinita |
 | Clic sull'intestazione | Ordina per colonna (di nuovo: al contrario) |
 | Trascina il bordo di una colonna · doppio clic | Larghezza della colonna · adatta al contenuto |
@@ -132,9 +134,8 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Trascina tra i preferiti | Aggiunge le cartelle ai preferiti |
 | Trascina un preferito | Lo sposta tra gli altri (solo l'ordine) |
 | Clic su Preferiti · sulla freccia di Questo PC | Chiude o riapre i preferiti · le unità |
-| Ctrl+rotellina · Ctrl+/− | Dimensione del testo |
+| Ctrl+/− | Dimensione del testo |
 | Ctrl+0 | Dimensione del testo predefinita |
-| Ctrl+rotellina in griglia | Dimensione delle miniature |
 | Ctrl+, | Opzioni |
 | F12 | Statistiche e tempi |
 

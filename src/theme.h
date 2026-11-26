@@ -114,11 +114,13 @@ constexpr float PH_FILE_X = 0.15f, PH_FILE_W = 0.7f;
 // frazione della finestra; icona grande per i file senza anteprima
 constexpr float PREVIEW_W = 360, PREVIEW_MIN = 220, PREVIEW_MAX = 0.5f;
 constexpr float PREVIEW_ICON = 96;
-// Vista a griglia: lato del riquadro delle miniature (piccole, medie, grandi); icona dei file
-// senza miniatura in frazione del riquadro; righe del nome sotto la miniatura
-constexpr float THUMB_PX[3] = { 96, 160, 256 };
+// Vista a icone: lato del riquadro delle miniature per ogni livello di zoom, da 20% a 100% (Ctrl+rotellina;
+// Ctrl+Shift+4/3/2 portano a 40, 70 e 100%: ZOOM_SMALL, ZOOM_MEDIUM, ZOOM_LARGE in app.h); icona
+// dei file senza miniatura in frazione del riquadro; righe del nome sotto la miniatura
+constexpr float THUMB_PX[9] = { 64, 80, 96, 112, 128, 160, 192, 224, 256 };
 constexpr float THUMB_ICON = 0.5f;
 constexpr int GRID_NAME_LINES = 2;
+constexpr float LIST_COL_W = 300;  // vista Elenco (zoom 10%): larghezza di una colonna di voci
 // Anello di punti di un lavoro in corso (controllo dell'aggiornamento): punti fermi, ne gira solo
 // la luminosità, come l'anello di avanzamento di Windows. Diametro in frazione dell'icona
 constexpr int SPIN_DOTS = 8;
@@ -136,7 +138,7 @@ constexpr float TAU_CURSOR = 24;   // cursore che scivola tra le righe
 constexpr float TAU_LIST_IN = 35;  // cartella nuova che entra
 constexpr float TAU_TAB_LINE = 30; // indicatore della scheda attiva
 constexpr float TAU_SCROLL = 45;   // scorrimento con la rotellina
-constexpr int WHEEL_LINES = 3;     // righe per scatto della rotellina (lista, menu, pannelli; non la griglia)
+constexpr int WHEEL_LINES = 3;     // righe per scatto della rotellina (lista, menu, pannelli; non Icone ed Elenco, che scorrono di una riga o colonna di voci)
 // Durate fisse (ease-out)
 constexpr float DUR_MENU = 90, DUR_TIP = 80, DUR_ICON = 110;
 // Unica animazione continua (DESIGN.md §5): un giro dell'anello di punti, solo mentre un lavoro è in corso

@@ -20,6 +20,37 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 00000000000000000000000000000000000000000. Zoom della lista e vista nella barra di stato (z-f-dev, novembre 2026)
+
+Ctrl+rotellina passa per Dettagli (0%), Elenco (10%, nuovo) e Icone da 20 a 100%; il controllo
+della vista è nella barra di stato, il pulsante ▦ della riga del percorso non c'è più. Compilato
+senza avvisi (MSVC).
+
+Provato da Claude in z-f-dev, nella cartella di prova di `griglia-prova.py` (904 file):
+- [x] Ctrl+Shift+5: Elenco, colonne di voci, barra di scorrimento orizzontale in fondo; la
+      rotellina scorre di una colonna a scatto.
+- [x] Rotellina sul controllo della vista: Elenco → Icone 20% → 50% → 100% (si ferma lì).
+- [x] Clic sul controllo: menu sopra, allineato a destra, con la spunta sulla vista attuale e le
+      scorciatoie; "Dettagli" ci torna.
+- [x] Elenco da tastiera: → di una colonna, ↓ di una voce, Fine fino all'ultima colonna; la
+      lista segue il cursore.
+- [x] Elenco col rettangolo: prende le voci di due colonne (16 selezionate); Ctrl+A con
+      l'anteprima aperta: la colonna tagliata a destra non entra più nell'anteprima (corretto).
+- [x] F2 in Elenco: la casella sta nella colonna; Esc annulla. Tooltip del controllo.
+- [x] Registro: solo le voci normali dell'avvio e attese vsync note. Frame 0,05–0,10 ms.
+
+Provato da Zyruel, a 175%:
+- [x] **Ctrl+rotellina** sulla lista (lo strumento dello schermo non manda il Ctrl con la
+      rotellina: Claude l'aveva provato solo dalla rotellina sul controllo, stesso codice).
+- [x] La barretta tra contatori e vista (1 px `C_LINE`).
+- [x] Le icone di Dettagli (BulletedList) ed Elenco (List) nel font di Windows 11.
+
+Da provare:
+- [ ] Elenco: trascinare file da una colonna e su una cartella in un'altra colonna, con lo
+      scorrimento vicino ai bordi sinistro e destro.
+- [ ] Una cartella che era in griglia (viste.txt vecchio) si apre in Icone medie, e il file si
+      riscrive nella forma nuova.
+
 ## 0000000000000000000000000000000000000000. "Aggiungi percorso di rete…" in Questo PC (z-f-dev, novembre 2026)
 
 La voce apre la procedura di Windows con il comando di Explorer (letto da `CommandStore`); alla

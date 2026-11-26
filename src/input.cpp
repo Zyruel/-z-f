@@ -85,14 +85,17 @@ static void onKey(WPARAM vk, bool alt) {
         return;
     }
     if (alt) return;
-    // In griglia: ← → una voce, ↑ ↓ una riga (dalla prima o dall'ultima riga non si esce), pagine di righe intere
-    int page = A.grid ? std::max(1, (int)(A.listH / A.cellH)) * A.cols : std::max(1, (int)(A.listH / A.cellH) - 1);
-    int lastRow = A.view.empty() ? 0 : ((int)A.view.size() - 1) / A.cols;
+    // Icone: ← → una voce, ↑ ↓ una riga. Elenco: ↑ ↓ una voce, ← → una colonna. Dalla prima o
+    // dall'ultima linea non si esce; pagine di linee intere (in Dettagli una riga di contesto)
+    int pl = A.perLine;
+    int page = A.zoom == ZOOM_DETAILS ? std::max(1, (int)(A.listH / A.cellH) - 1) : std::max(1, (int)(viewLen() / lineLen())) * pl;
+    int lastLine = A.view.empty() ? 0 : ((int)A.view.size() - 1) / pl;
+    bool lst = listView();
     switch (vk) {
-    case VK_UP:     if (A.sel >= A.cols) moveSel(-A.cols); break;
-    case VK_DOWN:   if (A.sel / A.cols < lastRow) moveSel(A.cols); break;
-    case VK_LEFT:   if (A.grid) moveSel(-1); break;
-    case VK_RIGHT:  if (A.grid) moveSel(1); break;
+    case VK_UP:     if (lst) moveSel(-1); else if (A.sel >= pl) moveSel(-pl); break;
+    case VK_DOWN:   if (lst) moveSel(1); else if (A.sel / pl < lastLine) moveSel(pl); break;
+    case VK_LEFT:   if (lst) { if (A.sel >= pl) moveSel(-pl); } else if (gridView()) moveSel(-1); break;
+    case VK_RIGHT:  if (lst) { if (A.sel / pl < lastLine) moveSel(pl); } else if (gridView()) moveSel(1); break;
     case VK_PRIOR:  moveSel(-page); break;
     case VK_NEXT:   moveSel(page); break;
     case VK_HOME:   moveSel(-(int)A.view.size()); break;
@@ -445,14 +448,16 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             return 0;
         }
         if (OP.open && !(GET_KEYSTATE_WPARAM(wp) & MK_CONTROL)) { optionsWheel(lines); return 0; }
-        if (GET_KEYSTATE_WPARAM(wp) & MK_CONTROL) { // Ctrl+rotellina: dimensione del testo, in griglia delle miniature
-            A.wheelAcc += GET_WHEEL_DELTA_WPARAM(wp);
-            while (A.wheelAcc >= WHEEL_DELTA) { A.wheelAcc -= WHEEL_DELTA; if (A.grid) thumbSizeStep(1); else fontSizeStep(1); }
-            while (A.wheelAcc <= -WHEEL_DELTA) { A.wheelAcc += WHEEL_DELTA; if (A.grid) thumbSizeStep(-1); else fontSizeStep(-1); }
-            return 0;
-        }
         POINT c = { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) }; // coordinate schermo
         ScreenToClient(hwnd, &c);
+        // Ctrl+rotellina, o la rotellina sul controllo della vista: zoom della lista (Dettagli,
+        // Elenco, Icone da 20 a 100%), un livello per scatto intero. Il resto della finestra non cambia
+        if ((GET_KEYSTATE_WPARAM(wp) & MK_CONTROL) || viewCtlAt(c.x, c.y)) {
+            A.wheelAcc += GET_WHEEL_DELTA_WPARAM(wp);
+            while (A.wheelAcc >= WHEEL_DELTA) { A.wheelAcc -= WHEEL_DELTA; zoomStep(1); }
+            while (A.wheelAcc <= -WHEEL_DELTA) { A.wheelAcc += WHEEL_DELTA; zoomStep(-1); }
+            return 0;
+        }
         if (previewWheel(c.x, c.y, lines)) return 0; // sopra l'anteprima: scorre quella
         if (c.x < A.sideW && c.y >= A.sideTop) { // sopra la barra laterale: scorre quella
             A.sideScroll = std::min(sideMaxScroll(), std::max(0.0f, A.sideScroll - lines * A.sideItemH * ui::WHEEL_LINES));
@@ -460,7 +465,8 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             A.dirty = true;
             return 0;
         }
-        A.scrollTarget -= lines * (A.grid ? A.cellH : A.rowH * ui::WHEEL_LINES); // griglia: una riga di voci a scatto
+        // Icone: una riga di voci a scatto; Elenco: una colonna (scorre in orizzontale)
+        A.scrollTarget -= lines * (gridView() ? A.cellH : listView() ? A.cellW : A.rowH * ui::WHEEL_LINES);
         clampScroll();
         A.dirty = true;
         return 0;
@@ -486,9 +492,9 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         int cb = colBorderAt(x, y);
         if (cb != A.colHover) { A.colHover = cb; A.dirty = true; }
         if (A.draggingThumb) {
-            float ty, th;
-            if (thumbRect(ty, th)) {
-                float t = (y - A.listTop - A.dragOffset) / (A.listH - th);
+            float t0, tl;
+            if (thumbRect(t0, tl)) {
+                float t = ((listView() ? x : y) - trackStart() - A.dragOffset) / (trackLen() - tl);
                 A.scrollY = A.scrollTarget = t * maxScroll();
                 clampScroll();
                 A.dirty = true;
@@ -514,6 +520,8 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         chromeSetHover(chromeHit(x, y));
         bool fc = fltClearAt(x, y);
         if (fc != A.fltClearHover) { A.fltClearHover = fc; A.dirty = true; }
+        bool vc = viewCtlAt(x, y);
+        if (vc != A.viewHover) { A.viewHover = vc; A.dirty = true; }
         tipMouseMove(x, y);
         return 0;
     }
@@ -524,9 +532,9 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (A.colHover >= 0) { A.colHover = -1; A.dirty = true; }
         if (A.favTrashHover >= 0) { A.favTrashHover = -1; A.dirty = true; }
         favDisarm();
-        if (A.hover != -1 || A.linkHover != -1 || A.tabHover != -1 || A.tabPlusHover || A.sideHover != -1 || CB.hover != -1 || A.fltClearHover) {
+        if (A.hover != -1 || A.linkHover != -1 || A.tabHover != -1 || A.tabPlusHover || A.sideHover != -1 || CB.hover != -1 || A.fltClearHover || A.viewHover) {
             A.hover = A.linkHover = A.tabHover = A.sideHover = CB.hover = -1;
-            A.fltClearHover = false;
+            A.fltClearHover = A.viewHover = false;
             A.tabPlusHover = A.tabCloseHover = false;
             A.dirty = true;
         }
@@ -556,6 +564,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             A.dirty = true;
             return 0;
         }
+        if (viewCtlAt(x, y)) { menuOpenView(A.viewX + A.viewW, G.h - A.statusH); return 0; } // vista: menu sopra il controllo
         if (y < A.pathY) { // barra delle schede
             bool closeHit, plusHit;
             int t = tabHit(x, y, &closeHit, &plusHit);
@@ -585,24 +594,25 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             int b = colBorderAt(x, y);
             if (b >= 0) { colDragStart(b, x); return 0; }
             int col = colAt(x);
-            if (col < 0) return 0; // griglia: fuori dalle etichette
+            if (col < 0) return 0; // Elenco e Icone: fuori dalle etichette
             if (col == A.sortCol) A.sortDesc = !A.sortDesc;
             else { A.sortCol = col; A.sortDesc = col == COL_DATE || col == COL_SIZE; } // nomi e percorsi dalla A
             resort();
             A.dirty = true;
             return 0;
         }
-        if (x >= A.listR - A.sbW) { // scrollbar
-            float ty, th;
-            if (thumbRect(ty, th)) {
-                if (y < ty || y > ty + th) { // clic sulla traccia: salta lì
-                    float t = (y - A.listTop - th * 0.5f) / (A.listH - th);
+        if (scrollbarAt(x, y) || x >= A.listR - A.sbW) { // barra di scorrimento (in Elenco in fondo; a destra resta vuoto)
+            float t0, tl;
+            if (scrollbarAt(x, y) && thumbRect(t0, tl)) {
+                float m = (float)(listView() ? x : y); // lungo l'asse
+                if (m < t0 || m > t0 + tl) { // clic sulla traccia: salta lì
+                    float t = (m - trackStart() - tl * 0.5f) / (trackLen() - tl);
                     A.scrollY = A.scrollTarget = t * maxScroll();
                     clampScroll();
-                    thumbRect(ty, th);
+                    thumbRect(t0, tl);
                 }
                 A.draggingThumb = true;
-                A.dragOffset = y - ty;
+                A.dragOffset = m - t0;
                 SetCapture(hwnd);
                 A.dirty = true;
             }

@@ -15,7 +15,7 @@ enum MenuId { M_OPEN = 1, M_OPENWITH, M_CUT, M_COPY, M_PASTE, M_COPYPATH, M_RENA
               M_GOTO,        // "Vai a" (goto.cpp)
               M_PREVIEW,     // pannello di anteprima (preview.cpp)
               M_UNDO, M_REDO, // annulla, ripeti (fileops.cpp)
-              M_GRID_S, M_GRID_M, M_GRID_L, M_VIEW_LIST, // vista a griglia (miniature piccole, medie, grandi) o elenco
+              M_ICONS_S, M_ICONS_M, M_ICONS_L, M_VIEW_LIST, M_VIEW_DETAILS, // viste: Icone (40, 70, 100%), Elenco, Dettagli
               M_NET_CONNECT, M_NET_DISCONNECT, M_NET_PLACE, // unità e percorsi di rete (sidebar.cpp)
               M_LINK_OPEN,   // collegamento: cartella della destinazione, con la destinazione selezionata (links.cpp)
               // Comandi senza voce di menu: legano i loro tasti in kShortcuts ai tooltip
@@ -25,9 +25,10 @@ enum MenuId { M_OPEN = 1, M_OPENWITH, M_CUT, M_COPY, M_PASTE, M_COPYPATH, M_RENA
 static const wchar_t kThisPc[] = L"::{20D04FE0-3AEA-1069-A2D8-08002B30309D}";
 
 // Menu contestuale nostro: disegnato come il resto dell'interfaccia, si apre in un frame
-// id 0 = separatore. icon: 0 nessuna, 1 cartella, 2 unità (path in PopupMenu::paths). dim: elemento nascosto
+// id 0 = separatore. icon: 0 nessuna, 1 cartella, 2 unità (path in PopupMenu::paths), 3 segno di
+// spunta (la scelta attuale). dim: elemento nascosto
 struct MenuItem { const wchar_t* label; const wchar_t* keys; int id; bool enabled; int icon = 0; bool dim = false; };
-enum { MENU_LIST, MENU_SIDE, MENU_TAB, MENU_CRUMB, MENU_DROP };
+enum { MENU_LIST, MENU_SIDE, MENU_TAB, MENU_CRUMB, MENU_DROP, MENU_VIEW };
 struct PopupMenu {
     bool open = false, background = false, pressed = false;
     float x = 0, y = 0, w = 0, h = 0, ih = 0, sepH = 0, pad = 0, vpad = 0;
@@ -61,7 +62,7 @@ struct TabState {
     std::vector<std::wstring> back, fwd;
     int sortCol = COL_NAME;
     bool sortDesc = false;
-    bool grid = false;
+    int zoom = 0;
     // Da caricare quando diventa attiva: scheda aperta in background, o lasciata a metà caricamento
     bool pending = false;
     std::wstring pendingPath; // "" = Questo PC
@@ -106,6 +107,8 @@ struct App {
     int sel = 0, hover = -1;          // sel = cursore (indice nella vista)
     std::vector<uint8_t> selFlags;    // selezione, per indice di voce: resiste a ordinamento, filtro e ricariche
     int anchor = -1;                  // voce da cui partono gli intervalli con Shift (indice di voce)
+    // Scorrimento lungo l'asse della vista: verticale in Dettagli e Icone, orizzontale in Elenco
+    // (scrollOffset dice di quanto si spostano le voci in x e in y)
     float scrollY = 0, scrollTarget = 0;
     bool draggingThumb = false;
     float dragOffset = 0;
@@ -220,12 +223,16 @@ struct App {
     const wchar_t* prevKind = nullptr;
     double prevReadMs = 0, prevDecodeMs = 0, prevTexMs = 0;
 
-    // Vista a griglia (thumbs.cpp): la vista è della cartella (viste.txt), la dimensione vale per tutte
-    bool grid = false;                // cartella corrente in griglia (scambiato con le schede)
-    int thumbSize = 1;                // 0 piccole, 1 medie, 2 grandi (griglia_dimensione in impostazioni.txt)
-    std::unordered_map<std::wstring, uint32_t> gridFolders; // cartelle in griglia (minuscole) → ultimo uso
-    uint32_t gridUse = 0;             // contatore dell'ultimo uso (si tengono le più recenti)
+    // Vista (thumbs.cpp): un livello di zoom per cartella (viste.txt). 0 Dettagli, 1 Elenco, poi
+    // Icone da 20% a 100% (ZOOM_* più sotto)
+    int zoom = 0;                     // della cartella corrente (scambiato con le schede)
+    struct FolderView { uint32_t use; int zoom; };
+    std::unordered_map<std::wstring, FolderView> viewFolders; // cartelle non in Dettagli (minuscole) → ultimo uso, zoom
+    uint32_t viewUse = 0;             // contatore dell'ultimo uso (si tengono le più recenti)
     bool viewsReady = false;          // viste.txt letto all'avvio
+    float viewX = 0, viewW = 0;       // controllo della vista nella barra di stato (render lo misura)
+    bool viewHover = false;
+    HoverFade viewFade;
     // F12: per fonte (0 cache di Windows, 1 WIC, 2 shell, 3 icone) tempo totale e numero sul thread;
     // texture sul thread UI (ultimo frame e peggiore); memoria; prima schermata completa
     struct ThumbStats {
@@ -258,10 +265,11 @@ struct App {
     float iconX = 0, nameX = 0;       // icona e nome nelle righe (da render, che conosce le icone)
     float tabH, tabY, pathY, listX, sideW, sideTop, sideItemH;
     float listR = 0;                  // bordo destro della lista, barra di scorrimento compresa (dopo: l'anteprima)
-    // Voci (itemRect, itemAt): in elenco una colonna alta una riga; in griglia cols voci per riga
-    int cols = 1;
+    // Voci (itemRect, itemAt), a linee: righe in Dettagli (una voce ciascuna) e in Icone (perLine
+    // voci), colonne di perLine voci in Elenco, che scorre in orizzontale
+    int perLine = 1;
     float cellX = 0, cellW = 0, cellH = 0, thumbPx = 0;
-    float sortX[4] = {};              // griglia: etichette di ordinamento nell'intestazione (inizi e fine)
+    float sortX[4] = {};              // Elenco e Icone: etichette di ordinamento nell'intestazione (inizi e fine)
     float btnW, capW, navW, tabStripX, tabStripW; // barra del titolo e riga del percorso
     float fltX = 0, fltW = 0, fltClearW = 0;      // campo del filtro, a sinistra nella barra di stato
     bool fltClearHover = false, countsDirty = false;
@@ -286,6 +294,13 @@ struct App {
 
 // Misura del tema (px a scala 100%) → pixel interi alla scala DPI corrente
 static inline float px(float v) { return floorf(v * A.scale); }
+
+// Livelli di zoom della lista (Ctrl+rotellina): Dettagli 0%, Elenco 10%, poi Icone da 20% a 100%
+// (lato delle miniature in ui::THUMB_PX). Le scorciatoie delle icone portano a 40, 70 e 100%.
+enum { ZOOM_DETAILS = 0, ZOOM_LIST = 1, ZOOM_ICONS = 2, ZOOM_MAX = 10,
+       ZOOM_SMALL = 4, ZOOM_MEDIUM = 7, ZOOM_LARGE = 10 };
+static inline bool gridView() { return A.zoom >= ZOOM_ICONS; }
+static inline bool listView() { return A.zoom == ZOOM_LIST; }
 
 // Primo caricamento di WIC nel processo (la DLL e i suoi codec): lo misura preview.cpp, chiunque lo
 // chieda per primo (anteprima o miniature della griglia), su quel thread; lo mostra F12
@@ -355,9 +370,9 @@ static bool gotoTipBuild(int index);                 // goto.cpp: contenuto del 
 static void previewSync();                           // preview.cpp: chiede l'anteprima se la voce è cambiata
 static void drawPreview();                           // preview.cpp
 static void previewToggle();                         // preview.cpp: Alt+P, pulsante, menu
-static void viewSet(bool grid, int size);            // thumbs.cpp: elenco o griglia (size -1: quella di prima)
-static void thumbSizeStep(int delta);                // thumbs.cpp: Ctrl+rotellina in griglia
-static bool viewIsGrid(const std::wstring& path);    // thumbs.cpp: vista ricordata della cartella
+static void viewZoom(int zoom);                      // thumbs.cpp: livello di zoom della cartella corrente
+static void zoomStep(int delta);                     // thumbs.cpp: Ctrl+rotellina
+static int viewZoomOf(const std::wstring& path);     // thumbs.cpp: vista ricordata della cartella
 static void viewsLoaded(const std::vector<std::wstring>& lines); // thumbs.cpp: viste.txt letto all'avvio
 struct Box;
 static void thumbsFrame(int first, int last);         // thumbs.cpp: voci visibili in griglia (e sincronizzazione)

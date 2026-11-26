@@ -75,7 +75,7 @@ condivise sono in `app.h`.
 | `crumbs.cpp` | percorso a segmenti cliccabili, menu delle sottocartelle |
 | `tooltip.cpp` | tooltip: contenuto, informazioni lette su un thread (anche per l'anteprima), disegno |
 | `preview.cpp` | pannello di anteprima: immagini (WIC), testo, cartelle, informazioni; lettura e decodifica su un thread |
-| `thumbs.cpp` | vista a griglia: miniature (cache di Windows, WIC, shell, icone) su thread, atlante sulla GPU, vista per cartella (`viste.txt`) |
+| `thumbs.cpp` | vista a icone: miniature (cache di Windows, WIC, shell, icone) su thread, atlante sulla GPU; zoom e vista per cartella (`viste.txt`) |
 | `options.cpp` | pannello delle opzioni, tabella delle scorciatoie (anche per i menu), versione |
 | `goto.cpp` | "Vai a": cartelle recenti (`recenti.txt`), ricerca fuzzy, sottocartelle lette su un thread, pannello |
 | `drag.cpp` | trascinamento dei file: sorgente (oggetto dati della shell), destinazione (IDropTarget), rilascio alla shell su un thread |
@@ -232,9 +232,17 @@ condivise sono in `app.h`.
   di token da 16 bit (minuscole, accenti rimossi, numeri confrontati per valore), poi `memcmp`.
   Sostituisce `StrCmpLogicalW` (differenze in "Differenze note rispetto a Explorer").
 - **Filtro** mentre si scrive: sottostringa sui nomi già in minuscolo.
-- **Lista virtualizzata:** si disegnano solo le voci visibili. Elenco e griglia passano dalle
-  stesse funzioni (`itemRect`, `itemBg`, `itemAt`, `gridParts` in `app.cpp`): l'elenco è una
-  griglia di una colonna.
+- **Lista virtualizzata:** si disegnano solo le voci visibili. Dettagli, Elenco e Icone passano
+  dalle stesse funzioni (`itemRect`, `itemBg`, `itemAt`, `gridParts`, `listParts` in `app.cpp`):
+  le voci stanno su *linee* di `perLine` voci (una riga in Dettagli, una riga di celle in Icone,
+  una colonna in Elenco) e lo scorrimento va lungo l'asse delle linee: `lineLen`, `viewLen`,
+  `contentLen` e `scrollOffset` dicono quanto è lunga una linea, quanto se ne vede e di quanto si
+  spostano le voci in x o in y. Così tastiera, rotellina, barra di scorrimento (orizzontale in
+  Elenco), rettangolo, trascinamento e cursore sono un codice solo per le tre viste; il
+  rettangolo tiene il punto di partenza in coordinate del contenuto su tutti e due gli assi.
+  *Perché un livello di zoom e non una vista più una misura:* Ctrl+rotellina attraversa le viste
+  in un solo gesto (Dettagli → Elenco → Icone), e la cartella si ricorda con un numero.
+  *Misurato:* la cartella di prova da 904 file in Elenco, frame 0,05–0,10 ms, come Dettagli.
 - **Selezione multipla:** la selezione è un flag per voce, quindi resiste a ordinamento, filtro e
   ricariche automatiche, che la ricostruiscono per nome. Il cursore è separato dalla selezione, con
   un'ancora per gli intervalli. Il filtro tiene le voci selezionate che restano visibili; se la
@@ -342,9 +350,9 @@ contenuto salterebbe in basso proprio mentre si clicca.
   anteprima mostrano la loro icona vera entro un secondo, senza riavviare; nessuno scaricamento da
   [z]f.
 
-## Miniature e vista a griglia
+## Miniature e vista a icone
 
-**Come funziona** (`thumbs.cpp`; comportamento visibile in `DESIGN.md`, "Vista a griglia").
+**Come funziona** (`thumbs.cpp`; comportamento visibile in `DESIGN.md`, "Viste e zoom").
 
 - **Fonti**, in quest'ordine, per miniatura sul thread:
   1. la cache di Windows (`IThumbnailCache`, solo quelle già pronte), creando l'elemento della
@@ -368,8 +376,12 @@ contenuto salterebbe in basso proprio mentre si clicca.
   Quando nessuna scheda è più in griglia si liberano tutte e due; tornando in griglia le miniature
   arrivano dalla cache di Windows. Al massimo `kThUploadMs` (0,25 ms) di caricamenti sulla GPU per
   frame.
-- **Vista per cartella** in `%APPDATA%\z-f\viste.txt`, le `kViewsMax` (500) più recenti; la
-  dimensione vale per tutte (`griglia_dimensione`).
+- **Zoom per cartella** in `%APPDATA%\z-f\viste.txt`, le `kViewsMax` (500) più recenti: una riga
+  "percorso<TAB>elenco" o "percorso<TAB>icone 40" per ogni cartella non in Dettagli. Le righe
+  "griglia" delle versioni di prima valgono Icone medie (70%), e il file si riscrive subito nella
+  forma nuova. Ogni livello di Icone ha la sua misura delle miniature: cambiando zoom l'atlante
+  si svuota e le miniature si rifanno alla misura nuova (dalla cache di Windows, meno di 1 ms
+  l'una).
 - F12 mostra fonti, texture, memoria, il tempo di creazione dell'atlante e la prima schermata
   completa.
 
@@ -971,7 +983,7 @@ sul thread; con il server spento l'errore arriva dopo 2 s, sempre sul thread.
   `barra_laterale`, `barra_laterale_larghezza`, `barra_tempi`, `animazioni`, `preferiti_aperti`,
   `unita_aperte`, `colonna_data`, `colonna_dimensione`, `colonna_destinazione`, `anteprima`,
   `anteprima_larghezza`, `carattere_anteprima`, `annulla_dopo_riavvio`, `menu_completo`,
-  `dimensione_cartelle`, `dialoghi`, `griglia_dimensione`, `riapri_schede`, `finestre_separate`, `aggiornamenti`,
+  `dimensione_cartelle`, `dialoghi`, `riapri_schede`, `finestre_separate`, `aggiornamenti`,
   `aggiornamenti_beta`, `aggiornamenti_ultimo`. Il pannello delle opzioni (`options.cpp`) le
   cambia con effetto immediato: dimensione e carattere del testo, animazioni, barra laterale, "Usa
   [z]f al posto di Explorer", "Menu completo di Windows col tasto destro", "Dialoghi Apri e Salva

@@ -702,11 +702,12 @@ static void dragTick() {
     if (!DD.own && !DD.over) { KillTimer(A.hwnd, 8); return; }
     if (DD.over) {
         int x = DD.pt.x, y = DD.pt.y;
-        if (x >= A.listX && x < A.listR - A.sbW && maxScroll() > 0) {
-            int dir = (y >= A.listTop - A.headH && y < A.listTop + A.rowH) ? -1
-                    : (y >= A.listTop + A.listH - A.rowH && y < A.listTop + A.listH) ? 1 : 0;
+        if (x >= A.listX && x < A.listR - A.sbW && y >= A.listTop - A.headH && y < A.listTop + A.listH && maxScroll() > 0) {
+            // Vicino ai bordi lungo l'asse (in alto anche sull'intestazione; in Elenco a sinistra e a destra)
+            int dir = listView() ? (x < A.listX + A.rowH ? -1 : x >= A.listR - A.sbW - A.rowH ? 1 : 0)
+                    : (y < A.listTop + A.rowH) ? -1 : (y >= A.listTop + A.listH - A.rowH) ? 1 : 0;
             if (dir) {
-                A.scrollTarget += dir * A.rowH * ui::DRAG_SCROLL; // stessa velocità in pixel anche in griglia
+                A.scrollTarget += dir * A.rowH * ui::DRAG_SCROLL; // stessa velocità in pixel in ogni vista
                 clampScroll();
                 A.scrollY = A.scrollTarget;
                 dropUpdate();
@@ -727,8 +728,11 @@ static void drawDrop() {
     switch (DD.kind) {
     case DT_ROW: {
         Box b = itemBg(DD.index);
-        float y = A.listTop + b.y - floorf(A.scrollY);
-        if (y >= A.listTop - 1 && y + b.h <= A.listTop + A.listH + 1) rrect(b.x, y, b.w, b.h, r, C_SEL_EDGE, t);
+        float ox, oy;
+        scrollOffset(ox, oy);
+        float x = b.x - ox, y = A.listTop + b.y - oy;
+        if (y >= A.listTop - 1 && y + b.h <= A.listTop + A.listH + 1 && x >= A.listX - 1 && x + b.w <= A.listR - A.sbW + 1)
+            rrect(x, y, b.w, b.h, r, C_SEL_EDGE, t);
         break;
     }
     case DT_LIST:

@@ -8,7 +8,8 @@
 
 enum TipKind { TIP_NONE, TIP_ROW, TIP_SIDE, TIP_TAB, TIP_TABPLUS, TIP_TABCLOSE, TIP_HEADER, TIP_STATS, TIP_PATH, TIP_DRIVES,
                TIP_CHROME, TIP_FILTER, TIP_GOTO, TIP_FAVDEL, // cestino di un preferito (sidebar.cpp)
-               TIP_LINK }; // destinazione di un collegamento nella colonna Destinazione (links.cpp)
+               TIP_LINK,  // destinazione di un collegamento nella colonna Destinazione (links.cpp)
+               TIP_VIEW }; // vista e zoom nella barra di stato
 
 struct TipInfo {           // risultato del thread
     uint64_t gen = 0;
@@ -391,11 +392,6 @@ static bool tipBuild() {
             T.title = A.cur && favIndex(A.cur->path) >= 0 ? L"Togli dai preferiti" : L"Aggiungi ai preferiti";
             tipRow(L"Scorciatoia", shortcutFor(M_FAV_TOGGLE));
             break;
-        case CH_VIEW:
-            T.title = A.grid ? L"Mostra come elenco" : L"Mostra come griglia";
-            tipRow(L"Scorciatoia", shortcutFor(A.grid ? M_VIEW_LIST : M_GRID_S + A.thumbSize));
-            if (A.grid) tipRow(L"", L"Ctrl+rotellina cambia la dimensione delle miniature");
-            break;
         case CH_PREVIEW:
             T.title = A.prevOpen ? L"Nascondi l'anteprima" : L"Mostra l'anteprima";
             tipRow(L"Scorciatoia", shortcutFor(M_PREVIEW));
@@ -403,6 +399,11 @@ static bool tipBuild() {
             break;
         default: return false;
         }
+        break;
+    case TIP_VIEW:
+        T.title = std::wstring(L"Vista: ") + viewName(A.zoom);
+        tipRow(L"", L"Clic per scegliere la vista");
+        tipRow(L"Zoom", L"Ctrl+rotellina sulla lista, o la rotellina qui");
         break;
     case TIP_FILTER:
         T.title = A.filter.empty() ? L"Filtro" : L"Filtro: " + A.filter;
@@ -483,6 +484,7 @@ static void tipTarget(int x, int y, int& kind, int& index) {
     int chId = chromeHit(x, y);
     if (chId != CH_NONE && chId != CH_MIN && chId != CH_MAX && chId != CH_CLOSE) { kind = TIP_CHROME; index = chId; return; }
     if (y >= G.h - A.statusH && x >= A.fltX && x < A.fltX + A.fltW) { kind = TIP_FILTER; return; }
+    if (viewCtlAt(x, y)) { kind = TIP_VIEW; return; }
     if (A.timesH > 0 && x >= A.sideW && y >= G.h - A.footH && y < G.h - A.statusH) { kind = TIP_STATS; return; }
     if (t >= 0) { kind = closeHit ? TIP_TABCLOSE : TIP_TAB; index = t; return; }
     if (int ft = favTrashAt(x, y); ft >= 0) { kind = TIP_FAVDEL; index = ft; return; }

@@ -21,13 +21,14 @@ static void drawPanel(float x, float y, float w, float h, float r, float k) {
 }
 
 // Voce di un elenco in un pannello sovrapposto (menu, "Vai a"): fondo della voce attiva e icona.
-// icon: 0 nessuna, 1 cartella, 2 unità (iconPath); dim: elemento nascosto. iconW: spazio
-// riservato alle icone (0 se l'elenco non ne ha). Ritorna la x da cui comincia il testo.
+// icon: 0 nessuna, 1 cartella, 2 unità (iconPath), 3 segno di spunta; dim: elemento nascosto.
+// iconW: spazio riservato alle icone (0 se l'elenco non ne ha). Ritorna la x da cui comincia il testo.
 static float drawPanelItem(float x, float w, float y, float ih, float pad, bool hot, int icon,
                            const std::wstring* iconPath, bool dim, float iconW, float k) {
     if (hot) rrect(x + px(ui::GAP_S), y, w - px(ui::GAP_M), ih, px(ui::R_S), fadeA(C_SEL, k));
     float tx = x + pad;
-    if (icon) { // cartella o unità: stessa icona della lista
+    if (icon == 3) drawUiIcon(tx, y, (float)I.size, ih, IC_CHECK, fadeA(C_TEXT, k));
+    else if (icon) { // cartella o unità: stessa icona della lista
         const IconEntry* ie = icon == 2 && iconPath ? iconForKey(*iconPath, *iconPath, 0, false, false, slowPath(*iconPath))
                                                     : iconForKey(L"<dir>", L"cartella", FILE_ATTRIBUTE_DIRECTORY, true, false);
         if (ie) drawIcon(tx, y + floorf((ih - I.size) * 0.5f), *ie, fadeA(dim ? C_ICON_HIDDEN : C_ICON, k));
@@ -149,6 +150,45 @@ static void noteVsyncWait(double d) {
     if (d > ui::LOG_VSYNC && GetForegroundWindow() == A.hwnd) hitchLog("attesa vsync lunga", 0, d);
 }
 
+// Nome e icona della vista di un livello di zoom (barra di stato, tooltip)
+static const wchar_t* viewName(int zoom) {
+    return zoom == ZOOM_DETAILS ? L"Dettagli" : zoom == ZOOM_LIST ? L"Elenco" : L"Icone";
+}
+static uint32_t viewIcon(int zoom) { return zoom == ZOOM_DETAILS ? IC_DETAILS : zoom == ZOOM_LIST ? IC_LIST : IC_GRID; }
+// Controllo della vista nella barra di stato (il disegno lo misura)
+static bool viewCtlAt(int x, int y) { return A.viewW > 0 && y >= G.h - A.statusH && x >= A.viewX && x < A.viewX + A.viewW; }
+
+// Fondo di una voce (finestra): selezione e hover arrotondati R_S, come le liste di Windows 11
+static void drawItemBg(int vi, float x, float y, float w, float h) {
+    float ha = hoverAlpha(A.rowFade, vi), r = px(ui::R_S);
+    if (isSel(A.view[vi])) {
+        rrect(x, y, w, h, r, C_SEL);
+        if (ha > 0) rrect(x, y, w, h, r, fadeA(C_SEL_HOVER, ha));
+    } else if (ha > 0) {
+        rrect(x, y, w, h, r, fadeA(C_HOVER, ha));
+    }
+}
+
+// Icona di una voce in Dettagli ed Elenco, in (x, y): finché non arriva il segnaposto (cartella o
+// foglio), poi l'icona vera che lo sostituisce con una dissolvenza incrociata
+static void drawRowIcon(const Entry& e, float x, float y, double now) {
+    float iconS = (float)I.size;
+    bool dir = (e.attr & FILE_ATTRIBUTE_DIRECTORY) != 0, hidden = (e.attr & FILE_ATTRIBUTE_HIDDEN) != 0;
+    const IconEntry* ie = iconFor(A.cur, e);
+    float ia = ie ? (A.animations ? easeOut((float)(now - ie->readyAt) / ui::DUR_ICON) : 1.0f) : 0.0f;
+    if (ie && ia < 1) A.animActive = true;
+    if (ia < 1) {
+        float pa = 1 - ia;
+        if (dir) {
+            rect(x, y + floorf(iconS * ui::PH_TAB_Y), floorf(iconS * ui::PH_TAB_W), floorf(iconS * ui::PH_TAB_H), fadeA(C_FOLDER, pa));
+            rect(x, y + floorf(iconS * ui::PH_BODY_Y), iconS, iconS - floorf(iconS * ui::PH_BODY_CUT), fadeA(C_FOLDER, pa));
+        } else {
+            rect(x + floorf(iconS * ui::PH_FILE_X), y, floorf(iconS * ui::PH_FILE_W), iconS, fadeA(C_FILE, pa));
+        }
+    }
+    if (ie) drawIcon(x, y, *ie, fadeA(hidden ? C_ICON_HIDDEN : C_ICON, ia));
+}
+
 static void render() {
     if (A.gpuLost) { g_vsyncToken = false; return; } // si disegna di nuovo quando il device nuovo è pronto
     if (G.w <= 0 || G.h <= 0 || !G.rtv) { A.dirty = false; return; }
@@ -219,13 +259,16 @@ static void render() {
 
     // --- voci (virtualizzate: solo quelle visibili) ---
     if (A.cur) {
-        float sy = floorf(A.scrollY) - enterDy;
-        int first = std::max(0, (int)(sy / A.cellH)) * A.cols;
-        int last = std::min((int)A.view.size(), ((int)((sy + A.listH) / A.cellH) + 1) * A.cols);
+        float ox, oy; // scorrimento: le voci si spostano in y, in Elenco in x
+        scrollOffset(ox, oy);
+        oy -= enterDy;
+        float s0 = listView() ? ox : oy, len = lineLen(); // linee visibili lungo l'asse
+        int first = std::max(0, (int)(s0 / len)) * A.perLine;
+        int last = std::min((int)A.view.size(), ((int)((s0 + viewLen()) / len) + 1) * A.perLine);
         double ts = nowMs();
-        thumbsFrame(A.grid ? first : -1, A.grid ? last : -1); // miniature: risultati arrivati, richieste
+        thumbsFrame(gridView() ? first : -1, gridView() ? last : -1); // miniature: risultati arrivati, richieste
         wchar_t buf[64];
-        if (A.grid) {
+        if (gridView()) {
             A.th.syncMs = nowMs() - ts;
             A.th.syncMax = std::max(A.th.syncMax, A.th.syncMs);
             ts = nowMs();
@@ -233,16 +276,9 @@ static void render() {
                 const Entry& e = A.cur->e[A.view[i]];
                 bool hidden = (e.attr & FILE_ATTRIBUTE_HIDDEN) != 0;
                 Box bg = itemBg(i);
-                float by = A.listTop + bg.y - sy;
-                float ha = hoverAlpha(A.rowFade, i);
-                if (isSel(A.view[i])) {
-                    rrect(bg.x, by, bg.w, bg.h, bpR, C_SEL);
-                    if (ha > 0) rrect(bg.x, by, bg.w, bg.h, bpR, fadeA(C_SEL_HOVER, ha));
-                } else if (ha > 0) {
-                    rrect(bg.x, by, bg.w, bg.h, bpR, fadeA(C_HOVER, ha));
-                }
+                drawItemBg(i, bg.x, A.listTop + bg.y - oy, bg.w, bg.h);
                 CellParts p = gridParts(i);
-                float dy = A.listTop - sy;
+                float dy = A.listTop - oy;
                 drawThumb(i, Box{ p.thumb.x, p.thumb.y + dy, p.thumb.w, p.thumb.h }, hidden, now);
                 if (A.renaming && (int)A.view[i] == A.renameEntry)
                     drawField(A.renameField, p.name.x, p.name.y + dy, p.name.w, A.rowH, s);
@@ -251,36 +287,29 @@ static void render() {
             }
             A.th.cellsMs = nowMs() - ts;
             A.th.cellsMax = std::max(A.th.cellsMax, A.th.cellsMs);
+        } else if (listView()) { // Elenco: icona e nome, in colonne che scorrono in orizzontale
+            for (int i = first; i < last; i++) {
+                const Entry& e = A.cur->e[A.view[i]];
+                bool hidden = (e.attr & FILE_ATTRIBUTE_HIDDEN) != 0;
+                Box bg = itemBg(i);
+                float y = A.listTop + bg.y - oy;
+                drawItemBg(i, bg.x - ox, y, bg.w, bg.h);
+                RowParts p = listParts(i);
+                float nx = p.nameX - ox, ne = p.nameEnd - ox;
+                drawRowIcon(e, p.iconX - ox, y + floorf((A.rowH - iconS) * 0.5f), now);
+                if (A.renaming && (int)A.view[i] == A.renameEntry)
+                    drawField(A.renameField, nx - px(ui::FIELD_PAD), y + 1, ne + px(ui::GAP_S) - nx, A.rowH - 2, s);
+                else
+                    drawText(nx, y + textOff, A.cur->name(e), (int)e.nameLen, hidden ? C_FAINT : C_TEXT, ne);
+            }
         } else {
             for (int i = first; i < last; i++) {
-                float y = A.listTop + itemRect(i).y - sy;
+                float y = A.listTop + itemRect(i).y - oy;
                 const Entry& e = A.cur->e[A.view[i]];
                 bool dir = (e.attr & FILE_ATTRIBUTE_DIRECTORY) != 0;
-                bool selected = isSel(A.view[i]);
                 // Sfondo della riga: rettangolo arrotondato con un margine, come le liste di Windows 11
-                float ha = hoverAlpha(A.rowFade, i);
-                if (selected) {
-                    rrect(bpX, y, bpW, A.rowH, bpR, C_SEL);
-                    if (ha > 0) rrect(bpX, y, bpW, A.rowH, bpR, fadeA(C_SEL_HOVER, ha));
-                } else if (ha > 0) {
-                    rrect(bpX, y, bpW, A.rowH, bpR, fadeA(C_HOVER, ha));
-                }
-                float iy = y + floorf((A.rowH - iconS) * 0.5f);
-                bool hiddenIcon = (e.attr & FILE_ATTRIBUTE_HIDDEN) != 0;
-                const IconEntry* ie = iconFor(A.cur, e);
-                // L'icona vera sostituisce il segnaposto con una dissolvenza incrociata
-                float ia = ie ? (A.animations ? easeOut((float)(now - ie->readyAt) / ui::DUR_ICON) : 1.0f) : 0.0f;
-                if (ie && ia < 1) A.animActive = true;
-                if (ia < 1) {
-                    float pa = 1 - ia;
-                    if (dir) {
-                        rect(iconX, iy + floorf(iconS * ui::PH_TAB_Y), floorf(iconS * ui::PH_TAB_W), floorf(iconS * ui::PH_TAB_H), fadeA(C_FOLDER, pa));
-                        rect(iconX, iy + floorf(iconS * ui::PH_BODY_Y), iconS, iconS - floorf(iconS * ui::PH_BODY_CUT), fadeA(C_FOLDER, pa));
-                    } else {
-                        rect(iconX + floorf(iconS * ui::PH_FILE_X), iy, floorf(iconS * ui::PH_FILE_W), iconS, fadeA(C_FILE, pa));
-                    }
-                }
-                if (ie) drawIcon(iconX, iy, *ie, fadeA(hiddenIcon ? C_ICON_HIDDEN : C_ICON, ia));
+                drawItemBg(i, bpX, y, bpW, A.rowH);
+                drawRowIcon(e, iconX, y + floorf((A.rowH - iconS) * 0.5f), now);
                 bool hidden = (e.attr & FILE_ATTRIBUTE_HIDDEN) != 0;
                 if (A.renaming && (int)A.view[i] == A.renameEntry)
                     drawField(A.renameField, nameX - px(ui::FIELD_PAD), y + 1, A.nameEnd + A.padX - nameX, A.rowH - 2, s);
@@ -322,7 +351,8 @@ static void render() {
         // con una cartella nuova o un salto lungo si sposta e basta.
         if (A.sel >= 0 && A.sel < (int)A.view.size()) {
             Box c = itemBg(A.sel);
-            if (A.cursorFor != (const void*)A.cur || fabsf(c.y - A.cursorY) > A.listH * 1.5f) {
+            if (A.cursorFor != (const void*)A.cur || fabsf(c.y - A.cursorY) > A.listH * 1.5f ||
+                fabsf(c.x - A.cursorX) > (A.listR - A.listX) * 1.5f) {
                 A.cursorX = c.x;
                 A.cursorY = c.y;
                 A.cursorFor = A.cur;
@@ -330,7 +360,7 @@ static void render() {
                 A.cursorX = approach(A.cursorX, c.x, dt, ui::TAU_CURSOR, 0.5f);
                 A.cursorY = approach(A.cursorY, c.y, dt, ui::TAU_CURSOR, 0.5f);
             }
-            float x = floorf(A.cursorX), y = floorf(A.listTop + A.cursorY - sy);
+            float x = floorf(A.cursorX - ox), y = floorf(A.listTop + A.cursorY - oy);
             float t = std::max(1.0f, floorf(s));
             // pillola verticale a sinistra (come l'indicatore di selezione di Windows 11)
             float pw = px(ui::PILL_W), ph = floorf(c.h * 0.5f);
@@ -340,13 +370,16 @@ static void render() {
         drawMarquee();
         if (A.listFade < 1) rect(LX, A.listTop, listRight - LX, A.listH, fadeA(C_BG, (1 - A.listFade) * ui::LIST_ENTER_COVER));
 
-        // scrollbar
-        float ch = contentH();
-        if (ch > A.listH && A.listH > 0) {
-            float th = std::max(px(ui::THUMB_MIN), A.listH * A.listH / ch);
-            float ty = A.listTop + (A.scrollY / maxScroll()) * (A.listH - th);
-            float pad = px(ui::GAP_XS);
-            rrect(listRight + pad, ty, A.sbW - pad * 2, th, (A.sbW - pad * 2) * 0.5f, C_SCROLL);
+        // Elenco: le colonne tagliate a destra non entrano nello spazio della barra verticale né
+        // nell'anteprima, che non ridipinge il suo fondo (a sinistra le copre la barra laterale,
+        // disegnata dopo)
+        if (listView()) rect(listRight, A.listTop, W - listRight, A.listH, C_BG);
+        // Barra di scorrimento: verticale a destra, in Elenco orizzontale in fondo alla lista
+        float tStart, tLen;
+        if (thumbRect(tStart, tLen)) {
+            float pad = px(ui::GAP_XS), th = A.sbW - pad * 2;
+            if (listView()) rrect(tStart, A.listTop + A.listH - A.sbW + pad, tLen, th, th * 0.5f, C_SCROLL);
+            else rrect(listRight + pad, tStart, th, tLen, th * 0.5f, C_SCROLL);
         }
         if (A.view.empty()) {
             const wchar_t* msg = A.filter.empty() ? L"Cartella vuota" : L"Nessun risultato per il filtro";
@@ -358,7 +391,7 @@ static void render() {
     float headY = A.sideTop;
     rect(LX, headY, A.listR - LX, A.headH, C_HEADER);
     rect(LX, headY + A.headH - 1, A.listR - LX, 1, C_LINE);
-    if (A.grid) { // solo le etichette per ordinare, a sinistra (le colonne non ci sono)
+    if (A.zoom != ZOOM_DETAILS) { // solo le etichette per ordinare, a sinistra (le colonne non ci sono)
         float x = LX + A.padX, y = headY + textOff;
         for (int c = 0; c < 3; c++) {
             std::wstring t = colTitle(c, A.sortCol == c || (c == COL_NAME && A.sortCol == COL_LINK)); // Destinazione qui non c'è
@@ -391,7 +424,7 @@ static void render() {
     rect(0, A.pathY + A.topH - 1, W, 1, C_LINE);
     {
         float bx = px(ui::GAP_S) + A.navW * 3 + px(ui::GAP_M);
-        float bw = W - px(ui::GAP_S) - A.navW * 3 - px(ui::GAP_M) - bx; // a destra ☆, griglia e anteprima
+        float bw = W - px(ui::GAP_S) - A.navW * 2 - px(ui::GAP_M) - bx; // a destra ☆ e anteprima
         float by = A.pathY + floorf((A.topH - A.rowH) * 0.5f), bh = A.rowH;
         float ty = by + textOff;
         drawCrumbs(bx, bx + bw, by, bh, ty, dt);
@@ -441,10 +474,35 @@ static void render() {
             int n = _snwprintf(buf, 63, L"Filtra %zu elementi\x2026", A.cur->e.size());
             drawText(tx, y, buf, n, C_FAINT, fx + A.fltW - px(ui::GAP_S));
         }
-        // A destra contatori di cartelle e file (della vista, quindi rispettano il filtro) e, prima,
-        // la selezione; dopo il filtro avvisi e "caricamento…", che si fermano prima della parte destra
+        // A destra la vista con lo zoom; prima, dopo una barretta, contatori di cartelle e file (della
+        // vista, quindi rispettano il filtro) e la selezione; dopo il filtro avvisi e
+        // "caricamento…", che si fermano prima della parte destra
         float leftX = fx + A.fltW + px(ui::GAP_L);
-        float rightX = W - A.padX;
+        float rightX = W - A.padX + px(ui::GAP_S); // il fondo del controllo della vista sporge di GAP_S
+        {
+            // Vista: icona e nome; si clicca (menu delle viste) e ci si gira la rotellina (zoom). Sotto
+            // il mouse, e col suo menu aperto, ha il fondo dei pulsanti della barra del percorso.
+            // Largo sempre quanto il nome più largo: cambiando vista i contatori accanto non si spostano
+            float tw = 0;
+            for (int z = ZOOM_DETAILS; z <= ZOOM_ICONS; z++) {
+                const wchar_t* nm = viewName(z);
+                tw = std::max(tw, (float)textWidth(nm, (int)wcslen(nm)));
+            }
+            const wchar_t* name = viewName(A.zoom);
+            int nn = (int)wcslen(name);
+            float iw = (float)F.lineH, pad = px(ui::GAP_S);
+            float w = pad + iw + px(ui::GAP_S) + tw + pad;
+            float x = rightX - w;
+            A.viewX = x; A.viewW = w;
+            hoverFadeUpdate(A.viewFade, A.viewHover ? 0 : -1, dt);
+            float ha = A.menu.open && A.menu.kind == MENU_VIEW ? 1.0f : hoverAlpha(A.viewFade, 0);
+            if (ha > 0) rrect(x, fy, w, fh, px(ui::R_S), fadeA(C_HOVER, ha));
+            drawUiIcon(x + pad, sy0, iw, A.statusH, viewIcon(A.zoom), C_FAINT);
+            drawText(x + pad + iw + px(ui::GAP_S), y, name, nn, C_DIM);
+            rightX = x - px(ui::GAP_M);
+            rect(rightX, fy + px(ui::GAP_XS), 1, fh - px(ui::GAP_XS) * 2, C_LINE); // la barretta
+            rightX -= px(ui::GAP_L);
+        }
         if (A.cur) {
             static const void* cFor = nullptr;
             static size_t cN = (size_t)-1;

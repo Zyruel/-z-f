@@ -100,7 +100,8 @@ arrotonda per difetto, così i bordi cadono su pixel interi.
 ## 4. Testo
 
 - **Un solo carattere e una sola dimensione** in tutta l'interfaccia: Segoe UI, 13 px a scala
-  100%. L'utente può cambiarli: Ctrl+rotellina, Ctrl +/−, Ctrl+0, `impostazioni.txt`.
+  100%. L'utente può cambiarli: Ctrl +/−, Ctrl+0, `impostazioni.txt` (Ctrl+rotellina è lo zoom
+  della lista, non il testo).
 - **Unica eccezione: il testo dentro l'anteprima** (codice, log) usa un carattere a spaziatura
   fissa, Cascadia Mono (altrimenti Consolas), alla stessa dimensione: in Segoe UI il codice perde
   l'allineamento. È contenuto del file, non interfaccia; si sceglie nelle opzioni
@@ -177,11 +178,11 @@ uno esistente basta con una piccola estensione.
 
 ```
 [≡][▯] [scheda][scheda][+]  ·····trascina·····             [–][□][×]    barra del titolo (C_TABBAR)
-[←][→][↑]  Questo PC › Disco locale (C:) › Users             [☆][▦][◨]    riga del percorso (C_BAR)
+[←][→][↑]  Questo PC › Disco locale (C:) › Users                [☆][◨]    riga del percorso (C_BAR)
 Preferiti ˅  │ Nome ↑              Data       Dimensione │ foto.jpg         intestazione (C_HEADER)
   Desktop    │ …                                         │  [immagine]      lista (C_BG) │ anteprima (C_BG)
 Unità ˅      │                                           │ 4032 × 3024 · …
-             │ lettura 0,18 ms · … · avvio 93 ms · F12                      barra dei tempi (C_BAR, opzione)  Disco (D:) │ [⏷ Filtra 72 elementi…]  avvisi   3 selezionati · 🗀 53  🗋 19   barra di stato (C_BAR)
+             │ lettura 0,18 ms · … · avvio 93 ms · F12                      barra dei tempi (C_BAR, opzione)  Disco (D:) │ [⏷ Filtra 72 elementi…]  avvisi   3 selezionati · 🗀 53  🗋 19 │ ☰ Dettagli   barra di stato (C_BAR)
 ```
 
 La barra laterale arriva in fondo alla finestra, libera. Barra dei tempi e barra di stato (con il
@@ -190,8 +191,8 @@ filtro a sinistra) stanno alla sua destra, sotto lista e anteprima.
 Sopra, quando servono: menu, tooltip, pannello delle opzioni, "Vai a" (sotto la riga del percorso), F12.
 
 Nessuna barra del titolo di Windows: [z]f disegna la sua (`chrome.cpp`). Ogni riga ha un compito;
-i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la cartella, ▦ per la vista e
-◨ per l'anteprima sopra di essa, filtro in basso).
+i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la cartella, ◨ per l'anteprima
+sopra di essa, filtro e vista in basso).
 
 - **Lista:**
   - righe alte una riga: icona a `PAD_X`, poi nome, data, dimensione;
@@ -242,12 +243,26 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
     scala 100%);
   - clic su un'intestazione: Data e Dimensione partono dal più recente e dal più grande, Nome e
     Destinazione dalla A.
-- **Vista a griglia** (Ctrl+Shift+2/3/4 · Ctrl+Shift+6 per l'elenco · pulsante ▦ · ≡ e menu dello
-  sfondo → "Mostra come griglia"/"Mostra come elenco", `thumbs.cpp`):
-  - la stessa lista in un'altra forma: stesse voci, stesso ordine, filtro, selezione, cursore,
-    rettangolo, trascinamento, rinomina, tooltip e anteprima accanto. L'elenco è una griglia di
-    una colonna: le due viste passano dalle stesse funzioni (`itemRect`, `itemAt`);
-  - **voce**: riquadro quadrato di lato `THUMB_PX` (96, 160 o 256) a `GAP_M` dai
+- **Viste e zoom** (Ctrl+rotellina · controllo della vista nella barra di stato · Ctrl+Shift+2/3/4
+  per le icone, 5 per Elenco, 6 per Dettagli · ≡ e menu dello sfondo → "Mostra come
+  icone"/"Mostra come dettagli", `thumbs.cpp`): un solo livello di zoom per cartella sceglie la
+  vista. **0% Dettagli** (la lista con le colonne, sopra), **10% Elenco**, **da 20% a 100%
+  Icone**, a passi di 10% (`ZOOM_*`, `THUMB_PX`). Ctrl+rotellina cambia un livello per scatto e
+  tocca solo la lista: barre, menu e testo restano come sono;
+  - la stessa lista in altre forme: stesse voci, stesso ordine, filtro, selezione, cursore,
+    rettangolo, trascinamento, rinomina, tooltip e anteprima accanto. Le voci stanno su linee
+    (righe; in Elenco colonne) e tutte le viste passano dalle stesse funzioni (`itemRect`,
+    `itemAt`, `itemBg`);
+  - **Elenco**: icona e nome come in una riga di Dettagli (stesse posizioni, stesso segnaposto),
+    in colonne larghe `LIST_COL_W` (300) con tante righe quante ne stanno nell'altezza della lista
+    sopra la barra di scorrimento, che è orizzontale e in fondo alla lista. Si scorre in
+    orizzontale: la rotellina di una colonna a scatto; ↑ ↓ una voce, ← → una colonna; nomi lunghi
+    in "…" alla fine della colonna. Fondo di hover e selezione con `GAP_XS` di margine ai lati (le
+    colonne non si toccano, le righe sì); il rettangolo prende le voci di cui tocca il fondo; vicino
+    ai bordi sinistro e destro la lista scorre, come in alto e in basso nelle altre viste.
+    Intestazione come in Icone; le colonne tagliate a destra non entrano nell'anteprima;
+  - **Icone, voce**: riquadro quadrato di lato `THUMB_PX` (da 64 a 256 per i nove livelli; 96, 160
+    e 256 per piccole, medie e grandi) a `GAP_M` dai
     bordi della voce, poi a `GAP_S` il nome su due righe centrate (va a capo dopo uno spazio, un
     punto, un trattino o un trattino basso; la seconda riga finisce in "…"). Le voci di una riga
     si dividono in parti uguali la larghezza della lista: niente spazio avanzato a destra;
@@ -266,14 +281,12 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
     PagGiù una schermata, Home Fine; Shift e Ctrl come nell'elenco;
   - **mouse**: il trascinamento dei file parte da miniatura e nome di una voce selezionata; da ogni
     altro punto parte il rettangolo, che prende le voci di cui tocca miniatura o nome;
-  - rotellina: una riga di voci a scatto; Ctrl+rotellina cambia la dimensione delle miniature
-    (in elenco resta la dimensione del testo; Ctrl +/− e Ctrl+0 restano al testo);
-  - la vista si ricorda per cartella (`viste.txt`); la dimensione vale per tutte
-    (`griglia_dimensione` in `impostazioni.txt`).
+  - rotellina: una riga di voci a scatto;
+  - lo zoom si ricorda per cartella (`viste.txt`); le cartelle mai cambiate sono in Dettagli.
 - **Archivio zip** (`zip.cpp`, `zipout.cpp`): non è un elemento nuovo, è una cartella. Doppio clic
   o Invio su uno zip lo apre nella lista; il percorso continua oltre l'archivio ("Disco locale (C:) ›
   Download › foto.zip › 2024") e tutto il resto (segmenti, "›", ↑, schede, filtro, ordinamento,
-  griglia, tooltip, anteprima) è quello di sempre:
+  viste, tooltip, anteprima) è quello di sempre:
   - colonna Dimensione: le cartelle hanno il totale dall'archivio, in `C_DIM` (non c'è un conteggio
     in corso), se è accesa l'opzione delle dimensioni delle cartelle;
   - **sola lettura**: nel menu Taglia, Rinomina, Elimina, Incolla e Nuova cartella restano,
@@ -308,7 +321,7 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   - clic sullo spazio vuoto sotto le righe, senza trascinare: toglie la selezione (il cursore
     resta), come Explorer.
 - **Barra del titolo** (sempre visibile): a sinistra ≡ (menu di [z]f: nuova scheda, nuova finestra,
-  "Vai a…", anteprima, griglia o elenco, annulla e ripeti, integrazione, opzioni, versione) e ▯ (barra laterale); poi le schede e "+"; a destra i pulsanti
+  "Vai a…", anteprima, icone o dettagli, annulla e ripeti, integrazione, opzioni, versione) e ▯ (barra laterale); poi le schede e "+"; a destra i pulsanti
   di sistema, larghi `CAPTION_W` (46), con la chiusura in rosso Windows (#C42B1C) al passaggio del mouse.
   - lo spazio vuoto trascina la finestra (doppio clic: ingrandisci; tasto destro: menu di sistema); ne resta sempre almeno `DRAG_MIN`;
   - il bordo superiore ridimensiona; su Windows 11 il pulsante ingrandisci mostra gli snap layout;
@@ -338,8 +351,8 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   - clic su un segmento: ci va; su "›": menu delle sottocartelle (il "›" resta evidenziato finché il menu è aperto); clic centrale: nuova scheda; spazio vuoto: "Vai a" dalla cartella aperta (vedi "Vai a");
   - nomi come altrove: unità con la loro etichetta, preferiti con il loro nome;
   - se non c'è spazio i primi livelli finiscono in "…", che li elenca in un menu;
-  - a sinistra ← → ↑, a destra ☆, ▦ e ◨ (▦: icona GridView, `C_TEXT` in griglia e `C_DIM` in
-    elenco; anteprima: icona DockRight, gemella di ▯; `C_TEXT` se aperta, `C_DIM` se chiusa, come ▯).
+  - a sinistra ← → ↑, a destra ☆ e ◨ (anteprima: icona DockRight, gemella di ▯; `C_TEXT` se
+    aperta, `C_DIM` se chiusa, come ▯). La vista non sta qui: è nella barra di stato.
 - **Pannello di anteprima** (Alt+P · ◨ · ≡ → "Mostra anteprima", `preview.cpp`): non è un
   pannello sovrapposto ma una parte della finestra, a destra della lista, dall'intestazione alla
   barra di stato; la lista finisce alla sua sinistra (`A.listR`).
@@ -418,8 +431,17 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
     delle icone della lista e il testo in quella dei nomi (`A.iconX`, `A.nameX`); vuoto mostra
     "Filtra N elementi…" in `C_FAINT`; attivo ha la sottolineatura `C_ACCENT` e la × per
     toglierlo. Si scrive in qualsiasi punto della lista;
-  - a destra i contatori di cartelle e file (con le icone, della vista: rispettano il filtro) e,
-    prima, la selezione in `C_ACCENT` ("3 selezionati  12 KB   ·   ");
+  - all'estremo destro il **controllo della vista**: icona della vista (BulletedList, List,
+    GridView) in `C_FAINT` e nome ("Dettagli", "Elenco", "Icone") in `C_DIM`, largo sempre
+    quanto il nome più largo, così cambiando vista non si sposta niente. Sotto il mouse, e finché
+    il suo menu è aperto, fondo `C_HOVER` arrotondato `R_S` come i pulsanti della riga del
+    percorso. Clic: menu delle viste, sopra il controllo e allineato al suo bordo destro (Dettagli,
+    Elenco, Icone piccole, medie, grandi con le scorciatoie; la vista attuale col segno di
+    spunta). La rotellina sopra il controllo cambia lo zoom come Ctrl+rotellina. Nessuna
+    percentuale: lo zoom si vede dalla lista;
+  - prima, a `GAP_M`, una barretta verticale 1 px `C_LINE` alta quanto il campo del filtro meno
+    `GAP_XS` per parte; poi, a `GAP_L`, i contatori di cartelle e file (con le icone, della vista:
+    rispettano il filtro) e, prima, la selezione in `C_ACCENT` ("3 selezionati  12 KB   ·   ");
   - dopo il filtro, a `GAP_L`, avvisi e "caricamento…", che finiscono in "…" a `GAP_L` dalla
     parte destra.
 - **Barra dei tempi** (opzione "Barra dei tempi", `barra_tempi`, spenta di solito): sopra la barra
@@ -583,7 +605,7 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
 | cestino a destra di un preferito | primo clic: "Togli?"; secondo clic: lo toglie dai preferiti |
 | trascina col tasto destro | al rilascio, un menu chiede cosa fare |
 | rotellina | scorre l'elemento sotto il mouse, non quello attivo; le frazioni di scatto dei touchpad si sommano (negli elenchi a righe intere) |
-| Ctrl+rotellina | dimensione del testo; in griglia delle miniature |
+| Ctrl+rotellina | zoom della lista: Dettagli, Elenco, Icone da 20 a 100% (solo la lista; il testo con Ctrl +/−) |
 | tasti laterali; tasti Indietro/Avanti della tastiera; gesti del touchpad "Spostamento indietro/avanti" di Windows | indietro / avanti (sopra le opzioni e "Vai a": niente) |
 
 ### Tastiera

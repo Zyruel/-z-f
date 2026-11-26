@@ -10,6 +10,16 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 
 ## In preparazione
 
+- **Zoom della lista con Ctrl+rotellina:** non cambia più il testo di tutta la finestra, ma solo
+  la lista, passando per le viste: Dettagli (0%), **Elenco** (10%, nuova: icona e nome in colonne
+  che scorrono in orizzontale, quante ne servono per l'altezza della finestra) e Icone da 20% a
+  100%, con nove misure di miniature invece di tre. Lo zoom si ricorda per cartella, come prima la
+  griglia; le cartelle che erano in griglia si aprono in Icone medie (70%). Il testo si ingrandisce
+  ancora con Ctrl +/−.
+- **La vista è nella barra di stato**, a destra dei contatori di cartelle e file, dopo una
+  barretta: icona e nome della vista; un clic apre il menu delle viste (Dettagli, Elenco, Icone
+  piccole, medie e grandi), la rotellina lì sopra cambia lo zoom. Il pulsante ▦ della barra del
+  percorso non c'è più. Nuova scorciatoia Ctrl+Shift+5 per Elenco; Ctrl+Shift+6 resta Dettagli.
 - **Aggiungi percorso di rete…** nel menu di Questo PC (barra laterale e sfondo della lista),
   accanto a "Connetti unità di rete…": apre la procedura di Windows, come Explorer, e quando la si
   chiude il percorso nuovo compare sotto Questo PC. Prima per crearne uno serviva Explorer.
