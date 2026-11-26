@@ -163,6 +163,24 @@ static void chromeSetHover(int id) {
 }
 
 // true se il messaggio è stato gestito (va restituito 0)
+// Tasto destro sullo spazio vuoto della barra del titolo: il menu di sistema. DefWindowProc non lo
+// mostra, perché per lui lì è area client (WM_NCCALCSIZE): lo si apre qui, con le voci abilitate
+// come le abilita Windows, e il comando scelto torna a DefWindowProc come WM_SYSCOMMAND.
+static void chromeSysMenu(HWND hwnd, int x, int y) {
+    HMENU m = GetSystemMenu(hwnd, FALSE);
+    if (!m) return;
+    bool max = IsZoomed(hwnd);
+    EnableMenuItem(m, SC_RESTORE, max ? MF_ENABLED : MF_GRAYED);
+    EnableMenuItem(m, SC_MOVE, max ? MF_GRAYED : MF_ENABLED);
+    EnableMenuItem(m, SC_SIZE, max ? MF_GRAYED : MF_ENABLED);
+    EnableMenuItem(m, SC_MAXIMIZE, max ? MF_GRAYED : MF_ENABLED);
+    EnableMenuItem(m, SC_MINIMIZE, MF_ENABLED);
+    EnableMenuItem(m, SC_CLOSE, MF_ENABLED);
+    g_shellCalls++; // ciclo modale del menu: il tempo è dell'utente, non va nel registro
+    int cmd = (int)TrackPopupMenu(m, TPM_RETURNCMD | TPM_RIGHTBUTTON, x, y, 0, hwnd, nullptr);
+    if (cmd) PostMessageW(hwnd, WM_SYSCOMMAND, (WPARAM)cmd, 0);
+}
+
 static bool chromeNcMouse(HWND hwnd, UINT msg, WPARAM wp) {
     int id = ncToChrome(wp);
     switch (msg) {

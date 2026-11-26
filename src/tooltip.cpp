@@ -461,7 +461,7 @@ static void tipOnTimer() {
     tipShow();
 }
 
-// Dimensioni delle cartelle aggiornate (dirsize.cpp): tooltip, anteprima e colonna
+// Dimensioni delle cartelle aggiornate (dirsize.cpp): tooltip e colonna
 static void onDirSize() {
     InterlockedExchange(&DS.posted, 0);
     dirSizeRefill(); // il thread del conto può aspettare il pezzo successivo della coda

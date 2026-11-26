@@ -91,7 +91,8 @@ static void resolveStartArg(std::wstring arg, std::wstring& path, std::wstring& 
 
 // Consegna la cartella a una finestra di [z]f già aperta (Forward)
 static Forward forwardToRunning(const std::wstring& path, const std::wstring& select) {
-    // Il mutex resta aperto per tutta la vita del processo: dice "[z]f principale in esecuzione".
+    // Il mutex resta aperto finché c'è la finestra principale (si chiude nel suo WM_DESTROY,
+    // input.cpp): dice "[z]f principale in esecuzione".
     // Serve per i due avvii quasi simultanei: il secondo aspetta che la finestra del primo esista.
     HANDLE m = CreateMutexW(nullptr, FALSE, L"Local\\z-f-istanza");
     g_instanceMutex = m; // se non si consegna, la principale diventa questa (FWD_NONE)

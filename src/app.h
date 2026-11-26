@@ -265,7 +265,7 @@ struct App {
     // Layout (pixel, aggiornato a ogni frame)
     float topH, headH, rowH, statusH, listTop, listH, sbW, padX, dateW, sizeW;
     float timesH = 0;                 // barra dei tempi (0 se spenta)
-    float footH = 0;                  // sotto lista e anteprima: barra dei tempi più barra di stato
+    float footH = 0;                  // sotto la lista: barra dei tempi più barra di stato
     float dateX = 0, sizeX = 0;       // inizio delle colonne Data e Dimensione
     float linkX = 0, linkW = 0;       // colonna Destinazione (linkW 0: non c'è, e linkX = dateX)
     float nameEnd = 0;                // fine del testo del nome (prima della colonna successiva)

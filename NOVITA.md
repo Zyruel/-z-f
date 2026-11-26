@@ -26,7 +26,8 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
   clic sul percorso, anteprima con ◨ e Alt+P, vista nella barra di stato, annulla e ripeti con
   Ctrl+Z e Ctrl+Y o dal menu dello sfondo (dove ora c'è anche "Ripeti", quando serve), "Usa [z]f
   al posto di Explorer" e versione nelle opzioni. Una versione nuova si annuncia con il pallino su
-  ⚙, e in fondo alle opzioni "Aggiorna a [z]f …" si clicca per intero.
+  ⚙, e in fondo alle opzioni "Aggiorna a [z]f …" si clicca per intero. Il tasto destro sullo
+  spazio vuoto della barra del titolo apre ora il menu di sistema di Windows.
 - **La versione in fondo alle opzioni porta alla sua Release** su GitHub, con le novità e i
   download; data e compilatore della build non ci sono più. Un clic sull'icona accanto controlla
   gli aggiornamenti, e l'anello di punti resta almeno un giro, così si vede anche quando GitHub

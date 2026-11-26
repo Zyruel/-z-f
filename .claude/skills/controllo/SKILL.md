@@ -169,7 +169,7 @@ con grep prima di segnalare.
   `itemRect`/`itemBg`/`itemAt`/`gridParts` (`app.cpp`). `A.rowH` in sé è legittimo (altezze di
   barre, menu, barra laterale): si segnala solo dove calcola una voce della lista, perché in
   griglia sbaglierebbe.
-- **`drawSpinner`** solo mentre un lavoro è davvero in corso e dove l'utente sta guardando
+- **`drawSpinner`** solo mentre un lavoro è davvero in corso (più il resto del primo giro) e dove l'utente sta guardando
   (DESIGN §5).
 - Stati, colori e testi come DESIGN §2, §6 e §9: gerarchia del testo col colore e mai con
   dimensione o grassetto; un solo carattere (eccezione: il testo nell'anteprima); testi in

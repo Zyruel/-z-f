@@ -142,7 +142,8 @@ constexpr float TAU_SCROLL = 45;   // scorrimento con la rotellina
 constexpr int WHEEL_LINES = 3;     // righe per scatto della rotellina (lista, menu, pannelli; non Icone ed Elenco, che scorrono di una riga o colonna di voci)
 // Durate fisse (ease-out)
 constexpr float DUR_MENU = 90, DUR_TIP = 80, DUR_ICON = 110;
-// Unica animazione continua (DESIGN.md §5): un giro dell'anello di punti, solo mentre un lavoro è in corso
+// Unica animazione continua (DESIGN.md §5): un giro dell'anello di punti, mentre un lavoro è in
+// corso e almeno per un giro (un lavoro breve non è un lampo)
 constexpr float SPIN_PERIOD = 900;
 // Tooltip e avvisi
 constexpr int TIP_DELAY = 500, TIP_DELAY_NEAR = 60, TIP_INFO_WAIT = 150, TIP_NEAR_WINDOW = 400;
@@ -165,7 +166,7 @@ constexpr int WATCH_BATCH = 50;    // notifiche della cartella aperta raggruppat
 constexpr int SIDE_RELOAD = 5000;  // tornando a [z]f, unità e preferiti si rileggono se più vecchi di così
 constexpr int ZIP_TEMP_KEEP = 3 * 24 * 3600 * 1000; // file estratti da uno zip (%TEMP%\z-f): tolti all'estrazione dopo questo tempo
 // Dimensione delle cartelle (dirsize.cpp): un totale vale DS_FRESH, poi una richiesta lo riconta;
-// tooltip e anteprima vedono il parziale ogni DS_PROGRESS; la cache oltre il suo limite si pulisce
+// il tooltip vede il parziale ogni DS_PROGRESS; la cache oltre il suo limite si pulisce
 // al massimo ogni DS_TRIM_EVERY
 constexpr int DS_FRESH = 60000, DS_PROGRESS = 100, DS_TRIM_EVERY = 15000;
 // Salto dei dialoghi Apri e Salva (filedlg.cpp, sul suo thread): ogni FD_POLL si guarda se il

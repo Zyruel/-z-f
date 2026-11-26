@@ -15,7 +15,7 @@
 #include "lnk.cpp"    // lettore dei collegamenti (.lnk), senza la shell
 #include "app.h"      // stato e dichiarazioni condivise
 #include "app.cpp"    // layout, selezione, navigazione, ricariche
-#include "dirsize.cpp" // dimensione totale delle cartelle (tooltip, anteprima, colonna)
+#include "dirsize.cpp" // dimensione totale delle cartelle (tooltip, colonna)
 #include "links.cpp"  // collegamenti (.lnk): destinazione letta su un thread, colonna Destinazione
 #include "watch.cpp"  // aggiornamento in tempo reale
 #include "icons.cpp"  // icone della shell

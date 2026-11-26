@@ -17,7 +17,7 @@
 //   carattere_anteprima=Cascadia Mono  testo nell'anteprima (se non è installato: Cascadia Mono, Consolas)
 //   annulla_dopo_riavvio=0 1: la cronologia di Ctrl+Z si salva in annulla.txt e si ritrova al riavvio
 //   menu_completo=0        1: il tasto destro apre il menu completo della shell (Shift quello di [z]f)
-//   dimensione_cartelle=1  0: la colonna Dimensione non conta le cartelle (tooltip e anteprima sì)
+//   dimensione_cartelle=1  0: la colonna Dimensione non conta le cartelle (il tooltip sì)
 //   dialoghi=1             0: i dialoghi Apri e Salva degli altri programmi non saltano alla cartella di [z]f
 //   griglia_dimensione=1   (fino alla 1.0.0-beta.5) misura della griglia: si legge solo per le righe
 //                          "griglia" di viste.txt, che diventano Icone piccole, medie o grandi

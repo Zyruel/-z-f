@@ -142,7 +142,7 @@ static inline uint32_t fadeA(uint32_t c, float a) {
 
 
 // Messaggi interni (thread di lavoro → finestra)
-#define ZF_VERSION L"1.0.0-beta.5" // versione (SemVer) mostrata nelle opzioni e nel menu di [z]f
+#define ZF_VERSION L"1.0.0-beta.5" // versione (SemVer) mostrata in fondo alle opzioni
 #include "risorse.h" // ID delle risorse (ZF_ICON), in comune con src\z-f.rc
 
 #define WM_APP_LISTING (WM_APP + 1)

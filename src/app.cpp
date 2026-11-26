@@ -3,7 +3,7 @@
 // Spazio per le colonne dopo il nome (Destinazione, Data, Dimensione): tutto tranne il minimo del nome
 static float colRoom() { return A.listR - A.sbW - A.padX - A.listX - px(ui::COL_NAME_MIN); }
 
-// Colonna Destinazione: in elenco, nelle cartelle con almeno un collegamento (links.cpp)
+// Colonna Destinazione: in Dettagli, nelle cartelle con almeno un collegamento (links.cpp)
 static bool linkColumn() { return A.zoom == ZOOM_DETAILS && A.cur && !A.cur->lnk.empty(); }
 
 // Larghezza massima di Destinazione con Data in dateX: mai più larga di Nome. Senza questo

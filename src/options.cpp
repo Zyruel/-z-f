@@ -1,4 +1,4 @@
-// [z]f — pannello delle opzioni (Ctrl+, · menu della barra delle schede).
+// [z]f — pannello delle opzioni (⚙ · Ctrl+,).
 //
 // Pannello sovrapposto, come menu e tooltip: si chiude con Esc, con la × o cliccando fuori.
 // Ogni opzione ha effetto subito e si salva in impostazioni.txt. Le scorciatoie vengono da una
@@ -361,10 +361,13 @@ static int optionsHit(int x, int y) {
 }
 
 // --- input: true se l'evento è stato gestito dal pannello ------------------------------
-static bool optionsMouseDown(int x, int y) {
+// again: secondo clic di un doppio clic. Conta come un clic, tranne su versione e aggiornamento:
+// aprirebbero la pagina due volte (o ripeterebbero l'aggiornamento)
+static bool optionsMouseDown(int x, int y, bool again = false) {
     if (!OP.open) return false;
     if (x < OP.x || x >= OP.x + OP.w || y < OP.y || y >= OP.y + OP.h) { optionsClose(); return true; } // clic fuori
     int id = optionsHit(x, y);
+    if (again && (id == OPT_VERSION || id == OPT_UPD_ACT)) return true;
     if (id != OPT_NONE) optionsExec(id);
     return true;
 }

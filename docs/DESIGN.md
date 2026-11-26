@@ -133,8 +133,9 @@ qualcosa è cambiato. Mai per decorazione, e mai così lente da farsi aspettare.
   animazioni partirebbero già finite.
 - **Tutto è disattivabile** con `animazioni=0`: i valori arrivano subito all'obiettivo.
 - **Un'eccezione, l'anello di punti** (`drawSpinner`, `render.cpp`): l'unica animazione continua.
-  Si usa solo mentre un lavoro è davvero in corso e si vede dove l'utente sta guardando (il
-  controllo degli aggiornamenti accanto alla versione). `SPIN_DOTS` (8) punti tondi fermi su un
+  Si usa solo mentre un lavoro è davvero in corso, e almeno per un giro (`SPIN_PERIOD`), così un
+  lavoro breve non è un lampo; e si vede dove l'utente sta guardando (il controllo degli
+  aggiornamenti accanto alla versione). `SPIN_DOTS` (8) punti tondi fermi su un
   cerchio, gira solo la luminosità (dal 100% della testa a `SPIN_MIN_ALPHA` della scia); niente
   glifi ruotati, che con l'atlante rasterizzato diritto si vedrebbero male. Con `animazioni=0` è
   fermo.
@@ -148,7 +149,7 @@ qualcosa è cambiato. Mai per decorazione, e mai così lente da farsi aspettare.
 | indicatore della scheda attiva | τ 30 ms |
 | scorrimento con la rotellina | τ 45 ms |
 | menu / tooltip / icona | 90 / 80 / 110 ms |
-| anello di punti: un giro | 900 ms, finché il lavoro è in corso |
+| anello di punti: un giro | 900 ms, finché il lavoro è in corso e almeno un giro |
 
 ---
 
@@ -356,7 +357,9 @@ doppione.
 - **Pulsanti a icona** (⚙, ▯, ← → ↑, ☆, ◨, pulsanti di sistema): quadrati o larghi `NAV_W` righe,
   icona centrata, hover come le voci. Disattivati in `C_FAINT` (← senza cronologia). Uno stato
   attivo si mostra col colore dell'icona (☆ piena in `C_ACCENT` se la cartella è tra i preferiti).
-  Il doppio clic ripete il comando solo su ← → ↑ (due passi); su ▯ ☆ ◨ conta come un clic.
+  Il doppio clic ripete il comando solo su ← → ↑ (due passi); su ⚙ ▯ ☆ ◨ conta come un clic.
+  Nel pannello delle opzioni il secondo clic conta come un clic, tranne sulla versione e
+  sull'icona dell'aggiornamento (aprirebbero la pagina due volte).
 - **Icone:** dal font di icone di Windows (Segoe Fluent Icons, Segoe MDL2 Assets su Windows 10),
   scala di grigi, dimensione 1,15 × testo; codici in `text.cpp` (`IC_*`). Niente immagini nel
   programma. Le icone di file e cartelle restano quelle della shell.
@@ -461,7 +464,7 @@ doppione.
     "Filtra N elementi…" in `C_FAINT`; attivo ha la sottolineatura `C_ACCENT` e la × per
     toglierlo. Si scrive in qualsiasi punto della lista;
   - all'estremo destro, prima del bordo dell'anteprima, il **controllo della vista**: icona della vista (BulletedList, List,
-    GridView) in `C_FAINT` e nome ("Dettagli", "Elenco", "Icone") in `C_DIM`, largo sempre
+    ViewAll) in `C_FAINT` e nome ("Dettagli", "Elenco", "Icone") in `C_DIM`, largo sempre
     quanto il nome più largo, così cambiando vista non si sposta niente. Sotto il mouse, e finché
     il suo menu è aperto, fondo `C_HOVER` arrotondato `R_S` come i pulsanti della riga del
     percorso. Clic: menu delle viste, sopra il controllo e allineato al suo bordo destro (Dettagli,
@@ -534,7 +537,7 @@ doppione.
   ogni campo futuro. Il suggerimento a casella vuota è in `C_FAINT`, `GAP_S` dopo il cursore.
 - **Barra di scorrimento:** solo il cursore, `C_SCROLL`, largo `SCROLL_W` (10) con margine; alto
   almeno `THUMB_MIN` (24).
-- **Pannello delle opzioni** (Ctrl+, · menu della barra delle schede): pannello sovrapposto
+- **Pannello delle opzioni** (⚙ · Ctrl+,): pannello sovrapposto
   centrato, con il resto della finestra attenuato da `C_SHADOW`.
   - barra del titolo con ×; sezioni col titolo in `C_FAINT`; righe con etichetta a sinistra e
     controllo a destra, eventuale spiegazione sotto in `C_FAINT`;
@@ -646,8 +649,8 @@ doppione.
   scrive il nome ("Ctrl+Shift+N"). Vale solo con esattamente quei modificatori (Ctrl+Shift+W non
   chiude la scheda). In `onKey` restano scritti a mano solo i tasti che dipendono dal contesto.
 - **Si seguono le convenzioni di Windows e dei browser:** Ctrl+C/X/V, F2, Canc, Alt+frecce,
-  Ctrl+T/W/Tab, Ctrl+L, F5, Alt+P (il riquadro di anteprima di Explorer), Ctrl+Shift+2/3/4/6 (le
-  viste di Explorer: grandi, medie, piccole, dettagli), Ctrl+Z e Ctrl+Y
+  Ctrl+T/W/Tab, Ctrl+L, F5, Alt+P (il riquadro di anteprima di Explorer), Ctrl+Shift+2/3/4/5/6 (le
+  viste di Explorer: grandi, medie, piccole, elenco, dettagli), Ctrl+Z e Ctrl+Y
   (anche Ctrl+Shift+Z) per annullare e ripetere le operazioni sui file. Dentro una casella di
   testo Ctrl+Z non tocca i file.
 - **Esc toglie un livello alla volta:** rettangolo, bordo o preferito trascinato (si torna a prima), conferma del cestino → menu →

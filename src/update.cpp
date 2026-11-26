@@ -451,7 +451,7 @@ static DWORD WINAPI updThread(void* p) {
 
 // --- thread dell'interfaccia ----------------------------------------------------------------
 
-// manual: chiesto dall'utente (clic sulla versione): risponde sempre con un avviso
+// manual: chiesto dall'utente (clic sull'icona accanto alla versione): risponde sempre con un avviso
 static void updCheck(bool manual) {
     if (U.running || U.st == UP_READY) return;
     bool checkOnly = false;

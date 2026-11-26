@@ -226,7 +226,10 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_NCMOUSEMOVE: case WM_NCMOUSELEAVE: case WM_NCLBUTTONDOWN: case WM_NCLBUTTONUP: case WM_NCLBUTTONDBLCLK:
         if (chromeNcMouse(hwnd, msg, wp)) return 0;
         break;
-    case WM_SETCURSOR: // sul bordo tra due colonne: cursore ↔ (la finestra figlia è trasparente al mouse)
+    case WM_NCRBUTTONUP: // spazio vuoto della barra del titolo: il menu di sistema
+        if (wp == HTCAPTION) { chromeSysMenu(hwnd, GET_X_LPARAM(lp), GET_Y_LPARAM(lp)); return 0; }
+        break;
+    case WM_SETCURSOR: // manina sulla versione e sulle destinazioni, ↔ sui bordi (la finestra figlia è trasparente al mouse)
         if (LOWORD(lp) == HTCLIENT && OP.open && OP.hover == OPT_VERSION) { // la versione porta alla sua Release
             SetCursor(LoadCursorW(nullptr, IDC_HAND));
             return TRUE;
@@ -451,7 +454,9 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             gotoWheel(c.x, c.y, wheelSteps(lines));
             return 0;
         }
-        if (OP.open && !(GET_KEYSTATE_WPARAM(wp) & MK_CONTROL)) { optionsWheel(lines); return 0; }
+        // Con le opzioni aperte la rotellina è loro; Ctrl+rotellina non fa niente (lo zoom
+        // cambierebbe la lista nascosta sotto il pannello, senza che si veda)
+        if (OP.open) { if (!(GET_KEYSTATE_WPARAM(wp) & MK_CONTROL)) optionsWheel(lines); return 0; }
         POINT c = { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) }; // coordinate schermo
         ScreenToClient(hwnd, &c);
         // Ctrl+rotellina, o la rotellina sul controllo della vista: zoom della lista (Dettagli,
@@ -696,10 +701,13 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_LBUTTONDBLCLK: {
         int y = GET_Y_LPARAM(lp), x = GET_X_LPARAM(lp);
         if (gotoDblClk(x, y, (wp & MK_CONTROL) != 0)) return 0;
-        if (optionsMouseDown(x, y)) return 0; // nel pannello il secondo clic conta come un clic
         int chId = chromeHit(x, y);
-        if (chId >= CH_BACK && chId <= CH_UP) { chromeExec(chId); return 0; } // doppio clic rapido su ← → ↑: due passi
-        if (chId != CH_NONE) return 0; // ▯ ☆ ◨: il secondo clic non riapre né richiude
+        bool nav = chId >= CH_BACK && chId <= CH_UP;
+        // ⚙ ▯ ☆ ◨: il secondo clic non riapre né richiude. Prima delle opzioni: su ⚙, appena
+        // aperte, sarebbe un clic fuori dal pannello e le richiuderebbe
+        if (chId != CH_NONE && !nav) return 0;
+        if (optionsMouseDown(x, y, true)) return 0; // nel pannello il secondo clic conta come un clic
+        if (nav) { chromeExec(chId); return 0; } // doppio clic rapido su ← → ↑: due passi
         if (y < A.pathY) return 0;
         if (int pe = panelEdgeAt(x, y); pe >= 0) { panelEdgeReset(pe); return 0; } // bordo di un pannello: larghezza predefinita
         int b = colBorderAt(x, y);

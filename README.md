@@ -125,9 +125,9 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 |---|---|
 | Ctrl+B | Mostra o nasconde la barra laterale |
 | Alt+P | Mostra o nasconde l'anteprima |
-| Ctrl+rotellina | Zoom della lista: Dettagli, Elenco, Icone da 20 a 100% |
-| Ctrl+Shift+2 · Ctrl+Shift+3 · Ctrl+Shift+4 | Icone grandi · medie · piccole |
+| Ctrl+Shift+2 · Ctrl+Shift+3 · Ctrl+Shift+4 | Icone grandi · medie · piccole (zoom 100 · 70 · 40%) |
 | Ctrl+Shift+5 · Ctrl+Shift+6 | Elenco · Dettagli |
+| Ctrl+rotellina | Zoom della lista: Dettagli, Elenco, Icone da 20 a 100% |
 | Trascina il bordo di un pannello · doppio clic | Larghezza di barra laterale o anteprima · predefinita |
 | Clic sull'intestazione | Ordina per colonna (di nuovo: al contrario) |
 | Trascina il bordo di una colonna · doppio clic | Larghezza della colonna · adatta al contenuto |

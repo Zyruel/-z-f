@@ -111,7 +111,6 @@ static void menuOpenDrop(float cx, float cy, DWORD allowed, DWORD preferred) {
     menuPlace(cx, cy, true, t0);
 }
 
-// Spazio vuoto della barra delle schede: comandi dell'applicazione
 // Dettagli ↔ Icone: la voce mostra la scorciatoia della vista in cui porta. Tutte le viste sono
 // nel menu della vista, nella barra di stato (menuOpenView)
 static void menuAddView() {

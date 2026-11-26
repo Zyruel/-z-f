@@ -20,6 +20,26 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 0000000000000000000000000000000000000000000000. Correzioni del controllo prima della 1.0.0-beta.6 (z-f-dev, novembre 2026)
+
+Dal `/controllo cambiati`: doppio clic su ⚙ e sulla versione, Ctrl+rotellina con le opzioni
+aperte, menu di sistema sullo spazio vuoto della barra del titolo. Compilato senza avvisi (MSVC).
+
+Provato da Claude in z-f-dev (cartella `build\`):
+- [x] doppio clic su ⚙: le opzioni si aprono e restano aperte (prima si richiudevano subito);
+- [x] Ctrl+rotellina sopra le opzioni (`WM_MOUSEWHEEL` con `MK_CONTROL` mandato da uno script:
+      lo strumento dello schermo non tiene Ctrl con la rotellina): la vista resta Dettagli; a
+      opzioni chiuse lo stesso messaggio porta in Elenco;
+- [x] tasto destro sullo spazio vuoto della barra del titolo: il menu di sistema (Sposta,
+      Ridimensiona, Riduci a icona, Ingrandisci, Chiudi) sotto il mouse; Esc lo chiude;
+- [x] registro: solo le voci normali dell'avvio, niente "messaggio lento" per il menu.
+
+Restano:
+- [ ] doppio clic sulla versione in fondo alle opzioni: una sola scheda del browser (non provato
+      per non aprire pagine nel browser di Zyruel);
+- [ ] menu di sistema: con la finestra ingrandita "Ripristina" attivo e Sposta, Ridimensiona,
+      Ingrandisci disattivati; una voce scelta (Riduci a icona) funziona.
+
 ## 000000000000000000000000000000000000000000000. Versione nelle opzioni come collegamento (z-f-dev, novembre 2026)
 
 Tolti data e compilatore dal piede delle opzioni; la versione apre la sua Release su GitHub;

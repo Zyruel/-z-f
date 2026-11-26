@@ -71,7 +71,7 @@ condivise sono in `app.h`.
 | `update.cpp` | aggiornamento automatico dalle Release di GitHub (WinHTTP, JSON, versioni, impronta e firma con CNG), scambio dell'exe, riavvio di tutte le finestre, icona di stato |
 | `filedlg.cpp` | dialoghi Apri e Salva degli altri programmi nella cartella di [z]f (`SetWinEventHook`, campo del nome da un thread) |
 | `settings.cpp` | impostazioni e salvataggio atomico in background dei file in `%APPDATA%\z-f` |
-| `chrome.cpp` | cornice della finestra: barra del titolo con le schede, pulsanti (anche quelli della riga del percorso), area non client, icona della finestra |
+| `chrome.cpp` | cornice della finestra: barra del titolo con le schede, pulsanti (anche quelli della riga del percorso), area non client e menu di sistema (`chromeSysMenu`: `DefWindowProc` non lo apre, perché la barra del titolo per lui è area client), icona della finestra |
 | `crumbs.cpp` | percorso a segmenti cliccabili, menu delle sottocartelle |
 | `tooltip.cpp` | tooltip: contenuto, informazioni lette su un thread (anche per l'anteprima), disegno |
 | `preview.cpp` | pannello di anteprima: immagini (WIC), testo, cartelle, informazioni; lettura e decodifica su un thread |
@@ -494,7 +494,7 @@ tooltip su un JPEG), nessun file scaricato.
   quando non ha altro da fare, toglie le scadute (`dsTrim`, al massimo ogni `DS_TRIM_EVERY`, 15 s), tranne le
   sottocartelle della cartella aperta, che la colonna mostra. Lo fa a blocchi di bucket, quindi il
   thread UI non aspetta il lock più di un blocco.
-- Le unità di rete e ottiche (`slowPath`) si contano solo a richiesta (tooltip, anteprima).
+- Le unità di rete e ottiche (`slowPath`) si contano solo a richiesta (tooltip).
 
 **Misurato:** tutto C:\ (18 cartelle) in 14,4 s sul thread, con i frame a 0,12 ms (peggiore
 0,35). WinSxS (30.734 cartelle): contate in 6 s, 41.000 voci in cache, da 4 a 6 MB (con i
@@ -918,7 +918,7 @@ nessuna conferma del nome, nome proposto intatto.
 
 ## [z]f al posto di Explorer
 
-**Come funziona** (`integration.cpp`; dal menu della barra delle schede o con
+**Come funziona** (`integration.cpp`; dalle opzioni o con
 `z-f.exe --predefinito=si|no`).
 
 - Doppio clic sulle cartelle e sugli zip del desktop, programmi che aprono una cartella o uno zip,
@@ -1004,7 +1004,8 @@ sul thread; con il server spento l'errore arriva dopo 2 s, sempre sul thread.
   `unita_aperte`, `colonna_data`, `colonna_dimensione`, `colonna_destinazione`, `anteprima`,
   `anteprima_larghezza`, `carattere_anteprima`, `annulla_dopo_riavvio`, `menu_completo`,
   `dimensione_cartelle`, `dialoghi`, `riapri_schede`, `finestre_separate`, `aggiornamenti`,
-  `aggiornamenti_beta`, `aggiornamenti_ultimo`. Il pannello delle opzioni (`options.cpp`) le
+  `aggiornamenti_beta`, `aggiornamenti_ultimo` (e, solo in lettura, `griglia_dimensione` delle
+  versioni fino alla 1.0.0-beta.5). Il pannello delle opzioni (`options.cpp`) le
   cambia con effetto immediato: dimensione e carattere del testo, animazioni, barra laterale, "Usa
   [z]f al posto di Explorer", "Menu completo di Windows col tasto destro", "Dialoghi Apri e Salva
   nella cartella di [z]f", "Dimensione delle cartelle nella colonna", le opzioni di file, avvio e
