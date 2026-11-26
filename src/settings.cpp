@@ -39,6 +39,13 @@ static std::string toUtf8(const std::wstring& w) {
     return s;
 }
 
+static std::wstring fromUtf8(const std::string& s) {
+    int n = MultiByteToWideChar(CP_UTF8, 0, s.data(), (int)s.size(), nullptr, 0);
+    std::wstring w(n, 0);
+    if (n) MultiByteToWideChar(CP_UTF8, 0, s.data(), (int)s.size(), &w[0], n);
+    return w;
+}
+
 // Transizione dal vecchio nome: %APPDATA%\zx (fino alla 0.15) diventa %APPDATA%\z-f.
 // Si chiama dal thread d'avvio, prima di leggere preferiti e impostazioni.
 static void migrateLegacyData() {
@@ -132,8 +139,17 @@ static void saveDataAsync(const wchar_t* name, std::string data) {
 }
 
 // --- impostazioni -------------------------------------------------------------------------
+// impostazioni.txt arriva dal thread veloce della barra laterale, e l'attesa all'avvio (main.cpp)
+// dura al massimo 100 ms: con il disco lento (antivirus, avvio a freddo) l'utente può cambiare
+// un'impostazione prima (Ctrl+rotellina, ▯, un bordo). Salvare allora riscriverebbe il file con i
+// valori predefiniti. Così si ricordano solo le chiavi cambiate rispetto all'avvio; arrivato il file,
+// i loro valori si rimettono sopra quelli letti e si salva (settingsLoaded).
+// Lo stesso vale per gli altri file letti all'avvio: preferiti (favAdopt), viste (viewsLoaded),
+// recenti (recentLoaded), annulla (undoLoaded) non si salvano prima della lettura, e dopo si uniscono.
+static std::string g_setStart;              // "\r\n" + le impostazioni all'avvio, prima di ogni cambiamento
+static std::vector<std::string> g_setEarly; // chiavi cambiate prima che il file fosse letto
 
-static void settingsSave() {
+static std::string settingsText() {
     std::string d;
     d += "dimensione=" + std::to_string(F.px) + "\r\n";
     d += "carattere=" + toUtf8(F.face) + "\r\n";
@@ -158,7 +174,23 @@ static void settingsSave() {
     d += std::string("aggiornamenti=") + (A.updAuto ? "1" : "0") + "\r\n";
     if (A.updBeta >= 0) d += std::string("aggiornamenti_beta=") + (A.updBeta ? "1" : "0") + "\r\n";
     d += "aggiornamenti_ultimo=" + std::to_string(A.updLast) + "\r\n";
-    saveDataAsync(L"impostazioni.txt", std::move(d));
+    return d;
+}
+
+// Prima di avviare il thread veloce: i valori predefiniti, per riconoscere poi quelli cambiati
+static void settingsMarkStart() {
+    g_setStart = "\r\n" + settingsText();
+}
+
+static void settingsSave() {
+    std::string d = settingsText();
+    if (A.sideFastDone) { saveDataAsync(L"impostazioni.txt", std::move(d)); return; }
+    for (size_t i = 0, e; (e = d.find("\r\n", i)) != std::string::npos; i = e + 2) {
+        std::string line = d.substr(i, e - i);
+        if (g_setStart.find("\r\n" + line + "\r\n") != std::string::npos) continue; // come all'avvio
+        std::string key = line.substr(0, line.find('='));
+        if (std::find(g_setEarly.begin(), g_setEarly.end(), key) == g_setEarly.end()) g_setEarly.push_back(key);
+    }
 }
 
 // Applica le righe lette all'avvio. true se il carattere è cambiato (va ricreato)
@@ -205,6 +237,28 @@ static bool settingsApply(const std::vector<std::wstring>& lines) {
     F.px = px;
     F.face = face;
     return changed;
+}
+
+// impostazioni.txt letto (onSideLoaded, con A.sideFastDone già vero): i valori del file, con sopra
+// quelli cambiati dall'utente prima del suo arrivo. true se il carattere è cambiato (va ricreato)
+static bool settingsLoaded(const std::vector<std::wstring>& lines) {
+    std::vector<std::wstring> early; // prima di settingsApply, che li sovrascrive
+    if (!g_setEarly.empty()) {
+        std::string d = settingsText();
+        for (size_t i = 0, e; (e = d.find("\r\n", i)) != std::string::npos; i = e + 2) {
+            std::string line = d.substr(i, e - i);
+            if (std::find(g_setEarly.begin(), g_setEarly.end(), line.substr(0, line.find('='))) != g_setEarly.end())
+                early.push_back(fromUtf8(line));
+        }
+    }
+    bool font = settingsApply(lines);
+    if (!early.empty()) {
+        font = settingsApply(early) || font;
+        settingsSave();
+    }
+    g_setEarly.clear();
+    std::string().swap(g_setStart);
+    return font;
 }
 
 // Ctrl+rotellina, Ctrl +/−: dimensione del testo; delta 0 = predefinita

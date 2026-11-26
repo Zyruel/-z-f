@@ -20,6 +20,38 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 000000000000000000000000. File di [z]f mai sovrascritti prima della lettura (z-f-dev, novembre 2026)
+
+Correzione del controllo del codice (`settings.cpp`, `settingsSave`): con il disco lento il
+thread veloce della barra laterale può non aver ancora letto `impostazioni.txt` quando l'utente
+cambia qualcosa (l'attesa all'avvio è al massimo 100 ms), e il salvataggio riscriveva il file con
+i valori predefiniti. Lo stesso per `preferiti.txt` (Ctrl+D, trascinamento), `viste.txt` (griglia)
+e `annulla.txt` (opzione accesa nei primi istanti). Ora nessuno si scrive prima della lettura;
+dopo, il cambiamento si unisce a quello che c'era.
+
+Provato da Claude con una build di prova che ritarda di 4 s la lettura del thread veloce e, subito
+dopo l'attesa d'avvio, fa dal codice i cambiamenti dell'utente (dimensione del testo +1,
+animazioni spente e riaccese, colonna Dimensione 120, Ctrl+D, griglia), con `APPDATA` in una
+cartella di prova (file con dimensione 16, barra laterale 300, colonna Data 200, menu completo e
+aggiornamenti spenti, tre preferiti, due griglie); finestra ridotta a icona, chiusa per PID:
+- [x] **Prima:** impostazioni tornate ai predefiniti (barra laterale 210, colonna Data 150, menu
+      completo e aggiornamenti riaccesi), preferiti ridotti alla sola cartella nuova, viste alla sola griglia nuova.
+- [x] **Dopo:** dimensione 14, animazioni accese e colonna Dimensione 120 (le scelte dell'utente,
+      anche quella tornata al predefinito), tutto il resto dal file; quattro preferiti (il nuovo in
+      fondo); tre griglie.
+- [x] Primo avvio (senza `preferiti.txt`) con Ctrl+D prima della lettura: le cartelle predefinite
+      e, in fondo, quella aggiunta.
+- [x] Avvio normale (senza ritardo): nessun file riscritto. `settingsMarkStart` costa 0,02–0,04 ms
+      all'avvio; `prove\avvio.bat` non usato (la differenza è sotto la sua risoluzione).
+- [x] Registro: solo le voci normali dell'avvio. MSVC: zero avvisi.
+
+Da provare a mano:
+- [ ] `annulla.txt`: con "Annulla dopo il riavvio" accesa nel file, accenderla di nuovo nelle
+      opzioni nei primi istanti di un avvio lento non deve cancellare la cronologia (non provato:
+      serve un disco lento vero o la build di prova).
+- [ ] Su un avvio a freddo vero (PC appena acceso, antivirus), Ctrl+rotellina appena compare la
+      finestra: al riavvio le altre impostazioni sono ancora quelle di prima.
+
 ## 00000000000000000000000. File solo online: tooltip e anteprima (z-f-dev, novembre 2026)
 
 Correzione del controllo del codice (`tooltip.cpp`, `readInfo`): la risoluzione di un'immagine

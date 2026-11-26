@@ -196,7 +196,9 @@ static void undoCounts(int& undo, int& redo) { undo = (int)UH.undo.size(); redo 
 // vecchia); "i<TAB>tipo<TAB>flag<TAB>dimensione<TAB>data<TAB>a<TAB>b" è un suo elemento.
 // I nomi dei file non possono contenere tabulazioni.
 static void undoSave() {
-    if (!A.undoPersist) return;
+    // Prima della lettura (opzione accesa nei primi istanti) si riscriverebbe il file con le sole
+    // operazioni nuove: ci pensa undoLoaded
+    if (!A.undoPersist || !A.sideFastDone) return;
     std::vector<std::string> ops; // dalla più recente, finché il file resta piccolo
     size_t total = 0;
     // Il controllo del limite va fatto elemento per elemento: costruire prima tutta un'operazione
@@ -265,6 +267,7 @@ static void undoLoaded(const std::vector<std::wstring>& lines) {
     UH.undo.swap(und);
     undoTrim(UH.undo);
     if (fresh) UH.redo.swap(red);
+    else undoSave(); // le operazioni di prima non sono ancora nel file
 }
 
 // Opzione "Annulla dopo il riavvio": spenta, il file si svuota

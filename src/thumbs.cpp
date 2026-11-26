@@ -822,6 +822,7 @@ static bool viewIsGrid(const std::wstring& path) {
 }
 
 static void viewsSave() {
+    if (!A.viewsReady) return; // prima della lettura si riscriverebbe il file con le sole viste nuove: ci pensa viewsLoaded
     std::vector<std::pair<uint32_t, const std::wstring*>> v;
     for (auto& kv : A.gridFolders) v.push_back({ kv.second, &kv.first });
     std::sort(v.begin(), v.end(), [](const std::pair<uint32_t, const std::wstring*>& a, const std::pair<uint32_t, const std::wstring*>& b) { return a.first > b.first; });
@@ -847,7 +848,10 @@ static void viewRelayout(int first) {
     A.dirty = true;
 }
 
+// viste.txt letto all'avvio. Le griglie scelte prima del suo arrivo restano, come le più recenti, e si salvano.
 static void viewsLoaded(const std::vector<std::wstring>& lines) {
+    std::vector<std::wstring> early;
+    for (auto& kv : A.gridFolders) early.push_back(kv.first);
     uint32_t n = (uint32_t)lines.size();
     for (uint32_t i = 0; i < n; i++) { // dalla più recente: le prime hanno il numero più alto
         const std::wstring& l = lines[i];
@@ -858,6 +862,8 @@ static void viewsLoaded(const std::vector<std::wstring>& lines) {
     }
     A.gridUse = std::max(A.gridUse, n);
     A.viewsReady = true;
+    for (const std::wstring& k : early) A.gridFolders[k] = ++A.gridUse;
+    if (!early.empty()) viewsSave();
     if (A.cur && !A.grid && viewIsGrid(A.cur->path)) { // la prima cartella è arrivata prima del file
         int first = firstVisibleItem();
         A.grid = true;

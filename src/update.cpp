@@ -43,13 +43,6 @@ static long long unixNow() {
     return (long long)((((uint64_t)ft.dwHighDateTime << 32) | ft.dwLowDateTime) / 10000000ULL) - 11644473600LL;
 }
 
-static std::wstring fromUtf8(const std::string& s) {
-    int n = MultiByteToWideChar(CP_UTF8, 0, s.data(), (int)s.size(), nullptr, 0);
-    std::wstring w(n, 0);
-    if (n) MultiByteToWideChar(CP_UTF8, 0, s.data(), (int)s.size(), &w[0], n);
-    return w;
-}
-
 // --- JSON: quanto basta per la risposta delle Release --------------------------------------------
 struct JVal {
     enum Type : uint8_t { J_NULL, J_BOOL, J_NUM, J_STR, J_ARR, J_OBJ } t = J_NULL;

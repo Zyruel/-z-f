@@ -21,6 +21,10 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
   non ferma più le icone e le miniature delle altre cartelle, e non cambia l'icona delle cartelle.
 - Tooltip e anteprima non scaricano più le immagini solo online di OneDrive (e servizi simili) per
   scriverne la risoluzione: un file solo online resta nel cloud finché non lo si apre.
+- Con il disco lento all'avvio (antivirus, PC appena acceso), cambiare la dimensione del testo,
+  la barra laterale, una larghezza, aggiungere un preferito o passare alla griglia nei primi
+  istanti non cancella più impostazioni, preferiti e viste salvati: il cambiamento si aggiunge a
+  quelli letti.
 
 ## 1.0.0-beta.3 (novembre 2026)
 

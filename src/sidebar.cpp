@@ -144,6 +144,7 @@ static DWORD WINAPI sideFastThread(void* p) {
     return 0;
 }
 static void sideStartFast() {
+    settingsMarkStart();
     SideLoad* L = new SideLoad{ A.hwnd, 0, true, true, false, {}, {}, {}, {}, {}, {} };
     // La finestra principale cerca le schede da riaprire; dopo un aggiornamento ogni finestra le sue
     L->startTabs = A.mainInstance || A.restartPid;
@@ -261,11 +262,26 @@ static void sideLoad() {
 static void favSave();
 static bool samePath(const std::wstring& a, const std::wstring& b);
 
+// Preferiti letti (dal file o, al primo avvio, quelli predefiniti). Le cartelle aggiunte prima del
+// loro arrivo (Ctrl+D o un trascinamento nei primi istanti) vanno in fondo: favSave le ha tenute
+// solo in memoria, perché salvare allora avrebbe riscritto il file con loro sole. true se ce n'erano.
+static bool favAdopt(std::vector<SideItem>& loaded) {
+    bool early = false;
+    for (SideItem& f : A.favs) {
+        bool dup = false;
+        for (const SideItem& l : loaded) if (samePath(l.path, f.path)) { dup = true; break; }
+        if (!dup) { loaded.push_back(std::move(f)); early = true; }
+    }
+    A.favs.swap(loaded);
+    A.favsReady = true;
+    return early;
+}
+
 static void onSideLoaded(SideLoad* L) {
     if (L->fast) {
         A.sideFastDone = true;
-        if (settingsApply(L->settings)) fontCreate(A.scale);
-        if (!A.favsReady && L->fileFound) { A.favs.swap(L->favs); A.favsReady = true; }
+        if (settingsLoaded(L->settings)) fontCreate(A.scale);
+        if (!A.favsReady && L->fileFound && favAdopt(L->favs)) favSave();
         if (A.drives.empty()) A.drives.swap(L->drives);
         recentLoaded(L->recents);
         undoLoaded(L->undo); // dopo le impostazioni: vale solo con "Annulla dopo il riavvio"
@@ -276,8 +292,7 @@ static void onSideLoaded(SideLoad* L) {
     }
     bool changed = false;
     if (!A.favsReady) { // primo avvio: il file nasce con le cartelle predefinite
-        A.favsReady = true;
-        A.favs.swap(L->favs);
+        favAdopt(L->favs);
         changed = true;
     } else {
         // Nel frattempo i preferiti possono essere stati riordinati o modificati: dal risultato
@@ -310,6 +325,7 @@ static void onSideLoaded(SideLoad* L) {
 }
 
 static void favSave() {
+    if (!A.favsReady) return; // il file non è ancora letto: ci pensa favAdopt
     std::string data;
     for (const SideItem& f : A.favs) {
         data += toUtf8(f.path);
