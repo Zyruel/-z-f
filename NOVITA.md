@@ -8,6 +8,58 @@ erano `0.N`. Ogni rilascio, dalla 1.0.0-beta.2, ha un tag `v<versione>` e una
 versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 [`ARCHITETTURA.md`](docs/ARCHITETTURA.md).
 
+## 1.0.0-beta.4 (novembre 2026)
+
+- **[z]f ha un'icona:** "[z]" nel blu di [z]f su un quadrato scuro, nella barra delle
+  applicazioni, in Alt+Tab e sul file dell'exe; nitida anche a 16 px.
+- Dopo "Aggiorna" la copia della versione precedente si toglie subito e compare "Aggiornato a
+  [z]f …" (prima la versione nuova provava a toglierla mentre la vecchia stava ancora uscendo).
+- Griglia: in uno zip con molte immagini, tornando su quelle già viste le miniature si rifanno
+  dallo zip, senza passare dalla shell (che lì è lenta).
+- Griglia e anteprima di Questo PC: i percorsi di rete hanno l'icona di cartella senza chiedere
+  niente alla rete, e le icone delle unità di rete e ottiche si chiedono a parte. Un NAS spento
+  non ferma più le icone e le miniature delle altre cartelle, e non cambia l'icona delle cartelle.
+  Ora anche nell'elenco, nella barra laterale e nei menu: le icone delle unità di rete e ottiche
+  (e di .exe e collegamenti che stanno lì) non fanno più aspettare quelle dei file locali.
+- Griglia: in una cartella vera che si chiama come uno zip ("foto.zip"), .exe e collegamenti
+  hanno la loro icona invece di quella generica.
+- Tooltip e anteprima non scaricano più le immagini solo online di OneDrive (e servizi simili) per
+  scriverne la risoluzione: un file solo online resta nel cloud finché non lo si apre.
+- Con il disco lento all'avvio (antivirus, PC appena acceso), cambiare la dimensione del testo,
+  la barra laterale, una larghezza, aggiungere un preferito o passare alla griglia nei primi
+  istanti non cancella più impostazioni, preferiti e viste salvati: il cambiamento si aggiunge a
+  quelli letti.
+- Dialoghi Apri e Salva: tornando al dialogo due volte di fila con cartelle diverse, il dialogo
+  entra nell'ultima e il nome proposto resta. Prima i due salti potevano intrecciarsi, e nel caso
+  peggiore il dialogo Salva poteva salvare il file con il nome proposto. Una cartella su una
+  condivisione che non risponde non fa più aspettare il salto verso la cartella nuova, e un salto
+  che arriverebbe dopo 3 secondi non si fa più: intanto si lavora già nel dialogo.
+- Barra laterale: un'unità di rete verso un server spento non trattiene più nome e spazio delle
+  altre unità, né il nome di un preferito appena aggiunto. Le unità locali arrivano subito; quelle
+  di rete e ottiche e i percorsi di rete dopo, una alla volta, e intanto mostrano il nome generico
+  o quello di prima. Un DVD si rilegge solo quando lo si inserisce, non a ogni ritorno su [z]f.
+  Un DVD tolto o un server spento non lasciano più nella barra lo spazio libero di prima.
+- Copia percorso (Ctrl+Shift+C) e Copia/Taglia nelle caselle di testo: se gli appunti sono
+  occupati da un altro programma (Desktop remoto, un gestore degli appunti) [z]f riprova per un
+  secondo e, se non ci riesce, lo dice e dice chi li tiene, invece di scrivere "Percorso copiato"
+  senza averlo copiato; un Taglia non riuscito rimette il testo dov'era. [z]f non si ferma più se
+  il programma che possedeva gli appunti è bloccato. Se nel frattempo è riuscita una copia più
+  recente, il tentativo vecchio non dà più l'errore.
+- Proprietà (Alt+Invio, anche di una voce sola, della cartella aperta, delle unità e dei percorsi
+  di rete nella barra laterale) e "Apri con…" non fermano più [z]f: Windows li prepara sullo
+  stesso thread del menu completo, e intanto [z]f continua a rispondere. Prima una cartella su
+  una condivisione lenta o spenta bloccava la finestra finché la rete rispondeva, e con "Apri
+  con…" aperto [z]f non si ridisegnava. Se Windows non trova l'elemento (un NAS spento, una
+  cartella sparita) un avviso dice cosa e perché, invece di non far comparire niente.
+- Zip dentro uno zip: se durante l'estrazione si va in un'altra cartella o scheda, [z]f resta lì
+  invece di portare di forza nello zip estratto (anche se intanto si chiude una scheda prima di
+  quella). Il trascinamento da uno zip compare nei tempi di
+  F12 come gli altri.
+- Opzioni, Scorciatoie: l'elenco ha anche i gesti col mouse che mancavano (rettangolo di
+  selezione con Ctrl e Shift, Ctrl+Shift+clic, clic sotto le righe, bordi delle colonne, sezioni
+  della barra laterale, riordino dei preferiti) e nessuna descrizione finisce più in "…". Il
+  README ha lo stesso elenco, con le stesse parole.
+
 ## 1.0.0-beta.3 (novembre 2026)
 
 - **Aggiornamento automatico:** una volta al giorno [z]f guarda su GitHub se c'è una versione

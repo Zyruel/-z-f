@@ -1,8 +1,11 @@
 // [z]f — barra laterale: Preferiti, Questo PC e le sue unità.
 //
 // Tutto ciò che può essere lento (nomi localizzati delle cartelle, etichette e spazio libero delle
-// unità: un'unità di rete o un lettore ottico possono bloccare per secondi) si legge su un thread
-// a parte, avviato dopo il primo frame (caricare shell32/ole32 prima rallenterebbe l'avvio).
+// unità) si legge su un thread a parte, avviato dopo il primo frame (caricare shell32/ole32 prima
+// rallenterebbe l'avvio), e in due tempi: prima le unità locali e i preferiti su di esse, poi, su
+// un altro thread, unità di rete e ottiche, percorsi di rete e preferiti su di loro, che possono
+// bloccare per secondi (un server spento, un DVD che si avvia). Le voci lente intanto si vedono
+// con quello che si sa senza toccarle: lettera, tipo, i valori della lettura precedente.
 // All'avvio, insieme alla prima lettura della cartella, un thread leggero (solo kernel32) legge
 // il file dei preferiti e le lettere delle unità: decimi di millisecondo, così il primo frame
 // mostra già la barra completa. Il thread UI non tocca il disco nemmeno qui.
@@ -24,7 +27,23 @@ struct SideLoad {
     std::vector<std::wstring> views;    // righe di viste.txt (solo lettura veloce)
     bool startTabs = false;             // lettura veloce: cercare le schede da riaprire (WM_APP_START)
     DWORD restartPid = 0;               // …in riavvio-<pid>.txt (riavvio dopo un aggiornamento)
+    double ms = 0;                      // F12: tempo del thread (non della lettura veloce)
 };
+
+// Lettere delle unità col tipo e il nome generico ("Unità di rete (G:)"): solo kernel32, senza
+// leggere i volumi
+static void drivesList(std::vector<SideItem>& out) {
+    DWORD mask = GetLogicalDrives();
+    for (int d = 0; d < 26; d++) {
+        if (!(mask & (1u << d))) continue;
+        SideItem it;
+        it.drive = true;
+        it.path = std::wstring(1, (wchar_t)(L'A' + d)) + L":\\";
+        it.driveType = GetDriveTypeW(it.path.c_str());
+        it.label = std::wstring(driveKind(it.driveType)) + L" (" + it.path.substr(0, 2) + L")";
+        out.push_back(std::move(it));
+    }
+}
 
 static std::wstring knownFolder(REFKNOWNFOLDERID id) {
     PWSTR p = nullptr;
@@ -93,13 +112,18 @@ static void netPlacesAdd(std::vector<SideItem>& out) {
 
 // Etichetta, file system e spazio del volume che contiene root (con la barra finale). Può
 // aspettare: un'unità ottica o di rete, una condivisione che non risponde. Solo sul thread.
+// La voce arriva con i valori della lettura prima: se questa fallisce (disco tolto, server spento)
+// non devono restare, quindi si parte da zero, come un'unità vuota.
 static std::wstring volumeRead(SideItem& it, const std::wstring& root) {
     wchar_t label[MAX_PATH + 1] = {}, fs[32] = {};
+    it.fs.clear();
+    it.free = it.total = 0;
     // niente "inserire un disco"; per questo thread solo (SetErrorMode vale per tutto il processo)
     DWORD oldMode = 0;
     SetThreadErrorMode(SEM_FAILCRITICALERRORS, &oldMode);
     bool ready = GetVolumeInformationW(root.c_str(), label, MAX_PATH + 1, nullptr, nullptr, nullptr, fs, 32) != 0;
-    it.fs = fs;
+    if (ready) it.fs = fs;
+    else label[0] = 0;
     ULARGE_INTEGER fr, tot;
     if (ready && GetDiskFreeSpaceExW(root.c_str(), &fr, &tot, nullptr)) { it.free = fr.QuadPart; it.total = tot.QuadPart; }
     SetThreadErrorMode(oldMode, nullptr);
@@ -129,21 +153,13 @@ static DWORD WINAPI sideFastThread(void* p) {
     readDataLines(L"recenti.txt", L->recents);
     readDataLines(L"annulla.txt", L->undo);
     readDataLines(L"viste.txt", L->views);
-    DWORD mask = GetLogicalDrives();
-    for (int d = 0; d < 26; d++) {
-        if (!(mask & (1u << d))) continue;
-        SideItem it;
-        it.drive = true;
-        it.path = std::wstring(1, (wchar_t)(L'A' + d)) + L":\\";
-        it.driveType = GetDriveTypeW(it.path.c_str());
-        it.label = std::wstring(driveKind(it.driveType)) + L" (" + it.path.substr(0, 2) + L")";
-        L->drives.push_back(std::move(it));
-    }
+    drivesList(L->drives);
     netPlacesAdd(L->drives);
     if (!PostMessageW(L->hwnd, WM_APP_SIDEBAR, 0, (LPARAM)L)) delete L;
     return 0;
 }
 static void sideStartFast() {
+    settingsMarkStart();
     SideLoad* L = new SideLoad{ A.hwnd, 0, true, true, false, {}, {}, {}, {}, {}, {} };
     // La finestra principale cerca le schede da riaprire; dopo un aggiornamento ogni finestra le sue
     L->startTabs = A.mainInstance || A.restartPid;
@@ -159,9 +175,21 @@ static void sideStartFast() {
     }
 }
 
+// Nome mostrato da Windows di una cartella ("Documenti" invece di "Documents"), o "" se la shell
+// non lo dà. Non per uno zip: la shell lo aprirebbe con zipfldr, lenta sugli archivi grandi.
+static std::wstring favShellName(const std::wstring& path) {
+    SHFILEINFOW sfi = {};
+    if (zipPathLike(path) || !SHGetFileInfoW(path.c_str(), 0, &sfi, sizeof(sfi), SHGFI_DISPLAYNAME)) return L"";
+    return sfi.szDisplayName;
+}
+
+// Le voci locali: unità fisse, rimovibili e RAM (etichetta e spazio) e i preferiti su di esse (nome
+// di Windows). Quelle di rete e ottiche le lascia come sono, per il thread delle voci lente.
 static DWORD WINAPI sideThread(void* p) {
     SideLoad* L = (SideLoad*)p;
+    double t0 = nowMs();
     HRESULT co = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    drivesList(L->drives); // prima di tutto: il tipo delle unità dice quali preferiti sono lenti
     if (L->readFile && !readFavFile(L->favs)) { // primo avvio: cartelle di sistema
         const KNOWNFOLDERID* ids[] = { &FOLDERID_Desktop, &FOLDERID_Downloads, &FOLDERID_Documents,
                                        &FOLDERID_Pictures, &FOLDERID_Profile };
@@ -172,73 +200,128 @@ static DWORD WINAPI sideThread(void* p) {
         }
     }
     for (SideItem& it : L->favs) {
-        SHFILEINFOW sfi = {};
-        // Nome mostrato da Windows ("Documenti" invece di "Documents")
-        // (non per uno zip: la shell lo aprirebbe con zipfldr, lenta sugli archivi grandi)
-        if (!zipPathLike(it.path) && SHGetFileInfoW(it.path.c_str(), 0, &sfi, sizeof(sfi), SHGFI_DISPLAYNAME) && sfi.szDisplayName[0])
-            it.label = sfi.szDisplayName;
-        else if (it.label.empty())
-            it.label = folderTitle(it.path);
+        std::wstring n = slowDriveType(pathDriveType(it.path, L->drives)) ? L"" : favShellName(it.path);
+        if (!n.empty()) it.label = n;
+        else if (it.label.empty()) it.label = folderTitle(it.path);
     }
-    DWORD mask = GetLogicalDrives();
-    for (int d = 0; d < 26; d++) {
-        if (!(mask & (1u << d))) continue;
-        SideItem it;
-        it.drive = true;
-        it.path = std::wstring(1, (wchar_t)(L'A' + d)) + L":\\";
-        it.driveType = GetDriveTypeW(it.path.c_str());
+    for (SideItem& it : L->drives) {
+        if (slowDriveType(it.driveType)) continue;
         std::wstring label = volumeRead(it, it.path);
-        it.label = (label.empty() ? std::wstring(driveKind(it.driveType)) : label) + L" (" + it.path.substr(0, 2) + L")";
-        if (it.driveType == DRIVE_REMOTE) {
-            it.unc = netRemote(it.path);
-            std::wstring n = netLabel(it);
-            if (!n.empty()) it.label = n;
-        }
-        L->drives.push_back(std::move(it));
+        if (!label.empty()) it.label = label + L" (" + it.path.substr(0, 2) + L")";
     }
-    netPlacesAdd(L->drives); // lo spazio a parte (placeSpaceStart): il server può non rispondere per un minuto
+    netPlacesAdd(L->drives); // lo spazio dopo, con le voci lente: il server può non rispondere per un minuto
     if (SUCCEEDED(co)) CoUninitialize();
+    L->ms = nowMs() - t0;
     if (!PostMessageW(L->hwnd, WM_APP_SIDEBAR, 0, (LPARAM)L)) delete L;
     return 0;
 }
 
-// --- spazio dei percorsi di rete ------------------------------------------------------------
-// Una condivisione lenta (provato: una condivisione che per elencare la radice ci mette un
-// minuto) non deve trattenere le unità: il loro spazio arriva col thread della barra, quello dei
-// percorsi di rete con questo, dopo. Uno alla volta; le richieste arrivate intanto ne fanno uno alla fine.
+// --- voci lente: unità di rete e ottiche, percorsi di rete, preferiti su di loro -------------------
+// Un server spento fa aspettare GetVolumeInformationW e SHGetFileInfoW 20–45 s, una condivisione
+// lenta (provato) un minuto per lo spazio, un DVD qualche secondo per avviarsi: niente di questo
+// deve trattenere le voci locali, che arrivano prima col thread della barra. Qui una voce alla
+// volta, in ordine (unità per lettera, percorsi di rete, preferiti), ognuna consegnata appena letta.
+// Un thread alla volta: le richieste arrivate intanto ne fanno uno alla fine. Così i risultati
+// arrivano in ordine e si abbinano alle voci attuali per percorso e tipo: una voce sparita o
+// cambiata nel frattempo non prende niente, e il giro dopo la rilegge.
+// Un'unità ottica si rilegge solo all'avvio e quando Windows segnala un disco inserito o tolto
+// (WM_DEVICECHANGE): a ogni ritorno sulla finestra il DVD si avvierebbe, e il suo spazio non cambia.
 
-struct PlaceSpace { HWND hwnd; std::vector<SideItem> places; };
-static bool g_placeRunning = false, g_placeAgain = false;
+struct SlowItem {
+    SideItem it;
+    bool fav = false;  // preferito: se ne cerca solo il nome
+    bool done = false; // fine del giro: n voci in ms
+    int n = 0;
+    double ms = 0;
+};
+struct SideSlow { HWND hwnd; std::vector<SlowItem> items; };
+static volatile LONG g_slowBusy = 0; // scritto anche dal thread, alla fine: un giro perso non ferma i successivi
+static bool g_slowAgain = false, g_opticalStale = true;
 
-static DWORD WINAPI placeSpaceThread(void* p) {
-    PlaceSpace* S = (PlaceSpace*)p;
-    for (SideItem& it : S->places)
-        volumeRead(it, it.path.back() == L'\\' ? it.path : it.path + L'\\'); // GetDiskFreeSpaceExW vuole la barra finale
-    if (!PostMessageW(S->hwnd, WM_APP_PLACES, 0, (LPARAM)S)) delete S;
+static DWORD WINAPI sideSlowThread(void* p) {
+    SideSlow* S = (SideSlow*)p;
+    HWND hwnd = S->hwnd;
+    double t0 = nowMs();
+    int n = (int)S->items.size();
+    HRESULT co = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    for (SlowItem& s : S->items) {
+        SideItem& it = s.it;
+        if (s.fav) {
+            std::wstring name = favShellName(it.path);
+            if (!name.empty()) it.label = name;
+        } else if (it.place) {
+            volumeRead(it, it.path.back() == L'\\' ? it.path : it.path + L'\\'); // GetDiskFreeSpaceExW vuole la barra finale
+        } else {
+            std::wstring label = volumeRead(it, it.path);
+            it.label = (label.empty() ? std::wstring(driveKind(it.driveType)) : label) + L" (" + it.path.substr(0, 2) + L")";
+            if (it.driveType == DRIVE_REMOTE) {
+                it.unc = netRemote(it.path);
+                std::wstring name = netLabel(it);
+                if (!name.empty()) it.label = name;
+            }
+        }
+        SlowItem* r = new SlowItem(std::move(s));
+        if (!PostMessageW(hwnd, WM_APP_SIDESLOW, 0, (LPARAM)r)) delete r;
+    }
+    if (SUCCEEDED(co)) CoUninitialize();
+    delete S;
+    SlowItem* e = new SlowItem;
+    e->done = true;
+    e->n = n;
+    e->ms = nowMs() - t0;
+    InterlockedExchange(&g_slowBusy, 0);
+    if (!PostMessageW(hwnd, WM_APP_SIDESLOW, 0, (LPARAM)e)) delete e;
     return 0;
 }
 
-static void placeSpaceStart() {
-    if (g_placeRunning) { g_placeAgain = true; return; }
-    PlaceSpace* S = new PlaceSpace{ A.hwnd, {} };
-    for (const SideItem& d : A.drives) if (d.place) S->places.push_back(d);
-    if (S->places.empty()) { delete S; return; }
-    HANDLE h = CreateThread(nullptr, 0, placeSpaceThread, S, 0, nullptr);
-    if (h) { CloseHandle(h); g_placeRunning = true; }
-    else delete S;
+static void sideSlowStart() {
+    if (g_slowBusy) { g_slowAgain = true; return; }
+    SideSlow* S = new SideSlow{ A.hwnd, {} };
+    auto wanted = [](UINT t) { return t == DRIVE_REMOTE || (t == DRIVE_CDROM && g_opticalStale); };
+    for (const SideItem& d : A.drives)
+        if (d.place || (d.drive && wanted(d.driveType))) S->items.push_back({ d });
+    for (const SideItem& f : A.favs)
+        if (!zipPathLike(f.path) && wanted(pathDriveType(f.path, A.drives))) S->items.push_back({ f, true });
+    g_opticalStale = g_slowAgain = false;
+    if (S->items.empty()) { delete S; return; }
+    InterlockedExchange(&g_slowBusy, 1);
+    HANDLE h = CreateThread(nullptr, 0, sideSlowThread, S, 0, nullptr);
+    if (h) CloseHandle(h);
+    else { InterlockedExchange(&g_slowBusy, 0); delete S; }
 }
 
 static bool samePath(const std::wstring& a, const std::wstring& b);
+static void favSave();
 
-// Spazio, file system: nelle voci attuali con lo stesso percorso (la barra può essere cambiata intanto)
-static void onPlaceSpace(PlaceSpace* S) {
-    g_placeRunning = false;
-    for (const SideItem& r : S->places)
-        for (SideItem& d : A.drives)
-            if (d.place && samePath(d.path, r.path)) { d.fs = r.fs; d.free = r.free; d.total = r.total; }
-    delete S;
+// Ciò che il thread delle voci lente legge di un'unità o di un percorso di rete, da from a to se
+// sono la stessa voce (percorso e tipo); true se lo erano
+static bool slowCopy(SideItem& to, const SideItem& from) {
+    if (to.place != from.place || to.driveType != from.driveType || !samePath(to.path, from.path)) return false;
+    if (to.drive) { to.label = from.label; to.unc = from.unc; } // dei percorsi di rete il nome è quello di Windows
+    to.fs = from.fs; to.free = from.free; to.total = from.total;
+    return true;
+}
+
+// Una voce lenta letta: nelle voci attuali con lo stesso percorso e tipo (la barra può essere
+// cambiata intanto); dei preferiti solo il nome, come in onSideLoaded
+static void onSideSlow(SlowItem* r) {
+    static bool favChanged = false; // preferiti rinominati in questo giro: si salvano una volta, alla fine
+    if (r->done) {
+        A.sideSlowMs = r->ms;
+        A.sideSlowN = r->n;
+        if (favChanged) { favChanged = false; favSave(); }
+        if (g_slowAgain) sideSlowStart();
+    } else if (r->fav) {
+        for (SideItem& f : A.favs)
+            if (samePath(f.path, r->it.path)) {
+                if (f.label != r->it.label) { f.label = r->it.label; favChanged = true; }
+                break;
+            }
+    } else {
+        for (SideItem& d : A.drives) if (slowCopy(d, r->it)) break;
+    }
+    delete r;
     A.dirty = true;
-    if (g_placeAgain) { g_placeAgain = false; placeSpaceStart(); }
 }
 
 // Un thread alla volta. Ogni WM_DEVICECHANGE (più d'uno per chiavetta), il ritorno su [z]f e i
@@ -246,7 +329,10 @@ static void onPlaceSpace(PlaceSpace* S) {
 // torna) i thread si accumulavano. Le richieste arrivate intanto diventano una sola rilettura alla fine.
 static bool g_sideRunning = false, g_sideAgain = false;
 
-static void sideLoad() {
+// media: Windows ha segnalato un'unità o un disco inserito o tolto (WM_DEVICECHANGE), quindi si
+// rileggono anche le unità ottiche
+static void sideLoad(bool media = false) {
+    if (media) g_opticalStale = true;
     if (!A.sideStarted) return; // prima del primo frame: ci pensa il ciclo principale
     A.sideLoadedAt = nowMs();
     if (g_sideRunning) { g_sideAgain = true; return; }
@@ -258,14 +344,26 @@ static void sideLoad() {
     else delete L;
 }
 
-static void favSave();
-static bool samePath(const std::wstring& a, const std::wstring& b);
+// Preferiti letti (dal file o, al primo avvio, quelli predefiniti). Le cartelle aggiunte prima del
+// loro arrivo (Ctrl+D o un trascinamento nei primi istanti) vanno in fondo: favSave le ha tenute
+// solo in memoria, perché salvare allora avrebbe riscritto il file con loro sole. true se ce n'erano.
+static bool favAdopt(std::vector<SideItem>& loaded) {
+    bool early = false;
+    for (SideItem& f : A.favs) {
+        bool dup = false;
+        for (const SideItem& l : loaded) if (samePath(l.path, f.path)) { dup = true; break; }
+        if (!dup) { loaded.push_back(std::move(f)); early = true; }
+    }
+    A.favs.swap(loaded);
+    A.favsReady = true;
+    return early;
+}
 
 static void onSideLoaded(SideLoad* L) {
     if (L->fast) {
         A.sideFastDone = true;
-        if (settingsApply(L->settings)) fontCreate(A.scale);
-        if (!A.favsReady && L->fileFound) { A.favs.swap(L->favs); A.favsReady = true; }
+        if (settingsLoaded(L->settings)) fontCreate(A.scale);
+        if (!A.favsReady && L->fileFound && favAdopt(L->favs)) favSave();
         if (A.drives.empty()) A.drives.swap(L->drives);
         recentLoaded(L->recents);
         undoLoaded(L->undo); // dopo le impostazioni: vale solo con "Annulla dopo il riavvio"
@@ -276,15 +374,16 @@ static void onSideLoaded(SideLoad* L) {
     }
     bool changed = false;
     if (!A.favsReady) { // primo avvio: il file nasce con le cartelle predefinite
-        A.favsReady = true;
-        A.favs.swap(L->favs);
+        favAdopt(L->favs);
         changed = true;
     } else {
         // Nel frattempo i preferiti possono essere stati riordinati o modificati: dal risultato
-        // si prendono solo i nomi, abbinati per percorso
+        // si prendono solo i nomi, abbinati per percorso. Non quelli su unità lente, che il thread
+        // non ha toccato: il nome arrivato intanto da sideSlowThread tornerebbe quello di prima.
         for (SideItem& f : A.favs)
             for (const SideItem& r : L->favs)
                 if (samePath(f.path, r.path)) {
+                    if (slowDriveType(pathDriveType(r.path, L->drives))) break;
                     if (f.label != r.label) { f.label = r.label; changed = true; }
                     break;
                 }
@@ -293,13 +392,14 @@ static void onSideLoaded(SideLoad* L) {
     if (L->gen == A.sideGen) {
         bool same = A.drives.size() == L->drives.size();
         for (size_t i = 0; same && i < A.drives.size(); i++) same = A.drives[i].path == L->drives[i].path;
-        // I percorsi di rete arrivano senza spazio: resta quello già letto finché arriva il nuovo
+        // Le voci lente arrivano senza essere state toccate: resta quello che si sapeva (nome,
+        // condivisione, spazio) finché sideSlowThread le rilegge
         for (SideItem& n : L->drives)
-            if (n.place)
-                for (const SideItem& o : A.drives)
-                    if (o.place && samePath(o.path, n.path)) { n.fs = o.fs; n.free = o.free; n.total = o.total; break; }
+            if (n.place || slowDriveType(n.driveType))
+                for (const SideItem& o : A.drives) if (slowCopy(n, o)) break;
         A.drives.swap(L->drives);
-        placeSpaceStart();
+        A.sideMs = L->ms;
+        sideSlowStart();
         // Unità collegate o scollegate (anche di rete): "Questo PC" non ha un watcher, si rilegge
         if (!same && A.cur && A.cur->isDrives) requestRefresh();
     }
@@ -310,6 +410,7 @@ static void onSideLoaded(SideLoad* L) {
 }
 
 static void favSave() {
+    if (!A.favsReady) return; // il file non è ancora letto: ci pensa favAdopt
     std::string data;
     for (const SideItem& f : A.favs) {
         data += toUtf8(f.path);
@@ -578,7 +679,7 @@ static void drawSidebar(double dt) {
             rrect(bx, y + floorf((A.sideItemH - ph) * 0.5f), pw, ph, pw * 0.5f, cur ? C_SEL_EDGE : C_SEL_EDGE_PARENT);
         }
         float iy = y + floorf((A.sideItemH - iconS) * 0.5f);
-        const IconEntry* ie = it.drive ? iconForKey(it.path, it.path, 0, false, false)
+        const IconEntry* ie = it.drive ? iconForKey(it.path, it.path, 0, false, false, slowDriveType(it.driveType))
                             : it.path.empty() ? iconForKey(L"<questo-pc>", kThisPc, 0, false, false)
                                               : iconForKey(L"<dir>", L"cartella", FILE_ATTRIBUTE_DIRECTORY, true, false);
         if (ie) drawIcon(x0 + pad + indent, iy, *ie, C_ICON);

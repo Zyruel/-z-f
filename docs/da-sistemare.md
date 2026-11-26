@@ -14,6 +14,15 @@ quel codice, o tutti insieme in un momento tranquillo. Quando una voce è fatta 
   compilazione MSVC, che però va a buon fine. Probabilmente viene da `vcvars64.bat` di Visual
   Studio (riga 20 di `build.bat`: solo l'uscita normale va in `nul`, gli errori no), non dalla
   chiamata a vswhere dello script. Da capire, poi zittirlo o correggerlo.
+- [ ] **Il processo a volte resta vivo 5–8 s dopo la chiusura della finestra** (novembre 2026,
+  visto durante le prove delle miniature). La finestra sparisce subito, ma `z-f-dev.exe` (e anche
+  la build di prima, alla pari) esce dopo 1 s di solito e dopo 5–8 s una volta su tre: misurato
+  con `taskkill /PID` sulla cartella di prova, 9 chiusure. Forse un thread che a quel punto sta
+  ancora aspettando (spazio dei percorsi di rete, shell). Rivisto il 26/11 con un percorso di rete
+  lento (F12 "barra laterale: rete e ottiche" 47 s per una voce): vivo più di 10 s dopo la
+  chiusura, poi uscito. Nessun effetto visibile; da capire con
+  un dump del processo in quel momento, e da guardare se l'aggiornamento (`updRestartAll`) aspetta
+  l'uscita delle finestre.
 - [ ] **Avviso C4456 con `/W4` in `zip.cpp`** (0.26, riga 302: un secondo `ascii` nasconde quello
   della riga 262). Con `/W3` di `build.bat` non compare; dalla 0.22 il codice era pulito anche con
   `/W4`. Basta rinominare la variabile interna.
@@ -22,3 +31,47 @@ quel codice, o tutti insieme in un momento tranquillo. Quando una voce è fatta 
   che ha solo l'elenco di elementi della shell (IDList) resta senza destinazione. Sui 177 del PC
   non ce n'è nessuno (tutti uguali a Windows). Da rivedere se su un altro PC ne compare uno vuoto
   dove le proprietà di Windows mostrano un percorso.
+- [ ] **Icona grande mancante alla prima anteprima dopo l'avvio** (novembre 2026, visto una volta
+  provando i file solo online). z-f-dev aperto con l'anteprima già accesa su un PNG solo online:
+  righe d'informazione senza l'icona grande; tornandoci dopo, l'icona c'era. Causa probabile: il
+  thread dell'anteprima (e quelli delle miniature, `thIconWork`) chiede subito `SHGetImageList`,
+  senza aspettare `I.shellReady` come il secondo thread delle icone (`icons.cpp`: "insieme, la
+  prima chiamata falliva"). Da riprodurre (avvio con l'anteprima aperta su un file senza
+  anteprima) e, se è così, aspettare lo stesso evento in `pvBigIcon`.
+- [ ] **Icona di un file solo online dopo lo scaricamento** (novembre 2026, da verificare). Per
+  .exe, .lnk, .ico la shell dà al segnaposto l'icona generica, e [z]f la tiene in cache per
+  percorso (`iconFor`, `thIconKeyFor`); quando il file si scarica (aprendolo) gli attributi
+  cambiano ma la chiave no, quindi l'icona vera arriverebbe solo riavviando. Anche le miniature
+  aggiornano `t.online` solo se cambiano data o dimensione. Proposta da decidere con Zyruel: in
+  `iconSource` un file solo online ha l'icona per estensione (`ICON_EXT`, la stessa immagine
+  generica, una richiesta per tipo invece di una per file da 15–40 ms), così allo scaricamento
+  la chiave cambia e l'icona vera arriva da sola.
+- [ ] **Anteprima di uno zip dentro uno zip** (novembre 2026, visto provando lo zip nello zip).
+  Selezionando `interno.zip` dentro `esterno.zip`, l'anteprima dice "Cartella vuota" e in fondo
+  "vuota · 722 MB": dentro lo zip la voce è trattata come una cartella senza figli, perché il suo
+  contenuto non si legge senza estrarla. Proposta: per uno zip dentro uno zip, l'anteprima di un
+  file (icona, tipo e dimensione) invece di quella di una cartella vuota.
+- [ ] **Spostare la preparazione delle icone dopo il primo frame?** (novembre 2026, dal controllo
+  di tutto il codice). `iconInit` (`main.cpp`) avvia prima del primo frame il thread delle icone
+  per estensione (`IQ_EXT`), che chiama subito `CoInitializeEx` e `SHGetFileInfoW`: così shell32
+  e ole32 si caricano all'avvio nonostante `/DELAYLOAD`, su quel thread, mentre il thread UI fa il
+  primo frame con WARP (e, nel rendering ibrido, insieme a `hwThread`, sul loader lock di cui
+  parla `main.cpp` per il driver della GPU). Il vantaggio di adesso: le icone vere arrivano prima.
+  Da misurare con `prove\avvio.bat` (20 avvii alternati, come per l'icona della finestra) con
+  `iconInit` dove è e nel blocco "dopo il primo frame": contenuto visibile, primo fuoco, passaggio
+  alla GPU (F12) e quanto prima o dopo compaiono le icone vere al posto dei segnaposto (il lock e
+  l'evento di `iconInit` servono già a `iconSetSize` e al primo frame: si sposterebbe solo l'avvio
+  del thread). Decide
+  Zyruel; se resta dov'è, scriverlo come eccezione voluta in ARCHITETTURA.
+- [ ] **Icona: misure piccole in PNG?** (novembre 2026, dal controllo prima della 1.0.0-beta.4).
+  In `src\z-f.ico` le misure sotto 256 sono BMP a 32 bit (`strumenti\icona.py`, riga 11) e pesano
+  42,8 dei 45,7 KB del file, quasi tutto l'aumento dell'exe; in PNG peserebbero molto meno.
+  Windows Vista e successivi leggono PNG a ogni misura. Da misurare prima di decidere: dimensione
+  dell'exe e `A.iconMs` in F12 ("icona della finestra": `LoadImageW` deve decomprimere il PNG),
+  con le due versioni del .ico. Decide Zyruel.
+- [ ] **Icona: misure 28 e 56 px (ed eventualmente 36 e 72)** (novembre 2026, stesso controllo).
+  A 175% (il monitor di Zyruel) Windows chiede 28 px per l'icona piccola e 56 per la grande, che il
+  .ico non ha (`MISURE` in `strumenti\icona.py`): le ricava riducendo 32 e 64 (o 24 e 48), e i
+  bordi agganciati ai pixel escono dai pixel. A 225% servirebbero 36 e 72. Aggiungerle allunga il
+  file (vedi la voce sopra: in PNG pesano poco). Da misurare come sopra, e da guardare a 175% la
+  barra delle applicazioni e Alt+Tab prima e dopo. Decide Zyruel.

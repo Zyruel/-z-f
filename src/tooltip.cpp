@@ -127,8 +127,11 @@ static void readInfo(const std::wstring& path, bool dir, bool drive, TipInfo* in
             SHFILEINFOW sfi = {};
             if (SHGetFileInfoW(dot, FILE_ATTRIBUTE_NORMAL, &sfi, sizeof(sfi), SHGFI_TYPENAME | SHGFI_USEFILEATTRIBUTES))
                 inf->type = sfi.szTypeName;
-            if (isImageExt(dot)) imageSize(path, inf->imgW, inf->imgH);
-            if (!_wcsicmp(dot, L".lnk") && attrs && !onlineOnly(fa.dwFileAttributes)) { bool d; linkRead(path, inf->link, d); }
+            // Il contenuto solo se il file è davvero sul disco: un file solo online (OneDrive e simili)
+            // si scaricherebbe per leggerne l'inizio
+            bool local = attrs && !onlineOnly(fa.dwFileAttributes);
+            if (isImageExt(dot) && local) imageSize(path, inf->imgW, inf->imgH);
+            if (!_wcsicmp(dot, L".lnk") && local) { bool d; linkRead(path, inf->link, d); }
         }
     } else if (!drive) { // contenuto: al massimo 200 ms di lettura
         double t0 = nowMs();

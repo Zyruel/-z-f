@@ -2,7 +2,8 @@
 rem Alternativa senza Visual Studio: zig come compilatore C++ (winget install zig.zig)
 rem Scrive la build di prova (z-f-dev.exe), non z-f.exe: quella è la build MSVC, con shell32 e ole32
 rem a caricamento ritardato, che zig non fa. Gli shader precompilati da build.bat (build\shader_*.h)
-rem si usano se ci sono; altrimenti si compilano all'avvio.
+rem si usano se ci sono; altrimenti si compilano all'avvio. src\z-f.rc (l'icona) lo compila zig stesso
+rem (dalla 0.12).
 setlocal
 cd /d "%~dp0"
 where zig >nul 2>nul
@@ -11,5 +12,5 @@ if not %errorlevel%==0 (
     exit /b 1
 )
 if not exist build mkdir build
-zig c++ -target x86_64-windows-gnu -O2 -std=c++17 -municode -Wno-date-time -DUNICODE -D_UNICODE -DZF_DEV -Ibuild src\z-f.cpp -o build\z-f-dev.exe -Wl,--subsystem,windows -luser32 -lgdi32 -ld3d11 -lshell32 -lole32 -luuid -ladvapi32 -lwinhttp -lbcrypt || exit /b 1
+zig c++ -target x86_64-windows-gnu -O2 -std=c++17 -municode -Wno-date-time -DUNICODE -D_UNICODE -DZF_DEV -Ibuild src\z-f.cpp src\z-f.rc -o build\z-f-dev.exe -Wl,--subsystem,windows -luser32 -lgdi32 -ld3d11 -lshell32 -lole32 -luuid -ladvapi32 -lwinhttp -lbcrypt || exit /b 1
 echo Fatto: build\z-f-dev.exe

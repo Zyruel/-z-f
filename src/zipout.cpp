@@ -21,6 +21,8 @@ static uint64_t zipJobStart(int kind, std::vector<uint32_t> items) {
     j->archive = A.cur->path.substr(0, A.cur->zipLen);
     for (uint32_t ei : items) j->items.push_back(joinPath(A.cur->path, A.cur->name(A.cur->e[ei])));
     j->firstAttr = A.cur->e[items[0]].attr;
+    j->tab = A.tabs[(size_t)A.tab].id;
+    j->from = A.cur->path;
     InterlockedExchange64(&g_zipLatest[kind], (LONG64)j->gen);
     HANDLE h = CreateThread(nullptr, 0, zipJobThread, j, 0, nullptr);
     if (!h) { delete j; return 0; }
@@ -34,7 +36,7 @@ static void zipOnTimer() {
     KillTimer(A.hwnd, 14);
     if (g_zipRunning <= 0) return;
     notice(kZipBusy, true);
-    SetTimer(A.hwnd, 14, ui::NOTICE_INFO / 2, nullptr);
+    SetTimer(A.hwnd, 14, ui::NOTICE_RENEW, nullptr);
 }
 
 static const wchar_t* zipWhy(int err) {
@@ -97,8 +99,14 @@ static void onZipJob(ZipJob* j) {
     switch (j->kind) {
     case ZJ_OPEN:
         if (!j->out.empty()) {
-            if (zipNameEnd(j->out[0], j->out[0].size())) navigate(j->out[0], 1, L""); // uno zip nello zip: si apre qui
-            else if (HANDLE h = CreateThread(nullptr, 0, openThread, _wcsdup(j->out[0].c_str()), 0, nullptr)) CloseHandle(h);
+            // Uno zip nello zip si apre qui, ma solo se è l'ultima richiesta e l'utente è ancora dove
+            // l'ha chiesto: dopo un'estrazione lunga non lo si porta via da dove è andato nel
+            // frattempo (la copia estratta resta per ZIP_TEMP_KEEP; il prossimo doppio clic la rifà).
+            // Un file invece si apre sempre, anche se superato: ogni doppio clic è una richiesta,
+            // come fuori dagli zip, e la cartella in cui si è non conta per un programma esterno.
+            if (zipNameEnd(j->out[0], j->out[0].size())) {
+                if (latest && A.tabs[(size_t)A.tab].id == j->tab && A.cur && !A.loading && A.cur->path == j->from) navigate(j->out[0], 1, L"");
+            } else if (HANDLE h = CreateThread(nullptr, 0, openThread, _wcsdup(j->out[0].c_str()), 0, nullptr)) CloseHandle(h);
         } else if (j->err == ZE_CRYPT || j->err == ZE_METHOD) { // lo lasciamo a Windows: Esplora file, sulla voce
             notice(first + L" " + zipWhy(j->err) + L": si apre in Esplora file", true);
             wchar_t win[MAX_PATH];
@@ -131,9 +139,8 @@ static void onZipJob(ZipJob* j) {
         if (GetCapture() == A.hwnd) ReleaseCapture();
         if (j->failed) zipFailNotice(j, L"");
         if (!down || j->out.empty()) break;
-        IDataObject* obj = hdropObject(j->out, 0);
+        IDataObject* obj = dragObjectFor(j->out, j->firstAttr);
         if (!obj) break;
-        dragSetImage(obj, j->out[0], j->firstAttr);
         dragRun(obj, DROPEFFECT_COPY); // copie estratte: si copiano, non si spostano
         break;
     }

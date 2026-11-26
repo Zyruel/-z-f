@@ -28,7 +28,7 @@ static float drawPanelItem(float x, float w, float y, float ih, float pad, bool 
     if (hot) rrect(x + px(ui::GAP_S), y, w - px(ui::GAP_M), ih, px(ui::R_S), fadeA(C_SEL, k));
     float tx = x + pad;
     if (icon) { // cartella o unità: stessa icona della lista
-        const IconEntry* ie = icon == 2 && iconPath ? iconForKey(*iconPath, *iconPath, 0, false, false)
+        const IconEntry* ie = icon == 2 && iconPath ? iconForKey(*iconPath, *iconPath, 0, false, false, slowPath(*iconPath))
                                                     : iconForKey(L"<dir>", L"cartella", FILE_ATTRIBUTE_DIRECTORY, true, false);
         if (ie) drawIcon(tx, y + floorf((ih - I.size) * 0.5f), *ie, fadeA(dim ? C_ICON_HIDDEN : C_ICON, k));
     }
@@ -550,8 +550,14 @@ static void render() {
                 LeaveCriticalSection(&LK.lock);
                 row(L"collegamenti (thread)", L"%.1f ms%s", ms, ex);
             }
+            if (A.sideMs > 0) row(L"barra laterale: voci locali (thread)", L"%.1f ms%s", A.sideMs, L"");
+            if (A.sideSlowN) {
+                wchar_t ex[48];
+                _snwprintf(ex, 47, L" · %d voci", A.sideSlowN); ex[47] = 0;
+                row(L"barra laterale: rete e ottiche (thread)", L"%.1f ms%s", A.sideSlowMs, ex);
+            }
             if (A.fdHookMs > 0) row(L"dialoghi: notifica più lenta (UI)", L"%.3f ms%s", A.fdHookMs, L"");
-            if (A.fdJumpMs > 0) row(L"dialoghi: ultimo salto (thread)", L"%.1f ms%s", A.fdJumpMs, L"");
+            if (A.fdJumpUs > 0) row(L"dialoghi: ultimo salto (thread)", L"%.1f ms%s", (double)A.fdJumpUs / 1000, L"");
             int nUndo = 0, nRedo = 0;
             undoCounts(nUndo, nRedo);
             if (A.undoRecMs > 0 || nUndo || nRedo) {
@@ -653,6 +659,7 @@ static void render() {
         }
         row(L"contenuto visibile", L"a %.1f ms%s", total, L"");
         if (A.stActivate >= 0) row(L"attivazione (dopo il primo frame)", L"%.1f ms%s", A.stActivate, L"");
+        if (A.iconMs >= 0) row(L"icona della finestra (dopo il primo frame)", L"%.1f ms%s", A.iconMs, L"");
         if (I.firstAt > 0) row(L"prima icona", L"a %.1f ms%s", I.firstAt, L"");
         if (hybrid) {
             if (A.switched) {

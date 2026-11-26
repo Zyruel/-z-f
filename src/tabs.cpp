@@ -242,7 +242,7 @@ static bool tabsParse(const std::vector<std::wstring>& lines, std::vector<SavedT
 // stessa cartella non si ripete.
 static void tabsRestore(const std::vector<SavedTab>& saved, int active, bool replace) {
     if (replace) {
-        A.tabs.assign(saved.size(), TabState());
+        A.tabs = std::vector<TabState>(saved.size()); // costruite una per una: ognuna col suo id
         for (int i = 0; i < (int)saved.size(); i++) {
             if (i == active) continue;
             A.tabs[i].pending = true;

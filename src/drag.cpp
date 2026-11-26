@@ -600,6 +600,17 @@ static void dragSetImage(IDataObject* obj, const std::wstring& first, DWORD attr
     DestroyIcon(fi.hIcon);
 }
 
+// Oggetto dei file (CF_HDROP) e immagine trascinata per dei percorsi: la shell sul thread UI, quindi
+// si misura (DESIGN §10: F12 e registro). Serve ai trascinamenti di molte voci e a quelli da uno zip
+static IDataObject* dragObjectFor(const std::vector<std::wstring>& paths, DWORD firstAttr) {
+    double t0 = nowMs();
+    IDataObject* obj = hdropObject(paths, 0);
+    if (obj) dragSetImage(obj, paths[0], firstAttr);
+    A.shellObjMs = nowMs() - t0;
+    if (A.shellObjMs > ui::LOG_MSG) hitchLog("oggetto dei file lento", (unsigned)paths.size(), A.shellObjMs);
+    return obj;
+}
+
 // Il trascinamento di Windows, col suo ciclo modale, per un oggetto pronto (che rilascia)
 static void dragRun(IDataObject* obj, DWORD allowed) {
     tipHide();
@@ -629,14 +640,10 @@ static void dragStart() {
     if (items.empty()) return;
     IDataObject* obj = nullptr;
     if (items.size() >= kDragFastItems && !A.cur->isDrives && !A.cur->path.empty()) {
-        double t0 = nowMs();
         std::vector<std::wstring> paths;
         paths.reserve(items.size());
         for (uint32_t ei : items) paths.push_back(joinPath(A.cur->path, A.cur->name(A.cur->e[ei])));
-        obj = hdropObject(paths, 0);
-        if (obj) dragSetImage(obj, paths[0], A.cur->e[items[0]].attr);
-        A.shellObjMs = nowMs() - t0; // F12 e registro, come l'oggetto della shell
-        if (A.shellObjMs > ui::LOG_MSG) hitchLog("oggetto dei file lento", (unsigned)items.size(), A.shellObjMs);
+        obj = dragObjectFor(paths, A.cur->e[items[0]].attr);
     }
     if (!obj) obj = (IDataObject*)shellObjectFor(items, IID_IDataObject);
     if (!obj) return;

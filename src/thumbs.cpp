@@ -13,7 +13,8 @@
 // (OneDrive) non si leggono mai, per non scaricarli: per loro solo la cache di Windows.
 //
 // Thread: uno per la cache di Windows e le icone, metà dei core per WIC, uno per la shell, due per
-// le cartelle di rete (una lettura bloccata lì non ferma le cartelle locali). Le code le possiede il
+// le cartelle di rete e le icone delle unità di rete e ottiche (una lettura bloccata lì non ferma le
+// cartelle locali). Le code le possiede il
 // thread UI e le rifà quando cambiano le voci volute: prima le visibili, poi una schermata nella
 // direzione dello scorrimento, poi una dall'altra parte. Una richiesta che nessuno vuole più non
 // parte; se la cartella cambia, quelle in corso smettono prima (contatore di generazione, come
@@ -54,6 +55,7 @@ struct ThumbEntry {
     uint8_t state = THS_NEW;
     uint8_t src = SRC_CACHE;     // prossima fonte da provare
     uint8_t kind = TK_NONE;
+    bool inZip = false;          // dentro uno zip: si comincia da WIC (thRestart)
     bool online = false;         // solo online: niente letture
     bool queued = false;         // in una coda o su un thread
     bool shown = false;          // già vista: tornando sulla GPU non rifà la dissolvenza
@@ -69,7 +71,10 @@ struct ThumbReq {
     std::wstring key, dir, name; // percorso = joinPath(dir, name) ("C:\" per un'unità, con dir vuota)
     uint32_t attr = 0;
     int box = 0, src = SRC_CACHE;
-    bool icon = false, drive = false, image = false, local = true;
+    bool icon = false, image = false, local = true;
+    bool drive = false;          // un'unità di Questo PC (iconDrive: non un percorso di rete)
+    bool slowDrive = false;      // l'unità è di rete o ottica (il tipo letto con la lista, non da A.drives)
+    bool inZip = false;          // la voce è dentro uno zip: l'icona si sceglie come la chiave (thIconKeyFor)
     uint64_t gen = 0, sizeGen = 0;
 };
 
@@ -209,7 +214,7 @@ static int thFromCache(ThCtx& c, const ThumbReq& r, ThumbRes& o) {
 }
 
 static int thFromWic(const ThumbReq& r, ThumbRes& o) {
-    PvReq pr{ nullptr, r.gen, joinPath(r.dir, r.name.c_str()), r.attr, false, r.box, r.box, 0, thSuperseded };
+    PvReq pr{ nullptr, r.gen, joinPath(r.dir, r.name.c_str()), r.attr, false, ICON_EXT, r.box, r.box, 0, thSuperseded };
     const wchar_t* ext = fileExt(pr.path);
     PvRes pres;
     if (!ext || !pvImage(pr, pres, ext)) return thSuperseded(r.gen) ? TR_DROP : TR_FAIL;
@@ -240,7 +245,8 @@ static int thFromShell(ThCtx& c, const std::wstring& dir, const std::wstring& na
 }
 
 static int thIconWork(const ThumbReq& r, ThumbRes& o) {
-    PvReq pr{ nullptr, 0, joinPath(r.dir, r.name.c_str()), r.attr, r.drive, 0, 0, r.box, nullptr };
+    int src = iconSource(r.name.c_str(), r.attr, r.drive, r.inZip); // come la chiave (thIconKeyFor)
+    PvReq pr{ nullptr, 0, joinPath(r.dir, r.name.c_str()), r.attr, r.drive, src, 0, 0, r.box, nullptr };
     PvRes pres;
     pvBigIcon(pr, pres);
     if (pres.px.empty()) return TR_FAIL;
@@ -338,12 +344,18 @@ static int thKind(const Entry& e) {
     return TK_NONE;
 }
 
+// La voce si rifà da capo, dalla prima fonte. Dentro uno zip è WIC: la cache di Windows non ha quei
+// file e chiederla passerebbe dalla cartella della shell dentro lo zip (zipfldr, lenta).
+static void thRestart(ThumbEntry& t) {
+    t.state = THS_NEW;
+    t.src = t.inZip ? SRC_WIC : SRC_CACHE;
+}
+
 static void thForget(ThumbEntry& t) { // pixel e posto se ne vanno; la voce si rifà se serve
     if (t.slot >= 0) { TH.owner[(size_t)t.slot] = nullptr; TH.freeSlots.push_back(t.slot); t.slot = -1; }
     TH.ram -= t.px.size() * 4;
     std::vector<uint32_t>().swap(t.px);
-    t.state = THS_NEW;
-    t.src = SRC_CACHE;
+    thRestart(t);
 }
 
 // Miniatura della voce e (creata se manca); se il file è cambiato si rifà
@@ -354,7 +366,8 @@ static ThumbEntry& thEntry(const Entry& e) {
         it = TH.map.emplace(std::move(key), ThumbEntry()).first;
         ThumbEntry& t = it->second;
         t.kind = (uint8_t)thKind(e);
-        if (A.cur->zipLen) t.src = SRC_WIC; // la cache di Windows non ha i file dentro uno zip
+        t.inZip = A.cur->zipLen != 0;
+        thRestart(t);
         t.online = onlineOnly(e.attr);
         t.mtime = e.mtime;
         t.size = e.size;
@@ -369,21 +382,21 @@ static ThumbEntry& thEntry(const Entry& e) {
     return it->second;
 }
 
-// Icona grande della voce: per tipo come in icons.cpp (per file i tipi con un'icona propria e le unità)
-static std::wstring thIconKeyFor(const std::wstring& dir, const wchar_t* name, DWORD attr, bool drives, bool& perFile) {
-    perFile = false;
-    if (drives) { perFile = true; return name; }
-    if (attr & FILE_ATTRIBUTE_DIRECTORY) return L"<dir>";
+// Icona grande della voce: la stessa scelta dell'elenco (iconSource); per file i tipi con un'icona
+// propria e le unità ("C:\", con dir vuota), per tipo tutte le altre
+static std::wstring thIconKeyFor(const std::wstring& dir, const wchar_t* name, DWORD attr, bool drive, bool inZip, bool& perFile) {
+    int src = iconSource(name, attr, drive, inZip);
+    perFile = src == ICON_REAL;
+    if (perFile) return joinPath(dir, name);
+    if (src == ICON_DIR) return L"<dir>";
     const wchar_t* dot = wcsrchr(name, L'.');
-    if (dot && iconPerFile(dot) && !zipPathLike(dir)) { perFile = true; return joinPath(dir, name); } // dentro uno zip: per estensione
     std::wstring k = dot ? dot : L".";
     for (auto& c : k) c = (wchar_t)towlower(c);
     return k;
 }
 
 static std::wstring thIconKey(const Entry& e, bool& perFile) {
-    // un percorso di rete in Questo PC ha l'icona di cartella, come in elenco (icons.cpp)
-    return thIconKeyFor(A.cur->path, A.cur->name(e), e.attr, A.cur->isDrives && e.size != DRIVE_NETPLACE, perFile);
+    return thIconKeyFor(A.cur->path, A.cur->name(e), e.attr, iconDrive(A.cur, e), A.cur->zipLen != 0, perFile);
 }
 
 static ThumbEntry& thIcon(const Entry& e, std::wstring* keyOut = nullptr, bool* perFile = nullptr) {
@@ -400,7 +413,7 @@ static void thAtlasForget() { // i posti non valgono più (texture rilasciata o 
     for (ThumbEntry* t : TH.owner)
         if (t) {
             t->slot = -1;
-            if (t->px.empty()) { t->state = THS_NEW; t->src = SRC_CACHE; }
+            if (t->px.empty()) thRestart(*t);
         }
     TH.owner.clear();
     TH.freeSlots.clear();
@@ -455,7 +468,7 @@ static int thSlotAlloc() {
     if (best < 0) return -1;
     ThumbEntry* t = TH.owner[(size_t)best];
     t->slot = -1;
-    if (t->px.empty()) { t->state = THS_NEW; t->src = SRC_CACHE; }
+    if (t->px.empty()) thRestart(*t);
     TH.owner[(size_t)best] = nullptr;
     return best;
 }
@@ -509,8 +522,11 @@ static void thPush(std::vector<ThumbReq>* add) {
         if (!add[p].empty()) ReleaseSemaphore(TH.pool[p].sem, (LONG)add[p].size(), nullptr);
 }
 
+// Icone: quelle chieste al file vero (per file, o un'unità) toccano il disco, e su un'unità di rete
+// o ottica vanno sui thread della rete; in Questo PC (TH.remote falso) decide il tipo dell'unità,
+// quello letto con la lista (un'unità appena connessa può non essere ancora in A.drives).
 static int thPoolFor(const ThumbReq& r, bool perFile) {
-    if (r.icon) return perFile && TH.remote ? POOL_NET : POOL_FAST;
+    if (r.icon) return perFile && (r.drive ? r.slowDrive : TH.remote) ? POOL_NET : POOL_FAST;
     return r.src == SRC_SHELL ? POOL_SHELL : TH.remote ? POOL_NET : r.src == SRC_WIC ? POOL_WIC : POOL_FAST;
 }
 
@@ -523,7 +539,6 @@ static void thSync(int first, int last) {
     int b0 = TH.dir >= 0 ? first - span : last, b1 = TH.dir >= 0 ? first : last + span;
     int ranges[3][2] = { { first, last }, { a0, a1 }, { b0, b1 } };
     std::vector<ThumbReq> add[POOL_N];
-    bool drives = A.cur->isDrives;
     for (auto& rg : ranges)
         for (int vi = std::max(0, rg[0]); vi < std::min(n, rg[1]); vi++) {
             const Entry& e = A.cur->e[A.view[(size_t)vi]];
@@ -547,7 +562,8 @@ static void thSync(int first, int last) {
             ThumbEntry& ic = thIcon(e, &key, &perFile);
             if (ic.state == THS_NEW && !ic.queued) {
                 ThumbReq r;
-                r.key = key; r.dir = A.cur->path; r.name = name; r.attr = e.attr; r.drive = drives;
+                r.key = key; r.dir = A.cur->path; r.name = name; r.attr = e.attr; r.drive = iconDrive(A.cur, e);
+                r.slowDrive = r.drive && slowDriveType((UINT)e.size); r.inZip = A.cur->zipLen != 0;
                 r.box = std::max(1, (int)(TH.forBox * ui::THUMB_ICON)); r.icon = true; r.sizeGen = TH.sizeGen;
                 ic.queued = true;
                 int pool = thPoolFor(r, perFile);
@@ -575,11 +591,12 @@ static void thApply() {
         q.dir = r.dir; q.name = r.name; q.attr = r.attr; q.local = r.local; q.gen = r.gen; q.sizeGen = r.sizeGen;
         bool perFile = false;
         if (icon) { // la stessa chiave del disegno: i .ico, per esempio, hanno l'icona per file
-            q.key = thIconKeyFor(r.dir, r.name.c_str(), r.attr, false, perFile);
+            q.key = thIconKeyFor(r.dir, r.name.c_str(), r.attr, false, t.inZip, perFile);
             ThumbEntry& ic = TH.icons[q.key];
             if (ic.state != THS_NEW || ic.queued) return;
             ic.queued = true;
             q.icon = true;
+            q.inZip = t.inZip;
             q.box = std::max(1, (int)(TH.forBox * ui::THUMB_ICON));
         } else {
             q.key = r.key; q.src = t.src; q.box = r.box; q.image = t.kind == TK_IMAGE;
@@ -649,7 +666,7 @@ static void thTrimRam() {
         if (TH.ram <= kThRamMax / 100 * 85) break;
         TH.ram -= t->px.size() * 4;
         std::vector<uint32_t>().swap(t->px);
-        if (t->slot < 0) { t->state = THS_NEW; t->src = SRC_CACHE; }
+        if (t->slot < 0) thRestart(*t);
     }
 }
 
@@ -810,6 +827,7 @@ static bool viewIsGrid(const std::wstring& path) {
 }
 
 static void viewsSave() {
+    if (!A.viewsReady) return; // prima della lettura si riscriverebbe il file con le sole viste nuove: ci pensa viewsLoaded
     std::vector<std::pair<uint32_t, const std::wstring*>> v;
     for (auto& kv : A.gridFolders) v.push_back({ kv.second, &kv.first });
     std::sort(v.begin(), v.end(), [](const std::pair<uint32_t, const std::wstring*>& a, const std::pair<uint32_t, const std::wstring*>& b) { return a.first > b.first; });
@@ -835,7 +853,10 @@ static void viewRelayout(int first) {
     A.dirty = true;
 }
 
+// viste.txt letto all'avvio. Le griglie scelte prima del suo arrivo restano, come le più recenti, e si salvano.
 static void viewsLoaded(const std::vector<std::wstring>& lines) {
+    std::vector<std::wstring> early;
+    for (auto& kv : A.gridFolders) early.push_back(kv.first);
     uint32_t n = (uint32_t)lines.size();
     for (uint32_t i = 0; i < n; i++) { // dalla più recente: le prime hanno il numero più alto
         const std::wstring& l = lines[i];
@@ -846,6 +867,8 @@ static void viewsLoaded(const std::vector<std::wstring>& lines) {
     }
     A.gridUse = std::max(A.gridUse, n);
     A.viewsReady = true;
+    for (const std::wstring& k : early) A.gridFolders[k] = ++A.gridUse;
+    if (!early.empty()) viewsSave();
     if (A.cur && !A.grid && viewIsGrid(A.cur->path)) { // la prima cartella è arrivata prima del file
         int first = firstVisibleItem();
         A.grid = true;

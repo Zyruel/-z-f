@@ -1,14 +1,54 @@
 // [z]f — tastiera, mouse e messaggi della finestra.
 
+// La casella a cui torna un risultato degli appunti, se è ancora aperta
+static TextField* clipField(void* target) {
+    if (target == &A.renameField && A.renaming) return &A.renameField;
+    if (target == &A.pathField && A.editingPath) return &A.pathField;
+    if (target == &GT.field && gotoIsOpen()) return &GT.field;
+    if (target == &OP.search && OP.open) return &OP.search;
+    return nullptr;
+}
+
+// Il testo della casella è cambiato senza un tasto: "Vai a" e le opzioni rifanno la ricerca
+static void clipFieldChanged(TextField* f) {
+    if (f == &GT.field) gotoSearch(false);
+    else if (f == &OP.search) OP.scroll = 0;
+}
+
 // Testo degli appunti arrivato dal thread (clipAskText): alla casella che l'ha chiesto, se è ancora
 // aperta; nullptr: Ctrl+V nella lista
 static void onClipText(void* target, const std::wstring& t) {
     if (!target) { smartPasteText(t); return; }
     if (t.empty()) return;
-    if (target == &A.renameField && A.renaming) A.renameField.insert(t);
-    else if (target == &A.pathField && A.editingPath) A.pathField.insert(t);
-    else if (target == &GT.field && gotoIsOpen()) { GT.field.insert(t); gotoSearch(false); }
-    else if (target == &OP.search && OP.open) { OP.search.insert(t); OP.scroll = 0; }
+    if (TextField* f = clipField(target)) {
+        f->insert(t);
+        clipFieldChanged(f);
+    }
+}
+
+// Esito della scrittura negli appunti (clipSetText). Se non è riuscita, un Taglia rimette il testo
+// nella casella, selezionato, purché la casella sia ancora aperta e com'era dopo il taglio.
+// L'avviso di errore solo se è ancora l'ultima copia chiesta: un tentativo vecchio che scade dopo
+// una copia più recente non deve dire che gli appunti non hanno il testo (il Taglia si rimette comunque).
+static void onClipSet(ClipSet* c) {
+    if (c->skipped) return; // una copia più recente l'ha sostituita
+    if (c->ok) {
+        if (c->done) notice(c->done, true);
+        return;
+    }
+    TextField* f = clipField(c->target);
+    if (f && f->text == c->after && c->at <= (int)f->text.size()) {
+        f->text.insert((size_t)c->at, c->text);
+        f->anchor = c->at;
+        f->caret = c->at + (int)c->text.size();
+        clipFieldChanged(f);
+    }
+    if (c->gen != g_clipSetGen) return;
+    std::wstring m = c->fail;
+    if (!c->holder.empty()) m += L": gli appunti sono aperti da " + c->holder;
+    else if (c->err == ERROR_ACCESS_DENIED) m += L": gli appunti sono aperti da un altro programma";
+    if (c->err) m += L" (codice " + std::to_wstring(c->err) + L")";
+    notice(m, false);
 }
 
 static void onKey(WPARAM vk, bool alt) {
@@ -126,6 +166,7 @@ static void onDpi(UINT dpi) {
     fontCreate(A.scale);
     iconSetSize((int)lroundf(ui::LIST_ICON * A.scale));
     layout(); // in griglia il riquadro delle miniature cambia: si rifanno alla misura nuova
+    if (A.sideStarted) appIconSet(); // prima del primo frame la carica main.cpp
     A.dirty = true;
 }
 
@@ -228,8 +269,8 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_APP_SIDEBAR:
         onSideLoaded((SideLoad*)lp);
         return 0;
-    case WM_APP_PLACES:
-        onPlaceSpace((PlaceSpace*)lp);
+    case WM_APP_SIDESLOW:
+        onSideSlow((SlowItem*)lp);
         return 0;
     case WM_APP_START:
         onStartTabs((StartTabs*)lp);
@@ -255,6 +296,13 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_APP_CLIPTEXT: {
         ClipText* c = (ClipText*)lp;
         if (c->gen == g_clipGen) onClipText(c->target, c->text); // una richiesta più recente la sostituisce
+        delete c;
+        A.dirty = true;
+        return 0;
+    }
+    case WM_APP_CLIPSET: {
+        ClipSet* c = (ClipSet*)lp;
+        onClipSet(c);
         delete c;
         A.dirty = true;
         return 0;
@@ -291,9 +339,9 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_APP_THUMB:
         onThumbResults();
         return 0;
-    case WM_DEVICECHANGE: // unità collegata o scollegata
+    case WM_DEVICECHANGE: // unità collegata o scollegata, disco inserito o tolto
         if (wp == 0x8000 /*DBT_DEVICEARRIVAL*/ || wp == 0x8004 /*DBT_DEVICEREMOVECOMPLETE*/) {
-            sideLoad();
+            sideLoad(true);
         }
         return TRUE;
     case WM_ACTIVATEAPP: // tornando su [z]f lo spazio libero può essere cambiato (al massimo ogni 5 s)

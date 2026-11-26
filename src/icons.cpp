@@ -5,10 +5,11 @@
 // viene toccato e la shell le tiene già in cache). Solo i tipi con un'icona propria
 // per ogni file (exe, lnk, ico, url, ...) e le unità usano il percorso vero.
 // Il thread UI non aspetta mai: finché l'icona non c'è, disegna il segnaposto.
-// Due code e due thread: le icone per estensione (veloci, in cache nella shell) e quelle che
-// leggono il file o l'unità (.lnk, .exe, unità: lente su una condivisione lenta o scollegata).
-// Così un collegamento che non risponde non ferma le icone di tutto il resto. Il secondo thread
-// parte alla prima richiesta che gli spetta.
+// Tre code e tre thread: le icone per estensione (veloci, in cache nella shell), quelle che
+// leggono il file o l'unità (.lnk, .exe, unità) in locale, e le stesse su un'unità di rete o
+// ottica (lente, o ferme fino al timeout se la condivisione non risponde), come i thread della
+// rete delle miniature. Così un collegamento o un'unità che non risponde non ferma le icone di
+// tutto il resto. Il secondo e il terzo thread partono alla prima richiesta che spetta loro.
 // Le icone stanno in un atlante BGRA sulla GPU; nello shader le UV con x >= 1
 // indicano l'atlante delle icone invece di quello dei glifi.
 
@@ -37,7 +38,8 @@ struct IconEntry {
     double readyAt = 0; // per la dissolvenza d'ingresso
 };
 
-enum { IQ_EXT = 0, IQ_FILE = 1, IQ_COUNT = 2 }; // per estensione; dal file o dall'unità
+// per estensione; dal file o dall'unità; lo stesso, su un'unità di rete o ottica
+enum { IQ_EXT = 0, IQ_FILE = 1, IQ_SLOW = 2, IQ_COUNT = 3 };
 
 static struct IconSys {
     std::unordered_map<std::wstring, IconEntry> cache; // solo thread UI
@@ -176,7 +178,7 @@ static void iconThreadStart(int q) {
 static void iconInit() {
     InitializeCriticalSection(&I.lock);
     I.shellReady = CreateEventW(nullptr, TRUE, FALSE, nullptr);
-    iconThreadStart(IQ_EXT); // IQ_FILE alla prima richiesta (iconForKey)
+    iconThreadStart(IQ_EXT); // IQ_FILE e IQ_SLOW alla prima richiesta (iconForKey)
 }
 
 // L'atlante non vale più (altra dimensione, o device nuovo dopo una GPU persa): tutte le icone si
@@ -237,7 +239,7 @@ static void onIconResults() {
     A.dirty = true;
 }
 
-// Chiave e richiesta per una voce della lista
+// Tipi con un'icona propria per ogni file (la shell la legge dal file)
 static bool iconPerFile(const wchar_t* ext) {
     static const wchar_t* k[] = { L".exe", L".lnk", L".ico", L".url", L".cur", L".ani", L".cpl", L".scr", L".msc",
                                   L".appref-ms", nullptr };
@@ -245,47 +247,61 @@ static bool iconPerFile(const wchar_t* ext) {
     return false;
 }
 
-static const IconEntry* iconForKey(const std::wstring& key, const std::wstring& path, DWORD attr, bool byAttr, bool overlay);
+// Da dove viene l'icona di una voce, la stessa in elenco (qui), in griglia (thIconKeyFor) e
+// nell'anteprima (pvBigIcon): ICON_REAL dal percorso vero (le unità e i tipi con un'icona per file),
+// ICON_DIR quella di cartella, ICON_EXT quella del tipo. Dentro uno zip il file non c'è sul disco:
+// per estensione.
+enum { ICON_EXT, ICON_DIR, ICON_REAL };
+static int iconSource(const wchar_t* name, DWORD attr, bool drive, bool inZip) {
+    if (drive) return ICON_REAL;
+    if (attr & FILE_ATTRIBUTE_DIRECTORY) return ICON_DIR;
+    const wchar_t* dot = wcsrchr(name, L'.');
+    return dot && iconPerFile(dot) && !inZip ? ICON_REAL : ICON_EXT;
+}
+
+// Un'unità di Questo PC, con l'icona sua (in background: può toccare l'unità). Un percorso di rete
+// lì è una cartella, come in Explorer: niente rete per chiederne l'icona.
+static bool iconDrive(const Listing* l, const Entry& e) { return l->isDrives && e.size != DRIVE_NETPLACE; }
+
+static const IconEntry* iconForKey(const std::wstring& key, const std::wstring& path, DWORD attr, bool byAttr, bool overlay,
+                                   bool slow = false);
 
 // Icona per una voce della lista (accodando la richiesta se manca), o nullptr
 static const IconEntry* iconFor(const Listing* l, const Entry& e) {
     const wchar_t* name = l->name(e);
-    bool dir = (e.attr & FILE_ATTRIBUTE_DIRECTORY) != 0;
     std::wstring key, path;
-    bool byAttr = true, overlay = false;
+    bool byAttr = true, overlay = false, slow = false;
     DWORD attr = FILE_ATTRIBUTE_NORMAL;
-    if (l->isDrives && e.size != DRIVE_NETPLACE) {
-        key = path = name; // "C:\": icona dell'unità (in background: può toccare l'unità)
+    const wchar_t* dot = wcsrchr(name, L'.');
+    bool drive = iconDrive(l, e);
+    int src = iconSource(name, e.attr, drive, l->zipLen != 0);
+    if (src == ICON_REAL) { // dal percorso vero: un file con l'icona sua, o un'unità ("C:\": la cartella di Questo PC è vuota)
+        key = path = joinPath(l->path, name);
         byAttr = false;
-    } else if (dir) { // anche un percorso di rete: una cartella, come in Explorer (e niente rete)
+        overlay = dot && (!_wcsicmp(dot, L".lnk") || !_wcsicmp(dot, L".url"));
+        slow = drive ? slowDriveType((UINT)e.size) : slowPath(l->path); // come la griglia (thPoolFor)
+    } else if (src == ICON_DIR) {
         key = L"<dir>";
         path = L"cartella";
         attr = FILE_ATTRIBUTE_DIRECTORY;
     } else {
-        const wchar_t* dot = wcsrchr(name, L'.');
-        const wchar_t* ext = dot ? dot : L"";
-        if (dot && iconPerFile(ext) && !l->zipLen) { // dentro uno zip il file non c'è sul disco: per estensione
-            key = path = l->path.back() == L'\\' ? l->path + name : l->path + L'\\' + name;
-            byAttr = false;
-            overlay = !_wcsicmp(ext, L".lnk") || !_wcsicmp(ext, L".url");
-        } else {
-            key = ext;
-            for (auto& c : key) c = (wchar_t)towlower(c);
-            if (key.empty()) key = L".";
-            path = L"file" + key;
-        }
+        key = dot ? dot : L".";
+        for (auto& c : key) c = (wchar_t)towlower(c);
+        path = L"file" + key;
     }
-    return iconForKey(key, path, attr, byAttr, overlay);
+    return iconForKey(key, path, attr, byAttr, overlay, slow);
 }
 
-// Ritorna l'icona per una chiave di cache (accodando la richiesta se manca), o nullptr
-static const IconEntry* iconForKey(const std::wstring& key, const std::wstring& path, DWORD attr, bool byAttr, bool overlay) {
+// Ritorna l'icona per una chiave di cache (accodando la richiesta se manca), o nullptr.
+// slow: il percorso è su un'unità di rete o ottica (slowPath), la sua coda è IQ_SLOW
+static const IconEntry* iconForKey(const std::wstring& key, const std::wstring& path, DWORD attr, bool byAttr, bool overlay,
+                                   bool slow) {
     IconEntry& ce = I.cache[key];
     if (ce.state == 2) return &ce;
     if (ce.state == 0) {
         ce.state = 1;
         IconReq r{ key, path, attr, byAttr, overlay, I.size, I.gen };
-        int q = byAttr ? IQ_EXT : IQ_FILE;
+        int q = byAttr ? IQ_EXT : slow ? IQ_SLOW : IQ_FILE;
         iconThreadStart(q);
         std::wstring dropped;
         EnterCriticalSection(&I.lock);

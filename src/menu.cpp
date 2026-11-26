@@ -335,7 +335,7 @@ static void menuRun(int id, const CmdCtx& c) {
     case M_SIDE_REMOVE: if (si && !si->drive) favToggle(sidePath); break;
     case M_SIDE_PROPS:
         if (si && sidePath.empty()) thisPcProperties();
-        else if (si && oleReady()) SHObjectProperties(A.hwnd, SHOP_FILEPATH, sidePath.c_str(), nullptr);
+        else if (si) shellVerbPath("properties", sidePath, si->label); // unità o percorso di rete
         break;
     case M_TAB_NEW:     tabNew(A.cur ? A.cur->path : L"", true); break;
     case M_TAB_CLOSE:   tabClose(target); break;

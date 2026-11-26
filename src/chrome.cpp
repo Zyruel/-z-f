@@ -26,6 +26,28 @@ static int sysMetric(int m) {
 // Spessore del bordo di ridimensionamento (come quello delle finestre di Windows)
 static int frameY() { return sysMetric(SM_CYFRAME) + sysMetric(SM_CXPADDEDBORDER); }
 
+// Icona della finestra (src\z-f.rc, disegnata da strumenti\icona.py) alla misura dello schermo su
+// cui sta, grande e piccola (quale mostrare dove lo decide Windows). Si carica dopo il primo frame
+// e a ogni cambio di DPI: prima della finestra le due LoadImageW costavano 1,3–2,7 ms (misurato)
+// che ritardavano il contenuto; fino ad allora Windows mostra la sua icona generica. Il tempo è in
+// F12; oltre LOG_MSG va nel registro, perché la chiamata dopo il primo frame (main.cpp) non è
+// dentro un messaggio e non si conterebbe (quella di onDpi sì).
+static void appIconSet() {
+    static HICON iconBig, iconSmall;
+    double t0 = nowMs();
+    HINSTANCE inst = GetModuleHandleW(nullptr);
+    HICON b = (HICON)LoadImageW(inst, MAKEINTRESOURCEW(ZF_ICON), IMAGE_ICON, sysMetric(SM_CXICON), sysMetric(SM_CYICON), 0);
+    HICON s = (HICON)LoadImageW(inst, MAKEINTRESOURCEW(ZF_ICON), IMAGE_ICON, sysMetric(SM_CXSMICON), sysMetric(SM_CYSMICON), 0);
+    SendMessageW(A.hwnd, WM_SETICON, ICON_BIG, (LPARAM)b);
+    SendMessageW(A.hwnd, WM_SETICON, ICON_SMALL, (LPARAM)s);
+    if (iconBig) DestroyIcon(iconBig); // quelle di prima, non più usate dalla finestra
+    if (iconSmall) DestroyIcon(iconSmall);
+    iconBig = b;
+    iconSmall = s;
+    A.iconMs = nowMs() - t0;
+    if (A.iconMs > ui::LOG_MSG) hitchLog("icona della finestra lenta", sysMetric(SM_CXICON), A.iconMs);
+}
+
 struct Chrome {
     int hover = CH_NONE;     // pulsante sotto il mouse (anche nell'area non client)
     int pressed = CH_NONE;   // pulsante di sistema premuto

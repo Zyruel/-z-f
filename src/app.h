@@ -47,7 +47,11 @@ struct PopupMenu {
 
 // Stato di una scheda. Quello della scheda attiva vive direttamente in App (il codice della vista
 // non sa nulla delle schede); cambiare scheda scambia i campi: O(1), nessuna copia.
+static uint32_t g_tabIds = 0; // thread UI
 struct TabState {
+    // Chi è la scheda, anche quando chiudendone una prima cambia il suo indice (l'esito di un lavoro
+    // la ritrova così). Ogni scheda costruita ne ha uno nuovo; spostarla lo conserva.
+    uint32_t id = ++g_tabIds;
     Listing* cur = nullptr;
     std::vector<uint32_t> order, view;
     std::vector<uint8_t> selFlags;
@@ -150,6 +154,7 @@ struct App {
     // Avvio: istanti misurati dalla creazione del processo (ms)
     double stMain = 0, stWindow = 0, stGfx = 0, stFont = 0, stWait = 0, stFirst = 0;
     double stActivate = -1;      // attivazione dopo il primo frame (primo fuoco: Windows avvia il Text Input Framework)
+    double iconMs = -1;          // ultima icona della finestra caricata (appIconSet: dopo il primo frame, cambio di DPI)
     bool firstFrameDone = false;
     bool dirty = true;
     double lastFrame = 0;
@@ -187,7 +192,9 @@ struct App {
     float sideScroll = 0;
     uint64_t sideGen = 0;
     double sideLoadedAt = -1e9;
-    bool favsReady = false;           // preferiti letti dal file (o creati al primo avvio)
+    double sideMs = 0, sideSlowMs = 0; // F12: lettura delle voci locali, ultimo giro di quelle lente (thread)
+    int sideSlowN = 0;                 // F12: voci lente lette nell'ultimo giro
+    bool favsReady = false;          // preferiti letti dal file (o creati al primo avvio)
     bool sideFastDone = false;        // prima lettura veloce (file e lettere delle unità) arrivata
     bool sideStarted = false;         // il thread della barra parte solo dopo il primo frame
 
@@ -236,7 +243,8 @@ struct App {
     bool shellMenu = false;           // tasto destro: menu completo della shell invece del nostro (Shift inverte)
     bool dirSizes = true;             // colonna Dimensione: totale delle cartelle contato in background (dirsize.cpp)
     bool dialogJump = true;           // dialoghi Apri e Salva nella cartella di [z]f (filedlg.cpp)
-    double fdHookMs = 0, fdJumpMs = 0; // F12: notifica più lenta (UI), ultimo salto (thread)
+    double fdHookMs = 0;               // F12: notifica più lenta dei dialoghi (UI)
+    volatile LONG64 fdJumpUs = 0;      // F12: ultimo salto di un dialogo, in µs (scritto dai thread dei dialoghi)
     double fileOpMs = 0;              // F12: ultima copia, spostamento o eliminazione (sul thread)
     double undoRecMs = 0, undoMs = 0; // F12: registrazione nella cronologia (UI), ultimo annulla o ripeti (thread)
     double zipMs = 0;                 // F12: ultima estrazione da uno zip (thread, zipout.cpp)
@@ -298,6 +306,7 @@ enum FsOp { FS_RENAME, FS_MKDIR };                // fileops.cpp: operazioni dir
 static void fsStart(int op, const std::wstring& a, const std::wstring& b, const std::wstring& name); // fileops.cpp
 static void pasteFiles(const std::wstring& dest = L""); // fileops.cpp: incolla i file degli appunti (vuoto: cartella aperta)
 static bool shellDropInto(HWND hwnd, IDataObject* data, const std::wstring& path, DWORD fx, POINTL pt, HRESULT& hr); // drag.cpp: rilascio alla shell, su un thread
+static const wchar_t* errWhy(DWORD err);          // fileops.cpp: perché un elemento non si è potuto usare, per gli avvisi
 static void deleteSelected();                     // fileops.cpp: selezione nel Cestino
 static void recyclePaths(std::vector<std::wstring> src); // fileops.cpp: questi percorsi nel Cestino
 static bool closeDeferred();                      // fileops.cpp: WM_CLOSE con operazioni sui file in corso

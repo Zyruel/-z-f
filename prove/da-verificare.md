@@ -20,6 +20,310 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 000000000000000000000000000000. Correzioni del controllo prima della 1.0.0-beta.4 (z-f-dev, novembre 2026)
+
+I punti del controllo delle modifiche di questa versione: spazio delle unità lente azzerato se la
+lettura fallisce (`sidebar.cpp`), avviso quando Proprietà o "Apri con…" non trovano l'elemento
+(`shell.cpp`), controllo della cartella dei dialoghi fuori dal turno e `FD_WAIT_MAX` dalla
+richiesta (`filedlg.cpp`), niente errore degli appunti da un tentativo superato (`input.cpp`),
+icona della griglia in una cartella che si chiama come uno zip e coda delle unità appena
+connesse (`thumbs.cpp`), id stabile delle schede per lo zip nello zip (`zipout.cpp`, `app.h`),
+coda a parte per le icone di rete e ottiche anche in elenco, barra laterale e menu (`icons.cpp`).
+
+Provato da Claude su z-f-dev, in una cartella di prova con file finti:
+- [x] Alt+Invio su un file che la shell non sa trovare (nome con il punto finale, creato con
+      `\\?\`): avviso di errore "Impossibile aprire le Proprietà di fine.: non esiste più
+      (codice 2)"; F12 "comando della shell: preparazione" 3,1 ms;
+- [x] griglia in una cartella vera `x.zip` con due .exe: ognuno ha la sua icona, non quella
+      generica;
+- [x] due Copia percorso di fila con gli appunti occupati (`appunti-prova occupa 1.6`, tasti
+      mandati da uno script): tra la scadenza della prima (nel registro "appunti non scritti",
+      1050 ms) e la riuscita della seconda la barra di stato non mostra errori, poi "Percorso
+      copiato";
+- [x] `dialoghi-prova ritorno` (A e B locali): il dialogo entra in A e poi in B, nessuna conferma
+      del nome, nome proposto intatto; notifica sul thread UI al massimo 0,095 ms;
+- [x] icone dei .exe in `\\localhost\C$\Windows` (elenco): arrivano dalla coda nuova;
+- [x] zip dentro uno zip: si apre come prima;
+- [x] registro: solo le voci normali e quelle delle prove; MSVC: zero avvisi.
+
+Da provare a mano (serve un'unità o una rete che sparisce):
+- [ ] DVD nell'unità ottica, poi tolto (o un'unità di rete verso un server che si spegne): dopo il
+      giro delle voci lente la barra laterale non mostra più spazio libero e barra d'uso, e il
+      tooltip non ha più Capacità, Usato, Libero, come un'unità vuota;
+- [ ] Proprietà (Alt+Invio) della cartella aperta su un NAS spento: dopo l'attesa della rete,
+      l'avviso "Impossibile aprire le Proprietà di …: percorso di rete non trovato (codice 53)" o
+      simile, invece di niente;
+- [ ] dialogo Apri o Salva con [z]f in una cartella su una condivisione che non risponde, poi
+      ritorno con una cartella locale: il dialogo entra subito in quella locale, senza aspettare
+      la rete;
+- [ ] schede: doppio clic su uno zip dentro uno zip grande e, durante l'estrazione, chiusura di
+      una scheda a sinistra: finita l'estrazione si entra lo stesso nello zip interno.
+
+## 00000000000000000000000000000. Zip: zip nello zip e trascinamento misurato (z-f-dev, novembre 2026)
+
+Correzione del controllo del codice (`zipout.cpp`, `drag.cpp`): uno zip dentro uno zip, finita
+l'estrazione, si apriva sempre, anche se intanto l'utente era andato altrove; ora solo se è
+l'ultima richiesta e la scheda e la cartella sono quelle di partenza (un file si apre sempre).
+L'inizio del trascinamento da uno zip (oggetto dei file e immagine, sul thread UI) ora si misura
+come quello di molte voci, con la stessa funzione (`dragObjectFor`).
+
+Provato da Claude su z-f-dev, in una cartella di prova con uno zip di 8 MB che contiene uno zip
+di 722 MB (estrazione 480 ms):
+- [x] doppio clic su interno.zip e attesa: si entra nella copia estratta, come prima;
+- [x] doppio clic su interno.zip e subito Backspace: si resta nella cartella superiore anche
+      quando l'estrazione finisce (nel registro "zip: estrazione");
+- [x] doppio clic su interno.zip e subito Ctrl+T: si resta nella scheda nuova; chiusa quella,
+      la prima scheda è ancora nello zip esterno;
+- [x] trascinamento di nota.txt da dentro lo zip: parte (immagine e divieto sopra lo zip), F12
+      "copia, taglia, trascina, menu (UI)" 4,23 ms; 600 file trascinati e rilasciati nella stessa
+      cartella: 1,41 ms, nessun file spostato;
+- [x] registro: solo le voci normali e "zip: estrazione"; MSVC: zero avvisi.
+
+Da provare a mano:
+- [ ] trascinare da uno zip su un'altra app (il desktop, una cartella di Explorer): la copia
+      arriva come prima;
+- [ ] doppio clic su due file di fila dentro uno zip: si aprono tutti e due (scelta voluta).
+
+## 0000000000000000000000000000. Proprietà e "Apri con…" sul thread del menu della shell (z-f-dev, novembre 2026)
+
+Correzione del controllo del codice (`shell.cpp`, `menu.cpp`): le Proprietà di una voce sola,
+della cartella aperta e delle voci della barra laterale erano `SHObjectProperties` sul thread
+dell'interfaccia, che analizza il percorso prima di aprire la finestra (su una condivisione che
+non risponde: il timeout di rete, senza traccia nel registro); "Apri con…" era
+`SHOpenWithDialog`, modale sul thread dell'interfaccia. Ora passano dal thread del menu della
+shell come Shift+Canc e le Proprietà di più voci: i verbi "properties" e "openas" (`shellVerb`, e
+`shellVerbPath` per un percorso intero), con la misura in F12 ("comando della shell") e nel
+registro oltre 50 ms.
+
+Provato da Claude su z-f-dev, in una cartella di prova con file finti:
+- [x] **Alt+Invio** su una cartella e su un file: le Proprietà compaiono (a.txt: 9,7 ms sul
+      thread del menu); dal menu dello sfondo, le Proprietà della cartella aperta;
+- [x] barra laterale: **Proprietà di Disco locale (C:)** e di un **percorso di rete** sotto Questo
+      PC (un NAS: la prima analisi del percorso ha impiegato 22,4 s, nel registro "comando della
+      shell lento" e in F12, e intanto l'interfaccia si ridisegnava; poi le Proprietà della
+      condivisione). In Questo PC nella lista, Alt+Invio su C:. I preferiti non hanno la voce
+      Proprietà;
+- [x] **"Apri con…"** su un .txt (8,2 ms sul thread) e su un file senza programma associato: la
+      finestra di Windows (OpenWith.exe, un processo a parte) compare; intanto un clic nella lista
+      di [z]f seleziona e mostra il tooltip (prima [z]f era fermo finché la finestra restava
+      aperta). Il clic la chiude, come fa Windows 11 quando perde il fuoco;
+- [x] registro: solo la riga del percorso di rete; MSVC: zero avvisi.
+
+Da provare a mano:
+- [ ] **condivisione che non risponde** (server spento o rete staccata): Alt+Invio su una sua
+      cartella e Proprietà del percorso di rete o dell'unità di rete nella barra laterale; la lista
+      deve rispondere durante l'attesa, poi una riga "comando della shell lento" (se Windows non
+      trova il percorso non compare niente, come prima);
+- [ ] Proprietà di un'unità ottica senza disco e di un'unità di rete con lettera.
+
+## 000000000000000000000000000. Appunti: Copia percorso e Copia/Taglia nelle caselle su un thread (z-f-dev, novembre 2026)
+
+Correzione del controllo del codice (`text.cpp`, `clipSetText`): il testo si scriveva negli
+appunti sul thread dell'interfaccia, che poteva aspettare il programma che li possedeva (se
+bloccato), e "Percorso copiato" compariva anche quando gli appunti erano occupati e non si era
+copiato niente. Ora scrive un thread, che riprova per un secondo; l'avviso arriva con l'esito, e
+un fallimento dice chi tiene gli appunti. Un Taglia non riuscito rimette il testo nella casella,
+selezionato. Anche Ctrl+V riprova per un secondo se gli appunti sono occupati.
+
+Provato da Claude su z-f-dev, in una cartella di prova con file finti, con
+`prove\appunti-prova.cpp`:
+- [x] **Copia percorso** con Ctrl+Shift+C su una voce ("Percorso copiato"), su cinque voci
+      ("Percorsi copiati", una per riga) e dal menu col tasto destro; proprietaria degli appunti la
+      finestra di [z]f (classe `z-f`); dopo Ctrl+C sui file (oggetto OLE) Copia percorso li
+      sostituisce senza ritardi; chiudendo la finestra il testo resta negli appunti;
+- [x] **appunti tenuti aperti** 3–5 s: dopo un secondo "Impossibile copiare il percorso: gli
+      appunti sono aperti da appunti-prova.exe (codice 5)"; aperti senza finestra: "… da un altro
+      programma (codice 5)"; intanto le frecce muovono il cursore. Tenuti aperti 0,6 s: la copia
+      riesce (427 ms, nel registro "appunti lenti (testo)");
+- [x] **proprietario fermo** 4 s: `EmptyClipboard` aspetta 3,4 s sul thread, la lista risponde e
+      alla fine "Percorso copiato" (prima il thread dell'interfaccia sarebbe rimasto fermo 3,4 s);
+- [x] **caselle:** barra del percorso (Ctrl+L), rinomina (F2, poi Esc) e "Vai a": Ctrl+C, Ctrl+X e
+      Ctrl+V; in "Vai a" Taglia e Incolla rifanno la ricerca. Taglia con gli appunti occupati, nella
+      barra del percorso e in "Vai a": il testo torna selezionato (e la ricerca si rifà), con
+      "Impossibile tagliare il testo: …";
+- [x] registro: solo le voci d'avvio e le righe delle prove; MSVC: zero avvisi.
+
+Da provare a mano:
+- [ ] **Desktop remoto** (rdpclip) o un gestore degli appunti (Ditto, la cronologia di Win+V):
+      Copia percorso e Ctrl+C nella barra del percorso arrivano negli appunti, e nel PC remoto;
+- [ ] Copia percorso con migliaia di voci selezionate (il testo si prepara ancora sul thread
+      dell'interfaccia: con 20.000 voci, quanto dura?).
+
+## 00000000000000000000000000. Barra laterale: prima le unità locali, poi rete e ottiche (z-f-dev, novembre 2026)
+
+Correzione del controllo del codice (`sidebar.cpp`): le unità si leggevano tutte nell'ordine
+delle lettere, rete e ottiche comprese, e si consegnavano insieme ai nomi dei preferiti. Un'unità
+di rete verso un server spento tratteneva etichetta e spazio delle altre unità e il nome di un
+preferito appena aggiunto, a ogni ritorno sulla finestra. Ora il thread della barra legge solo le
+voci locali (unità fisse, rimovibili, RAM e i preferiti su di esse); unità di rete e ottiche,
+percorsi di rete e preferiti su di loro li legge dopo un altro thread, una voce alla volta,
+consegnata appena pronta. Intanto si vedono col nome generico ("Unità di rete (G:)") o con quello
+della lettura precedente. Un'unità ottica si rilegge solo all'avvio e quando Windows segnala un
+disco inserito o tolto, non a ogni ritorno sulla finestra (il DVD si avviava ogni volta).
+
+Provato da Claude senza toccare lo schermo (finestre di prova ridotte a icona), con Y: connessa a
+`\\localhost\C$` (tolta alla fine) e un ritardo di 8 s su ogni unità di rete, aggiunto solo nelle
+build di prova, per simulare un server spento; le build scrivevano nel registro i nomi della barra
+all'arrivo di ogni risultato:
+- [x] **build di prima:** C:, D:, Y: e i preferiti arrivano tutti insieme a 8111 ms dall'avvio;
+- [x] **build nuova:** C: e D: con nome e spazio e i preferiti locali (anche `C:\Windows`, aggiunto
+      per la prova) a 97–153 ms; Y: a 8113–8173 ms, da sola, con nome ("C$ (Y:)") e spazio;
+- [x] il percorso di rete (un NAS vero, lento) e il preferito `Y:\Windows` arrivano dopo Y:, sullo
+      stesso thread: 3 voci in 23,1 s, senza trattenere niente di locale;
+- [x] **ritorno sulla finestra** (`WM_ACTIVATEAPP` mandato alla finestra di prova) durante la
+      lettura lenta: le voci locali si rileggono in 7 ms; la lettura lenta non si raddoppia, ne
+      riparte una sola alla fine della prima. Un ritorno successivo mostra subito Y: col nome e lo
+      spazio letti prima, mentre li rilegge;
+- [x] thread delle voci locali: 16,6 ms al primo giro, 7,2 ms ai successivi (nuova riga in F12,
+      "barra laterale: voci locali"). Registro: solo le voci d'avvio. MSVC: zero avvisi.
+
+Da provare a mano:
+- [ ] **unità di rete vera con il server spento** (o il NAS spento con una lettera connessa): le
+      altre unità hanno subito nome e spazio, la chiavetta inserita intanto compare con la sua
+      etichetta senza aspettare; l'unità di rete resta "Unità di rete (G:)" (o col nome di prima)
+      finché il server risponde o rinuncia;
+- [ ] **DVD inserito:** compare con la sua etichetta all'inserimento; tornando su [z]f più volte il
+      lettore non si riavvia (Claude non ha potuto mandare `WM_DEVICECHANGE` alla finestra di
+      prova, e qui non c'è un lettore ottico);
+- [ ] **preferito su una condivisione** aggiunto con Ctrl+D: compare subito col nome della
+      cartella; il nome di Windows arriva dopo, senza ritardare quello dei preferiti locali;
+- [ ] F12: le righe "barra laterale: voci locali (thread)" e "barra laterale: rete e ottiche
+      (thread)", con il numero di voci (non viste a schermo).
+
+## 0000000000000000000000000. Dialoghi Apri/Salva: un salto alla volta (z-f-dev, novembre 2026)
+
+Correzione del controllo del codice (`filedlg.cpp`): tornando a un dialogo due volte di fila con
+cartelle diverse partivano due thread sullo stesso dialogo. Il secondo poteva leggere come nome
+"vecchio" il percorso messo dal primo, e il suo "Salva" confermare il nome appena rimesso dal
+primo: il dialogo Salva avrebbe salvato il file (Apri lo avrebbe aperto). Ora ogni dialogo ha un
+thread solo: una cartella arrivata durante un salto aspetta, e vale l'ultima; se il salto in
+corso non ha ancora toccato il campo del nome, lo si lascia e si va subito all'ultima. I tempi
+del salto sono in `theme.h` (`FD_*`).
+
+Provato da Claude a PC bloccato, senza mouse né tastiera, con il nuovo `dialoghi-prova ritorno`
+(`prove\dialoghi-prova.cpp`): apre Salva, consegna la cartella A a z-f-dev (che viene davanti),
+torna al dialogo, poi lo stesso con B; scrive le cartelle in cui entra il dialogo e ogni conferma
+del nome (bloccata). 13 giri con tempi diversi (gli ultimi 7 con la build del commit):
+- [x] B arriva mentre A sta premendo "Salva": il dialogo entra in A e poi in B (B 180 ms dopo A);
+- [x] B arriva prima che A tocchi il campo: A lasciato, il dialogo entra direttamente in B,
+      235 ms dopo il ritorno (un salto normale: 220 ms);
+- [x] sempre: nome nel campo "prova salvataggio.txt", nessuna conferma del nome, dialogo annullato
+      alla fine senza salvare. Registro: solo le voci normali dell'avvio. MSVC: zero avvisi.
+- La stessa prova con la build di prima non ha mostrato il guasto (17 giri): con cartelle locali
+  "Salva" entra nella cartella in pochi ms, e il secondo ritorno più rapido (60 ms) arriva già
+  dopo. Con una cartella lenta (rete) la finestra in cui succedeva era più larga.
+
+Da provare a mano:
+- [ ] **ritorno rapido** con un dialogo Salva vero (Blocco note, Salva con nome): passa a [z]f,
+      cambia cartella, torna al dialogo, subito di nuovo a [z]f su un'altra cartella e di nuovo al
+      dialogo. Il dialogo finisce nell'ultima cartella, il nome proposto resta, niente viene
+      salvato;
+- [ ] **dialogo lento**: lo stesso con una cartella di rete (o un NAS lento) come prima cartella:
+      il dialogo finisce comunque nell'ultima e non salva niente;
+- [ ] F12, "dialoghi: ultimo salto (thread)": circa 200–250 ms dopo un salto (a PC bloccato
+      Claude non ha potuto leggerlo).
+
+## 000000000000000000000000. File di [z]f mai sovrascritti prima della lettura (z-f-dev, novembre 2026)
+
+Correzione del controllo del codice (`settings.cpp`, `settingsSave`): con il disco lento il
+thread veloce della barra laterale può non aver ancora letto `impostazioni.txt` quando l'utente
+cambia qualcosa (l'attesa all'avvio è al massimo 100 ms), e il salvataggio riscriveva il file con
+i valori predefiniti. Lo stesso per `preferiti.txt` (Ctrl+D, trascinamento), `viste.txt` (griglia)
+e `annulla.txt` (opzione accesa nei primi istanti). Ora nessuno si scrive prima della lettura;
+dopo, il cambiamento si unisce a quello che c'era.
+
+Provato da Claude con una build di prova che ritarda di 4 s la lettura del thread veloce e, subito
+dopo l'attesa d'avvio, fa dal codice i cambiamenti dell'utente (dimensione del testo +1,
+animazioni spente e riaccese, colonna Dimensione 120, Ctrl+D, griglia), con `APPDATA` in una
+cartella di prova (file con dimensione 16, barra laterale 300, colonna Data 200, menu completo e
+aggiornamenti spenti, tre preferiti, due griglie); finestra ridotta a icona, chiusa per PID:
+- [x] **Prima:** impostazioni tornate ai predefiniti (barra laterale 210, colonna Data 150, menu
+      completo e aggiornamenti riaccesi), preferiti ridotti alla sola cartella nuova, viste alla sola griglia nuova.
+- [x] **Dopo:** dimensione 14, animazioni accese e colonna Dimensione 120 (le scelte dell'utente,
+      anche quella tornata al predefinito), tutto il resto dal file; quattro preferiti (il nuovo in
+      fondo); tre griglie.
+- [x] Primo avvio (senza `preferiti.txt`) con Ctrl+D prima della lettura: le cartelle predefinite
+      e, in fondo, quella aggiunta.
+- [x] Avvio normale (senza ritardo): nessun file riscritto. `settingsMarkStart` costa 0,02–0,04 ms
+      all'avvio; `prove\avvio.bat` non usato (la differenza è sotto la sua risoluzione).
+- [x] Registro: solo le voci normali dell'avvio. MSVC: zero avvisi.
+
+Da provare a mano:
+- [ ] `annulla.txt`: con "Annulla dopo il riavvio" accesa nel file, accenderla di nuovo nelle
+      opzioni nei primi istanti di un avvio lento non deve cancellare la cronologia (non provato:
+      serve un disco lento vero o la build di prova).
+- [ ] Su un avvio a freddo vero (PC appena acceso, antivirus), Ctrl+rotellina appena compare la
+      finestra: al riavvio le altre impostazioni sono ancora quelle di prima.
+
+## 00000000000000000000000. File solo online: tooltip e anteprima (z-f-dev, novembre 2026)
+
+Correzione del controllo del codice (`tooltip.cpp`, `readInfo`): la risoluzione di un'immagine
+si leggeva aprendo il file anche quando è solo online, e così OneDrive lo scaricava. Ora, come già
+per i .lnk, il contenuto si legge solo se il file è sul disco (`onlineOnly`).
+
+Sul PC OneDrive non è configurato: la prova la fa `prove\online-prova.cpp`, che crea una radice
+di sincronizzazione finta con l'API Cloud Files di Windows (la stessa di OneDrive) e conta ogni
+scaricamento con il processo che lo chiede. I segnaposto hanno gli attributi dei file solo online
+di OneDrive (`0x00401620`: offline, recall on data access, sparse, reparse point).
+
+Provato da Claude con z-f-dev in `build\online-*` (cartelle di segnaposto: .png, .jpg, .exe,
+.lnk, .ico), confrontando con la build di prima:
+- [x] **Prima:** solo aprendo la cartella (anteprima aperta, cursore sul PNG) il PNG si scarica;
+      col cursore sul JPEG si scarica anche quello (1 MB) e l'anteprima poi lo mostra come
+      immagine. 2 scaricamenti, tutti da z-f-dev.exe.
+- [x] **Dopo:** anteprima su tutte e cinque le voci, tooltip sul JPEG, griglia grande: nessuno
+      scaricamento. Anteprima e tooltip mostrano tipo, dimensione, date e "solo online", senza la
+      risoluzione; icone generiche del tipo (quelle che dà la shell, come Explorer).
+- [x] **Icone per file** (.exe, .lnk, .ico): `SHGetFileInfo` sul segnaposto (icona della lista,
+      icona grande dell'anteprima e della griglia) non scarica niente, la shell dà l'icona
+      generica (`online-prova passi`, 0 scaricamenti in 15 chiamate). Nessuna modifica al codice.
+- [x] Registro: niente di nuovo (all'avvio `0x8002`, normale; alla chiusura per PID un
+      `messaggio lento 0x0010` da 25,8 ms, che il registro ha già 17 volte da prima). MSVC: zero
+      avvisi.
+
+Restano a Zyruel (serve OneDrive vero, con un account):
+- [ ] In una cartella di OneDrive con foto "solo online" (icona della nuvola in Esplora file):
+      cursore sulle foto con Alt+P aperto e tooltip fermo su una foto. Le foto restano con la
+      nuvola (non diventano "disponibili su questo dispositivo") e l'anteprima mostra "Solo
+      online: si legge solo aprendolo".
+- [ ] Lì stesso, un .exe o un .lnk solo online: icona generica, nessuno scaricamento (la radice
+      finta non è registrata presso la shell come quella di OneDrive: da confermare che la shell
+      si comporti uguale).
+
+## 0000000000000000000000. Miniature: zip, percorsi e unità di rete (z-f-dev, novembre 2026)
+
+Tre correzioni del controllo del codice (`thumbs.cpp`, `preview.cpp`, `icons.cpp`): le miniature
+dentro uno zip si rifanno sempre dallo zip (`thRestart`), i percorsi di rete di Questo PC hanno
+l'icona di cartella anche in griglia e nell'anteprima (`iconSource`, `iconDrive`), le icone delle
+unità di rete e ottiche in Questo PC vanno sui thread della rete.
+
+Provato da Claude con z-f-dev in una cartella di prova, confrontando con la build di prima
+(stesso codice senza le correzioni), griglia grande, F12 aperto:
+- [x] **Zip con 1.200 foto** (640×480), scorrendo fino in fondo e poi di nuovo in cima: la RAM si
+      riempie (89–92 MB, circa 480 miniature) e le prime voci si rifanno. Prima: 456 richieste
+      alla cache di Windows (cioè alla shell, dentro lo zip) e 1.656 decodifiche WIC solo
+      scendendo. Dopo: nessuna richiesta alla cache di Windows, 1.692 decodifiche WIC scendendo e
+      2.943 a giro finito (1,28 ms l'una), tutte le miniature visibili al ritorno.
+- [x] **Questo PC in griglia, con un percorso di rete che risponde lento** (una condivisione via
+      VPN): prima l'icona del percorso di rete arrivava dopo circa 20 s, le icone delle unità
+      aspettavano in coda dietro di lei e l'anteprima restava su "caricamento…"; poi, aprendo
+      una cartella in griglia, le sue sottocartelle avevano l'icona della condivisione. Dopo:
+      icona di cartella subito, unità subito, anteprima con le informazioni del percorso di rete
+      e l'icona di cartella; le sottocartelle hanno l'icona normale.
+- [x] Registro: solo "attesa vsync lunga" (debito noto). MSVC: zero avvisi.
+- Non provato: le icone delle unità di rete e ottiche sui thread della rete, perché qui non c'è
+  un'unità con la lettera di rete o un lettore ottico.
+
+Restano a Zyruel (servono una rete vera):
+- [ ] **NAS spento o condivisione irraggiungibile**, con un percorso di rete in Questo PC
+      ("Aggiungi un percorso di rete"): Questo PC in griglia mostra subito l'icona di cartella
+      per il percorso di rete; aprendo subito dopo una cartella di foto locale, le miniature
+      arrivano senza aspettare. Le cartelle della griglia non prendono l'icona della condivisione.
+- [ ] **Anteprima (Alt+P) su quel percorso di rete** in Questo PC: icona di cartella, le
+      informazioni del percorso di rete, nessuna attesa.
+- [ ] **Unità di rete scollegata (Z:)** in Questo PC in griglia: le altre unità hanno subito la
+      loro icona; aprendo poi una cartella locale in griglia, le miniature non aspettano Z:.
+
 ## 000000000000000000000. Aggiornamento automatico e riapertura delle schede (1.0.0-beta.3, novembre 2026)
 
 Provato da Claude, senza toccare lo schermo, con `prove\aggiornamenti-prova.py` (server locale al
@@ -58,6 +362,15 @@ Restano a Zyruel:
 - [ ] **Spegnimento:** con l'opzione accesa e [z]f aperto, riavvia Windows: le schede tornano.
 - [ ] **Avvio:** `prove\avvio.bat` (a PC libero): il contenuto deve comparire come prima (64–80 ms),
       con l'opzione spenta e accesa.
+**Con GitHub vero** (Release 1.0.0-beta.3 pubblicata): una copia della versione precedente con
+l'aggiornamento ha trovato la beta.3 (controllo 0,6 s), l'ha scaricata (2,7 s), ha verificato la
+firma e l'ha installata identica a quella pubblicata; "Aggiorna" ha riaperto la finestra al suo
+posto, in primo piano, sulla stessa cartella. Difetto trovato: la versione nuova provava a
+cancellare `z-f.old.exe` mentre la vecchia stava ancora uscendo, e non ci riusciva (lo toglieva
+solo all'avvio dopo, e "Aggiornato a …" non compariva). Corretto su `dev` per la prossima
+versione: aspetta che il processo di prima sia uscito (al massimo `UPD_OLD_WAIT`, sul thread).
+Provato con una beta.4 finta: copia tolta subito dopo il riavvio.
+
 - [ ] **Il primo aggiornamento vero:** dalla 1.0.0-beta.3 alla successiva, quando ci sarà: il
       pallino su ≡, "Aggiorna a [z]f …", il riavvio di tutte le finestre (anche una aperta con
       "Nuova finestra") con le loro schede e posizioni, poi "Aggiornato a [z]f …".

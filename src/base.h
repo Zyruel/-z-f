@@ -142,7 +142,8 @@ static inline uint32_t fadeA(uint32_t c, float a) {
 
 
 // Messaggi interni (thread di lavoro → finestra)
-#define ZF_VERSION L"1.0.0-beta.3" // versione (SemVer) mostrata nelle opzioni e nel menu di [z]f
+#define ZF_VERSION L"1.0.0-beta.4" // versione (SemVer) mostrata nelle opzioni e nel menu di [z]f
+#include "risorse.h" // ID delle risorse (ZF_ICON), in comune con src\z-f.rc
 
 #define WM_APP_LISTING (WM_APP + 1)
 #define WM_APP_GPU     (WM_APP + 2)
@@ -167,10 +168,11 @@ static inline uint32_t fadeA(uint32_t c, float a) {
 #define WM_APP_SHELLMENU  (WM_APP + 21) // menu completo della shell chiuso (shell.cpp): lParam SmRes*
 #define WM_APP_ZIP        (WM_APP + 22) // estrazione da uno zip finita (zip.cpp): lParam ZipJob*
 #define WM_APP_LINKS      (WM_APP + 23) // destinazioni dei collegamenti lette (links.cpp)
-#define WM_APP_PLACES     (WM_APP + 24) // spazio dei percorsi di rete letto (sidebar.cpp): lParam PlaceSpace*
+#define WM_APP_SIDESLOW   (WM_APP + 24) // voce lenta della barra laterale letta, o fine del giro (sidebar.cpp): lParam SlowItem*
 #define WM_APP_START      (WM_APP + 25) // schede da riaprire all'avvio lette (tabs.cpp): lParam StartTabs*
 #define WM_APP_UPDATE     (WM_APP + 26) // controllo o download dell'aggiornamento finito (update.cpp): lParam UpdJob*
 #define WM_APP_UPDCLEAN   (WM_APP + 27) // exe della versione precedente tolto dopo un aggiornamento (update.cpp)
+#define WM_APP_CLIPSET    (WM_APP + 28) // testo scritto negli appunti da un thread, o no (text.cpp): lParam ClipSet*
 
 template <class T> static void safeRelease(T*& p) { if (p) { p->Release(); p = nullptr; } }
 

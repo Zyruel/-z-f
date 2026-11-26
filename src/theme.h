@@ -143,6 +143,7 @@ constexpr float SPIN_PERIOD = 900;
 // Tooltip e avvisi
 constexpr int TIP_DELAY = 500, TIP_DELAY_NEAR = 60, TIP_INFO_WAIT = 150, TIP_NEAR_WINDOW = 400;
 constexpr int NOTICE_INFO = 2500, NOTICE_ERROR = 4000;
+constexpr int NOTICE_RENEW = NOTICE_INFO / 2; // un avviso che vale finché dura un lavoro ("Estrazione…") si rinnova prima di scadere
 constexpr int LOADING_AFTER = 150; // "caricamento…" solo se la lettura supera questo tempo
 // Anteprima: una lettura che dura più di così (rete) non trattiene la successiva, che parte su
 // un altro thread
@@ -159,10 +160,21 @@ constexpr float MARQUEE_SCROLL_MAX = 6;
 constexpr int WATCH_BATCH = 50;    // notifiche della cartella aperta raggruppate: al massimo una ricarica ogni tanto
 constexpr int SIDE_RELOAD = 5000;  // tornando a [z]f, unità e preferiti si rileggono se più vecchi di così
 constexpr int ZIP_TEMP_KEEP = 3 * 24 * 3600 * 1000; // file estratti da uno zip (%TEMP%\z-f): tolti all'estrazione dopo questo tempo
+// Salto dei dialoghi Apri e Salva (filedlg.cpp, sul suo thread): ogni FD_POLL si guarda se il
+// dialogo è pronto, per al massimo FD_WAIT_MAX; poi FD_SETTLE di margine (prima, il comando fa
+// cadere il programma del dialogo). Attesa massima di una risposta del dialogo: FD_MSG_WAIT per il
+// campo del nome, FD_OK_WAIT per Apri/Salva (che entra nella cartella)
+constexpr int FD_POLL = 25, FD_WAIT_MAX = 3000, FD_SETTLE = 150;
+constexpr int FD_MSG_WAIT = 500, FD_OK_WAIT = 2000;
+// Appunti aperti da un altro programma (rdpclip, un gestore degli appunti): i thread che scrivono e
+// leggono il testo (text.cpp) riprovano ogni CLIP_RETRY, per al massimo CLIP_WAIT_MAX, come fanno
+// Windows Forms e WPF (10 volte, 100 ms)
+constexpr int CLIP_RETRY = 50, CLIP_WAIT_MAX = 1000;
 // Aggiornamento (update.cpp): primo controllo così tanto dopo il primo frame, poi al massimo uno
 // ogni UPD_EVERY secondi (anche a [z]f aperto: la condizione si guarda ogni UPD_TICK ms)
 constexpr int UPD_DELAY = 30000, UPD_TICK = 3600 * 1000;
 constexpr int UPD_DELAY_TEST = 2000; // con --aggiorna-da (server di prova)
+constexpr int UPD_OLD_WAIT = 10000;  // dopo "Aggiorna": attesa massima che la versione di prima esca (sul thread)
 constexpr long long UPD_EVERY = 24 * 3600;
 constexpr int UPD_TIMEOUT = 10000, UPD_TIMEOUT_READ = 30000; // rete: risoluzione, connessione, invio · lettura
 constexpr int UPD_JSON_MAX = 2 << 20, UPD_EXE_MAX = 64 << 20; // risposte più grandi si scartano

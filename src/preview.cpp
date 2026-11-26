@@ -43,7 +43,8 @@ struct PvReq {
     uint64_t gen;
     std::wstring path;   // percorso completo ("C:\" per un'unità)
     uint32_t attr;
-    bool drive;
+    bool drive;          // voce di Questo PC: niente letture, solo le informazioni
+    int icon;            // da dove viene l'icona grande (iconSource)
     int boxW, boxH;      // spazio per un'immagine (pixel)
     int iconPx;          // lato dell'icona grande
     bool (*superseded)(uint64_t gen) = nullptr; // chi ha chiesto non la vuole più (nullptr: l'anteprima)
@@ -211,8 +212,7 @@ static void pvScaleDown(const uint32_t* src, int sw, int sh, int stride, std::ve
 // angolo di 256 px: il ritaglio le riporta alla loro misura (non si ingrandiscono).
 static void pvBigIcon(const PvReq& r, PvRes& o) {
     const wchar_t* ext = fileExt(r.path);
-    bool dir = !r.drive && (r.attr & FILE_ATTRIBUTE_DIRECTORY);
-    bool real = r.drive || (!dir && ext && iconPerFile(ext) && !zipPathLike(r.path)); // come icons.cpp: questi tipi hanno un'icona per file (non dentro uno zip)
+    bool dir = r.icon == ICON_DIR, real = r.icon == ICON_REAL;
     std::wstring fake = dir ? std::wstring(L"cartella") : std::wstring(L"file") + (ext ? ext : L"");
     SHFILEINFOW sfi = {};
     if (!SHGetFileInfoW(real ? r.path.c_str() : fake.c_str(), real ? 0 : dir ? FILE_ATTRIBUTE_DIRECTORY : FILE_ATTRIBUTE_NORMAL, &sfi, sizeof(sfi),
@@ -661,7 +661,8 @@ struct PvItem {
     std::wstring path, name;
     uint32_t attr = 0;
     uint64_t size = 0, mtime = 0;
-    bool drive = false;
+    bool drive = false;          // voce di Questo PC (anche un percorso di rete)
+    int icon = ICON_EXT;         // iconSource: un percorso di rete ha l'icona di cartella
 };
 
 struct Preview {
@@ -737,7 +738,7 @@ static void pvRequest(bool refresh) {
     InterlockedExchange64(&g_pvLatest, (LONG64)PV.gen);
     int bw, bh;
     pvBox(bw, bh);
-    PvReq* r = new PvReq{ A.hwnd, PV.gen, PV.item.path, PV.item.attr, PV.item.drive, bw, bh, (int)px(ui::PREVIEW_ICON), nullptr };
+    PvReq* r = new PvReq{ A.hwnd, PV.gen, PV.item.path, PV.item.attr, PV.item.drive, PV.item.icon, bw, bh, (int)px(ui::PREVIEW_ICON), nullptr };
     delete PV.pending;
     PV.pending = r;
     if (!refresh && !PV.stale) {
@@ -804,6 +805,7 @@ static void previewSync() {
             it.path = joinPath(l->path, it.name.c_str());
             it.attr = e.attr;
             it.drive = l->isDrives;
+            it.icon = iconSource(it.name.c_str(), it.attr, iconDrive(l, e), l->zipLen != 0);
             it.size = l->isDrives ? 0 : e.size; // per le unità size è il tipo di unità
             it.mtime = e.mtime;
             // Una ricarica della cartella non rilegge un file che non è cambiato

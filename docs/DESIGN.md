@@ -281,7 +281,10 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
     `LOADING_AFTER`, l'avviso informativo "Estrazione dall'archivio…" resta finché finisce. Copia
     dà "Estratto e copiato: foto.jpg" / "Estratti e copiati 3 elementi"; un errore dice cosa e perché
     ("Impossibile estrarre a.txt: è danneggiato (e altri 2)"). Il trascinamento parte quando i file
-    ci sono, col tasto ancora premuto, ed è sempre una copia;
+    ci sono, col tasto ancora premuto, ed è sempre una copia. Uno zip dentro uno zip si apre nella
+    lista solo se è l'ultima apertura chiesta e l'utente è ancora nella scheda e nella cartella da
+    cui l'ha chiesto (l'esito di un lavoro non lo porta mai via da dove è andato nel frattempo); un
+    file si apre comunque;
   - un file cifrato o compresso in un modo che [z]f non conosce si lascia a Windows: avviso
     informativo ("a.txt è cifrato: si apre in Esplora file") ed Esplora file selezionato sulla voce.
 - **Rettangolo di selezione** (`listmouse.cpp`):
@@ -387,6 +390,9 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   - unità di rete: il nome della condivisione come in Explorer ("Condivisione (G:)", o quello dato
     dall'utente), non l'etichetta del disco sul server; `\\server\condivisione` nel tooltip
     ("Percorso di rete"). Nel loro menu, prima di Proprietà, "Disconnetti";
+  - unità di rete e ottiche, percorsi di rete e preferiti su di loro arrivano dopo le voci locali,
+    una alla volta: intanto hanno il nome generico ("Unità di rete (G:)", senza spazio né barra
+    d'uso) o quello della lettura precedente. Niente "caricamento…": la voce c'è già e si completa;
   - **percorsi di rete** di Windows (una condivisione senza lettera, da "Aggiungi un percorso di
     rete"): dopo le unità, sotto Questo PC, come in Explorer. Icona di cartella (quella di
     Explorer, e niente rete per chiederla), il nome dato in Windows, spazio libero e barra d'uso
@@ -443,10 +449,13 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   - il menu completo della shell compare quando Windows l'ha costruito (200–450 ms): lo fa un
     thread suo e intanto l'interfaccia continua. Un clic o un tasto in quell'attesa lo annulla:
     l'utente è passato ad altro e un menu che compare dopo sarebbe una sorpresa;
-  - Shift+Canc e Proprietà di più voci passano dallo stesso thread: la finestra di Windows
-    (conferma, Proprietà) compare quando la shell è pronta (20.000 file: circa 3 s per la
-    conferma) e l'interfaccia intanto continua. Un clic nell'attesa non la annulla: l'ha chiesta
-    l'utente, ed è una finestra che aspetta;
+  - Shift+Canc, Proprietà (di una o più voci, della cartella aperta, delle voci della barra
+    laterale) e "Apri con…" passano dallo stesso thread: la finestra di Windows (conferma,
+    Proprietà, Apri con) compare quando la shell è pronta (20.000 file: circa 3 s per la
+    conferma; una condivisione lenta: quanto la rete) e l'interfaccia intanto continua. Un clic
+    nell'attesa non la annulla: l'ha chiesta l'utente, ed è una finestra che aspetta. Se Windows
+    non trova l'elemento la finestra non compare, e un avviso di errore dice cosa e perché
+    ("Impossibile aprire le Proprietà di Condivisione (G:): percorso di rete non trovato (codice 53)");
   - **dialoghi Apri e Salva degli altri programmi** (`filedlg.cpp`, opzione `dialoghi`): non
     sono nostri e non si disegnano, ma entrano nella cartella aperta nell'ultima finestra di [z]f
     usata, appena si aprono e quando ci si torna dopo aver cambiato cartella in [z]f. Nessun avviso
@@ -520,6 +529,19 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
     le sottocartelle, Esc prima svuota il testo e poi chiude;
   - mouse: la voce sotto il mouse diventa attiva; clic apre, clic centrale o Ctrl+clic in una
     nuova scheda; clic fuori chiude e basta, come i menu; tooltip con il percorso completo.
+- **Icona dell'applicazione** (`src\z-f.ico`, risorsa di `src\z-f.rc`): "[z]" in `C_ACCENT` su un
+  quadrato arrotondato `C_BG`, gli stessi due colori dell'interfaccia. Forma geometrica, senza font:
+  parentesi quadre con asta e grazie dello stesso spessore, "z" minuscola centrata fra le due.
+  - misure: 16, 20, 24, 32, 40, 48, 64 (BMP a 32 bit) e 256 (PNG);
+  - 16 e 20 hanno un disegno a pixel fatto a mano, tratti di 2 px tranne le grazie delle
+    parentesi, di 1 px: ridotto da quello
+    grande, "[z]" diventerebbe una macchia. Dalla 24 in su la stessa geometria con i bordi agganciati ai
+    pixel, angolo `0,22 ×` la misura; dalla 32 un margine trasparente di 1/32 della misura;
+  - la finestra la prende alla misura del suo schermo (`appIconSet`, `chrome.cpp`), dopo il
+    primo frame e a ogni cambio di DPI;
+  - si rigenera con `python strumenti\icona.py` (serve Pillow; `--anteprima <cartella>` scrive
+    le misure ingrandite in un PNG). I due colori lo script li legge da `theme.h`: se cambiano
+    lì, basta rigenerarla.
 
 ---
 
@@ -624,7 +646,9 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   un handle su una cartella (il watcher), scrivere il log. Un lock preso dal thread UI non si tiene
   mai durante una scrittura su disco.
 - **Soglie del registro dei rallentamenti** (`LOG_*`) e tempi del lavoro in background
-  (`WATCH_BATCH`, `SIDE_RELOAD`, `ZIP_TEMP_KEEP`) stanno in `theme.h` come gli altri tempi.
+  (`WATCH_BATCH`, `SIDE_RELOAD`, `ZIP_TEMP_KEEP`, le attese del salto dei dialoghi `FD_*`, i
+  tentativi sugli appunti aperti da un altro programma `CLIP_*`) stanno
+  in `theme.h` come gli altri tempi.
   `LOG_ZIP` (100 ms) segna la lettura di una directory centrale ("zip: elenco lento") e
   un'estrazione ("zip: estrazione", col codice in MB) sui loro thread.
 - **Percorsi dentro uno zip** (`zip.cpp`): su un thread li riconosce `zipSplit`/`zipInside` (un
@@ -635,9 +659,10 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
 - **Ciò che la shell fa sul thread UI si misura a parte** (`hitchLog` con "oggetto della shell"): i
   messaggi che entrano nei cicli modali della shell sono esclusi dal conteggio dei messaggi lenti
   (`g_shellCalls`), quindi senza questa misura il tempo non si vedrebbe. Il menu completo della
-  shell e i comandi della shell senza menu (Shift+Canc, Proprietà di più voci) non stanno sul thread
-  UI: li fa il thread del menu (`smRun`), che segna "menu della shell lento" e "comando della shell
-  lento" oltre `LOG_MENU`; F12 mostra i due tempi.
+  shell e i comandi della shell senza menu (Shift+Canc, Proprietà, Apri con: `shellVerb`, o
+  `shellVerbPath` per un percorso intero) non stanno sul thread UI: li fa il thread del menu
+  (`smRun`), che segna "menu della shell lento" e "comando della shell lento" oltre `LOG_MENU`; F12
+  mostra i due tempi. Niente `SHObjectProperties` né `SHOpenWithDialog` sul thread UI.
 - **File di [z]f** in `%APPDATA%\z-f`, scritti con `saveDataAsync`: file temporaneo, poi
   rinominato.
 - **Ogni modulo nuovo** entra in `z-f.cpp` (unity build), nella tabella dei moduli di
