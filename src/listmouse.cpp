@@ -207,8 +207,9 @@ static void drawMarquee() {
 
 // --- colonne --------------------------------------------------------------------------------
 // Larghezza w (pixel) per la colonna comandata dal bordo b: tra il minimo e lo spazio che lascia
-// al nome il suo minimo. Pannelli: tra il minimo e la frazione massima della finestra; l'anteprima
-// anche entro quello che la lista lascia (prima di stringere le colonne)
+// al nome il suo minimo (Destinazione anche non più larga di Nome, linkMax). Pannelli: tra il
+// minimo e la frazione massima della finestra; l'anteprima anche entro quello che la lista lascia
+// con le colonne al minimo
 static void colSetWidth(int b, float w) {
     float mn, mx;
     if (b == EDGE_SIDE) {
@@ -216,10 +217,13 @@ static void colSetWidth(int b, float w) {
         mx = floorf(G.w * ui::SIDE_MAX);
     } else if (b == EDGE_PREVIEW) {
         mn = px(ui::PREVIEW_MIN);
-        mx = std::min(floorf(G.w * ui::PREVIEW_MAX), previewRoom(true));
+        mx = std::min(floorf(G.w * ui::PREVIEW_MAX), previewRoom());
     } else {
         mn = px(ui::COL_MIN);
-        mx = colRoom() - (A.dateW + A.sizeW + A.linkW - colShown(b));
+        if (b == 2) // Destinazione si ferma dove sarebbe più larga di Nome
+            mx = std::min(colRoom() - A.dateW - A.sizeW, linkMax(A.dateX));
+        else // Data e Dimensione prendono spazio a Destinazione, che cede fino al minimo (layout)
+            mx = colRoom() - (b == 0 ? A.sizeW : A.dateW) - (A.linkW > 0 ? mn : 0);
     }
     w = std::max(mn, std::min(floorf(w), std::max(mn, mx)));
     colChosen(b) = (w + 0.5f) / A.scale; // px() lo riporta esattamente a w

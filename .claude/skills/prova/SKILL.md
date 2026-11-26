@@ -1,6 +1,6 @@
 ---
 name: prova
-description: Come si prova [z]f sul PC: compilazione MSVC senza avvisi (o zig, o incrociata da Linux), finestra di prova separata con prove\dev.bat, gli altri script di prove\, le regole del controllo dello schermo (Zyruel al PC, le sue finestre, cartella di prova, zoom prima di premere, chiusura per PID), la copia sul PC da una sessione cloud, il registro build\z-f-log.txt con le voci normali, le misure di avvio e dove scrivere le prove a mano che restano. Da usare prima di provare una modifica o misurare.
+description: Come si prova [z]f sul PC: compilazione MSVC senza avvisi da Bash (build.bat dev per la build di prova, build.bat prova per i programmi di prove\; o zig, o incrociata da Linux), finestra di prova separata con prove\dev.bat, gli altri script di prove\, le regole del controllo dello schermo (Zyruel al PC, le sue finestre, cartella di prova, zoom prima di premere, chiusura per PID), la copia sul PC da una sessione cloud, il registro build\z-f-log.txt con le voci normali, le misure di avvio e dove scrivere le prove a mano che restano. Da usare prima di provare una modifica o misurare.
 ---
 
 # /prova — provare [z]f sul PC
@@ -11,23 +11,32 @@ può (con il controllo dello schermo); altrimenti gli si chiede uno screenshot. 
 
 ## 1. Compilare
 
-- **Riferimento, MSVC:** `build.bat`, da PowerShell, nella cartella del progetto:
+- **Riferimento, MSVC:** `build.bat`, **da Bash**, nella cartella del progetto (la cartella
+  corrente di Bash):
   ```
-  cmd /c '.\build.bat'
+  cmd //c '.\build.bat dev'      # la build di prova: build\z-f-dev.exe, con ZF_DEV
+  cmd //c '.\build.bat'          # la build di Zyruel: build\z-f.exe
   ```
-  Trova Visual Studio con vswhere, precompila gli shader con fxc, compila l'icona (`src\z-f.rc`)
-  con `rc` e scrive `build\z-f.exe`. `build.bat debug` fa la build con i simboli, `build.bat
-  firma` il programma di firma dei rilasci.
-- **Deve uscire senza avvisi.** Attenzione a C4244 (int → float), che zig non segnala. Il
-  messaggio "vswhere.exe non è riconosciuto" di `vcvars64` non viene dal codice.
+  - **Mai da PowerShell:** lo strumento PowerShell non riesce a entrare in una cartella con le
+    parentesi quadre e resta in `C:\Windows\System32`, dove `build.bat` non c'è (29 errori nelle
+    sessioni della 1.0.0-beta.4).
+  - **Con `.\`:** la cartella corrente non è nella ricerca dei comandi, quindi `build.bat` da solo
+    "non è riconosciuto".
+  - `build.bat` trova Visual Studio con vswhere, precompila gli shader con fxc, compila l'icona
+    (`src\z-f.rc`) con `rc`. `build.bat debug` fa la build con i simboli (in `build\z-f.exe`),
+    `build.bat firma` il programma di firma dei rilasci.
+  - **I programmi di `prove\` e `strumenti\`:**
+    `cmd //c '.\build.bat prova prove\x.cpp <librerie>'`, con le opzioni di tutti e l'exe in
+    `build\`. Il comando esatto è in cima a ogni file. Non si scrivono script con il percorso di
+    Visual Studio.
+- **Deve uscire senza avvisi.** Attenzione a C4244 (int → float), che zig non segnala. L'uscita
+  normale è solo `z-f.cpp`, una riga vuota e `Fatto: …`.
 - **Gli eseguibili:**
   - `build\z-f.exe`: la build MSVC, quella che Zyruel usa ed è registrata come file manager
-    predefinito. Se è aperta, il link non può riscriverla: **non si chiudono le sue finestre**;
-    si compila nella build di prova (`build\z-f-dev.exe`, con le stesse opzioni di `build.bat`
-    e `/Fe:build\z-f-dev.exe`) o si chiede a lui.
-  - `build\z-f-dev.exe`: la build di prova. Una build MSVC appena fatta si copia lì con Bash
-    (`cp build/z-f.exe build/z-f-dev.exe`, verificata con `sha1sum`), con le finestre di prova
-    chiuse.
+    predefinito. Se è aperta, il link non può riscriverla: **non si chiudono le sue finestre**.
+    Per le prove basta `build.bat dev`; per riscriverla si chiede a lui.
+  - `build\z-f-dev.exe`: la build di prova, da `build.bat dev`, con le finestre di prova chiuse
+    (per PID). Non si aggiorna da sola (`ZF_DEV`).
 - **Alternativa senza Visual Studio:** `build_zig.bat` (`winget install zig.zig`), che scrive
   `build\z-f-dev.exe` con `ZF_DEV` e non tocca `build\z-f.exe`.
 - **Compilazione incrociata da Linux** (sessione cloud), equivalente:
@@ -48,19 +57,22 @@ può (con il controllo dello schermo); altrimenti gli si chiede uno screenshot. 
 - **Istanza unica:** se [z]f è già aperto, avviare un altro [z]f consegna la cartella alla
   finestra esistente ed esce. Quindi:
   - per una finestra di prova separata: `prove\dev.bat [cartella]`, che avvia `build\z-f-dev.exe`
-    con `--new-window`;
+    con `--new-window`; da Bash `cmd //c '.\prove\dev.bat <cartella>'`;
   - qualsiasi opzione `--` apre una finestra separata.
 - Le finestre avviate dall'app desktop di Claude vedono una `%APPDATA%` virtualizzata (nella
   cartella del pacchetto dell'app): leggono e scrivono impostazioni, preferiti e schede lì, non in
   quelli veri di Zyruel.
 - Si annota il **PID** della finestra di prova appena avviata (per esempio
   `tasklist //FI "IMAGENAME eq z-f-dev.exe"` prima e dopo l'avvio): serve per chiuderla.
-- **Chiudere:** per PID (`taskkill //PID <pid>`) o per cartella, **mai per nome**:
-  `taskkill /IM z-f.exe` chiuderebbe anche le finestre di Zyruel.
+- **Chiudere:** per PID (`taskkill //PID <pid>`, `Stop-Process -Id <pid>`) o per cartella,
+  **mai per nome**: `taskkill /IM z-f.exe` chiuderebbe anche le finestre di Zyruel, e
+  `z-f-dev.exe` quelle di prova di un'altra sessione. Lo ferma `.claude/hooks/regole.sh`.
 
 ## 3. Le altre prove in `prove\`
 
 - `istanza.bat`: istanza unica e `/select`;
+- `memoria.ps1 -Ids <pid>[,<pid>…]`: working set, memoria privata, memoria GPU, thread e handle
+  di ogni PID (da Bash: `powershell -NoProfile -File 'prove\memoria.ps1' -Ids <pid>`);
 - `avvio.bat [volte] [exe]`: tempi di avvio con `--prova-avvio` (nel registro "prova avvio:
   contenuto" e "prova avvio: primo fuoco"; predefiniti 10 volte e `build\z-f-dev.exe`). Ogni
   avvio porta una finestra in primo piano: **solo a PC libero**;
@@ -94,7 +106,18 @@ può (con il controllo dello schermo); altrimenti gli si chiede uno screenshot. 
   - non si interferisce con le sue finestre di [z]f: per le prove si usa z-f-dev in una finestra
     separata.
 - **Non scrivere nel registro** al posto di Zyruel: l'interruttore "Usa [z]f al posto di
-  Explorer" lo usa lui.
+  Explorer" lo usa lui (anche questo lo ferma `.claude/hooks/regole.sh`).
+- **Il permesso (`request_access`):** prima si avvia la finestra di prova (`prove\dev.bat`), poi
+  si chiede `"z-f-dev.exe"` o il percorso completo dell'exe. `"z-f-dev"` e `"[z]f"` non sono
+  riconosciuti, e nemmeno l'exe se non è in esecuzione (39 richieste fallite nelle sessioni della
+  1.0.0-beta.4). Lo stesso per i programmi di prova (`"dialoghi-prova.exe"`, avviato prima).
+- **Prima dei tasti, la finestra davanti:** un clic su z-f-dev (al centro della barra del titolo,
+  lontano dai pulsanti) all'inizio di ogni batch che preme tasti. Altrimenti i tasti finiscono
+  nel desktop o nella finestra di Claude e il batch si ferma (44 volte). Per riportarla davanti
+  si clicca, non si usa `open_application`.
+- **Trascinamenti nel batch:** fra `left_mouse_down` e `left_mouse_up` solo movimenti e attese,
+  niente tasti (il batch viene rifiutato). Una breve `wait` prima del primo movimento evita "could
+  not be verified this soon".
 - **Prove col mouse nella lista:** si fanno in una cartella di prova con file finti, mai in
   cartelle vere. Il trascinamento dei file parte da icona e nome di una voce selezionata, e in
   una cartella con nomi lunghi il nome occupa tutta la colonna: un punto che sembra vuoto può

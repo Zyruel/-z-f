@@ -5,8 +5,8 @@
 // finestra sullo schermo, il primo piano resta all'app che c'è. Si misura ogni messaggio (anche
 // annidato) e si elencano le DLL caricate durante il primo fuoco.
 //
-// Compilare da un prompt di Visual Studio:
-//   cl /std:c++17 /O2 /EHsc /MT /DUNICODE /D_UNICODE ime-avvio.cpp user32.lib psapi.lib
+// Compilare (da Bash, nella cartella del progetto; l'exe va in build\):
+//   cmd //c '.\build.bat prova prove\ime-avvio.cpp user32.lib psapi.lib'
 // Uso: ime-avvio.exe [volte] [precarica]   (ogni volta un processo nuovo: il costo è quello del
 // primo fuoco; con "precarica" le DLL del primo fuoco si caricano prima su un altro thread)
 #define NOMINMAX

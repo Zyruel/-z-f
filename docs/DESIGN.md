@@ -203,7 +203,10 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
     stringe cedono prima Destinazione (se c'è), poi Data e poi Dimensione, fino al minimo. Il testo
     che non ci sta finisce in "…";
   - **colonna Destinazione** (`lnk.cpp`, `links.cpp`): tra Nome e Data, solo nelle cartelle con
-    almeno un collegamento (.lnk), larga `LINK_W` (300) o quanto scelto (`colonna_destinazione`).
+    almeno un collegamento (.lnk), larga `LINK_W` (300) o quanto scelto (`colonna_destinazione`),
+    ma mai più larga di Nome (`LINK_MAX`, metà dello spazio tra l'inizio della lista e Data): con
+    la finestra stretta le due colonne crescono e calano insieme, e trascinando il bordo
+    Nome|Destinazione verso sinistra ci si ferma a metà.
     Ogni collegamento mostra il percorso a cui porta, in `C_DIM` come le date; i collegamenti
     senza percorso (app dello Store) e gli altri file lasciano la cella vuota. Sopra il testo
     della destinazione (non sullo spazio vuoto della colonna) il fondo `C_HOVER_STRONG`,
@@ -230,7 +233,8 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
     Windows e una linea verticale 1 px `C_LINE`, che diventa `C_SEL_EDGE` mentre la si trascina.
     Un clic sulla fascia non ordina;
   - ogni bordo comanda la colonna alla sua destra e segue il mouse (trascinando Data|Dimensione
-    Data si sposta intera). Esc durante il trascinamento rimette la larghezza di prima;
+    Data si sposta intera); allargando Data o Dimensione, lo spazio lo cede Destinazione, fino al
+    suo minimo. Esc durante il trascinamento rimette la larghezza di prima;
   - doppio clic sul bordo: la colonna si adatta al testo più largo tra intestazione (con la
     freccia) e voci della vista;
   - le larghezze valgono per tutte le cartelle e le schede e si salvano al rilascio
@@ -331,7 +335,7 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   programma. Le icone di file e cartelle restano quelle della shell.
 - **Barra del percorso:** percorso a segmenti ("Questo PC › Disco locale (C:) › Users › utente").
   - segmenti con hover come le voci; antenati in `C_DIM`, cartella corrente in `C_TEXT`, separatore "›" in `C_FAINT`;
-  - clic su un segmento: ci va; su "›": menu delle sottocartelle (il "›" resta evidenziato finché il menu è aperto); clic centrale: nuova scheda; spazio vuoto: casella di testo;
+  - clic su un segmento: ci va; su "›": menu delle sottocartelle (il "›" resta evidenziato finché il menu è aperto); clic centrale: nuova scheda; spazio vuoto: "Vai a" dalla cartella aperta (vedi "Vai a");
   - nomi come altrove: unità con la loro etichetta, preferiti con il loro nome;
   - se non c'è spazio i primi livelli finiscono in "…", che li elenca in un menu;
   - a sinistra ← → ↑, a destra ☆, ▦ e ◨ (▦: icona GridView, `C_TEXT` in griglia e `C_DIM` in
@@ -363,9 +367,11 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
     colonne (fascia `COL_GRIP` verso il pannello, `GAP_XS` verso la lista per non prendere la
     barra di scorrimento): cursore ↔, separatore in `C_SEL_EDGE` mentre lo si trascina, Esc torna
     a prima, doppio clic torna a `PREVIEW_W`; si salva al rilascio (`anteprima_larghezza`);
-  - **finestra stretta**: il pannello prende solo quello che la lista lascia con Data e Dimensione
-    alla larghezza scelta, quindi cede per primo, fino al minimo; poi cedono le colonne; se non
-    basta sparisce, ma resta aperto e torna quando c'è spazio. Aprendolo senza spazio: avviso.
+  - **finestra stretta**: il pannello tiene la larghezza scelta e cedono le colonne (prima
+    Destinazione, poi Data e Dimensione, come sopra); il pannello si stringe solo quando le colonne
+    sono tutte al minimo, e sotto `PREVIEW_MIN` sparisce, ma resta aperto e torna quando c'è
+    spazio. Aprendolo senza spazio: avviso. (Scelta con Zyruel: se il pannello cedesse per primo,
+    ogni colonna stretta col mouse lo allargherebbe, e allargare una colonna sarebbe impossibile.)
 - **Barra laterale:**
   - la sezione "Preferiti" ha il titolo in `C_FAINT` e una freccia ˅/› a destra; clic sul titolo: la sezione si chiude o si apre (ricordato);
     le voci stanno sotto il titolo rientrate di `SIDE_INDENT`, come le unità sotto Questo PC (lo
@@ -470,7 +476,7 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   - pannello `C_MENU`: titolo in `C_TEXT`, se serve su più righe; poi coppie etichetta (`C_DIM`) / valore (`C_TEXT`); le note senza etichetta in `C_FAINT`;
   - larghezza massima `TIP_MAX_W` (520).
 - **Casella di testo:** fondo `C_INPUT`, selezione `C_SEL_TEXT`, margine interno `FIELD_PAD` (6).
-  Una sola implementazione (`TextField`) per percorso, rinomina, ricerca delle opzioni, "Vai a" e
+  Una sola implementazione (`TextField`) per rinomina, ricerca delle opzioni, "Vai a" e
   ogni campo futuro. Il suggerimento a casella vuota è in `C_FAINT`, `GAP_S` dopo il cursore.
 - **Barra di scorrimento:** solo il cursore, `C_SCROLL`, largo `SCROLL_W` (10) con margine; alto
   almeno `THUMB_MIN` (24).
@@ -478,7 +484,8 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   centrato, con il resto della finestra attenuato da `C_SHADOW`.
   - barra del titolo con ×; sezioni col titolo in `C_FAINT`; righe con etichetta a sinistra e
     controllo a destra, eventuale spiegazione sotto in `C_FAINT`;
-  - sezioni: Aspetto, Integrazione con Windows, File ("Annulla dopo il riavvio"), Avvio e
+  - sezioni: Aspetto, Integrazione con Windows ("Usa [z]f al posto di Explorer", "Una finestra per
+    ogni cartella aperta da fuori", menu completo, dialoghi), File ("Annulla dopo il riavvio"), Avvio e
     aggiornamenti ("Riapri le schede all'avvio", "Aggiornamenti automatici" con l'ora
     dell'ultimo controllo nella spiegazione, "Ricevi anche le beta"), Scorciatoie;
   - in fondo la versione e la build in `C_FAINT`, seguite dall'icona di stato dell'aggiornamento
@@ -524,6 +531,12 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   - senza voci una riga in `C_FAINT`: "Nessuna cartella", "caricamento…" (dopo `LOADING_AFTER`),
     "Impossibile leggere la cartella";
   - campo vuoto: le cartelle recenti, dalla più usata e recente;
+  - **dal percorso** (clic sullo spazio vuoto della barra del percorso, Ctrl+L, F4): si apre con
+    il percorso della cartella aperta e "\" in fondo, tutto selezionato, quindi la cartella stessa
+    e le sue sottocartelle. Scrivendo si sostituisce (ricerca su tutto); Fine o un clic per
+    continuare il percorso. Con il pannello già aperto queste scorciatoie rimettono il percorso;
+    in Questo PC il campo resta vuoto. È l'unico modo di scrivere un percorso: niente casella
+    nella barra;
   - tastiera: ↑ ↓ PagSu PagGiù muovono la voce attiva, il resto va alla casella; Invio apre,
     Ctrl+Invio apre in una nuova scheda in background, Tab completa con la voce attiva e ne mostra
     le sottocartelle, Esc prima svuota il testo e poi chiude;
@@ -566,7 +579,7 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
 | trascina col tasto destro | al rilascio, un menu chiede cosa fare |
 | rotellina | scorre l'elemento sotto il mouse, non quello attivo; le frazioni di scatto dei touchpad si sommano (negli elenchi a righe intere) |
 | Ctrl+rotellina | dimensione del testo; in griglia delle miniature |
-| tasti laterali | indietro / avanti |
+| tasti laterali; tasti Indietro/Avanti della tastiera; gesti del touchpad "Spostamento indietro/avanti" di Windows | indietro / avanti (sopra le opzioni e "Vai a": niente) |
 
 ### Tastiera
 - **Ogni comando ha una scorciatoia**, mostrata nel menu e nel tooltip ed elencata in `kShortcuts`
@@ -594,7 +607,7 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   `TIP_INFO_WAIT` (150 ms), così compare già completo invece di allargarsi sotto gli occhi.
 - Ogni elemento interattivo ha un tooltip che dice cosa fa e la sua scorciatoia. La scorciatoia
   viene da `kShortcuts`, come nei menu: `shortcutsOf` dà tutte le alternative di un comando
-  ("Alt+← · tasto laterale indietro"). Un comando senza voce di menu ha comunque un id (`M_BACK`,
+  ("Alt+← · tasto Indietro del mouse o della tastiera"). Un comando senza voce di menu ha comunque un id (`M_BACK`,
   `M_SIDEBAR`…) per legarlo ai suoi tasti; nel tooltip va in una riga con l'etichetta
   ("Scorciatoia", "Modifica", "Togli il filtro").
 

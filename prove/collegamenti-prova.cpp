@@ -2,8 +2,8 @@
 // cartelle date (anche nelle sottocartelle) confronta la destinazione letta da noi con quella di
 // Windows (IShellLink::GetPath, quella del campo "Destinazione" nelle Proprietà), con i tempi.
 //
-// Compilazione (dalla cartella del progetto, con l'ambiente di Visual Studio):
-//   cl /nologo /std:c++17 /utf-8 /EHsc /W3 /O2 /MT /DUNICODE /D_UNICODE /Fe:build\collegamenti-prova.exe prove\collegamenti-prova.cpp ole32.lib shell32.lib
+// Compilare (da Bash, nella cartella del progetto; l'exe va in build\):
+//   cmd //c '.\build.bat prova prove\collegamenti-prova.cpp ole32.lib shell32.lib'
 // Uso:
 //   build\collegamenti-prova.exe cartella [cartella…]
 // Esempio, tutti i collegamenti del PC che contano:

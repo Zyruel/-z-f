@@ -20,6 +20,101 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 00000000000000000000000000000000000. Gesti del touchpad e tasti Indietro/Avanti (z-f-dev, novembre 2026)
+
+Compilato senza avvisi (MSVC). Senza schermo (accesso negato), con `WM_APPCOMMAND` mandato alla
+finestra di prova: Indietro e Avanti navigano, sia "da tastiera" sia "da mouse". I tasti
+Indietro/Avanti simulati con `PostMessage`/`SendMessage` non si possono provare così: Windows li
+trasforma in `WM_APPCOMMAND` solo se arrivano da input vero (provato anche con una finestra
+qualsiasi). Log normale.
+
+- [x] **Gesti a tre dita** "Spostamento indietro" e "Spostamento avanti" (Impostazioni →
+      Bluetooth e dispositivi → Touchpad): Indietro e Avanti come Alt+← e Alt+→. Provato da
+      Zyruel su un altro PC con la build di prova: funziona.
+- [ ] Gesti sopra le opzioni e "Vai a": non succede niente; con un menu aperto il menu si chiude.
+- [ ] **Tasti laterali del mouse:** navigano una volta sola per clic (prima della modifica il
+      rilascio non arrivava mai a Windows; ora lo ferma `WM_XBUTTONUP`). Sopra la barra del titolo
+      ora navigano anche lì.
+- [ ] **Tastiera con i tasti del browser** (Indietro, Avanti, Aggiorna), se c'è: navigano e
+      ricaricano. Volume e tasti della musica funzionano come prima.
+
+## 0000000000000000000000000000000000. Destinazione dei collegamenti su un'unità di rete (z-f-dev, novembre 2026)
+
+Compilato senza avvisi (MSVC). Con `build\collegamenti-prova.exe`: un collegamento costruito
+come lo scrive Windows per `V:\cartella\programma.exe` (LinkInfo con unità e condivisione, senza
+percorso locale) dava `cartella\programma.exe`, ora il percorso intero; i 71 collegamenti di
+Desktop e menu Start restano tutti uguali a Windows.
+
+- [x] In una cartella di collegamenti a programmi su un'unità di rete, la colonna Destinazione
+      mostra `V:\…` (o `\\server\…` per quelli senza unità), come il campo Destinazione delle
+      Proprietà. Provato da Zyruel su un altro PC ("bello, mi piace").
+- [ ] Clic sulla destinazione di uno di questi: si apre la sua cartella sull'unità di rete con il
+      programma selezionato, senza "Percorso non trovato".
+- [ ] `build\collegamenti-prova.exe` su quella cartella: nessun collegamento diverso da Windows.
+
+## 000000000000000000000000000000000. "Vai a" dal percorso (z-f-dev, novembre 2026)
+
+Compilato senza avvisi (MSVC). Provato da Zyruel su un altro PC ("direi che funziona"); Claude
+non l'ha provato con lo schermo. Restano da spuntare uno per uno, in z-f-dev (`prove\dev.bat`):
+
+- [ ] Clic sullo spazio vuoto del percorso, Ctrl+L e F4: si apre "Vai a" con il percorso della
+  cartella aperta e "\" in fondo, tutto selezionato; sotto, la cartella stessa e le sue
+  sottocartelle, subito (vengono dalla lista, niente "caricamento…").
+- [ ] Scrivendo subito si cerca su tutto (il percorso selezionato sparisce); Fine e poi lettere:
+  si filtrano le sottocartelle; Backspace fino alla "\" precedente: le cartelle del livello sopra.
+- [ ] Ctrl+V di un percorso copiato ci va con Invio; un percorso che non esiste: avviso come prima.
+- [ ] Con "Vai a" già aperto (Ctrl+P), Ctrl+L o F4 mettono il percorso della cartella aperta;
+  Ctrl+P lo richiude.
+- [ ] In Questo PC: si apre con il campo vuoto (le cartelle recenti). Dentro uno zip: le
+  sottocartelle dello zip aperto.
+- [ ] Clic su un segmento o su "›" fa come prima; un secondo clic sul percorso vuoto con il
+  pannello aperto lo chiude.
+- [ ] Doppio clic sullo spazio vuoto del percorso: "Vai a" si apre e resta aperto (prima della
+  correzione il secondo clic lo richiudeva subito).
+- [ ] **Misura:** in System32, F4 con F12 aperto: "Vai a: apertura" e "ricerca a ogni tasto"; il
+  valore va in ARCHITETTURA ("Vai a", riga "Misurato:"). Non presa da Claude: in questa sessione
+  i tasti mandati alla finestra di prova da un altro processo non arrivano.
+
+## 00000000000000000000000000000000. Destinazione mai più larga di Nome (z-f-dev, novembre 2026)
+
+Compilato senza avvisi. Provato da Zyruel su un altro PC con l'anteprima aperta ("decisamente
+meglio"); Claude non l'ha provato con il mouse. Restano da spuntare, in una cartella di prova con
+collegamenti e la finestra non a tutto schermo:
+
+- [ ] Stringendo e allargando la finestra, Nome e Destinazione crescono e calano insieme (prima
+  Nome restava al minimo); a tutto schermo Destinazione è larga quanto scelto, come prima.
+- [ ] Bordo Nome|Destinazione: verso destra Nome si allarga e Destinazione si stringe; verso
+  sinistra si ferma dove Destinazione sarebbe più larga di Nome.
+- [ ] Bordo Destinazione|Data: Data cambia larghezza e lo spazio si divide tra Nome e
+  Destinazione; nessun salto al rilascio.
+- [ ] Doppio clic sul bordo Nome|Destinazione con percorsi lunghi: si adatta, al massimo a metà.
+- [ ] Con l'anteprima aperta (Zyruel: "il pannello deve avere dimensione fissa"): l'anteprima
+  tiene la larghezza scelta stringendo la finestra, finché le colonne non sono tutte al minimo;
+  nessun bordo delle colonne la allarga o la stringe.
+- [ ] Bordo Destinazione|Data verso sinistra: Data si allarga (prima era bloccata) e Destinazione
+  cede fino al minimo; Nome non si muove.
+
+## 0000000000000000000000000000000. Una finestra per ogni cartella aperta da fuori (z-f-dev, novembre 2026)
+
+Provato da Claude senza schermo: con l'opzione accesa (simulata col messaggio
+`z-f.finestre-separate`) due aperture da fuori hanno aperto due processi nuovi, con l'opzione
+spenta una scheda nella principale. Restano:
+
+- [ ] Ctrl+, → Integrazione con Windows: l'interruttore "Una finestra per ogni cartella aperta da
+  fuori" si accende e si spegne, la spiegazione si legge per intero a 175%.
+- [ ] Con [z]f al posto di Explorer e l'opzione accesa: doppio clic su una cartella del desktop,
+  Win+E, "Apri percorso file" da un altro programma. Ognuno apre una finestra nuova, in primo
+  piano, con la cartella (e il file selezionato).
+- [ ] Interruttore acceso in una finestra aperta con "Nuova finestra": vale subito anche per la
+  principale (aprire una cartella da fuori apre una finestra nuova).
+- [ ] Chiusa la principale con le finestre separate ancora aperte, l'avvio successivo apre subito
+  (non dopo 3 secondi) e diventa la principale.
+- [ ] Con l'opzione spenta tutto come prima: una scheda nella finestra esistente.
+- [ ] Memoria a confronto, a PC libero: Esplora file aperto come lo apre una persona (Win+E, 10
+  volte) e la crescita del processo explorer.exe della shell, contro 10 schede e 10 finestre di
+  z-f-dev (`prove\memoria.ps1`). Avviato dall'app di Claude, explorer.exe apre ogni finestra in
+  un processo suo anche con `SeparateProcess=0`: quella misura non vale per l'uso normale.
+
 ## 000000000000000000000000000000. Correzioni del controllo prima della 1.0.0-beta.4 (z-f-dev, novembre 2026)
 
 I punti del controllo delle modifiche di questa versione: spazio delle unità lente azzerato se la

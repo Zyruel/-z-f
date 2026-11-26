@@ -8,6 +8,28 @@ erano `0.N`. Ogni rilascio, dalla 1.0.0-beta.2, ha un tag `v<versione>` e una
 versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 [`ARCHITETTURA.md`](docs/ARCHITETTURA.md).
 
+## 1.0.0-beta.5 (novembre 2026)
+
+- **Gesti del touchpad:** "Spostamento indietro" e "Spostamento avanti" (Impostazioni →
+  Bluetooth e dispositivi → Touchpad) vanno indietro e avanti, come i tasti Indietro, Avanti e
+  Aggiorna delle tastiere che li hanno. Prima [z]f li ignorava.
+- **"Vai a" dal percorso:** il clic sullo spazio vuoto del percorso, Ctrl+L e F4 aprono "Vai a"
+  con il percorso della cartella aperta già scritto e selezionato: si vedono subito le sue
+  sottocartelle, si continua a scrivere il percorso con i suggerimenti, o si scrive sopra per
+  cercare tra tutte le cartelle. Prende il posto della casella di testo nel percorso.
+- **Una finestra per ogni cartella aperta da fuori** (opzione, in Integrazione con Windows): il
+  doppio clic sul desktop, Win+E e gli altri programmi aprono una finestra nuova invece di una
+  scheda nella finestra principale. Ogni finestra occupa da 40 a 70 MB (secondo la scheda video), una scheda meno di 1 MB.
+- **Colonna Destinazione mai più larga di Nome:** con la finestra non a tutto schermo Nome restava
+  al suo minimo e lo spazio in più andava tutto a Destinazione; ora le due colonne crescono e
+  calano insieme. Allargando Data o Dimensione, lo spazio lo cede Destinazione.
+- **L'anteprima tiene la sua larghezza:** con la finestra stretta si adattano le colonne; prima
+  l'anteprima si prendeva lo spazio lasciato da ogni colonna stretta col mouse, e una colonna non
+  si riusciva ad allargare.
+- **Collegamenti su un'unità di rete:** la colonna Destinazione mostrava il percorso senza
+  l'unità ("cartella\programma.exe" invece di "V:\cartella\programma.exe"), e aprire il percorso
+  diceva "Percorso non trovato". Ora c'è l'unità, come nelle proprietà di Windows.
+
 ## 1.0.0-beta.4 (novembre 2026)
 
 - **[z]f ha un'icona:** "[z]" nel blu di [z]f su un quadrato scuro, nella barra delle

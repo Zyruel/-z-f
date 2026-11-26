@@ -1,2 +1,3 @@
-# Gli script dei controlli di git li esegue sh: con CRLF non partirebbero.
+# Gli script dei controlli di git e di Claude Code li esegue sh/bash: con CRLF non partirebbero.
 .githooks/* text eol=lf
+.claude/hooks/* text eol=lf

@@ -55,7 +55,6 @@ static void updateTitle() {
 static void tabActivate(int i) {
     if (i < 0 || i >= (int)A.tabs.size() || i == A.tab) return;
     A.renaming = false;
-    A.editingPath = false;
     A.menu.open = false;
     A.hover = -1;
     TabState& old = A.tabs[A.tab];

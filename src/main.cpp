@@ -50,9 +50,13 @@ static LONG WINAPI crashFilter(EXCEPTION_POINTERS* ep) {
 // percorso alla finestra esistente (WM_COPYDATA), che apre una scheda, ed esce subito, prima di
 // creare finestre o D3D. Con un'opzione "--" (--new-window, --gpu=...) si apre comunque una
 // finestra nuova, che non riceve le cartelle aperte da fuori; tranne --principale, la finestra
-// principale che si riapre dopo un aggiornamento.
+// principale che si riapre dopo un aggiornamento. Con l'opzione finestre_separate la principale
+// risponde "aprila tu" e chi ha avviato [z]f apre una finestra sua: l'opzione la conosce solo la
+// principale, che l'ha già letta, così il processo nuovo non legge le impostazioni prima della finestra.
 
 #define ZF_COPYDATA 0x7A66 // "zf"
+enum Forward { FWD_NONE, FWD_DONE, FWD_NEW }; // finestra principale, consegnata, finestra separata
+static const LRESULT kForwardNew = 2;         // risposta di onCopyData con finestre_separate
 
 static HWND findMainInstance() {
     for (HWND w = nullptr; (w = FindWindowExW(nullptr, w, L"z-f", nullptr)) != nullptr;)
@@ -83,27 +87,34 @@ static void resolveStartArg(std::wstring arg, std::wstring& path, std::wstring& 
     path = arg;
 }
 
-// true se la cartella è stata consegnata a una finestra di [z]f già aperta
-static bool forwardToRunning(const std::wstring& path, const std::wstring& select) {
+// Consegna la cartella a una finestra di [z]f già aperta (Forward)
+static Forward forwardToRunning(const std::wstring& path, const std::wstring& select) {
     // Il mutex resta aperto per tutta la vita del processo: dice "[z]f principale in esecuzione".
     // Serve per i due avvii quasi simultanei: il secondo aspetta che la finestra del primo esista.
     HANDLE m = CreateMutexW(nullptr, FALSE, L"Local\\z-f-istanza");
-    if (!m || GetLastError() != ERROR_ALREADY_EXISTS) return false;
+    if (!m || GetLastError() != ERROR_ALREADY_EXISTS) return FWD_NONE;
     HWND w = nullptr;
     for (int i = 0; i < 300 && !(w = findMainInstance()); i++) Sleep(10);
-    if (!w) return false;
+    if (!w) return FWD_NONE;
     DWORD pid = 0;
     GetWindowThreadProcessId(w, &pid);
     AllowSetForegroundWindow(pid); // la finestra esistente può venire in primo piano
     std::wstring msg = select + L'|' + path; // un nome di file non contiene mai '|'
     COPYDATASTRUCT cd = { ZF_COPYDATA, (DWORD)((msg.size() + 1) * sizeof(wchar_t)), (void*)msg.c_str() };
     DWORD_PTR r = 0;
-    return SendMessageTimeoutW(w, WM_COPYDATA, 0, (LPARAM)&cd, SMTO_ABORTIFHUNG, 3000, &r) && r == 1;
+    if (!SendMessageTimeoutW(w, WM_COPYDATA, 0, (LPARAM)&cd, SMTO_ABORTIFHUNG, 3000, &r)) return FWD_NONE;
+    if (r == 1) return FWD_DONE;
+    if (r != kForwardNew) return FWD_NONE;
+    // Una finestra separata non tiene il mutex: chiusa la principale, il prossimo avvio la diventa
+    // senza aspettare (findMainInstance non troverebbe nessuno per 3 secondi)
+    CloseHandle(m);
+    return FWD_NEW;
 }
 
 // Ricezione nella finestra principale
 static LRESULT onCopyData(const COPYDATASTRUCT* cd) {
     if (!cd || cd->dwData != ZF_COPYDATA || cd->cbData < sizeof(wchar_t) || !cd->lpData) return 0;
+    if (A.separateWindows) return kForwardNew; // la cartella la apre chi l'ha chiesta, in una finestra sua
     // Chiusa ma ancora in attesa di un'operazione sui file: riaprire [z]f la fa tornare
     if (A.closePending) { A.closePending = false; ShowWindow(A.hwnd, SW_SHOW); }
     std::wstring msg((const wchar_t*)cd->lpData, cd->cbData / sizeof(wchar_t));
@@ -150,12 +161,15 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
         if (argv[i][0] == L'-' && argv[i][1] == L'-') newWindow = true; // --new-window, --gpu=..., prove
         else resolveStartArg(argv[i], start, startSelect);
     }
-    if (!newWindow && forwardToRunning(start, startSelect)) return 0;
+    Forward fwd = newWindow ? FWD_NONE : forwardToRunning(start, startSelect);
+    if (fwd == FWD_DONE) return 0;
+    if (fwd == FWD_NEW) newWindow = true; // finestre_separate: come "Nuova finestra"
     // La finestra principale riceve le cartelle aperte da fuori. Quella che si riapre dopo un
     // aggiornamento tiene anche il mutex, così chi avvia [z]f dopo la trova (forwardToRunning)
     A.mainInstance = !newWindow || principal;
     if (principal) CreateMutexW(nullptr, FALSE, L"Local\\z-f-istanza");
     g_msgRestart = RegisterWindowMessageW(L"z-f.riavvio");
+    g_msgSeparate = RegisterWindowMessageW(L"z-f.finestre-separate");
 
     hitchLog("--- avvio", GetCurrentProcessId(), 0);
     LARGE_INTEGER f;

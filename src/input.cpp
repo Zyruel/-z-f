@@ -3,7 +3,6 @@
 // La casella a cui torna un risultato degli appunti, se è ancora aperta
 static TextField* clipField(void* target) {
     if (target == &A.renameField && A.renaming) return &A.renameField;
-    if (target == &A.pathField && A.editingPath) return &A.pathField;
     if (target == &GT.field && gotoIsOpen()) return &GT.field;
     if (target == &OP.search && OP.open) return &OP.search;
     return nullptr;
@@ -51,6 +50,16 @@ static void onClipSet(ClipSet* c) {
     notice(m, false);
 }
 
+// Indietro, Avanti, Ricarica senza la tastiera normale: tasti laterali del mouse, tasti del
+// browser delle tastiere multimediali, gesti del touchpad. Sotto le opzioni e "Vai a" non si naviga
+static void historyCmd(int id) {
+    if (OP.open || gotoIsOpen()) return;
+    menuClose();
+    CmdCtx c;
+    c.target = A.tab;
+    menuRun(id, c);
+}
+
 static void onKey(WPARAM vk, bool alt) {
     bool ctrl = GetKeyState(VK_CONTROL) < 0, shift = GetKeyState(VK_SHIFT) < 0;
     if (vk == VK_ESCAPE && (mqCancel() || colDragEnd(false) || favMouseUp(false, false) || favDisarm())) return; // rettangolo, bordo, preferito trascinato: si torna a prima; cestino: niente conferma
@@ -62,19 +71,6 @@ static void onKey(WPARAM vk, bool alt) {
         if (vk == VK_RETURN) endRename(true);
         else if (vk == VK_ESCAPE) endRename(false);
         else A.renameField.key(A.hwnd, vk, ctrl, shift);
-        A.dirty = true;
-        return;
-    }
-    if (A.editingPath) {
-        if (vk == VK_RETURN) {
-            A.editingPath = false;
-            std::wstring p = normalizePath(A.pathField.text);
-            if (!p.empty()) navigate(p, 1, L"");
-        } else if (vk == VK_ESCAPE) {
-            A.editingPath = false;
-        } else {
-            A.pathField.key(A.hwnd, vk, ctrl, shift);
-        }
         A.dirty = true;
         return;
     }
@@ -156,7 +152,6 @@ static void onChar(wchar_t c) {
     if (gotoChar(c)) return;
     if (optionsChar(c)) return;
     if (A.renaming) A.renameField.insert(std::wstring(1, c));
-    else if (A.editingPath) A.pathField.insert(std::wstring(1, c));
     else if (A.cur) { A.filter += c; rebuildView(false); }
     A.dirty = true;
 }
@@ -216,6 +211,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         (msg == WM_KEYDOWN && !(lp & (1 << 30)) && wp != VK_SHIFT && wp != VK_CONTROL && wp != VK_MENU))
         shellMenuCancel();
     if (msg == g_msgRestart && msg) { restartBegin(false); return 0; } // un'altra finestra ha cliccato "Aggiorna"
+    if (msg == g_msgSeparate && msg) { A.separateWindows = wp != 0; A.dirty = true; return 0; } // l'interruttore in un'altra finestra
     switch (msg) {
     case WM_COPYDATA: // cartella aperta da una seconda istanza di [z]f
         return onCopyData((const COPYDATASTRUCT*)lp);
@@ -412,6 +408,9 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         return 0;
     case WM_KEYDOWN:
         tipHide();
+        // Tasti del browser e multimediali (li mandano anche i gesti del touchpad "Spostamento
+        // indietro/avanti"): DefWindowProc li trasforma in WM_APPCOMMAND, qui sotto
+        if (wp >= VK_BROWSER_BACK && wp <= VK_LAUNCH_APP2) break;
         onKey(wp, false);
         return 0;
     case WM_SYSKEYDOWN:
@@ -548,9 +547,8 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (gotoMouseDown(x, y, false, (wp & MK_CONTROL) != 0)) return 0;
         if (optionsMouseDown(x, y)) return 0;
         if (A.renaming) endRename(true);
-        bool onPath = y >= A.pathY && y < A.pathY + A.topH;
+        bool onPath = onPathBar(y);
         int chId = chromeHit(x, y);
-        if (A.editingPath && (!onPath || chId != CH_NONE)) { A.editingPath = false; A.dirty = true; }
         if (chId != CH_NONE) { chromeExec(chId); return 0; } // ≡, barra laterale, ← → ↑, ☆
         if (fltClearAt(x, y)) {
             A.filter.clear(); // × del filtro
@@ -566,8 +564,8 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             else if (t >= 0) tabActivate(t);
             return 0;
         }
-        if (onPath) { // segmento → ci va; "›" → sottocartelle; spazio vuoto → modifica del percorso
-            if (!A.editingPath && !crumbClick(x, y)) beginPathEdit();
+        if (onPath) { // segmento → ci va; "›" → sottocartelle; spazio vuoto → "Vai a" dalla cartella aperta
+            if (!crumbClick(x, y)) gotoOpenHere();
             return 0;
         }
         if (int pe = panelEdgeAt(x, y); pe >= 0) { colDragStart(pe, x); return 0; } // bordo di un pannello: larghezza
@@ -698,9 +696,18 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         return 0;
     }
     case WM_XBUTTONDOWN:
-        if (OP.open || gotoIsOpen()) return TRUE;
-        if (GET_XBUTTON_WPARAM(wp) == XBUTTON1) goBack(); else goForward();
+        historyCmd(GET_XBUTTON_WPARAM(wp) == XBUTTON1 ? M_BACK : M_FWD);
         return TRUE;
+    case WM_XBUTTONUP: // già eseguito alla pressione: niente WM_APPCOMMAND da DefWindowProc, si navigherebbe due volte
+        return TRUE;
+    case WM_APPCOMMAND: { // tasti del browser, gesti del touchpad, tasti laterali sopra la barra del titolo
+        int c = GET_APPCOMMAND_LPARAM(lp);
+        int id = c == APPCOMMAND_BROWSER_BACKWARD ? M_BACK : c == APPCOMMAND_BROWSER_FORWARD ? M_FWD
+               : c == APPCOMMAND_BROWSER_REFRESH ? M_REFRESH : 0;
+        if (!id) break; // volume, musica…: a Windows
+        historyCmd(id);
+        return TRUE;
+    }
     case WM_CLOSE:
         if (closeDeferred()) return 0; // operazioni sui file in corso: si chiude quando finiscono
         break;

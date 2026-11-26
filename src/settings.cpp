@@ -21,6 +21,7 @@
 //   dialoghi=1             0: i dialoghi Apri e Salva degli altri programmi non saltano alla cartella di [z]f
 //   griglia_dimensione=1  miniature della griglia: 0 piccole, 1 medie, 2 grandi (la vista è per cartella, in viste.txt)
 //   riapri_schede=0        1: la finestra principale riapre all'avvio le schede che aveva alla chiusura (schede.txt)
+//   finestre_separate=0    1: una cartella aperta da fuori (doppio clic, altri programmi) apre una finestra nuova, non una scheda
 //   aggiornamenti=1        0: niente controllo automatico degli aggiornamenti (≡ › versione controlla lo stesso)
 //   aggiornamenti_beta=1   anche le beta; senza la riga: sì se la versione in uso è una beta
 //   aggiornamenti_ultimo=0 ultimo controllo degli aggiornamenti (secondi dal 1970): uno al giorno
@@ -173,6 +174,7 @@ static std::string settingsText() {
     d += std::string("dialoghi=") + (A.dialogJump ? "1" : "0") + "\r\n";
     d += "griglia_dimensione=" + std::to_string(A.thumbSize) + "\r\n";
     d += std::string("riapri_schede=") + (A.reopenTabs ? "1" : "0") + "\r\n";
+    d += std::string("finestre_separate=") + (A.separateWindows ? "1" : "0") + "\r\n";
     d += std::string("aggiornamenti=") + (A.updAuto ? "1" : "0") + "\r\n";
     if (A.updBeta >= 0) d += std::string("aggiornamenti_beta=") + (A.updBeta ? "1" : "0") + "\r\n";
     d += "aggiornamenti_ultimo=" + std::to_string(A.updLast) + "\r\n";
@@ -230,6 +232,7 @@ static bool settingsApply(const std::vector<std::wstring>& lines) {
         else if (k == L"dialoghi") A.dialogJump = v != L"0";
         else if (k == L"griglia_dimensione") { int n = _wtoi(v.c_str()); if (n >= 0 && n <= 2) A.thumbSize = n; }
         else if (k == L"riapri_schede") A.reopenTabs = v == L"1";
+        else if (k == L"finestre_separate") A.separateWindows = v == L"1";
         else if (k == L"aggiornamenti") A.updAuto = v != L"0";
         else if (k == L"aggiornamenti_beta") A.updBeta = v == L"1" ? 1 : v == L"0" ? 0 : -1;
         else if (k == L"aggiornamenti_ultimo") A.updLast = _wtoi64(v.c_str());

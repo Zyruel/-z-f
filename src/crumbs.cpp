@@ -107,7 +107,7 @@ static void crumbsLayout(float x0, float x1) {
 
 // id sotto il punto: 2·i segmento, 2·i+1 "›", CRUMB_ELL, -1 nulla (spazio vuoto)
 static int crumbHit(int x, int y) {
-    if (A.editingPath || y < CB.y || y >= CB.y + CB.h) return -1;
+    if (y < CB.y || y >= CB.y + CB.h) return -1;
     if (CB.ell && x >= CB.ellX && x < CB.ellX + CB.ellW) return CRUMB_ELL;
     for (int i = 0; i < (int)CB.segs.size(); i++) {
         const Crumb& c = CB.segs[i];

@@ -8,7 +8,8 @@
 // file: qui la si blocca), poi il nome rimasto nel campo, e chiude il dialogo. Atteso: ultima
 // cartella B, nessuna conferma, nome "prova salvataggio.txt". Senza console: z-f-dev di prova
 // soltanto (il pid dice a quale finestra consegnare).
-// Compilare (Developer PowerShell): cl /nologo /EHsc /DUNICODE /D_UNICODE prove\dialoghi-prova.cpp
+// Compilare (da Bash, nella cartella del progetto; l'exe va in build\):
+//   cmd //c '.\build.bat prova prove\dialoghi-prova.cpp user32.lib ole32.lib comdlg32.lib'
 //   /Fe:build\dialoghi-prova.exe /Fo:build\ ole32.lib shell32.lib comdlg32.lib user32.lib
 #include <windows.h>
 #include <shobjidl.h>

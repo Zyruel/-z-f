@@ -394,8 +394,7 @@ static void render() {
         float bw = W - px(ui::GAP_S) - A.navW * 3 - px(ui::GAP_M) - bx; // a destra ☆, griglia e anteprima
         float by = A.pathY + floorf((A.topH - A.rowH) * 0.5f), bh = A.rowH;
         float ty = by + textOff;
-        if (A.editingPath) drawField(A.pathField, bx, by, bw, bh, s);
-        else drawCrumbs(bx, bx + bw, by, bh, ty, dt);
+        drawCrumbs(bx, bx + bw, by, bh, ty, dt);
         drawChromeToolbar();
     }
 

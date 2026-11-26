@@ -70,6 +70,7 @@ constexpr float SIDE_SECTION_H = 1.25f; // barra laterale: titolo di sezione ("P
 constexpr float SIDE_INDENT = 16;  // barra laterale: rientro dei preferiti sotto il titolo e delle unità sotto "Questo PC" (un livello dell'albero)
 constexpr float DATE_W = 150, SIZE_W = 100;     // colonne: larghezze predefinite (impostazioni.txt le cambia)
 constexpr float LINK_W = 300;      // colonna Destinazione (cartelle con collegamenti): larghezza predefinita
+constexpr float LINK_MAX = 0.5f;   // colonna Destinazione: al massimo questa frazione dello spazio tra l'inizio della lista e Data (mai più larga di Nome)
 constexpr float COL_MIN = 48;      // colonne Destinazione, Data e Dimensione: larghezza minima
 constexpr float COL_NAME_MIN = 160; // spazio minimo della colonna Nome, dall'inizio della lista
 constexpr float COL_GRIP = 4;      // bordo tra due colonne: fascia per afferrarlo, per lato

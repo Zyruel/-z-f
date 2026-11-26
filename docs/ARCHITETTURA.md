@@ -125,6 +125,13 @@ condivise sono in `app.h`.
   la forma di Explorer `/select,<percorso>`. Con un'opzione `--` (`--new-window`, `--gpu=...`) si
   apre comunque una finestra separata, che non riceve le cartelle aperte da fuori. Prova:
   `prove\istanza.bat`.
+- **Finestre separate** (opzione `finestre_separate`): la principale risponde a `WM_COPYDATA` con
+  2 invece di 1 e chi ha avviato [z]f prosegue come una "Nuova finestra" (non principale), dopo
+  aver chiuso il suo handle del mutex: altrimenti, chiusa la principale, il mutex resterebbe in
+  vita e l'avvio successivo cercherebbe per 3 secondi una principale che non c'è. L'opzione la
+  conosce solo la principale, che ha già letto le impostazioni: il processo nuovo non tocca il
+  disco prima della finestra. L'interruttore può stare in un'altra finestra, che lo comunica a
+  tutte con il messaggio registrato `z-f.finestre-separate`.
 - **Finestra Win32** con swapchain D3D11 in modalità flip e latenza di un frame
   (`SetMaximumFrameLatency(1)` e l'oggetto d'attesa della swapchain). La finestra compare subito
   con lo sfondo del tema.
@@ -179,6 +186,17 @@ condivise sono in `app.h`.
 
 - RTX 5070 Ti: contenuto visibile a 70–81 ms, passaggio alla GPU intorno ai 200 ms;
 - GPU persa (simulata): ripristino in 58 ms, di cui 36 sul thread dell'interfaccia;
+- memoria (novembre 2026, RTX 5070 Ti, elenco, `prove\memoria.ps1`): una finestra con una scheda
+  occupa 70 MB di working set e 84 MB di memoria privata, più 27 MB sulla GPU; con 11 schede
+  (System32, SysWOW64, Program Files…) 78 e 88 MB, quindi meno di 1 MB a scheda. Quasi tutto è il
+  driver della GPU caricato nel processo: con `--gpu=warp` la stessa finestra sta in 39 MB di
+  working set e 22 di privata. Dopo il passaggio alla GPU WARP si scarica (`D3D10Warp.dll` non
+  resta tra i moduli).
+  Ogni finestra in più è un processo con il suo driver: circa 63 MB di working set e 75 di
+  privata. La griglia aggiunge l'atlante delle miniature (64 MB sulla GPU) e fino a 96 MB di
+  copie in RAM (sezione Miniature);
+- avvio che consegna la cartella alla principale ed esce: 11–13 ms, processo compreso (il primo
+  58 ms, a disco freddo): è anche il costo in più di una finestra separata, prima del suo avvio.
 - con l'icona l'exe cresce di 46 KB, quasi tutti suoi (1.050.624 → 1.097.728 byte); il contenuto
   visibile non cambia (`prove\avvio.bat`, 20 avvii alternati: mediana 52,5 ms senza, 52,9 con).
 
@@ -477,7 +495,10 @@ tooltip su un JPEG), nessun file scaricato.
 Un clic su un segmento ci va con selezionata la cartella da cui si arriva. Le sottocartelle del
 menu "›" le legge `readSubfolders` su un thread, ordinate come la lista; se
 la lettura supera `LOADING_AFTER` (150 ms) il menu si apre subito con "caricamento…". I menu lunghi
-scorrono (`menuAdd`, `menuPlace`). Lo spazio vuoto apre la casella di testo (`TextField`).
+scorrono (`menuAdd`, `menuPlace`). Lo spazio vuoto apre "Vai a" dalla cartella aperta
+(`gotoOpenHere`): il percorso con "\" in fondo è un percorso scritto, e le sottocartelle vengono
+dalla `Listing` già aperta (`gotoDirFromListing`), senza disco. Così scrivere un percorso e
+cercare una cartella sono un solo componente.
 
 **Come funziona: "Vai a"** (`goto.cpp`; pannello in `DESIGN.md`, "Vai a").
 
@@ -509,6 +530,14 @@ thread, ognuna rifà la ricerca) si misura a parte con `prove\vai-a-misura.cpp`.
   Le scorciatoie delle voci vengono da `kShortcuts` (`options.cpp`, `shortcutFor`). Regole del
   menu (voci disattivate o assenti, scambio con `menu_completo`): `DESIGN.md`, "Menu
   contestuale".
+- **Indietro e Avanti senza la tastiera normale** (`historyCmd`, `input.cpp`): i tasti laterali
+  del mouse alla pressione (`WM_XBUTTONDOWN`); i tasti del browser e i gesti del touchpad
+  ("Spostamento indietro/avanti" di Windows) come `WM_APPCOMMAND`. Secondo la documentazione è
+  `DefWindowProc` a trasformare quei tasti in `WM_APPCOMMAND`, quindi `WM_KEYDOWN` lascia passare
+  `VK_BROWSER_BACK`…`VK_LAUNCH_APP2`; con un `WM_KEYDOWN` simulato (`PostMessage`/`SendMessage`)
+  non succede, nemmeno in una finestra qualsiasi: serve il tasto vero.
+  `WM_XBUTTONUP` invece si ferma, altrimenti `DefWindowProc` manderebbe un secondo
+  `WM_APPCOMMAND` e il tasto laterale navigherebbe due volte.
 - **Menu completo della shell** ("Altre opzioni…"; `shell.cpp`): lo costruisce e lo mostra un
   thread suo, con una finestra nascosta sua, mentre l'interfaccia continua a disegnare. Elimina,
   Incolla, Rinomina, Copia e Taglia tornano a [z]f con i percorsi del momento del clic, quindi
@@ -863,7 +892,7 @@ sul thread; con il server spento l'errore arriva dopo 2 s, sempre sul thread.
   `barra_laterale`, `barra_laterale_larghezza`, `barra_tempi`, `animazioni`, `preferiti_aperti`,
   `unita_aperte`, `colonna_data`, `colonna_dimensione`, `colonna_destinazione`, `anteprima`,
   `anteprima_larghezza`, `carattere_anteprima`, `annulla_dopo_riavvio`, `menu_completo`,
-  `dimensione_cartelle`, `dialoghi`, `griglia_dimensione`, `riapri_schede`, `aggiornamenti`,
+  `dimensione_cartelle`, `dialoghi`, `griglia_dimensione`, `riapri_schede`, `finestre_separate`, `aggiornamenti`,
   `aggiornamenti_beta`, `aggiornamenti_ultimo`. Il pannello delle opzioni (`options.cpp`) le
   cambia con effetto immediato: dimensione e carattere del testo, animazioni, barra laterale, "Usa
   [z]f al posto di Explorer", "Menu completo di Windows col tasto destro", "Dialoghi Apri e Salva
@@ -894,10 +923,23 @@ predefiniti, tre preferiti diventati uno, due viste diventate una.
 
 ## Compilare: MSVC e zig
 
-`build.bat` trova da solo `cl.exe` tramite `vswhere`. Se nel PATH c'è anche `fxc.exe` (incluso nel
+`build.bat` trova da solo `cl.exe` tramite `vswhere`. Mette anche la cartella di `vswhere` nel PATH,
+perché `vcvars64.bat` lo chiama per nome: senza, scrive "vswhere.exe non è riconosciuto" (innocuo, ma
+in mezzo all'uscita dove si cercano gli avvisi). Se nel PATH c'è anche `fxc.exe` (incluso nel
 Windows SDK), gli shader vengono precompilati e l'avvio è più rapido; altrimenti vengono compilati
 all'avvio, e la barra di stato lo segnala. L'icona (`src\z-f.rc`) la compila `rc.exe`, anche lui
 del Windows SDK, in `build\z-f.res`, che va al link con il resto.
+
+Oltre alla build di rilascio (`build\z-f.exe`) e a `debug`:
+
+- `build.bat dev` scrive la build di prova `build\z-f-dev.exe`, con le stesse opzioni più `ZF_DEV`
+  (non si aggiorna da sola): si compila anche mentre `z-f.exe` è aperto;
+- `build.bat prova prove\x.cpp <librerie>` compila un programma di prova con le opzioni di tutti, e
+  l'exe va in `build\`. Il comando esatto è in cima a ogni file di `prove\`.
+
+Si lancia da Bash con `cmd //c '.\build.bat …'`. Il `.\` serve dove la cartella corrente non è
+nella ricerca dei comandi; da PowerShell no, perché non entra in una cartella con le parentesi
+quadre.
 
 **Senza Visual Studio:** `winget install zig.zig`, poi `build_zig.bat`, che scrive
 `build\z-f-dev.exe` (la build di prova) e non tocca `build\z-f.exe`. Usa gli shader precompilati se

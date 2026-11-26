@@ -6,24 +6,26 @@ static float colRoom() { return A.listR - A.sbW - A.padX - A.listX - px(ui::COL_
 // Colonna Destinazione: in elenco, nelle cartelle con almeno un collegamento (links.cpp)
 static bool linkColumn() { return !A.grid && A.cur && !A.cur->lnk.empty(); }
 
-// Larghezza dell'anteprima che la lista lascia libera con le colonne alla larghezza scelta
-// (chosen) o al minimo: l'anteprima prende solo quello che avanza, così con la finestra stretta cede
-// per prima, e il nome tiene sempre il suo minimo.
-static float previewRoom(bool chosen) {
-    bool link = linkColumn();
-    float cols = chosen ? px(A.colDate) + px(A.colSize) + (link ? px(A.colLink) : 0) : px(ui::COL_MIN) * (link ? 3 : 2);
+// Larghezza massima di Destinazione con Data in dateX: mai più larga di Nome. Senza questo
+// limite, con la finestra stretta Nome restava al suo minimo e lo spazio in più andava tutto a
+// Destinazione; così le due colonne crescono e calano insieme.
+static float linkMax(float dateX) { return floorf((dateX - A.listX) * ui::LINK_MAX); }
+
+// Larghezza dell'anteprima che la lista lascia libera con le colonne al minimo. L'anteprima tiene
+// la larghezza scelta e le colonne si adattano allo spazio che resta: se l'anteprima prendesse
+// solo quello che avanza dalle colonne alla larghezza scelta, ogni colonna stretta col mouse la
+// allargherebbe, e allargare una colonna sarebbe impossibile (ci si scontra con l'anteprima).
+static float previewRoom() {
+    float cols = px(ui::COL_MIN) * (linkColumn() ? 3 : 2);
     return floorf((float)G.w - A.listX - px(ui::COL_NAME_MIN) - cols - A.padX - A.sbW);
 }
 
 // Anteprima: la larghezza scelta, al massimo PREVIEW_MAX della finestra e quello che la lista
-// lascia. Sotto il minimo si stringono Data e Dimensione; se non basta nemmeno così, sparisce
-// (resta aperta: torna quando c'è spazio).
+// lascia con le colonne al minimo; sotto PREVIEW_MIN sparisce (resta aperta: torna quando c'è spazio).
 static float previewWidth() {
     if (!A.prevOpen) return 0;
-    float w = std::min(px(A.prevWidth), floorf(G.w * ui::PREVIEW_MAX));
-    w = std::min(w, previewRoom(true));
-    if (w >= px(ui::PREVIEW_MIN)) return w;
-    return previewRoom(false) >= px(ui::PREVIEW_MIN) ? px(ui::PREVIEW_MIN) : 0;
+    float w = std::min({px(A.prevWidth), floorf(G.w * ui::PREVIEW_MAX), previewRoom()});
+    return w >= px(ui::PREVIEW_MIN) ? w : 0;
 }
 
 static void layout() {
@@ -62,7 +64,7 @@ static void layout() {
     A.listR = G.w - A.prevW;
     // Colonne: Nome prende quello che avanza, Destinazione (se c'è), Data e Dimensione sono
     // allineate a destra. Se la finestra è stretta si stringono prima Destinazione, poi Data e poi
-    // Dimensione, fino al minimo (senza salvare).
+    // Dimensione, fino al minimo (senza salvare); Destinazione inoltre non supera Nome (linkMax).
     A.dateW = px(A.colDate);
     A.sizeW = px(A.colSize);
     A.linkW = linkColumn() ? px(A.colLink) : 0;
@@ -72,6 +74,7 @@ static void layout() {
     if (A.linkW + A.dateW + A.sizeW > room) A.sizeW = std::max(mn, room - A.dateW - A.linkW);
     A.sizeX = right - A.sizeW;
     A.dateX = A.sizeX - A.dateW;
+    if (A.linkW > 0) A.linkW = std::max(mn, std::min(A.linkW, linkMax(A.dateX)));
     A.linkX = A.dateX - A.linkW;
     A.nameEnd = A.linkX - A.padX; // senza Destinazione linkX è dateX
     // Voci: in elenco una colonna alta una riga. In griglia il riquadro della miniatura a GAP_M dai
@@ -590,6 +593,10 @@ static bool zipNoShell() {
     notice(L"Non disponibile dentro un archivio zip", false);
     return true;
 }
+
+// y sulla riga del percorso (segmenti, "›", spazio vuoto): il clic e il doppio clic la riconoscono allo stesso modo
+static bool onPathBar(int y) { return y >= A.pathY && y < A.pathY + A.topH; }
+
 // Percorso dentro lo zip aperto (o un altro, a vista: un componente che finisce in ".zip"). Per le
 // destinazioni di un trascinamento: in uno zip non si rilascia.
 static bool pathInZip(const std::wstring& p) {
@@ -597,13 +604,6 @@ static bool pathInZip(const std::wstring& p) {
         (p.size() == A.cur->zipLen || p[A.cur->zipLen] == L'\\'))
         return true;
     return zipPathLike(p);
-}
-
-static void beginPathEdit() {
-    std::wstring p = A.cur ? A.cur->path : L"";
-    A.pathField.set(p, 0, (int)p.size()); // tutto selezionato: si scrive sopra o si incolla
-    A.editingPath = true;
-    A.dirty = true;
 }
 
 static std::wstring normalizePath(std::wstring p) {

@@ -4,7 +4,7 @@ File explorer per Windows, veloce e leggero: C++ con Win32 e Direct3D 11, senza 
 dipendenze. L'obiettivo è che ogni operazione sembri istantanea. È gratuito e il codice è
 libero, con [licenza MIT](LICENSE).
 
-**Versione attuale: 1.0.0-beta.4.** Cosa cambia in ogni versione è in [`NOVITA.md`](NOVITA.md).
+**Versione attuale: 1.0.0-beta.5.** Cosa cambia in ogni versione è in [`NOVITA.md`](NOVITA.md).
 
 ## Scaricare
 
@@ -21,10 +21,10 @@ bit (provato su Windows 11).
   quindi l'interfaccia non si blocca mai.
 - **Schede** e **barra laterale** con i preferiti (si riordinano trascinandoli) e Questo PC, con
   le unità e i percorsi di rete; si connettono e disconnettono unità di rete.
-- **Percorso a segmenti** cliccabili, con le sottocartelle in un menu su ogni "›"; si può anche
-  scrivere il percorso.
+- **Percorso a segmenti** cliccabili, con le sottocartelle in un menu su ogni "›".
 - **"Vai a"** (Ctrl+P): cerca mentre scrivi tra cartelle recenti, preferiti e le loro
-  sottocartelle.
+  sottocartelle. Dal percorso (clic, Ctrl+L) parte dalla cartella aperta: si scrive il percorso
+  con le sottocartelle suggerite.
 - **Lista:** filtro mentre scrivi, ordinamento naturale, selezione multipla e col rettangolo,
   colonne ridimensionabili, tooltip con le informazioni di file, cartelle e unità.
 - **Anteprima** (Alt+P) di immagini, testo e cartelle, e **griglia con miniature**
@@ -41,7 +41,8 @@ bit (provato su Windows 11).
 - **Al posto di Explorer**, con l'opzione "Usa [z]f al posto di Explorer": le cartelle aperte da
   Windows e Win+E aprono [z]f. Scrive solo nelle impostazioni dell'utente e si annulla con lo
   stesso interruttore.
-- **Una finestra sola:** aprire una cartella con [z]f già aperto aggiunge una scheda. Con
+- **Una finestra sola:** aprire una cartella con [z]f già aperto aggiunge una scheda (o, con
+  l'opzione "Una finestra per ogni cartella aperta da fuori", apre una finestra nuova). Con
   l'opzione "Riapri le schede all'avvio" si riparte dalle schede che c'erano alla chiusura.
 - **Si aggiorna da solo:** una volta al giorno guarda se c'è una versione nuova, la scarica, ne
   controlla la firma e la installa per il prossimo avvio. Lo stato è accanto alla versione, nel
@@ -58,16 +59,16 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 |---|---|
 | Invio · doppio clic | Apre la cartella o il file |
 | Alt+↑ · Backspace | Cartella superiore (Backspace: se non c'è un filtro) |
-| Alt+← · tasto laterale indietro | Indietro |
-| Alt+→ · tasto laterale avanti | Avanti |
+| Alt+← · tasto Indietro del mouse o della tastiera · gesto Indietro del touchpad | Indietro |
+| Alt+→ · tasto Avanti del mouse o della tastiera · gesto Avanti del touchpad | Avanti |
 | Clic su un segmento del percorso | Va a quella cartella |
 | Clic su › nel percorso | Sottocartelle |
 | Clic sulla destinazione di un collegamento · clic centrale | Apre il percorso del file (in una nuova scheda) |
-| Ctrl+L · F4 · clic sul percorso vuoto | Scrive il percorso |
+| Ctrl+L · F4 · clic sul percorso vuoto | Vai a dalla cartella aperta: scrive il percorso |
 | Ctrl+P · Ctrl+G | Vai a: cartelle recenti, preferiti, sottocartelle |
 | Ctrl+Invio · clic centrale | Vai a: apre in una nuova scheda |
 | Tab | Vai a: entra nella cartella e mostra le sottocartelle |
-| F5 | Ricarica |
+| F5 · tasto Aggiorna della tastiera | Ricarica |
 
 ### Selezione
 
@@ -141,6 +142,7 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 ```bat
 build.bat          :: MSVC, consigliato  -> build\z-f.exe
 build.bat debug    :: con simboli per il debugger
+build.bat dev      :: build di prova, che non si aggiorna da sola  -> build\z-f-dev.exe
 build_zig.bat      :: senza Visual Studio (winget install zig.zig)  -> build\z-f-dev.exe
 ```
 
