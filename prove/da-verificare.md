@@ -20,6 +20,20 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 00000000000000000000000000000000000000. Icona con le misure di 175% e 225%, in PNG (z-f-dev, novembre 2026)
+
+Compilato senza avvisi (MSVC). Provato da Claude a 100%: la finestra prende 32 e 16 px, 10 avvii
+alternati con l'icona di prima, contenuto uguale (52–53 ms), "icona della finestra" 1,2 → 2,8 ms;
+le misure 28, 36, 56 e 72 viste con `prove\icona-misure.cpp`, nitide. Lo schermo era al 100%:
+a 175% dal vero non l'ha visto nessuno.
+
+- [ ] **A 175%**, con `prove\dev.bat`: l'icona nella barra delle applicazioni, in Alt+Tab e nella
+      barra del titolo è nitida, senza bordi sfumati né alone scuro intorno a "[z]" (prima Windows
+      riduceva la 32 e la 64).
+- [ ] **Esplora file** sulla cartella `build\`, in Icone grandi e in Dettagli: l'icona di
+      `z-f-dev.exe` è nitida (Windows può tenere in cache quella di prima: se sembra vecchia,
+      basta una copia dell'exe con un altro nome).
+
 ## 0000000000000000000000000000000000000. Zip al posto di Explorer (z-f-dev, novembre 2026)
 
 Compilato senza avvisi (MSVC). Provato da Claude: `z-f-dev.exe --new-window <prova.zip>` apre la

@@ -310,6 +310,8 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     A.dirty = true;
 
     MSG msg;
+    double probeIconsFrom = 0;           // --prova-avvio: si aspettano le prime icone da qui
+    const UINT kProbeIconWait = 2000;    // ms; se non arrivano, si chiude lo stesso
     for (;;) {
         if (!A.dirty && !animating()) {
             if (GetMessageW(&msg, nullptr, 0, 0) <= 0) break;
@@ -342,7 +344,8 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
             if (startupProbe) { // --prova-avvio: i tempi nel registro, poi si chiude
                 hitchLog("prova avvio: contenuto", activateLater, A.startupMs);
                 hitchLog("prova avvio: primo fuoco", GetForegroundWindow() == A.hwnd, A.stActivate);
-                PostMessageW(A.hwnd, WM_CLOSE, 0, 0);
+                probeIconsFrom = nowMs(); // si chiude quando arriva la prima icona vera (qui sotto)
+                SetTimer(A.hwnd, 16, kProbeIconWait, nullptr); // sveglia il ciclo se le icone non arrivano
             }
             A.sideStarted = true;
             appIconSet();
@@ -352,6 +355,13 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
             linksQueueCurrent();   // destinazioni dei collegamenti, per lo stesso motivo
             fdStart();             // dialoghi Apri e Salva
             updStartup();          // aggiornamento: pulizia della versione precedente, primo controllo più tardi
+        }
+        // --prova-avvio: quando compare la prima icona vera al posto dei segnaposto (dall'avvio del processo)
+        if (probeIconsFrom > 0 && (I.firstAt > 0 || nowMs() - probeIconsFrom >= kProbeIconWait)) {
+            hitchLog("prova avvio: icone", I.firstAt > 0, I.firstAt);
+            hitchLog("prova avvio: icona fin.", sysMetric(SM_CXICON), A.iconMs); // appIconSet, codice = misura grande
+            probeIconsFrom = 0;
+            PostMessageW(A.hwnd, WM_CLOSE, 0, 0);
         }
     }
     saveFlush();

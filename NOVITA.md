@@ -28,6 +28,9 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 - **Icona grande nell'anteprima all'avvio:** con l'anteprima già aperta, a volte il primo file
   senza anteprima restava senza l'icona grande (e così una miniatura della griglia). Ora c'è
   sempre.
+- **Icona più nitida a 175% e 225%:** l'icona di [z]f ha ora anche le misure di questi schermi,
+  invece di essere ridotta da Windows con i bordi sfumati. Il file dell'icona pesa 8,7 KB invece
+  di 45,7, e l'exe è più piccolo di 37 KB.
 - Il codice torna senza avvisi anche con `/W4`.
 
 ## 1.0.0-beta.5 (novembre 2026)

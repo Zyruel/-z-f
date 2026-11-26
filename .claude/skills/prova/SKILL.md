@@ -74,7 +74,9 @@ può (con il controllo dello schermo); altrimenti gli si chiede uno screenshot. 
 - `memoria.ps1 -Ids <pid>[,<pid>…]`: working set, memoria privata, memoria GPU, thread e handle
   di ogni PID (da Bash: `powershell -NoProfile -File 'prove\memoria.ps1' -Ids <pid>`);
 - `avvio.bat [volte] [exe]`: tempi di avvio con `--prova-avvio` (nel registro "prova avvio:
-  contenuto" e "prova avvio: primo fuoco"; predefiniti 10 volte e `build\z-f-dev.exe`). Ogni
+  contenuto", "primo fuoco", "icone", cioè la prima icona vera al posto dei segnaposto, e "icona
+  fin.", l'icona della finestra con la misura grande nel codice; la finestra si chiude dopo la
+  prima icona; predefiniti 10 volte e `build\z-f-dev.exe`). Ogni
   avvio porta una finestra in primo piano: **solo a PC libero**;
 - `predefinito.bat`: [z]f al posto di Explorer (apre cartelle come un altro programma e simula
   Win+E); `ripristina-explorer.bat` è l'emergenza che rimette Explorer;
@@ -88,7 +90,9 @@ può (con il controllo dello schermo); altrimenti gli si chiede uno screenshot. 
   `anteprima-prova.py` (anteprima);
 - misure e confronti a parte, senza interfaccia: `zip-prova.cpp`, `collegamenti-prova.cpp`,
   `dialoghi-prova.cpp`, `shell-verbi.cpp`, `vai-a-misura.cpp`, `costi-frame.cpp`,
-  `ime-avvio.cpp`, `icona-grande-prova.cpp` (come si compilano è scritto in cima a ognuno);
+  `ime-avvio.cpp`, `icona-grande-prova.cpp`, `icona-misure.cpp` (l'icona di [z]f a ogni misura
+  da 100% a 225% senza cambiare il DPI: tempo e immagine); come si compilano è scritto in cima a
+  ognuno;
 - `online-prova.cpp`: file solo online senza OneDrive (una radice di sincronizzazione finta con
   l'API Cloud Files di Windows). `passi` misura le chiamate di [z]f su segnaposto nuovi;
   `attendi <secondi>` resta in ascolto mentre si prova z-f-dev sulla cartella con

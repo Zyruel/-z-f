@@ -172,8 +172,14 @@ condivise sono in `app.h`.
   in `build.bat` e da zig stesso in `build_zig.bat`. La scrive `strumenti\icona.py`, uno script
   Pillow usato una volta come `strumenti\firma.cpp`, che legge i due colori da `theme.h`: 16 e 20
   px disegnate a pixel, le altre dalla stessa geometria agganciata ai pixel, disegnata a 4× e
-  ridotta con una media esatta (BOX: niente aloni scuri). Sotto 256 le immagini sono BMP a 32 bit,
-  il formato classico delle icone; la 256 è PNG, che lì pesa molto meno.
+  ridotta con una media esatta (BOX: niente aloni scuri). Ci sono le misure di ogni DPI comune fino
+  a 225% (28 e 56 per 175%, 36 e 72 per 225%), tutte in PNG. Misurato (novembre 2026): il .ico
+  pesa 8,7 KB, contro 45,7 KB per le sole misure fino a 64 in BMP a 32 bit, e l'exe 37 KB in meno.
+  La prima decodifica PNG del processo porta "icona della finestra" da 1,2 a 2,8 ms (mediane di
+  10 avvii alternati, `prove\avvio.bat`), dopo il primo frame: il contenuto resta a 52–53 ms. Poi
+  ogni misura costa 0,06–0,11 ms, come in BMP (`prove\icona-misure.cpp`). WindowsCodecs.dll non
+  si aggiunge, perché la carica comunque la shell. Le misure che mancavano Windows le ricavava
+  riducendone un'altra, con bordi sfumati e un alone scuro (le immagini di `prove\icona-misure.cpp`).
 
 **Perché così.**
 
@@ -1003,8 +1009,12 @@ solo al primo uso (`/DELAYLOAD`):
   (`iconThread`, `IQ_EXT`), che chiama subito `CoInitializeEx` e `SHGetFileInfoW` per preparare le
   icone di sistema della shell. Il caricamento avviene su quel thread, non su quello
   dell'interfaccia, e così le icone sono pronte prima: per queste due DLL il caricamento ritardato
-  sposta il caricamento su un altro thread, ma non lo evita. Se convenga spostare `iconInit` dopo
-  il primo frame è una domanda aperta in `docs/da-sistemare.md`.
+  sposta il caricamento su un altro thread, ma non lo evita. È un'eccezione voluta: spostare
+  l'avvio dei thread delle icone dopo il primo frame è peggio su tutto. Misurato (novembre 2026,
+  `prove\avvio.bat`, 2 × 20 avvii alternati, mediane prima e dopo lo spostamento): contenuto
+  58–70 → 71–85 ms, prima icona vera 86–99 → 116–131 ms ("prova avvio: icone"). In più il
+  processo, chiuso appena arrivata la prima icona, restava vivo circa 7 s invece di 0,2 (vedi
+  `docs/da-sistemare.md`, il processo vivo dopo la chiusura).
 
 WIC (anteprima e miniature, sul loro thread) e mpr.dll (unità di rete, `LoadLibraryExW`) si
 caricano solo al primo uso.

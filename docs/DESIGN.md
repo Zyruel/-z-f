@@ -545,7 +545,9 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
 - **Icona dell'applicazione** (`src\z-f.ico`, risorsa di `src\z-f.rc`): "[z]" in `C_ACCENT` su un
   quadrato arrotondato `C_BG`, gli stessi due colori dell'interfaccia. Forma geometrica, senza font:
   parentesi quadre con asta e grazie dello stesso spessore, "z" minuscola centrata fra le due.
-  - misure: 16, 20, 24, 32, 40, 48, 64 (BMP a 32 bit) e 256 (PNG);
+  - misure: quelle di ogni DPI comune, piccola e grande (100% 16/32, 125% 20/40, 150% 24/48, 175%
+    28/56, 200% 32/64, 225% 36/72), più 256, tutte in PNG: una misura che manca Windows la
+    ricaverebbe riducendone un'altra, con i bordi sfumati;
   - 16 e 20 hanno un disegno a pixel fatto a mano, tratti di 2 px tranne le grazie delle
     parentesi, di 1 px: ridotto da quello
     grande, "[z]" diventerebbe una macchia. Dalla 24 in su la stessa geometria con i bordi agganciati ai
