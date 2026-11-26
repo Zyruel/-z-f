@@ -8,7 +8,7 @@ erano `0.N`. Ogni rilascio, dalla 1.0.0-beta.2, ha un tag `v<versione>` e una
 versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 [`ARCHITETTURA.md`](docs/ARCHITETTURA.md).
 
-## In preparazione
+## 1.0.0-beta.5 (novembre 2026)
 
 - **Gesti del touchpad:** "Spostamento indietro" e "Spostamento avanti" (Impostazioni →
   Bluetooth e dispositivi → Touchpad) vanno indietro e avanti, come i tasti Indietro, Avanti e
