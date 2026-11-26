@@ -10,6 +10,14 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 
 ## In preparazione
 
+- **Zip al posto di Explorer:** con "Usa [z]f al posto di Explorer" anche il doppio clic su uno
+  zip fuori da [z]f (desktop, Download, il browser che apre un file scaricato) lo apre in [z]f
+  come una cartella, invece che in Esplora file. Chi aveva già attivato l'opzione vede
+  "Attivo senza gli zip": un clic sull'interruttore li aggiunge. Se gli zip sono associati a un
+  altro programma (7-Zip, WinRAR) restano a quello.
+- **Aprire una cartella subito dopo aver chiuso [z]f:** la finestra compariva dopo quasi 5
+  secondi (doppio clic sul desktop, Win+E, una cartella aperta da un altro programma). Ora compare
+  subito.
 - **Meno memoria nelle cartelle enormi:** in WinSxS (30.734 cartelle) una finestra occupava 126 MB
   e ora da 98 a 101; nella cartella utente resta sui 76. La lista non tiene più spazio vuoto
   riservato durante la lettura, e il conto delle dimensioni delle cartelle non tiene più in

@@ -577,7 +577,8 @@ static void drawOptions(double dt) {
     section(L"Integrazione con Windows");
     label(L"Usa [z]f al posto di Explorer",
           OP.defaultState == 2 ? L"Attivo con un altro eseguibile di [z]f: un clic lo assegna a questo"
-                               : L"Doppio clic sulle cartelle, Win+E, programmi che aprono una cartella");
+          : OP.defaultState == 3 ? L"Attivo senza gli zip: un clic li aggiunge"
+                                 : L"Doppio clic sulle cartelle e sugli zip, Win+E, programmi che aprono una cartella");
     sw(OP.defaultState == 1, OP.knobDefault, OPT_DEFAULT);
     cy += rowH * 2 - px(ui::GAP_S);
     label(L"Una finestra per ogni cartella aperta da fuori",

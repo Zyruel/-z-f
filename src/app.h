@@ -294,6 +294,10 @@ static volatile double g_wicFirstMs = 0;
 // Proprietà della finestra principale (istanza unica): la mette main.cpp, la toglie input.cpp alla
 // chiusura, e chi avvia [z]f la cerca per consegnarle la cartella
 static const wchar_t* kInstanceProp = L"z-f.istanza";
+// Mutex "Local\z-f-istanza" della principale: si chiude insieme alla proprietà (input.cpp,
+// WM_DESTROY), non a fine processo. Il processo che esce può metterci più di un secondo, e intanto chi
+// avvia [z]f troverebbe il mutex senza la finestra e aspetterebbe FWD_WAIT per niente
+static HANDLE g_instanceMutex = nullptr;
 // "finestre_separate cambiata" tra le finestre di [z]f (RegisterWindowMessage, wParam il valore
 // nuovo): la usa la principale, ma l'interruttore può essere in un'altra finestra
 static UINT g_msgSeparate = 0;

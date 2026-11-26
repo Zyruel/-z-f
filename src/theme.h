@@ -175,6 +175,9 @@ constexpr int FD_MSG_WAIT = 500, FD_OK_WAIT = 2000;
 // leggono il testo (text.cpp) riprovano ogni CLIP_RETRY, per al massimo CLIP_WAIT_MAX, come fanno
 // Windows Forms e WPF (10 volte, 100 ms)
 constexpr int CLIP_RETRY = 50, CLIP_WAIT_MAX = 1000;
+// Avvio con la finestra principale non ancora creata (due avvii quasi insieme, main.cpp): chi arriva
+// secondo la cerca ogni FWD_POLL, per al massimo FWD_WAIT, poi diventa lui la principale
+constexpr int FWD_POLL = 10, FWD_WAIT = 3000;
 // Aggiornamento (update.cpp): primo controllo così tanto dopo il primo frame, poi al massimo uno
 // ogni UPD_EVERY secondi (anche a [z]f aperto: la condizione si guarda ogni UPD_TICK ms)
 constexpr int UPD_DELAY = 30000, UPD_TICK = 3600 * 1000;

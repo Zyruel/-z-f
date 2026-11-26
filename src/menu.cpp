@@ -133,7 +133,7 @@ static void menuOpenApp(float cx, float cy) {
     menuAdd(undoLabel(true), M_REDO, undoCan(true));
     menuSep();
     int st = defaultState(); // lettura del registro: microsecondi
-    menuAdd(L"Usa [z]f al posto di Explorer", M_SET_DEFAULT, true, st == 1 ? L"attivo" : st == 2 ? L"attivo (altro exe)" : L"");
+    menuAdd(L"Usa [z]f al posto di Explorer", M_SET_DEFAULT, true, st == 1 ? L"attivo" : st == 2 ? L"attivo (altro exe)" : st == 3 ? L"attivo (senza zip)" : L"");
     menuAdd(L"Opzioni\x2026", M_OPTIONS);
     menuSep();
     m.labels.clear();

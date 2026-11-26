@@ -39,7 +39,7 @@ bit (provato su Windows 11).
   l'opzione "Menu completo di Windows col tasto destro".
 - **Dialoghi Apri e Salva** degli altri programmi: entrano nella cartella aperta in [z]f.
 - **Al posto di Explorer**, con l'opzione "Usa [z]f al posto di Explorer": le cartelle aperte da
-  Windows e Win+E aprono [z]f. Scrive solo nelle impostazioni dell'utente e si annulla con lo
+  Windows, gli zip e Win+E aprono [z]f. Scrive solo nelle impostazioni dell'utente e si annulla con lo
   stesso interruttore.
 - **Una finestra sola:** aprire una cartella con [z]f già aperto aggiunge una scheda (o, con
   l'opzione "Una finestra per ogni cartella aperta da fuori", apre una finestra nuova). Con

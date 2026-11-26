@@ -725,6 +725,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         fdRelease();
         dropUnregister();
         RemovePropW(hwnd, kInstanceProp);
+        if (g_instanceMutex) { CloseHandle(g_instanceMutex); g_instanceMutex = nullptr; }
         PostQuitMessage(0);
         return 0;
     }

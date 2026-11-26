@@ -128,7 +128,13 @@ condivise sono in `app.h`.
 - **Finestre separate** (opzione `finestre_separate`): la principale risponde a `WM_COPYDATA` con
   2 invece di 1 e chi ha avviato [z]f prosegue come una "Nuova finestra" (non principale), dopo
   aver chiuso il suo handle del mutex: altrimenti, chiusa la principale, il mutex resterebbe in
-  vita e l'avvio successivo cercherebbe per 3 secondi una principale che non c'è. L'opzione la
+  vita e l'avvio successivo cercherebbe per 3 secondi una principale che non c'è. Per lo stesso
+  motivo la principale chiude il mutex in `WM_DESTROY`, insieme alla proprietà `z-f.istanza`, e
+  non a fine processo: uscire può durare secondi (vedi `docs/da-sistemare.md`). L'attesa di una
+  principale non ancora creata è a tempo (`FWD_WAIT`, `FWD_POLL`): a giri di `Sleep(10)` durava
+  4,7 s invece di 3, perché ogni `Sleep` dura un passo del timer di Windows (15,6 ms).
+  Misurato: principale chiusa e cartella aperta subito dopo, la finestra nuova compare 20–23 ms
+  dopo l'avvio del processo (prima 4,7 s). L'opzione la
   conosce solo la principale, che ha già letto le impostazioni: il processo nuovo non tocca il
   disco prima della finestra. L'interruttore può stare in un'altra finestra, che lo comunica a
   tutte con il messaggio registrato `z-f.finestre-separate`.
@@ -839,12 +845,18 @@ nessuna conferma del nome, nome proposto intatto.
 **Come funziona** (`integration.cpp`; dal menu della barra delle schede o con
 `z-f.exe --predefinito=si|no`).
 
-- Doppio clic sulle cartelle del desktop, programmi che aprono una cartella, Win+E e l'avvio di
-  `explorer.exe` aprono [z]f.
-- Scrive solo in HKCU: un verbo `[z]f` reso predefinito in `Classes\Directory\shell` e
-  `Classes\Drive\shell` (il verbo `open` di Windows non si tocca) e il comando di
+- Doppio clic sulle cartelle e sugli zip del desktop, programmi che aprono una cartella o uno zip,
+  Win+E e l'avvio di `explorer.exe` aprono [z]f.
+- Scrive solo in HKCU: un verbo `[z]f` reso predefinito in `Classes\Directory\shell`,
+  `Classes\Drive\shell` e `Classes\CompressedFolder\shell` (la classe con cui Windows apre gli
+  zip in Esplora file; il verbo `open` di Windows non si tocca) e il comando di
   `CLSID\{52205fd8-…}\shell\opennewwindow` per Win+E. I valori che c'erano prima si salvano in
   `HKCU\Software\z-f\Ripristino` e si rimettono alla disattivazione.
+- Uno zip passato come argomento si apre come cartella (`resolveStartArg`), non selezionato nella
+  cartella che lo contiene. Se gli zip sono associati a un altro programma (7-Zip, WinRAR) Windows
+  non usa `CompressedFolder` e il verbo resta inerte. Un'integrazione attivata prima della
+  1.0.0-beta.6 non ha gli zip: `defaultState` la riconosce (stato 3) e un clic sull'interruttore
+  li aggiunge, senza scritture nel registro all'avvio.
 - Cestino, Pannello di controllo e gli altri oggetti virtuali restano a Explorer.
 - Si registra l'eseguibile da cui lo si attiva: se lo si sposta o lo si cancella, prima va
   disattivato. L'aggiornamento automatico non cambia il percorso, quindi l'integrazione resta.

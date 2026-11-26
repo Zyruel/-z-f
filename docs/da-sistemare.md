@@ -18,7 +18,10 @@ quel codice, o tutti insieme in un momento tranquillo. Quando una voce è fatta 
   lento (F12 "barra laterale: rete e ottiche" 47 s per una voce): vivo più di 10 s dopo la
   chiusura, poi uscito. Nessun effetto visibile; da capire con
   un dump del processo in quel momento, e da guardare se l'aggiornamento (`updRestartAll`) aspetta
-  l'uscita delle finestre.
+  l'uscita delle finestre. Rivisto ancora il 26/11 (principale chiusa con `WM_CLOSE`, 6 volte):
+  uscita dopo 2,5–3,9 s ogni volta. Fino alla correzione del mutex (chiuso ora in `WM_DESTROY`)
+  faceva aspettare 4,7 s chi apriva una cartella o uno zip subito dopo; ora non fa più aspettare
+  nessuno, ma il processo resta vivo lo stesso.
 - [ ] **Avviso C4456 con `/W4` in `zip.cpp`** (0.26, riga 302: un secondo `ascii` nasconde quello
   della riga 262). Con `/W3` di `build.bat` non compare; dalla 0.22 il codice era pulito anche con
   `/W4`. Basta rinominare la variabile interna.

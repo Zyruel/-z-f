@@ -20,6 +20,28 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 0000000000000000000000000000000000000. Zip al posto di Explorer (z-f-dev, novembre 2026)
+
+Compilato senza avvisi (MSVC). Provato da Claude: `z-f-dev.exe --new-window <prova.zip>` apre la
+finestra dentro lo zip (prima: la cartella che lo contiene, con lo zip selezionato). Log normale.
+Il registro non l'ha toccato Claude: l'interruttore lo usa Zyruel.
+
+- [ ] **Con l'integrazione già attiva da prima:** le opzioni dicono "Attivo senza gli zip: un clic
+      li aggiunge" (menu ≡: "attivo (senza zip)"); un clic → "attivo", e l'avviso dice "cartelle,
+      unità e zip".
+- [x] **Doppio clic su uno zip** sul desktop (provato da Zyruel sul desktop) e in Download (anche dall'elenco dei download del
+      browser): si apre in [z]f, dentro lo zip, come scheda della finestra principale.
+- [ ] **Tasto destro su uno zip** in Esplora file: "Apri in [z]f" in grassetto, "Estrai tutto…"
+      ancora lì.
+- [ ] **Zip cifrato** aperto in [z]f, doppio clic su un file: si apre ancora in Esplora file (il
+      ripiego di `zipout.cpp`), senza tornare in [z]f.
+- [x] **Chiudere e riaprire subito** (riprovato da Zyruel col doppio clic sul desktop: risolto) (corretto dopo le prove di Zyruel: una volta su due la
+      finestra compariva dopo 4,7 s): doppio clic sullo zip, chiusura, di nuovo doppio clic,
+      più volte di fila. Misurato da Claude chiudendo la principale con `WM_CLOSE`: 20–23 ms
+      (prima 4,7 s).
+- [ ] **Disattivando:** gli zip tornano a Esplora file (`HKCU\Software\Classes\CompressedFolder\shell`
+      senza valore predefinito, senza il verbo `z-f`); idem con `prove\ripristina-explorer.bat`.
+
 ## 000000000000000000000000000000000000. Memoria delle cartelle enormi (z-f-dev, novembre 2026)
 
 Compilato senza avvisi (MSVC; zig non è installato). Provato da Claude su WinSxS con

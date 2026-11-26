@@ -3,6 +3,9 @@
 // Tutto in HKCU (solo l'utente corrente, nessun permesso di amministratore):
 //   Classes\Directory\shell, Classes\Drive\shell  → verbo "z-f" reso predefinito
 //       (doppio clic sulle cartelle del desktop, programmi che aprono una cartella con ShellExecute)
+//   Classes\CompressedFolder\shell → lo stesso verbo per gli zip: è la classe con cui Windows li
+//       apre in Esplora file (cartella compressa). Se gli zip sono associati a un altro programma
+//       (7-Zip, WinRAR) la classe non si usa e il verbo resta lì inerte
 //   Classes\CLSID\{52205fd8-…}\shell\opennewwindow\command → Win+E e avvio di explorer.exe
 // Il verbo "open" di Windows non viene toccato, né la classe Folder (Cestino, Pannello di
 // controllo e simili restano a Explorer). Prima di scrivere si salvano i valori che c'erano in
@@ -14,8 +17,10 @@ static const wchar_t* kVerb = L"z-f";
 static const wchar_t* kWinEKey = L"Software\\Classes\\CLSID\\{52205fd8-5dfb-447d-801a-d0b52f2e83e1}";
 static const wchar_t* kWinECmd = L"Software\\Classes\\CLSID\\{52205fd8-5dfb-447d-801a-d0b52f2e83e1}\\shell\\opennewwindow\\command";
 static const wchar_t* kBackup = L"Software\\z-f\\Ripristino";
-static const wchar_t* kShellKeys[2] = { L"Software\\Classes\\Directory\\shell", L"Software\\Classes\\Drive\\shell" };
-static const wchar_t* kBackupNames[2] = { L"Directory", L"Drive" };
+static const wchar_t* kShellKeys[3] = { L"Software\\Classes\\Directory\\shell", L"Software\\Classes\\Drive\\shell",
+                                        L"Software\\Classes\\CompressedFolder\\shell" };
+static const wchar_t* kBackupNames[3] = { L"Directory", L"Drive", L"CompressedFolder" };
+static const int kShellZip = 2; // gli zip: aggiunti nella 1.0.0-beta.6, prima l'integrazione non li aveva
 
 // Percorso di questo eseguibile, anche oltre MAX_PATH; "" se non si riesce a leggerlo
 static std::wstring exePath() {
@@ -53,7 +58,8 @@ static std::wstring zfCommand(bool withArg) {
 }
 
 // Transizione dal vecchio nome (zx, fino alla 0.15): l'integrazione scritta da zx si toglie,
-// rimettendo i valori che c'erano prima, prima di scrivere o togliere quella di [z]f.
+// rimettendo i valori che c'erano prima, prima di scrivere o togliere quella di [z]f. zx scriveva
+// solo cartelle e unità (le prime due chiavi).
 static void cleanupLegacyZx() {
     const wchar_t* oldBackup = L"Software\\zx\\Ripristino";
     std::wstring v;
@@ -85,14 +91,24 @@ static void cleanupLegacyZx() {
     RegDeleteKeyW(HKEY_CURRENT_USER, L"Software\\zx"); // solo se vuota
 }
 
-// 0 = Explorer, 1 = [z]f (questo eseguibile), 2 = [z]f ma un altro eseguibile (es. z-f-dev, o il vecchio zx)
-static int defaultState() {
+// Il verbo di [z]f è il predefinito nella chiave i; otherExe: col comando di un altro eseguibile
+static bool verbIsOurs(int i, bool& otherExe) {
     std::wstring v, cmd;
+    std::wstring sub = std::wstring(kShellKeys[i]) + L"\\z-f\\command";
+    if (!regGet(kShellKeys[i], nullptr, v) || v != kVerb || !regGet(sub.c_str(), nullptr, cmd)) return false;
+    otherExe = _wcsicmp(cmd.c_str(), zfCommand(true).c_str()) != 0;
+    return true;
+}
+
+// 0 = Explorer, 1 = [z]f (questo eseguibile), 2 = [z]f ma un altro eseguibile (es. z-f-dev, o il
+// vecchio zx), 3 = [z]f ma senza gli zip (attivato prima della 1.0.0-beta.6): un clic li aggiunge
+static int defaultState() {
+    std::wstring v;
     if (regGet(kShellKeys[0], nullptr, v) && v == L"zx") return 2; // integrazione del vecchio zx
-    if (!regGet(kShellKeys[0], nullptr, v) || v != kVerb) return 0;
-    std::wstring sub = std::wstring(kShellKeys[0]) + L"\\z-f\\command";
-    if (!regGet(sub.c_str(), nullptr, cmd)) return 0;
-    return _wcsicmp(cmd.c_str(), zfCommand(true).c_str()) == 0 ? 1 : 2;
+    bool other = false, zipOther = false;
+    if (!verbIsOurs(0, other)) return 0;
+    if (other) return 2;
+    return verbIsOurs(kShellZip, zipOther) && !zipOther ? 1 : 3;
 }
 
 static void notifyAssocChanged() {
@@ -106,9 +122,10 @@ static bool setDefault(bool on) {
     cleanupLegacyZx();
     if (on) {
         bool already = defaultState() != 0; // già attivo (anche da un altro exe): il backup c'è già
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 3; i++) {
+            // Si salva solo ciò che non è nostro: con [z]f già attivo può restare la chiave degli zip
             std::wstring prev;
-            if (!already && regGet(kShellKeys[i], nullptr, prev) && prev != kVerb) regSet(kBackup, kBackupNames[i], prev);
+            if (regGet(kShellKeys[i], nullptr, prev) && prev != kVerb) regSet(kBackup, kBackupNames[i], prev);
             std::wstring verb = std::wstring(kShellKeys[i]) + L"\\z-f";
             ok &= regSet(verb.c_str(), nullptr, L"Apri in [z]f");
             ok &= regSet((verb + L"\\command").c_str(), nullptr, zfCommand(true));
@@ -128,15 +145,16 @@ static bool setDefault(bool on) {
         ok &= regSet(kWinECmd, L"DelegateExecute", L""); // vuoto: Windows esegue il comando invece di Explorer
     } else {
         bool wasOn = defaultState() != 0;
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 3; i++) {
             std::wstring verb = std::wstring(kShellKeys[i]) + L"\\z-f";
             RegDeleteTreeW(HKEY_CURRENT_USER, verb.c_str());
             RegDeleteKeyW(HKEY_CURRENT_USER, verb.c_str());
         }
         // Se [z]f non era attivo, il resto appartiene a qualcun altro (un altro file manager): non si tocca
         if (!wasOn) { notifyAssocChanged(); return true; }
-        for (int i = 0; i < 2; i++) {
-            std::wstring prev;
+        for (int i = 0; i < 3; i++) {
+            std::wstring cur, prev; // non scritta da [z]f (gli zip, se attivato prima della 1.0.0-beta.6): non si tocca
+            if (!regGet(kShellKeys[i], nullptr, cur) || cur != kVerb) continue;
             if (regGet(kBackup, kBackupNames[i], prev)) regSet(kShellKeys[i], nullptr, prev);
             else RegDeleteKeyValueW(HKEY_CURRENT_USER, kShellKeys[i], nullptr); // il valore predefinito non c'era
         }
@@ -186,5 +204,5 @@ static void toggleDefault() {
 static void onDefaultDone(bool on, bool ok) {
     g_defaultBusy = false;
     if (!ok) notice(L"Impossibile modificare il registro", false);
-    else notice(on ? L"[z]f apre cartelle e unità al posto di Explorer (anche Win+E)" : L"Ripristinato Explorer", true);
+    else notice(on ? L"[z]f apre cartelle, unità e zip al posto di Explorer (anche Win+E)" : L"Ripristinato Explorer", true);
 }
