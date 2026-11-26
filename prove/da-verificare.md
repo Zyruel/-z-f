@@ -20,6 +20,20 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 0000000000000000000000000000000000. Destinazione dei collegamenti su un'unità di rete (z-f-dev, novembre 2026)
+
+Compilato senza avvisi (MSVC). Con `build\collegamenti-prova.exe`: un collegamento costruito
+come lo scrive Windows per `V:\cartella\programma.exe` (LinkInfo con unità e condivisione, senza
+percorso locale) dava `cartella\programma.exe`, ora il percorso intero; i 71 collegamenti di
+Desktop e menu Start restano tutti uguali a Windows.
+
+- [x] In una cartella di collegamenti a programmi su un'unità di rete, la colonna Destinazione
+      mostra `V:\…` (o `\\server\…` per quelli senza unità), come il campo Destinazione delle
+      Proprietà. Provato da Zyruel su un altro PC ("bello, mi piace").
+- [ ] Clic sulla destinazione di uno di questi: si apre la sua cartella sull'unità di rete con il
+      programma selezionato, senza "Percorso non trovato".
+- [ ] `build\collegamenti-prova.exe` su quella cartella: nessun collegamento diverso da Windows.
+
 ## 000000000000000000000000000000000. "Vai a" dal percorso (z-f-dev, novembre 2026)
 
 Compilato senza avvisi (MSVC). Provato da Zyruel su un altro PC ("direi che funziona"); Claude

@@ -26,7 +26,10 @@ quel codice, o tutti insieme in un momento tranquillo. Quando una voce è fatta 
   il percorso dalla LinkInfo, dalla variabile d'ambiente o dal percorso relativo; un collegamento
   che ha solo l'elenco di elementi della shell (IDList) resta senza destinazione. Sui 177 del PC
   non ce n'è nessuno (tutti uguali a Windows). Da rivedere se su un altro PC ne compare uno vuoto
-  dove le proprietà di Windows mostrano un percorso.
+  dove le proprietà di Windows mostrano un percorso. Un caso concreto (26/11): Windows scrive solo
+  l'IDList quando, alla creazione, la destinazione non è raggiungibile (per esempio un collegamento
+  a un'unità di rete creato mentre l'unità non è collegata). Leggerlo vorrebbe dire decodificare
+  gli elementi della IDList (unità, poi un nome per cartella).
 - [ ] **Icona grande mancante alla prima anteprima dopo l'avvio** (novembre 2026, visto una volta
   provando i file solo online). z-f-dev aperto con l'anteprima già accesa su un PNG solo online:
   righe d'informazione senza l'icona grande; tornandoci dopo, l'icona c'era. Causa probabile: il

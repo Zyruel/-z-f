@@ -34,9 +34,12 @@ static std::wstring lkWide(const uint8_t* p, const uint8_t* end) {
     return s;
 }
 
-// base + "\" + suffix (il suffisso della LinkInfo è il resto del percorso dopo l'unità o la condivisione)
+// base + "\" + suffix (il suffisso della LinkInfo è il resto del percorso dopo l'unità o la condivisione).
+// Senza base il suffisso da solo non è un percorso: vuoto, così si prova la base successiva (su un'unità
+// di rete il percorso locale manca e la base è "V:")
 static std::wstring lkJoin(std::wstring base, const std::wstring& suffix) {
-    if (suffix.empty() || base.empty()) return base + suffix;
+    if (base.empty()) return L"";
+    if (suffix.empty()) return base;
     if (base.back() != L'\\') base += L'\\';
     return base + suffix;
 }

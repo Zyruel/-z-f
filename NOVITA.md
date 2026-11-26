@@ -23,6 +23,9 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 - **L'anteprima tiene la sua larghezza:** con la finestra stretta si adattano le colonne; prima
   l'anteprima si prendeva lo spazio lasciato da ogni colonna stretta col mouse, e una colonna non
   si riusciva ad allargare.
+- **Collegamenti su un'unità di rete:** la colonna Destinazione mostrava il percorso senza
+  l'unità ("cartella\programma.exe" invece di "V:\cartella\programma.exe"), e aprire il percorso
+  diceva "Percorso non trovato". Ora c'è l'unità, come nelle proprietà di Windows.
 
 ## 1.0.0-beta.4 (novembre 2026)
 
