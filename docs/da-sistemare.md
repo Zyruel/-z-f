@@ -10,10 +10,6 @@ quel codice, o tutti insieme in un momento tranquillo. Quando una voce è fatta 
   scrivono Esplora file e 7-Zip, e non in 437 come dice la specifica. Le accentate minuscole sono
   uguali nelle due; À, Á e simili no. Da confermare con Zyruel, magari dopo aver aperto uno zip
   vecchio creato su un PC americano o con un altro programma.
-- [ ] **"vswhere.exe non è riconosciuto" durante `build.bat`** (novembre 2026). Compare nella
-  compilazione MSVC, che però va a buon fine. Probabilmente viene da `vcvars64.bat` di Visual
-  Studio (riga 20 di `build.bat`: solo l'uscita normale va in `nul`, gli errori no), non dalla
-  chiamata a vswhere dello script. Da capire, poi zittirlo o correggerlo.
 - [ ] **Il processo a volte resta vivo 5–8 s dopo la chiusura della finestra** (novembre 2026,
   visto durante le prove delle miniature). La finestra sparisce subito, ma `z-f-dev.exe` (e anche
   la build di prima, alla pari) esce dopo 1 s di solito e dopo 5–8 s una volta su tre: misurato

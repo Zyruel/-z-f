@@ -5,8 +5,8 @@
 // quando compare e la chiude: per l'eliminazione preme "No", quindi non si elimina niente.
 // Usare solo su una cartella di prova con file finti.
 //
-// Compilare da un prompt di Visual Studio:
-//   cl /std:c++17 /O2 /EHsc /MT /DUNICODE /D_UNICODE shell-verbi.cpp user32.lib shell32.lib ole32.lib
+// Compilare (da Bash, nella cartella del progetto; l'exe va in build\):
+//   cmd //c '.\build.bat prova prove\shell-verbi.cpp user32.lib shell32.lib ole32.lib'
 // Uso:  shell-verbi.exe <cartella> <voci> prepara|elimina|proprieta
 #define NOMINMAX
 #include <windows.h>

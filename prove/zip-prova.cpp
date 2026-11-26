@@ -2,8 +2,8 @@
 // estrae tutto in una cartella, con i tempi. I file estratti si confrontano poi con gli originali
 // (sha1, o Expand-Archive di Windows).
 //
-// Compilazione (dalla cartella del progetto, con l'ambiente di Visual Studio):
-//   cl /nologo /std:c++17 /utf-8 /EHsc /W3 /O2 /MT /DUNICODE /D_UNICODE /Fe:build\zip-prova.exe prove\zip-prova.cpp
+// Compilare (da Bash, nella cartella del progetto; l'exe va in build\):
+//   cmd //c '.\build.bat prova prove\zip-prova.cpp'
 // Uso:
 //   build\zip-prova.exe archivio.zip cartella-di-uscita     (elenco ed estrazione)
 //   build\zip-prova.exe archivio.zip                        (solo elenco, cinque volte: la prima legge il disco)
@@ -14,6 +14,7 @@
 static void dirSizeFill(Listing*) {}
 static void linksFind(Listing*) {}
 #include "../src/zip.cpp"
+#include "../src/lnk.cpp" // netPlacesRead, chiamata da listing.cpp
 
 int wmain(int argc, wchar_t** argv) {
     if (argc < 2) { fwprintf(stderr, L"uso: zip-prova archivio.zip [cartella]\n"); return 2; }

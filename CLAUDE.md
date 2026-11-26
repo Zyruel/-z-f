@@ -40,55 +40,45 @@ documentazione sono in italiano; `shader.hlsl` è solo ASCII.
     la tabella dei moduli. Niente storia (sta in `NOVITA.md`) né comportamento visibile (sta in
     DESIGN e README);
   - `NOVITA.md`: cosa cambia in ogni versione; la sezione del rilascio è anche la nota della Release.
-- **Versione:** `ZF_VERSION` in `src/base.h`, con il Semantic Versioning (deciso con Zyruel a
-  novembre 2026, dopo la 0.28): `1.0.0-beta.N` le beta, `1.0.0-rc.N` le candidate, `1.0.0` la
-  stabile; poi `1.0.1` per le correzioni, `1.1.0` per le funzioni nuove, `2.0.0` per i cambiamenti
-  grossi. Le versioni fino alla 0.28 erano `0.N`.
-- **Repository:** git, `origin` = github.com/Zyruel/-z-f, **pubblico** (licenza MIT) dalla
-  1.0.0-beta.2, con una cronologia che riparte da lì. La storia fino alla 1.0.0-beta.1 (con i suoi
-  tag e la sua Release) è in un archivio privato (remoto `archivio`): non ci si
-  pusha più. Commit e push solo quando Zyruel lo chiede; `build/` è escluso.
+- **Versione:** `ZF_VERSION` in `src/base.h`, con il Semantic Versioning dalla 1.0
+  (`1.0.0-beta.N`, `1.0.0-rc.N`, `1.0.0`, poi `1.0.1`, `1.1.0`, `2.0.0`: le regole in `/rilascio`).
+  Fino alla 0.28 le versioni erano `0.N`.
+- **Repository:** `origin` = github.com/Zyruel/-z-f, **pubblico** (licenza MIT); la storia fino alla
+  1.0.0-beta.1 è nel remoto privato `archivio`, dove non si pusha più. Commit e push solo quando
+  Zyruel lo chiede, su `dev`. `main` riceve solo i rilasci, con la pull request di `/rilascio`
+  (skill in `.claude/skills/rilascio`, la lancia solo Zyruel: se chiede una pull request `dev` →
+  `main` senza `/rilascio`, non la si apre e gli si ricorda `/rilascio`). Mai `--no-verify`, push
+  su `main` o push forzati: li ferma `.claude/hooks/regole.sh`, e `main` è protetto anche su
+  GitHub e da `.githooks/pre-push` (attivo con `git config core.hooksPath .githooks`, una volta
+  per copia del repository).
 - **Repository pubblico:** nei file e nei messaggi di commit niente dati personali (l'autore è
   Zyruel, mai il nome di battesimo; niente riferimenti ad amici o altre persone; niente percorsi con
   il nome utente, nomi di server, condivisioni e cartelle di lavoro: negli esempi `\\server\…`,
   `C:\Users\utente`) e niente nomi di altri file manager presi a confronto.
   `.githooks/pre-push` lo controlla nei commit in uscita (email non anonime, percorsi con un nome
-  utente, `.exe`/`.sig`/chiavi, parole private) e blocca il push dicendo commit, file e riga: si
-  corregge il commit. Le parole private sono in `.git/info/parole-private.txt`, che non si pusha.
-- **Branch:**
-  - `dev`: il lavoro di ogni giorno, si committa e si pusha qui;
-  - `main`: solo versioni rilasciate, aggiornato con una pull request da `dev` (unione con merge
-    commit, non squash, così `dev` resta allineato). Dopo l'unione, `dev` si riallinea a `main`
-    (`git merge --ff-only origin/main`);
-  - `main` è protetto su GitHub (pull request obbligatoria, anche per gli amministratori) e in
-    locale da `.githooks/pre-push`, attivo con `git config core.hooksPath .githooks` (una volta per
-    copia del repository), che ferma l'errore prima. Non si scavalca con `--no-verify`.
-- **Rilascio:** una pull request `dev` → `main` è un rilascio: se Zyruel la chiede senza
-  `/rilascio`, non la si apre e gli si ricorda `/rilascio`. Si fa con `/rilascio [versione]` (skill
-  in `.claude/skills/rilascio`, la lancia solo Zyruel): versione nei documenti, build, copia in `build\z-f-<versione>.exe` (fino alla 0.28:
-  `build\z-f-0.N.exe`) firmata, pull request `dev` → `main`, tag annotato e Release con l'exe e la
-  firma, da cui gli exe distribuiti si aggiornano da soli. La chiave privata di firma è solo sul PC
-  di Zyruel: senza, [z]f rifiuta l'aggiornamento, e non se ne crea un'altra.
+  utente, `.exe`/`.sig`/chiavi, parole private, in `.git/info/parole-private.txt`) e blocca il push
+  dicendo commit, file e riga: si corregge il commit.
 
 ## Compilare e provare
 
 Come si compila e si prova, passo per passo: `/prova` (skill in `.claude/skills/prova`). Le regole:
 
-- **Zero avvisi** con MSVC (`cmd /c '.\build.bat'`; attenzione a C4244, int → float, che zig non
-  segnala) e con zig.
-- **Eseguibili:** `build\z-f.exe` è la build MSVC che Zyruel usa, registrata come file manager
-  predefinito; `build\z-f-dev.exe` la build di prova.
-- **PowerShell e `[z]f`:** PowerShell non gestisce le parentesi quadre nei percorsi: gli exe si
-  copiano e verificano con Bash (`cp`, `sha1sum`); i percorsi nei file .md si scrivono con lo
-  strumento Edit (da Bash i backslash possono rovinarsi).
+- **Si compila da Bash:** `cmd //c '.\build.bat dev'` per la build di prova (`build\z-f-dev.exe`),
+  `cmd //c '.\build.bat'` per `build\z-f.exe` (la build MSVC che Zyruel usa, registrata come file
+  manager predefinito), `build.bat prova` per i programmi di `prove\`. **Zero avvisi** con MSVC
+  (attenzione a C4244, int → float, che zig non segnala) e con zig.
+- **PowerShell e `[z]f`:** lo strumento PowerShell non entra in una cartella con le parentesi
+  quadre (resta in System32) e non le gestisce nei percorsi: compilare, copiare e verificare gli
+  exe si fa da Bash (`cp`, `sha1sum`); i percorsi nei file .md si scrivono con lo strumento Edit
+  (da Bash i backslash possono rovinarsi).
 - **Su un PC vero, non a memoria.** Zyruel preferisce che le prove le faccia Claude quando può (con
   il controllo dello schermo); altrimenti gli si chiede uno screenshot.
 - **Rispetto per Zyruel:** se sta usando il PC (con un'app a schermo intero, per esempio), non si
   tocca schermo né tastiera; non si interferisce con le sue finestre di [z]f (le prove in z-f-dev,
-  in una finestra separata con `prove\dev.bat`; le finestre di prova si chiudono per PID, mai
-  `taskkill /IM`); le prove col mouse nella lista in una cartella di prova con file finti.
+  in una finestra separata con `prove\dev.bat`; le finestre di prova si chiudono per PID, mai per
+  nome); le prove col mouse nella lista in una cartella di prova con file finti.
 - **Non scrivere nel registro** al posto di Zyruel: l'interruttore "Usa [z]f al posto di Explorer"
-  lo usa lui.
+  lo usa lui. Questa regola e la chiusura per nome le ferma `.claude/hooks/regole.sh`.
 - **Dopo ogni prova:** controllare `build\z-f-log.txt` (le voci normali dell'avvio sono in `/prova`).
 
 ## Convenzioni del codice
@@ -163,36 +153,9 @@ Come si compila e si prova, passo per passo: `/prova` (skill in `.claude/skills/
 
 ## Prossimi passi (concordati, in quest'ordine)
 
-La 0.18 ha "Vai a" (`goto.cpp`, Ctrl+P · Ctrl+G), la selezione col rettangolo e le colonne
-ridimensionabili (`listmouse.cpp`) e il pannello di anteprima (`preview.cpp`, Alt+P). La 0.19 ha
-annulla e ripeti (`fileops.cpp`, Ctrl+Z · Ctrl+Y) e la vista a griglia con miniature (`thumbs.cpp`,
-Ctrl+Shift+2/3/4 · Ctrl+Shift+6). La 0.20 ha "Questo PC" nella barra laterale, connetti e
-disconnetti unità di rete (`sidebar.cpp`, mpr.dll caricata al primo uso), i nomi delle unità di
-rete come in Explorer e l'opzione `menu_completo` (menu della shell col tasto destro). La 0.21 ha
-la dimensione totale delle cartelle (`dirsize.cpp`) e il salto dei dialoghi Apri/Salva
-(`filedlg.cpp`; prova con `prove\dialoghi-prova.cpp`). Le prove a mano che restano a
-Zyruel sono in `prove\da-verificare.md`.
-
-La 0.22 è il controllo di tutto il codice rispetto ai principi (novembre 2026; sezioni da 000000
-a 00000000000 di `da-verificare.md`). La 0.23 ha il menu completo della shell su un thread suo
-(`shell.cpp`, sezione 000000000000), la 0.24 l'inizio di un trascinamento con molte voci
-(`drag.cpp`, sezione 0000000000000). La 0.25 chiude il controllo (sezione 00000000000000):
-Shift+Canc e Proprietà di più voci sul thread del menu della shell (`shellVerb` → `smSend`;
-misure con `prove\shell-verbi.cpp`), "Vai a" misurato (`prove\vai-a-misura.cpp`: nessun
-cambiamento), i ritocchi da 1 px (segnaposto delle icone in `theme.h`, niente `+ 1` in
-`drawCrumbs`, `ROW_EXTRA` arrotondato come eccezione scritta) e i tasti ricavati da `kShortcuts`
-(decisi con Zyruel). La 0.26 ha gli zip come cartelle in sola lettura (`zip.cpp`, `zipout.cpp`,
-sezione 0000000000000000) e Incolla di elementi senza percorso, come i file copiati da uno zip in
-Esplora file (sezione 000000000000000). La 0.27 ha la colonna Destinazione dei collegamenti (`lnk.cpp` lettore, `links.cpp` colonna e clic, sezione 00000000000000000). La 0.28 ha la
-barra laterale a tutta altezza e ridimensionabile (i bordi dei pannelli passano dal codice dei bordi
-delle colonne, `listmouse.cpp`), il filtro nella barra di stato, la barra dei tempi come opzione e
-le unità sotto Questo PC (sezioni 0000000000000000000 e 000000000000000000). Il monitor di
+Nessuno in sospeso dopo la 1.0.0-beta.4: le idee non ancora decise sono in `docs/idee.md`, e quando
+Zyruel ne sceglie una si scrive qui. Cosa c'è in ogni versione è in `NOVITA.md`. Il monitor di
 Zyruel è a 175%.
-
-La 1.0.0-beta.3 ha l'aggiornamento automatico dalle Release, firmato
-(`update.cpp`, `strumenti\firma.cpp`), con l'icona di stato accanto alla versione e il riavvio di
-tutte le finestre, e la riapertura delle schede all'avvio (`tabs.cpp`); prove nella sezione
-000000000000000000000 di `prove\da-verificare.md`.
 
 **Tre elenchi da tenere aggiornati** (si scrive lì appena viene fuori qualcosa, non a memoria):
 - `prove\da-verificare.md`: le prove a mano che restano, per sezione;

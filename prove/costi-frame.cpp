@@ -1,6 +1,7 @@
 // Misura a parte dei costi per frame segnalati dal controllo (principio 2), con lo stesso codice
 // di [z]f: selCount su tutta la vista, dirSizeGet e iconFor per ogni riga visibile.
-// Compilare da un prompt di Visual Studio:  cl /std:c++17 /O2 /EHsc /MT /DUNICODE costi-frame.cpp user32.lib
+// Compilare (da Bash, nella cartella del progetto; l'exe va in build\):
+//   cmd //c '.\build.bat prova prove\costi-frame.cpp user32.lib'
 // Novembre 2026 (Ryzen 9 7900): selCount 30.734 voci 0,020 ms; dirSizeGet 60 righe 0,003 ms; iconFor 0,001 ms.
 #define NOMINMAX
 #include <windows.h>

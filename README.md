@@ -141,6 +141,7 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 ```bat
 build.bat          :: MSVC, consigliato  -> build\z-f.exe
 build.bat debug    :: con simboli per il debugger
+build.bat dev      :: build di prova, che non si aggiorna da sola  -> build\z-f-dev.exe
 build_zig.bat      :: senza Visual Studio (winget install zig.zig)  -> build\z-f-dev.exe
 ```
 

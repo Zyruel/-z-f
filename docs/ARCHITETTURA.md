@@ -894,10 +894,23 @@ predefiniti, tre preferiti diventati uno, due viste diventate una.
 
 ## Compilare: MSVC e zig
 
-`build.bat` trova da solo `cl.exe` tramite `vswhere`. Se nel PATH c'è anche `fxc.exe` (incluso nel
+`build.bat` trova da solo `cl.exe` tramite `vswhere`. Mette anche la cartella di `vswhere` nel PATH,
+perché `vcvars64.bat` lo chiama per nome: senza, scrive "vswhere.exe non è riconosciuto" (innocuo, ma
+in mezzo all'uscita dove si cercano gli avvisi). Se nel PATH c'è anche `fxc.exe` (incluso nel
 Windows SDK), gli shader vengono precompilati e l'avvio è più rapido; altrimenti vengono compilati
 all'avvio, e la barra di stato lo segnala. L'icona (`src\z-f.rc`) la compila `rc.exe`, anche lui
 del Windows SDK, in `build\z-f.res`, che va al link con il resto.
+
+Oltre alla build di rilascio (`build\z-f.exe`) e a `debug`:
+
+- `build.bat dev` scrive la build di prova `build\z-f-dev.exe`, con le stesse opzioni più `ZF_DEV`
+  (non si aggiorna da sola): si compila anche mentre `z-f.exe` è aperto;
+- `build.bat prova prove\x.cpp <librerie>` compila un programma di prova con le opzioni di tutti, e
+  l'exe va in `build\`. Il comando esatto è in cima a ogni file di `prove\`.
+
+Si lancia da Bash con `cmd //c '.\build.bat …'`. Il `.\` serve dove la cartella corrente non è
+nella ricerca dei comandi; da PowerShell no, perché non entra in una cartella con le parentesi
+quadre.
 
 **Senza Visual Studio:** `winget install zig.zig`, poi `build_zig.bat`, che scrive
 `build\z-f-dev.exe` (la build di prova) e non tocca `build\z-f.exe`. Usa gli shader precompilati se

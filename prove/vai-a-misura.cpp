@@ -7,8 +7,8 @@
 // Per ogni ricerca: il tempo con tutte le cartelle, e la somma delle ricerche rifatte mentre le
 // cartelle arrivano una alla volta (come onGotoDir).
 //
-// Compilare da un prompt di Visual Studio:
-//   cl /std:c++17 /O2 /EHsc /MT /DUNICODE /D_UNICODE vai-a-misura.cpp user32.lib
+// Compilare (da Bash, nella cartella del progetto; l'exe va in build\):
+//   cmd //c '.\build.bat prova prove\vai-a-misura.cpp user32.lib'
 #define NOMINMAX
 #include <windows.h>
 #include <stdio.h>

@@ -69,22 +69,20 @@ gh auth status
 - `NOVITA.md`: `## Prossima versione (in preparazione)` diventa `## $V (<mese> <anno>)`, con il
   mese in italiano e minuscolo (`## 1.0.0-beta.3 (novembre 2026)`). Non si aggiunge una
   "Prossima versione" vuota: la rimette la prima funzione nuova.
-- Se `CLAUDE.md` ("Prossimi passi") o `prove\da-verificare.md` parlano della versione come "in
-  preparazione", si aggiornano.
+- Se `prove\da-verificare.md` parla della versione come "in preparazione", si aggiorna.
 - **Verifica:** `git diff` mostra solo queste righe; `grep -rn "in preparazione" CLAUDE.md
   NOVITA.md README.md` non trova più la versione che si sta pubblicando.
 
 ## 4. Build di rilascio (MSVC)
 
-Da PowerShell, nella cartella del progetto:
+Da Bash, nella cartella del progetto (da PowerShell no: non entra in `[z]f`):
 
 ```
-cmd /c '.\build.bat'
+cmd //c '.\build.bat'
 ```
 
 - **Verifica: zero avvisi.** Nell'uscita non c'è nessun `warning` (attenzione a C4244, int →
-  float, che zig non segnala) e l'ultima riga è `Fatto: build\z-f.exe  [release]`. Il messaggio
-  "vswhere.exe non è riconosciuto" di `vcvars64` non viene dal codice: c'era già e non conta.
+  float, che zig non segnala) e l'ultima riga è `Fatto: build\z-f.exe  [release]`.
   Un avviso si corregge (commit a parte) e si ricompila.
 - Se il link fallisce perché `build\z-f.exe` è in uso (LNK1104), sono le finestre di [z]f di
   Zyruel: ci si ferma e gli si chiede di chiuderle. Non si chiudono al posto suo.
@@ -113,7 +111,7 @@ build/firma.exe "build/z-f-$V.exe"
 ls -l --time-style=full-iso "build/z-f-$V.exe" "build/z-f-$V.exe.sig"
 ```
 
-Se `build/firma.exe` non c'è, si compila prima, da PowerShell: `cmd /c '.\build.bat firma'`.
+Se `build/firma.exe` non c'è, si compila prima: `cmd //c '.\build.bat firma'`.
 `firma` scrive `build/z-f-$V.exe.sig` (64 byte) e la verifica subito.
 
 - **Verifica:** il comando esce con 0; il `.sig` esiste, è di **64 byte** ed è **più nuovo**
@@ -128,7 +126,7 @@ Se `build/firma.exe` non c'è, si compila prima, da PowerShell: `cmd /c '.\build
 ## 7. Commit "Versione $V" su `dev`
 
 ```
-git add src/base.h README.md NOVITA.md        # più CLAUDE.md / prove/da-verificare.md se cambiati al passo 3
+git add src/base.h README.md NOVITA.md        # più prove/da-verificare.md se cambiato al passo 3
 git commit                                    # titolo "Versione $V"
 git show --stat HEAD
 ```

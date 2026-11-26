@@ -1,8 +1,8 @@
 // Prova della scrittura negli appunti di [z]f (clipSetText in text.cpp, su un thread): gli appunti
 // tenuti aperti da un altro programma, o posseduti da un programma fermo.
 //
-// Compilare da un prompt di Visual Studio:
-//   cl /std:c++17 /O2 /EHsc /MT /utf-8 /DUNICODE /D_UNICODE appunti-prova.cpp user32.lib
+// Compilare (da Bash, nella cartella del progetto; l'exe va in build\):
+//   cmd //c '.\build.bat prova prove\appunti-prova.cpp user32.lib'
 // Uso:
 //   appunti-prova.exe occupa <secondi> [senza-finestra]
 //       apre gli appunti e li tiene aperti: Copia percorso in [z]f deve dire, dopo un secondo,

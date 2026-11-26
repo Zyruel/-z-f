@@ -15,8 +15,8 @@
 // Alla fine la radice si toglie (CfUnregisterSyncRoot); la cartella resta, con i file scaricati.
 // Niente registro: la radice non si registra presso la shell (StorageProviderSyncRootManager).
 //
-// Compilazione (dalla cartella del progetto, con l'ambiente di Visual Studio):
-//   cl /nologo /std:c++17 /utf-8 /EHsc /W3 /O2 /MT /DUNICODE /D_UNICODE /Fe:build\online-prova.exe prove\online-prova.cpp cldapi.lib shell32.lib ole32.lib user32.lib
+// Compilare (da Bash, nella cartella del progetto; l'exe va in build\):
+//   cmd //c '.\build.bat prova prove\online-prova.cpp cldapi.lib shell32.lib ole32.lib user32.lib'
 // Uso:
 //   build\online-prova.exe passi <cartella nuova> [file…]
 //   build\online-prova.exe attendi <cartella nuova> <secondi> [file…]
