@@ -139,7 +139,7 @@ static void dropTargetAt(int x, int y) {
             int si = sideHit(x, y);
             if (si >= nf) if (const SideItem* it = sideItem(si)) if (!it->path.empty()) set(DT_SIDE, si, it->path); // non su "Questo PC"
         }
-    } else if (x >= A.listX && x < A.listR - A.sbW && y >= A.listTop - A.headH && y < A.listTop + A.listH) {
+    } else if (x >= A.listX && x < itemsRight() && y >= A.listTop - A.headH && y < A.listTop + A.listH) {
         int r = itemAt(x, y);
         if (r >= 0) {
             const Entry& e = A.cur->e[A.view[r]];
@@ -662,7 +662,7 @@ static void dragArm(int x, int y, DWORD button) {
 // Tasto destro premuto su una riga: la seleziona (come Explorer) e può partire un trascinamento.
 // Se non si trascina, al rilascio arriva il menu contestuale di sempre.
 static void dragPressRight(int x, int y) {
-    if (A.menu.open || OP.open || A.renaming || !A.cur || x < A.listX || x >= A.listR - A.sbW) return;
+    if (A.menu.open || OP.open || A.renaming || !A.cur || x < A.listX || x >= itemsRight()) return;
     int r = itemAt(x, y);
     if (r < 0) return;
     if (!isSel(A.view[r])) moveCursorTo(r, false, false);
@@ -702,9 +702,9 @@ static void dragTick() {
     if (!DD.own && !DD.over) { KillTimer(A.hwnd, 8); return; }
     if (DD.over) {
         int x = DD.pt.x, y = DD.pt.y;
-        if (x >= A.listX && x < A.listR - A.sbW && y >= A.listTop - A.headH && y < A.listTop + A.listH && maxScroll() > 0) {
+        if (x >= A.listX && x < itemsRight() && y >= A.listTop - A.headH && y < A.listTop + A.listH && maxScroll() > 0) {
             // Vicino ai bordi lungo l'asse (in alto anche sull'intestazione; in Elenco a sinistra e a destra)
-            int dir = listView() ? (x < A.listX + A.rowH ? -1 : x >= A.listR - A.sbW - A.rowH ? 1 : 0)
+            int dir = listView() ? (x < A.listX + A.rowH ? -1 : x >= itemsRight() - A.rowH ? 1 : 0)
                     : (y < A.listTop + A.rowH) ? -1 : (y >= A.listTop + A.listH - A.rowH) ? 1 : 0;
             if (dir) {
                 A.scrollTarget += dir * A.rowH * ui::DRAG_SCROLL; // stessa velocità in pixel in ogni vista
@@ -731,12 +731,12 @@ static void drawDrop() {
         float ox, oy;
         scrollOffset(ox, oy);
         float x = b.x - ox, y = A.listTop + b.y - oy;
-        if (y >= A.listTop - 1 && y + b.h <= A.listTop + A.listH + 1 && x >= A.listX - 1 && x + b.w <= A.listR - A.sbW + 1)
+        if (y >= A.listTop - 1 && y + b.h <= A.listTop + A.listH + 1 && x >= A.listX - 1 && x + b.w <= itemsRight() + 1)
             rrect(x, y, b.w, b.h, r, C_SEL_EDGE, t);
         break;
     }
     case DT_LIST:
-        rrect(A.listX + px(ui::GAP_S), A.listTop, A.listR - A.sbW - A.listX - px(ui::GAP_S) * 2, A.listH, r, C_SEL_EDGE, t);
+        rrect(A.listX + px(ui::GAP_S), A.listTop, itemsRight() - A.listX - px(ui::GAP_S) * 2, A.listH, r, C_SEL_EDGE, t);
         break;
     case DT_SIDE:
         rrect(px(ui::GAP_S), sideItemY(DD.index), A.sideW - 1 - px(ui::GAP_M), A.sideItemH, r, C_SEL_EDGE, t);

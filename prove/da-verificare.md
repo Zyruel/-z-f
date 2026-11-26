@@ -139,8 +139,19 @@ Provato da Zyruel, a 175%:
 Da provare:
 - [ ] Elenco: trascinare file da una colonna e su una cartella in un'altra colonna, con lo
       scorrimento vicino ai bordi sinistro e destro.
-- [ ] Una cartella che era in griglia (viste.txt vecchio) si apre in Icone medie, e il file si
-      riscrive nella forma nuova.
+- [x] Una cartella che era in griglia (viste.txt vecchio) si apre con la misura che aveva la
+      griglia, e il file si riscrive nella forma nuova: provato da Claude con `APPDATA` in una
+      cartella di prova, `griglia_dimensione=2` e una riga "griglia" → la riga diventa
+      "icone 100" (Icone grandi). Senza `griglia_dimensione` resta Icone medie.
+- [x] Elenco senza la striscia vuota a destra (dopo la revisione dei push): le colonne arrivano al
+      bordo della lista, il mouse prende le voci anche lì (tooltip), Fine mostra l'ultima colonna
+      intera; con l'anteprima aperta le colonne si fermano al suo bordo. Provato da Claude in
+      z-f-dev, 400 file finti.
+- [x] Il cursore resta in vista quando cambia la geometria (`layout`): in Elenco, con la lista in
+      fondo, Alt+P lascia visibile la colonna del cursore (prima finiva a destra, fuori vista);
+      con la lista scorsa lontano dal cursore, Alt+P non la sposta. Provato da Claude in z-f-dev.
+- [ ] Lo stesso ridimensionando la finestra (anche in altezza, che in Elenco cambia le voci per
+      colonna) e trascinando il bordo della barra laterale, in Dettagli, Elenco e Icone.
 
 ## 0000000000000000000000000000000000000000. "Aggiungi percorso di rete…" in Questo PC (z-f-dev, novembre 2026)
 
@@ -214,6 +225,12 @@ Il registro non l'ha toccato Claude: l'interruttore lo usa Zyruel.
       finestra compariva dopo 4,7 s): doppio clic sullo zip, chiusura, di nuovo doppio clic,
       più volte di fila. Misurato da Claude chiudendo la principale con `WM_CLOSE`: 20–23 ms
       (prima 4,7 s).
+- [x] **Schede riaperte dopo una chiusura veloce** (dopo la revisione dei push: la principale
+      scrive i file in coda prima di liberare il mutex): provato da Claude con z-f-dev come
+      principale (z-f.exe chiuso) e `APPDATA` di prova con `riapri_schede=1`: tre schede, chiusura
+      con `WM_CLOSE` e riavvio subito, la principale nuova parte 39 ms dopo e riapre le tre
+      schede. "chiusura: file salvati" nel registro: 0,2 e 0,8 ms.
+- [ ] Lo stesso con `build\z-f.exe` e le schede vere di Zyruel.
 - [ ] **Disattivando:** gli zip tornano a Esplora file (`HKCU\Software\Classes\CompressedFolder\shell`
       senza valore predefinito, senza il verbo `z-f`); idem con `prove\ripristina-explorer.bat`.
 

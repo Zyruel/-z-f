@@ -84,6 +84,11 @@ struct SideItem {
 // Evidenziazione al passaggio del mouse che sfuma: entra la voce nuova, esce la precedente
 struct HoverFade { int cur = -1, prev = -1; float a = 0, pa = 0; };
 
+// Livelli di zoom della lista (Ctrl+rotellina): Dettagli 0%, Elenco 10%, poi Icone da 20% a 100%
+// (lato delle miniature in ui::THUMB_PX). Le scorciatoie delle icone portano a 40, 70 e 100%.
+enum { ZOOM_DETAILS = 0, ZOOM_LIST = 1, ZOOM_ICONS = 2, ZOOM_MAX = 10,
+       ZOOM_SMALL = 4, ZOOM_MEDIUM = 7, ZOOM_LARGE = 10 };
+
 struct App {
     HWND hwnd = nullptr;      // finestra principale (riceve tutto l'input)
     PopupMenu menu;
@@ -229,6 +234,9 @@ struct App {
     std::unordered_map<std::wstring, FolderView> viewFolders; // cartelle non in Dettagli (minuscole) → ultimo uso, zoom
     uint32_t viewUse = 0;             // contatore dell'ultimo uso (si tengono le più recenti)
     bool viewsReady = false;          // viste.txt letto all'avvio
+    // Righe "griglia" di viste.txt (prima della 1.0.0-beta.6): lo zoom che valgono, dalla vecchia
+    // griglia_dimensione di impostazioni.txt (letta prima di viste.txt); senza, Icone medie
+    int gridLegacyZoom = ZOOM_MEDIUM;
     float viewX = 0, viewW = 0;       // controllo della vista nella barra di stato (render lo misura)
     bool viewHover = false;
     HoverFade viewFade;
@@ -295,12 +303,11 @@ struct App {
 // Misura del tema (px a scala 100%) → pixel interi alla scala DPI corrente
 static inline float px(float v) { return floorf(v * A.scale); }
 
-// Livelli di zoom della lista (Ctrl+rotellina): Dettagli 0%, Elenco 10%, poi Icone da 20% a 100%
-// (lato delle miniature in ui::THUMB_PX). Le scorciatoie delle icone portano a 40, 70 e 100%.
-enum { ZOOM_DETAILS = 0, ZOOM_LIST = 1, ZOOM_ICONS = 2, ZOOM_MAX = 10,
-       ZOOM_SMALL = 4, ZOOM_MEDIUM = 7, ZOOM_LARGE = 10 };
 static inline bool gridView() { return A.zoom >= ZOOM_ICONS; }
 static inline bool listView() { return A.zoom == ZOOM_LIST; }
+// Bordo destro dello spazio delle voci: prima della barra di scorrimento verticale; in Elenco, che
+// scorre in orizzontale con la barra in fondo, fino al bordo della lista
+static inline float itemsRight() { return listView() ? A.listR : A.listR - A.sbW; }
 
 // Primo caricamento di WIC nel processo (la DLL e i suoi codec): lo misura preview.cpp, chiunque lo
 // chieda per primo (anteprima o miniature della griglia), su quel thread; lo mostra F12
@@ -311,7 +318,8 @@ static volatile double g_wicFirstMs = 0;
 static const wchar_t* kInstanceProp = L"z-f.istanza";
 // Mutex "Local\z-f-istanza" della principale: si chiude insieme alla proprietà (input.cpp,
 // WM_DESTROY), non a fine processo. Il processo che esce può metterci più di un secondo, e intanto chi
-// avvia [z]f troverebbe il mutex senza la finestra e aspetterebbe FWD_WAIT per niente
+// avvia [z]f troverebbe il mutex senza la finestra e aspetterebbe FWD_WAIT per niente. Prima di
+// chiuderlo si scrivono i file in coda: la principale nuova li legge già aggiornati
 static HANDLE g_instanceMutex = nullptr;
 // "finestre_separate cambiata" tra le finestre di [z]f (RegisterWindowMessage, wParam il valore
 // nuovo): la usa la principale, ma l'interruttore può essere in un'altra finestra

@@ -40,8 +40,12 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
   la lista, passando per le viste: Dettagli (0%), **Elenco** (10%, nuova: icona e nome in colonne
   che scorrono in orizzontale, quante ne servono per l'altezza della finestra) e Icone da 20% a
   100%, con nove misure di miniature invece di tre. Lo zoom si ricorda per cartella, come prima la
-  griglia; le cartelle che erano in griglia si aprono in Icone medie (70%). Il testo si ingrandisce
+  griglia; le cartelle che erano in griglia si aprono in Icone piccole, medie o grandi, con la
+  misura che aveva la griglia. Il testo si ingrandisce
   ancora con Ctrl +/−.
+- **Il cursore resta in vista** quando la lista cambia misura (anteprima aperta o chiusa,
+  finestra ridimensionata, barra laterale allargata), se prima si vedeva: in Elenco la sua
+  colonna non finisce più fuori vista a destra.
 - **La vista è nella barra di stato**, a destra dei contatori di cartelle e file, dopo una
   barretta: icona e nome della vista; un clic apre il menu delle viste (Dettagli, Elenco, Icone
   piccole, medie e grandi), la rotellina lì sopra cambia lo zoom. Il pulsante ▦ della barra del
@@ -56,7 +60,7 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
   altro programma (7-Zip, WinRAR) restano a quello.
 - **Aprire una cartella subito dopo aver chiuso [z]f:** la finestra compariva dopo quasi 5
   secondi (doppio clic sul desktop, Win+E, una cartella aperta da un altro programma). Ora compare
-  subito.
+  subito, e con "Riapri le schede" ritrova quelle appena chiuse.
 - **Meno memoria nelle cartelle enormi:** in WinSxS (30.734 cartelle) una finestra occupava 126 MB
   e ora da 98 a 101; nella cartella utente resta sui 76. La lista non tiene più spazio vuoto
   riservato durante la lettura, e il conto delle dimensioni delle cartelle non tiene più in

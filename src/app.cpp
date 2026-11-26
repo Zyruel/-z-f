@@ -28,7 +28,18 @@ static float previewWidth() {
     return w >= px(ui::PREVIEW_MIN) ? w : 0;
 }
 
+static float lineLen();
+static float viewLen();
+static bool cursorInView(float s, bool whole);
+static void ensureVisible();
+
 static void layout() {
+    // Il cursore si vedeva: resta in vista anche con la geometria nuova (l'anteprima che si apre
+    // stringe Elenco e la colonna del cursore uscirebbe a destra). Se l'utente ha scorso lontano
+    // dal cursore la lista non si muove.
+    bool keepCursor = cursorInView(A.scrollY, false);
+    int oldPerLine = A.perLine;
+    float oldLine = lineLen(), oldView = viewLen();
     A.rowH = (float)(F.lineH + (int)lroundf(ui::ROW_EXTRA * A.scale)); // non px(): vedi ROW_EXTRA in theme.h
     A.topH = (float)(int)(A.rowH * ui::PATH_BAR);
     A.headH = A.rowH;
@@ -83,7 +94,7 @@ static void layout() {
     // bordi, sotto il nome su GRID_NAME_LINES righe; le voci di una riga si dividono la larghezza.
     // In Elenco colonne larghe LIST_COL_W di righe alte una riga, quante ne stanno sopra la barra di
     // scorrimento orizzontale (alta sbW, in fondo alla lista).
-    float lw = A.listR - A.sbW - A.listX;
+    float lw = itemsRight() - A.listX;
     if (gridView()) {
         float m = px(ui::GAP_S), pad = px(ui::GAP_M);
         A.thumbPx = px(ui::THUMB_PX[A.zoom - ZOOM_ICONS]);
@@ -106,6 +117,8 @@ static void layout() {
         A.cellX = A.listX;
         A.cellH = A.rowH;
     }
+    bool changed = A.perLine != oldPerLine || lineLen() != oldLine || viewLen() != oldView;
+    if (keepCursor && changed && viewLen() > 0 && !cursorInView(A.scrollTarget, true)) ensureVisible();
 }
 
 // Bordo b tra due colonne: 0 a sinistra di Data, 1 a sinistra di Dimensione, 2 a sinistra di
@@ -177,7 +190,7 @@ static float easeOut(float t) { t = t < 0 ? 0 : (t > 1 ? 1 : t); float u = 1 - t
 // --- scorrimento: le voci stanno su linee (righe; colonne in Elenco), che scorrono lungo un asse
 // Lunghezza di una linea e spazio visibile lungo l'asse
 static float lineLen() { return listView() ? A.cellW : A.cellH; }
-static float viewLen() { return listView() ? A.listR - A.sbW - A.listX - (A.cellX - A.listX) * 2 : A.listH; }
+static float viewLen() { return listView() ? itemsRight() - A.listX - (A.cellX - A.listX) * 2 : A.listH; }
 static float contentLen() { return (float)((A.view.size() + A.perLine - 1) / A.perLine) * lineLen(); }
 static float maxScroll() { return std::max(0.0f, contentLen() - viewLen()); }
 static void clampScroll() {
@@ -228,7 +241,7 @@ static CellParts gridParts(int vi) {
 
 // Voce sotto il punto (coordinate della finestra), -1 se nessuna
 static int itemAt(int x, int y) {
-    if (y < A.listTop || y >= A.listTop + A.listH || x < A.listX || x >= A.listR - A.sbW) return -1;
+    if (y < A.listTop || y >= A.listTop + A.listH || x < A.listX || x >= itemsRight()) return -1;
     float ox, oy;
     scrollOffset(ox, oy);
     float cx = x + ox - A.cellX, cy = y - A.listTop + oy;
@@ -243,6 +256,14 @@ static int itemAt(int x, int y) {
 static int firstVisibleItem() { return lineLen() > 0 ? (int)(A.scrollY / lineLen()) * A.perLine : 0; }
 static void scrollToItem(int vi) {
     A.scrollY = A.scrollTarget = (float)(vi / A.perLine) * lineLen();
+}
+
+// Il cursore, con lo scorrimento s, si vede tutto (whole) o almeno in parte
+static bool cursorInView(float s, bool whole) {
+    if (A.sel < 0 || A.sel >= (int)A.view.size() || A.perLine < 1) return false;
+    float len = lineLen(), view = viewLen(), top = (float)(A.sel / A.perLine) * len;
+    if (len <= 0 || view <= 0) return false;
+    return whole ? top >= s && top + len <= s + view : top < s + view && top + len > s;
 }
 
 static void ensureVisible() {
@@ -726,10 +747,10 @@ static const wchar_t* driveKind(UINT t) {
 // Barra di scorrimento: a destra della lista, in Elenco orizzontale in fondo alla lista. Il binario
 // va da trackStart per trackLen lungo l'asse (x in Elenco, y altrimenti)
 static float trackStart() { return listView() ? A.listX : A.listTop; }
-static float trackLen() { return listView() ? A.listR - A.sbW - A.listX : A.listH; }
+static float trackLen() { return listView() ? itemsRight() - A.listX : A.listH; }
 // Il punto (x, y) è sulla barra di scorrimento, con o senza maniglia
 static bool scrollbarAt(int x, int y) {
-    if (listView()) return y >= A.listTop + A.listH - A.sbW && y < A.listTop + A.listH && x >= A.listX && x < A.listR - A.sbW;
+    if (listView()) return y >= A.listTop + A.listH - A.sbW && y < A.listTop + A.listH && x >= A.listX && x < itemsRight();
     return x >= A.listR - A.sbW && x < A.listR && y >= A.listTop && y < A.listTop + A.listH;
 }
 // Maniglia: inizio (nella finestra) e lunghezza lungo l'asse; false se non c'è niente da scorrere

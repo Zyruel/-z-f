@@ -496,7 +496,7 @@ static void tipTarget(int x, int y, int& kind, int& index) {
     if (si >= 0) { kind = TIP_SIDE; index = si; return; }
     if (si == -2 || si == -3) { kind = TIP_DRIVES; index = si; return; }
     if (y >= A.pathY && y < A.pathY + A.topH) { kind = TIP_PATH; index = crumbHit(x, y); return; }
-    if (x < A.listX || x >= A.listR - A.sbW) return;
+    if (x < A.listX || x >= itemsRight()) return;
     if (y >= A.sideTop && y < A.listTop) {
         if (colBorderAt(x, y) >= 0 || A.colDrag >= 0) return; // sul bordo il clic non ordina: niente "Ordina per…"
         kind = TIP_HEADER; index = colAt(x);

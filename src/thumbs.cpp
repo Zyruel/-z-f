@@ -814,7 +814,8 @@ static void drawThumb(int vi, const Box& box, bool hidden, double now) {
 
 // --- vista per cartella (viste.txt) -------------------------------------------------------------
 // Una riga per cartella non in Dettagli: "percorso<TAB>elenco" o "percorso<TAB>icone 40" (zoom in
-// percento). Le righe "percorso<TAB>griglia" delle versioni di prima valgono icone medie.
+// percento). Le righe "percorso<TAB>griglia" delle versioni di prima valgono la misura che aveva
+// la griglia (griglia_dimensione, A.gridLegacyZoom), e il file si riscrive nella forma nuova.
 static std::wstring viewKey(const std::wstring& path) {
     std::wstring k = path;
     if (!k.empty()) CharLowerBuffW(&k[0], (DWORD)k.size());
@@ -831,7 +832,7 @@ static int viewZoomOf(const std::wstring& path) {
 // Zoom di una riga di viste.txt (dopo il TAB); -1 se non si capisce
 static int viewParse(const std::wstring& v) {
     if (v == L"elenco") return ZOOM_LIST;
-    if (v == L"griglia") return ZOOM_MEDIUM;
+    if (v == L"griglia") return A.gridLegacyZoom; // versioni di prima: la misura che aveva la griglia
     if (v.compare(0, 6, L"icone ") == 0) {
         int z = _wtoi(v.c_str() + 6) / 10;
         if (z >= ZOOM_ICONS && z <= ZOOM_MAX) return z;

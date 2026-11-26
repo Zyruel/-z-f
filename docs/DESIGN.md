@@ -261,7 +261,8 @@ doppione.
     `itemAt`, `itemBg`);
   - **Elenco**: icona e nome come in una riga di Dettagli (stesse posizioni, stesso segnaposto),
     in colonne larghe `LIST_COL_W` (300) con tante righe quante ne stanno nell'altezza della lista
-    sopra la barra di scorrimento, che è orizzontale e in fondo alla lista. Si scorre in
+    sopra la barra di scorrimento, che è orizzontale e in fondo alla lista; a destra non c'è la
+    barra verticale, e le colonne arrivano fino al bordo della lista. Si scorre in
     orizzontale: la rotellina di una colonna a scatto; ↑ ↓ una voce, ← → una colonna; nomi lunghi
     in "…" alla fine della colonna. Fondo di hover e selezione con `GAP_XS` di margine ai lati (le
     colonne non si toccano, le righe sì); il rettangolo prende le voci di cui tocca il fondo; vicino
@@ -704,7 +705,10 @@ doppione.
   Ogni animazione imposta `A.animActive` finché si muove: è l'unico modo per avere un altro frame.
 - **Mai aspettare bloccando il thread dell'interfaccia:** né il disco né il vsync. Il ciclo principale
   aspetta il vsync insieme ai messaggi (`MsgWaitForMultipleObjectsEx`). Eccezioni volute e misurate:
-  `dwmFlush` nel passaggio WARP → GPU (una volta), l'attesa della GPU con F12 aperto (per misurarla).
+  `dwmFlush` nel passaggio WARP → GPU (una volta), l'attesa della GPU con F12 aperto (per misurarla),
+  e la scrittura dei file in coda (`saveFlush`) quando la finestra non c'è più: alla fine del
+  processo, in `WM_ENDSESSION` e nel `WM_DESTROY` della principale, prima di liberare il mutex
+  dell'istanza unica (0,2–0,8 ms, "chiusura: file salvati" nel registro).
 - **GPU persa** (driver aggiornato o reimpostato): non si disegna finché un thread non crea un
   device nuovo (GPU, altrimenti WARP); poi glifi e icone si rifanno al primo uso, anteprima e
   miniature tornano dalle copie in RAM (`hybrid.cpp`). Nel log: "GPU persa", "GPU ripristinata".

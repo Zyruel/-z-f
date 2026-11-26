@@ -458,7 +458,7 @@ static void onContextMenu(POINT pt) {
         c = pt;
         ScreenToClient(A.hwnd, &c);
         if (A.menu.open && menuInside(c.x, c.y)) return;
-        if (c.y < A.listTop || c.y >= A.listTop + A.listH || c.x < A.listX || c.x >= A.listR - A.sbW) return;
+        if (c.y < A.listTop || c.y >= A.listTop + A.listH || c.x < A.listX || c.x >= itemsRight()) return;
         int r = itemAt(c.x, c.y);
         background = r < 0;
         if (!background) {

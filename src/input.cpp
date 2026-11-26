@@ -605,7 +605,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             A.dirty = true;
             return 0;
         }
-        if (scrollbarAt(x, y) || x >= A.listR - A.sbW) { // barra di scorrimento (in Elenco in fondo; a destra resta vuoto)
+        if (scrollbarAt(x, y) || x >= itemsRight()) { // barra di scorrimento: verticale a destra, in Elenco in fondo
             float t0, tl;
             if (scrollbarAt(x, y) && thumbRect(t0, tl)) {
                 float m = (float)(listView() ? x : y); // lungo l'asse
@@ -732,7 +732,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (wp) { tabsSaveOnExit(); saveFlush(); logFlush(); }
         return 0;
     case WM_DESTROY:
-        tabsSaveOnExit(); // schede.txt, riavvio-<pid>.txt: li scrive saveFlush, a fine processo
+        tabsSaveOnExit(); // schede.txt, riavvio-<pid>.txt: li scrive saveFlush (la principale qui sotto, le altre a fine processo)
         // I dati messi negli appunti vivono in questo processo: prima di uscire vanno consegnati
         // a Windows, altrimenti un "Incolla" successivo riceve solo l'elenco dei file e perde
         // l'informazione copia/taglia.
@@ -740,7 +740,17 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         fdRelease();
         dropUnregister();
         RemovePropW(hwnd, kInstanceProp);
-        if (g_instanceMutex) { CloseHandle(g_instanceMutex); g_instanceMutex = nullptr; }
+        if (g_instanceMutex) {
+            // Prima i file in coda (schede.txt, impostazioni…): liberato il mutex, la principale nuova
+            // può partire subito e leggerli, e senza questa scrittura troverebbe quelli di prima. La
+            // finestra non c'è più e nessuno aspetta, come in saveFlush a fine processo. Una volta per
+            // chiusura: il tempo va sempre nel registro.
+            double t = nowMs();
+            saveFlush();
+            hitchLog("chiusura: file salvati", 0, nowMs() - t);
+            CloseHandle(g_instanceMutex);
+            g_instanceMutex = nullptr;
+        }
         PostQuitMessage(0);
         return 0;
     }

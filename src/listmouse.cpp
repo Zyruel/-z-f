@@ -114,7 +114,7 @@ static void mqUpdate() {
     if (A.cur != MQ.cur || A.selFlags.size() != MQ.base.size()) { mqEnd(); return; } // la cartella è cambiata
     double t0 = nowMs();
     float xc, yc; // il mouse, dentro la lista, in coordinate del contenuto
-    toContent(std::min(std::max((float)MQ.x, A.listX), A.listR - A.sbW),
+    toContent(std::min(std::max((float)MQ.x, A.listX), itemsRight()),
               std::min(std::max((float)MQ.y, A.listTop), A.listTop + A.listH), xc, yc);
     float top = std::min(MQ.y0, yc), bot = std::max(MQ.y0, yc);
     float left = std::min(MQ.x0, xc), right = std::max(MQ.x0, xc);
@@ -197,7 +197,7 @@ static void mqTick() {
     if (!MQ.active) { KillTimer(A.hwnd, 10); return; }
     bool lst = listView();
     float m = (float)(lst ? MQ.x : MQ.y);
-    float edgeLo = (lst ? A.listX : A.listTop) + A.rowH, edgeHi = (lst ? A.listR - A.sbW : A.listTop + A.listH) - A.rowH;
+    float edgeLo = (lst ? A.listX : A.listTop) + A.rowH, edgeHi = (lst ? itemsRight() : A.listTop + A.listH) - A.rowH;
     float d = m < edgeLo ? m - edgeLo : m > edgeHi ? m - edgeHi : 0;
     if (d != 0 && maxScroll() > 0) {
         float k = std::min(ui::MARQUEE_SCROLL_MAX, 1 + fabsf(d) / A.rowH);
@@ -223,7 +223,7 @@ static bool mqCancel() {
 // Contorno 1 px C_SEL_EDGE, fondo C_MARQUEE, angoli squadrati come in Windows; dentro la lista
 static void drawMarquee() {
     if (!MQ.active) return;
-    float top = A.listTop, bot = A.listTop + A.listH, l0 = A.listX, r0 = A.listR - A.sbW;
+    float top = A.listTop, bot = A.listTop + A.listH, l0 = A.listX, r0 = itemsRight();
     float ox, oy;
     scrollOffset(ox, oy);
     float ya = std::min(std::max(A.listTop + MQ.y0 - oy, top), bot);

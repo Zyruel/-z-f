@@ -164,7 +164,11 @@ segnalare:
   `prove\ime-avvio.cpp`). Dopo la 0.25 succede dopo il primo frame (F12, "attivazione"), quindi
   non ritarda più il contenuto (`prove\da-verificare.md` sezione 00000000000000);
 - `attesa vsync lunga` (40–110 ms) è un debito tecnico noto (CLAUDE.md): si segnala solo se
-  cambia.
+  cambia;
+- `chiusura: file salvati` a ogni chiusura della finestra principale (0,2–0,8 ms): si segnala
+  solo se supera qualche millisecondo;
+- il passaggio WARP → GPU può arrivare anche come `messaggio lento 0x0113` (circa 50 ms, al
+  posto di `0x8002`): è il timer che lo rimanda se l'interfaccia è occupata (`hybrid.cpp`).
 
 Tutto il resto si legge e si spiega.
 

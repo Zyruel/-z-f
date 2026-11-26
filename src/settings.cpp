@@ -19,6 +19,8 @@
 //   menu_completo=0        1: il tasto destro apre il menu completo della shell (Shift quello di [z]f)
 //   dimensione_cartelle=1  0: la colonna Dimensione non conta le cartelle (tooltip e anteprima sì)
 //   dialoghi=1             0: i dialoghi Apri e Salva degli altri programmi non saltano alla cartella di [z]f
+//   griglia_dimensione=1   (fino alla 1.0.0-beta.5) misura della griglia: si legge solo per le righe
+//                          "griglia" di viste.txt, che diventano Icone piccole, medie o grandi
 //   riapri_schede=0        1: la finestra principale riapre all'avvio le schede che aveva alla chiusura (schede.txt)
 //   finestre_separate=0    1: una cartella aperta da fuori (doppio clic, altri programmi) apre una finestra nuova, non una scheda
 //   aggiornamenti=1        0: niente controllo automatico degli aggiornamenti (il clic sulla versione nelle opzioni controlla lo stesso)
@@ -228,6 +230,11 @@ static bool settingsApply(const std::vector<std::wstring>& lines) {
         else if (k == L"menu_completo") A.shellMenu = v == L"1";
         else if (k == L"dimensione_cartelle") A.dirSizes = v != L"0";
         else if (k == L"dialoghi") A.dialogJump = v != L"0";
+        else if (k == L"griglia_dimensione") { // fino alla 1.0.0-beta.5: non si riscrive, decide solo le righe "griglia" di viste.txt
+            static const int kOld[] = { ZOOM_SMALL, ZOOM_MEDIUM, ZOOM_LARGE };
+            int n = _wtoi(v.c_str());
+            if (n >= 0 && n <= 2) A.gridLegacyZoom = kOld[n];
+        }
         else if (k == L"riapri_schede") A.reopenTabs = v == L"1";
         else if (k == L"finestre_separate") A.separateWindows = v == L"1";
         else if (k == L"aggiornamenti") A.updAuto = v != L"0";

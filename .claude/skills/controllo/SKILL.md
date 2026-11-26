@@ -220,6 +220,8 @@ con grep prima di segnalare.
 
 - Il `MessageBox` se Direct3D non parte all'avvio (`main.cpp`; DESIGN §1.7).
 - `dwmFlush` nel passaggio WARP → GPU, una volta; l'attesa della GPU con F12 aperto (DESIGN §10).
+- `saveFlush` a finestra già distrutta: fine processo (`main.cpp`), `WM_ENDSESSION` e `WM_DESTROY`
+  della principale prima di liberare il mutex (`input.cpp`; DESIGN §10).
 - L'avvio prima del primo frame (`main.cpp`): la consegna della cartella a un [z]f già aperto,
   l'attesa del thread del driver con "solo GPU", la breve attesa delle prime letture.
 - I debiti tecnici noti di CLAUDE.md (l'attesa vsync lunga, i ritocchi da 1 px): non si

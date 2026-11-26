@@ -130,7 +130,12 @@ condivise sono in `app.h`.
   aver chiuso il suo handle del mutex: altrimenti, chiusa la principale, il mutex resterebbe in
   vita e l'avvio successivo cercherebbe per 3 secondi una principale che non c'è. Per lo stesso
   motivo la principale chiude il mutex in `WM_DESTROY`, insieme alla proprietà `z-f.istanza`, e
-  non a fine processo: uscire può durare secondi (vedi "Barra laterale", le voci lente). L'attesa di una
+  non a fine processo: uscire può durare secondi (vedi "Barra laterale", le voci lente). Prima di
+  chiuderlo scrive i file in coda (`saveFlush`, con dentro `schede.txt`): la principale nuova può
+  partire subito, e senza questo leggerebbe i file di prima. La finestra non c'è più e nessuno
+  aspetta (eccezione scritta in DESIGN §10). Misurato: 0,2–0,8 ms ("chiusura: file salvati" nel
+  registro, a ogni chiusura della principale); con "Riapri le schede" la principale chiusa e
+  riaperta subito (39 ms dopo) ritrova le sue tre schede. L'attesa di una
   principale non ancora creata è a tempo (`FWD_WAIT`, `FWD_POLL`): a giri di `Sleep(10)` durava
   4,7 s invece di 3, perché ogni `Sleep` dura un passo del timer di Windows (15,6 ms).
   Misurato: principale chiusa e cartella aperta subito dopo, la finestra nuova compare 20–23 ms
@@ -239,7 +244,13 @@ condivise sono in `app.h`.
   `contentLen` e `scrollOffset` dicono quanto è lunga una linea, quanto se ne vede e di quanto si
   spostano le voci in x o in y. Così tastiera, rotellina, barra di scorrimento (orizzontale in
   Elenco), rettangolo, trascinamento e cursore sono un codice solo per le tre viste; il
-  rettangolo tiene il punto di partenza in coordinate del contenuto su tutti e due gli assi.
+  rettangolo tiene il punto di partenza in coordinate del contenuto su tutti e due gli assi. Il
+  bordo destro delle voci è `itemsRight` (`app.h`): prima della barra verticale, e in Elenco, che
+  non ce l'ha, fino al bordo della lista. Quando `layout` cambia la geometria (voci per linea,
+  lunghezza della linea o spazio visibile), il cursore che si vedeva resta in vista
+  (`cursorInView`, poi `ensureVisible`); se l'utente ha scorso lontano dal cursore, la lista resta
+  dov'è. *Perché in `layout`:* le cause sono tante (anteprima, finestra, barra laterale, barra dei
+  tempi) e passano tutte da lì.
   *Perché un livello di zoom e non una vista più una misura:* Ctrl+rotellina attraversa le viste
   in un solo gesto (Dettagli → Elenco → Icone), e la cartella si ricorda con un numero.
   *Misurato:* la cartella di prova da 904 file in Elenco, frame 0,05–0,10 ms, come Dettagli.
@@ -378,8 +389,10 @@ contenuto salterebbe in basso proprio mentre si clicca.
   frame.
 - **Zoom per cartella** in `%APPDATA%\z-f\viste.txt`, le `kViewsMax` (500) più recenti: una riga
   "percorso<TAB>elenco" o "percorso<TAB>icone 40" per ogni cartella non in Dettagli. Le righe
-  "griglia" delle versioni di prima valgono Icone medie (70%), e il file si riscrive subito nella
-  forma nuova. Ogni livello di Icone ha la sua misura delle miniature: cambiando zoom l'atlante
+  "griglia" delle versioni di prima valgono la misura che aveva la griglia: la vecchia
+  `griglia_dimensione` di `impostazioni.txt` (piccole, medie, grandi → 40, 70, 100%; senza, 70%)
+  si legge ancora in `settingsApply`, che arriva prima di `viewsLoaded`, e non si riscrive più. Il
+  file delle viste si riscrive subito nella forma nuova. Ogni livello di Icone ha la sua misura delle miniature: cambiando zoom l'atlante
   si svuota e le miniature si rifanno alla misura nuova (dalla cache di Windows, meno di 1 ms
   l'una).
 - F12 mostra fonti, texture, memoria, il tempo di creazione dell'atlante e la prima schermata

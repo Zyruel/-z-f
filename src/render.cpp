@@ -411,12 +411,12 @@ static void render() {
             if (!isSel(A.view[A.sel])) rrect(x, y, c.w, c.h, bpR, C_SEL_EDGE, t); // contorno se non selezionata
         }
         drawMarquee();
-        if (A.listFade < 1) rect(LX, A.listTop, listRight - LX, A.listH, fadeA(C_BG, (1 - A.listFade) * ui::LIST_ENTER_COVER));
+        float itemsR = itemsRight(); // in Elenco fino al bordo della lista: niente barra verticale
+        if (A.listFade < 1) rect(LX, A.listTop, itemsR - LX, A.listH, fadeA(C_BG, (1 - A.listFade) * ui::LIST_ENTER_COVER));
 
-        // Elenco: le colonne tagliate a destra non entrano nello spazio della barra verticale né
-        // nell'anteprima, che non ridipinge il suo fondo (a sinistra le copre la barra laterale,
-        // disegnata dopo)
-        if (listView()) rect(listRight, A.listTop, W - listRight, A.listH, C_BG);
+        // Elenco: le colonne tagliate a destra non entrano nell'anteprima, che non ridipinge il suo
+        // fondo (a sinistra le copre la barra laterale, disegnata dopo)
+        if (listView()) rect(itemsR, A.listTop, W - itemsR, A.listH, C_BG);
         // Barra di scorrimento: verticale a destra, in Elenco orizzontale in fondo alla lista
         float tStart, tLen;
         if (thumbRect(tStart, tLen)) {
