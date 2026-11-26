@@ -68,6 +68,7 @@ static Shortcut kFiles[] = {
 };
 static Shortcut kTabs[] = {
     { { K(M_TAB_NEW, KC, 'T') }, L"Nuova scheda" },
+    { { K(M_NEW_WINDOW, KC, 'N') }, L"Nuova finestra sulla stessa cartella" },
     { { K(M_TAB_CLOSE, KC, 'W'), { L"clic centrale sulla scheda", 0 } }, L"Chiude la scheda" },
     { { { L"Ctrl+Tab", 0 }, { L"Ctrl+Shift+Tab", 0 } }, L"Scheda successiva · precedente" },
     { { { L"Ctrl+1…8", 0 }, { L"Ctrl+9", 0 } }, L"Scheda n · ultima scheda" },
@@ -478,15 +479,19 @@ static void drawOptions(double dt) {
     float footH = rowH + px(ui::GAP_S);
     float fy = y + h - footH;
     rect(x + 1, fy, w - 2, 1, fadeA(C_LINE, k));
-    std::wstring info = buildInfo();
+    // Con una versione nuova (il pallino su ⚙) il testo dice cosa fa il clic ("Aggiorna a [z]f …")
+    // e si clicca tutto, non solo l'icona: è il solo posto da cui si aggiorna
+    bool upd = updBadge();
+    std::wstring info = upd ? updMenuLabel() : buildInfo();
     float infoEnd = x + w * 0.6f - updIconW() - px(ui::GAP_M);
-    drawText(x + pad, fy + floorf((footH - F.lineH) * 0.5f), info, fadeA(C_FAINT, k), infoEnd);
     {   // dopo la versione, lo stato dell'aggiornamento: un clic controlla, aggiorna o apre la Release
         float iw = updIconW(), ix = std::min(infoEnd, x + pad + (float)textWidth(info.c_str(), (int)info.size())) + px(ui::GAP_M);
         float iy = fy + floorf((footH - A.rowH) * 0.5f);
-        hov(ix - px(ui::GAP_S), iy, iw + px(ui::GAP_M), A.rowH, OPT_UPD_ACT);
+        float hx = upd ? x + pad - px(ui::GAP_S) : ix - px(ui::GAP_S), hw = ix - px(ui::GAP_S) + iw + px(ui::GAP_M) - hx;
+        hov(hx, iy, hw, A.rowH, OPT_UPD_ACT);
+        drawText(x + pad, fy + floorf((footH - F.lineH) * 0.5f), info, fadeA(upd ? C_TEXT : C_FAINT, k), infoEnd);
         drawUpdateIcon(ix, iy, iw, A.rowH, k);
-        hit(ix - px(ui::GAP_S), iy, iw + px(ui::GAP_M), A.rowH, OPT_UPD_ACT);
+        hit(hx, iy, hw, A.rowH, OPT_UPD_ACT);
     }
     const wchar_t* fl = L"Cartella delle impostazioni";
     float flw = (float)textWidth(fl, (int)wcslen(fl)) + px(ui::GAP_M) * 2;

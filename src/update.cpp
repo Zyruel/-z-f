@@ -5,7 +5,7 @@
 // dimensione, impronta SHA-256 (quella che dà GitHub) e firma ECDSA P-256 (chiave privata solo sul
 // PC di chi pubblica: strumenti\firma.cpp), poi lo mette al posto di quello in uso con due
 // rinomine (Windows permette di rinominare un exe in esecuzione): z-f.exe → z-f.old.exe, il nuovo
-// → z-f.exe. La versione nuova parte al prossimo avvio, o subito con ≡ › "Aggiorna", che chiude e
+// → z-f.exe. La versione nuova parte al prossimo avvio, o subito dalle opzioni ("Aggiorna"), che chiude e
 // riapre tutte le finestre di [z]f con le loro schede (riavvio-<pid>.txt, tabs.cpp).
 // Il thread dell'interfaccia non tocca mai la rete né il disco: riceve solo il risultato.
 // winhttp.dll e bcrypt.dll si caricano sul thread, al primo controllo (MSVC: /DELAYLOAD).
@@ -468,8 +468,6 @@ static void updCheck(bool manual) {
     A.dirty = true;
 }
 
-static void menuVersionRefresh(); // menu.cpp: la voce della versione cambia col risultato
-
 static void onUpdate(UpdJob* j) {
     std::unique_ptr<UpdJob> own(j);
     U.running = false;
@@ -482,12 +480,11 @@ static void onUpdate(UpdJob* j) {
     if (!j->err.empty()) hitchLog(("aggiornamento: " + toUtf8(j->err)).c_str(), (unsigned)j->st, 0); // il perché, per chi legge il registro
     if (j->st != UP_ERROR) { A.updLast = unixNow(); settingsSave(); }
     std::wstring v = L"[z]f " + j->version;
-    if (j->st == UP_READY) notice(v + L" è pronto: parte al prossimo avvio, o subito da \x2261 \x203A Aggiorna", true);
-    else if (j->st == UP_MANUAL) notice(L"C'è " + v + L", ma " + j->err + L": si scarica da \x2261", false);
+    if (j->st == UP_READY) notice(v + L" è pronto: parte al prossimo avvio, o subito dalle opzioni", true);
+    else if (j->st == UP_MANUAL) notice(L"C'è " + v + L", ma " + j->err + L": si scarica dalle opzioni", false);
     else if (j->manual && j->st == UP_CURRENT) notice(L"[z]f " ZF_VERSION L" è l'ultima versione", true);
     else if (j->rejected) notice(v + L" scaricato e scartato: " + j->err, false);
     else if (j->manual) notice(L"Aggiornamenti non controllati: " + j->err, false);
-    menuVersionRefresh();
     A.dirty = true;
 }
 
@@ -508,7 +505,7 @@ static void updRestartAll() {
     restartBegin(true);
 }
 
-// Clic sulla versione (menu ≡, opzioni): aggiorna, apre la Release, o controlla di nuovo
+// Clic sulla versione nelle opzioni: aggiorna, apre la Release, o controlla di nuovo
 static void updAction() {
     if (U.st == UP_READY) updRestartAll();
     else if (U.st == UP_MANUAL && !U.page.empty()) {
@@ -600,7 +597,7 @@ static void drawUpdateIcon(float x, float y, float w, float h, float k) {
 
 static bool updBadge() { return U.st == UP_READY || U.st == UP_MANUAL; }
 
-// Testo della voce della versione (menu ≡)
+// Testo della versione nel piede delle opzioni e nel tooltip di ⚙
 static std::wstring updMenuLabel() {
     if (U.st == UP_READY) return L"Aggiorna a [z]f " + U.version;
     if (U.st == UP_MANUAL) return L"Scarica [z]f " + U.version;

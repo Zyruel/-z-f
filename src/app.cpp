@@ -42,11 +42,11 @@ static void layout() {
     // basso proprio mentre si sta cliccando.
     A.tabH = floorf(A.rowH * ui::TAB_BAR);
     A.tabY = 0;
-    // Barra del titolo: [≡][▯] schede [+] · spazio per trascinare · [–][□][×]
+    // Barra del titolo: [⚙] schede [+] · spazio per trascinare · [–][□][×]
     A.btnW = A.tabH;
     A.capW = px(ui::CAPTION_W);
     A.navW = floorf(A.rowH * ui::NAV_W);
-    A.tabStripX = A.btnW * 2 + px(ui::GAP_S);
+    A.tabStripX = A.btnW + px(ui::GAP_S);
     A.tabStripW = std::max(0.0f, G.w - A.capW * 3 - px(ui::DRAG_MIN) - A.tabStripX - A.rowH * ui::TAB_PLUS_W);
     A.pathY = A.tabH;
     A.sideTop = A.pathY + A.topH;

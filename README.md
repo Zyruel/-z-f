@@ -47,9 +47,9 @@ bit (provato su Windows 11).
   l'opzione "Una finestra per ogni cartella aperta da fuori", apre una finestra nuova). Con
   l'opzione "Riapri le schede all'avvio" si riparte dalle schede che c'erano alla chiusura.
 - **Si aggiorna da solo:** una volta al giorno guarda se c'è una versione nuova, la scarica, ne
-  controlla la firma e la installa per il prossimo avvio. Lo stato è accanto alla versione, nel
-  menu ≡: da lì "Aggiorna" riavvia subito [z]f con le stesse schede. Si spegne nelle opzioni.
-- **Opzioni** (Ctrl+,) con effetto immediato.
+  controlla la firma e la installa per il prossimo avvio. Un pallino su ⚙ lo segnala, e in fondo
+  alle opzioni "Aggiorna" riavvia subito [z]f con le stesse schede. Si spegne nelle opzioni.
+- **Opzioni** (⚙ in alto a sinistra, Ctrl+,) con effetto immediato.
 
 ## Scorciatoie
 
@@ -112,6 +112,7 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Tasto | Azione |
 |---|---|
 | Ctrl+T | Nuova scheda |
+| Ctrl+N | Nuova finestra sulla stessa cartella |
 | Ctrl+W · clic centrale sulla scheda | Chiude la scheda |
 | Ctrl+Tab · Ctrl+Shift+Tab | Scheda successiva · precedente |
 | Ctrl+1…8 · Ctrl+9 | Scheda n · ultima scheda |

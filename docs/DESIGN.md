@@ -177,8 +177,8 @@ uno esistente basta con una piccola estensione.
 ### Composizione della finestra
 
 ```
-[≡][▯] [scheda][scheda][+]  ·····trascina·····             [–][□][×]    barra del titolo (C_TABBAR)
-[←][→][↑]  Questo PC › Disco locale (C:) › Users                [☆][◨]    riga del percorso (C_BAR)
+[⚙] [scheda][scheda][+]  ·····trascina·····              [–][□][×]    barra del titolo (C_TABBAR)
+[▯][←][→][↑]  Questo PC › Disco locale (C:) › Users             [☆][◨]    riga del percorso (C_BAR)
 Preferiti ˅  │ Nome ↑              Data       Dimensione │ foto.jpg         intestazione (C_HEADER)
   Desktop    │ …                                         │  [immagine]      lista (C_BG) │ anteprima (C_BG)
 Unità ˅      │                                           │ 4032 × 3024 · …
@@ -191,8 +191,11 @@ filtro a sinistra) stanno alla sua destra, sotto lista e anteprima.
 Sopra, quando servono: menu, tooltip, pannello delle opzioni, "Vai a" (sotto la riga del percorso), F12.
 
 Nessuna barra del titolo di Windows: [z]f disegna la sua (`chrome.cpp`). Ogni riga ha un compito;
-i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la cartella, ◨ per l'anteprima
-sopra di essa, filtro e vista in basso).
+i comandi stanno dove servono. La barra del titolo è della finestra (⚙ per le opzioni, le schede,
+i pulsanti di sistema); la riga del percorso di quello che si guarda (← → ↑ ☆ per la cartella, ▯ e
+◨ per i pannelli, ognuno sopra il bordo del pannello che apre); filtro e vista in basso. Non c'è un
+menu dell'applicazione: ogni comando ha il suo posto, e un menu che li raccoglie ne sarebbe un
+doppione.
 
 - **Lista:**
   - righe alte una riga: icona a `PAD_X`, poi nome, data, dimensione;
@@ -244,7 +247,7 @@ sopra di essa, filtro e vista in basso).
   - clic su un'intestazione: Data e Dimensione partono dal più recente e dal più grande, Nome e
     Destinazione dalla A.
 - **Viste e zoom** (Ctrl+rotellina · controllo della vista nella barra di stato · Ctrl+Shift+2/3/4
-  per le icone, 5 per Elenco, 6 per Dettagli · ≡ e menu dello sfondo → "Mostra come
+  per le icone, 5 per Elenco, 6 per Dettagli · menu dello sfondo → "Mostra come
   icone"/"Mostra come dettagli", `thumbs.cpp`): un solo livello di zoom per cartella sceglie la
   vista. **0% Dettagli** (la lista con le colonne, sopra), **10% Elenco**, **da 20% a 100%
   Icone**, a passi di 10% (`ZOOM_*`, `THUMB_PX`). Ctrl+rotellina cambia un livello per scatto e
@@ -320,29 +323,33 @@ sopra di essa, filtro e vista in basso).
   - Esc lo annulla e rimette la selezione di prima del clic;
   - clic sullo spazio vuoto sotto le righe, senza trascinare: toglie la selezione (il cursore
     resta), come Explorer.
-- **Barra del titolo** (sempre visibile): a sinistra ≡ (menu di [z]f: nuova scheda, nuova finestra,
-  "Vai a…", anteprima, icone o dettagli, annulla e ripeti, integrazione, opzioni, versione) e ▯ (barra laterale); poi le schede e "+"; a destra i pulsanti
+- **Barra del titolo** (sempre visibile): a sinistra ⚙ (`IC_SETTINGS`), che apre direttamente le
+  opzioni, senza menu (tooltip "Opzioni · Ctrl+,"); poi le schede e "+"; a destra i pulsanti
   di sistema, larghi `CAPTION_W` (46), con la chiusura in rosso Windows (#C42B1C) al passaggio del mouse.
+  - tasto destro su ⚙ e "+": niente menu; sulle schede il loro (nuova scheda, nuova finestra,
+    chiudi); sullo spazio vuoto quello di sistema;
   - lo spazio vuoto trascina la finestra (doppio clic: ingrandisci; tasto destro: menu di sistema); ne resta sempre almeno `DRAG_MIN`;
   - il bordo superiore ridimensiona; su Windows 11 il pulsante ingrandisci mostra gli snap layout;
   - scheda attiva in `C_BAR` con barra `C_ACCENT` in alto; schede inattive in `C_TABBAR`, separate da un trattino `C_LINE`;
   - la × compare solo sulla scheda attiva o sotto il mouse.
-- **Versione e aggiornamento** (`update.cpp`): l'ultima voce del menu ≡ è la versione ("[z]f
-  1.0.0-beta.3"), con a destra, al posto della scorciatoia, un'icona di stato larga quanto il font
-  di icone:
+- **Versione e aggiornamento** (`update.cpp`): nel piede delle opzioni, a sinistra, la versione
+  ("[z]f 1.0.0-beta.3 · compilato il …") in `C_FAINT`, seguita da un'icona di stato larga quanto
+  il font di icone:
   - non ancora controllato o errore: frecce circolari (`IC_SYNC`) in `C_FAINT`;
   - controllo in corso: l'anello di punti in `C_DIM` (§5);
   - aggiornato: cerchio pieno con la spunta (`IC_DONE`) in `C_DIM`;
-  - versione nuova pronta: freccia di download (`IC_DOWNLOAD`) in `C_ACCENT`, e la voce diventa
-    "Aggiorna a [z]f …" (da scaricare a mano: "Scarica [z]f …"). Sul pulsante ≡ compare un pallino
-    `C_ACCENT` di `BADGE` (6) px, a `BADGE_INSET` (8) px dall'angolo in alto a destra.
-  Un clic sulla voce controlla di nuovo col menu aperto (l'anello, poi l'icona del risultato);
-  con una versione pronta chiude e riapre tutte le finestre di [z]f con le loro schede. La stessa
-  icona sta nelle opzioni, dopo la versione in fondo al pannello, e fa le stesse cose. L'esito
-  arriva come avviso nella barra di stato, mai con un dialogo.
-- **Pulsanti a icona** (≡, ▯, ← → ↑, ☆, ▦, ◨, pulsanti di sistema): quadrati o larghi `NAV_W` righe,
+  - versione nuova pronta: freccia di download (`IC_DOWNLOAD`) in `C_ACCENT`, e il testo diventa
+    "Aggiorna a [z]f …" (da scaricare a mano: "Scarica [z]f …") in `C_TEXT`, cliccabile insieme
+    all'icona. Sul pulsante ⚙ compare un pallino `C_ACCENT` di `BADGE` (6) px, a `BADGE_INSET`
+    (8) px dall'angolo in alto a destra, e il suo tooltip aggiunge la stessa frase.
+  Un clic sull'icona controlla di nuovo con le opzioni aperte (l'anello, poi l'icona del
+  risultato); con una versione pronta chiude e riapre tutte le finestre di [z]f con le loro
+  schede. L'esito arriva come avviso nella barra di stato ("… o subito dalle opzioni"), mai con un
+  dialogo.
+- **Pulsanti a icona** (⚙, ▯, ← → ↑, ☆, ◨, pulsanti di sistema): quadrati o larghi `NAV_W` righe,
   icona centrata, hover come le voci. Disattivati in `C_FAINT` (← senza cronologia). Uno stato
   attivo si mostra col colore dell'icona (☆ piena in `C_ACCENT` se la cartella è tra i preferiti).
+  Il doppio clic ripete il comando solo su ← → ↑ (due passi); su ▯ ☆ ◨ conta come un clic.
 - **Icone:** dal font di icone di Windows (Segoe Fluent Icons, Segoe MDL2 Assets su Windows 10),
   scala di grigi, dimensione 1,15 × testo; codici in `text.cpp` (`IC_*`). Niente immagini nel
   programma. Le icone di file e cartelle restano quelle della shell.
@@ -351,9 +358,11 @@ sopra di essa, filtro e vista in basso).
   - clic su un segmento: ci va; su "›": menu delle sottocartelle (il "›" resta evidenziato finché il menu è aperto); clic centrale: nuova scheda; spazio vuoto: "Vai a" dalla cartella aperta (vedi "Vai a");
   - nomi come altrove: unità con la loro etichetta, preferiti con il loro nome;
   - se non c'è spazio i primi livelli finiscono in "…", che li elenca in un menu;
-  - a sinistra ← → ↑, a destra ☆ e ◨ (anteprima: icona DockRight, gemella di ▯; `C_TEXT` se
-    aperta, `C_DIM` se chiusa, come ▯). La vista non sta qui: è nella barra di stato.
-- **Pannello di anteprima** (Alt+P · ◨ · ≡ → "Mostra anteprima", `preview.cpp`): non è un
+  - a sinistra ▯ ← → ↑, a destra ☆ ◨. I due pannelli ai due capi della riga, ognuno sopra il
+    bordo del pannello che apre: ▯ (barra laterale, icona DockLeft) e ◨ (anteprima, DockRight),
+    gemelli, in `C_TEXT` se il pannello è aperto e `C_DIM` se è chiuso. La vista non sta qui: è
+    nella barra di stato.
+- **Pannello di anteprima** (Alt+P · ◨, `preview.cpp`): non è un
   pannello sovrapposto ma una parte della finestra, a destra della lista, dall'intestazione alla
   barra di stato; la lista finisce alla sua sinistra (`A.listR`).
   - fondo `C_BG` come la lista, separatore verticale 1 px `C_LINE`; in alto un'intestazione alta
@@ -495,8 +504,8 @@ sopra di essa, filtro e vista in basso).
     sé come in Explorer; quando la si chiude la barra laterale si rilegge e il percorso nuovo
     compare sotto Questo PC. I nomi delle due voci sono quelli di Windows;
   - **annulla e ripeti:** la voce dice cosa annulla ("Annulla spostamento", "Annulla nuova
-    cartella"); senza niente da annullare è "Annulla", disattivata. Nel menu dello sfondo c'è solo
-    "Annulla …", subito dopo Incolla come in Explorer; nel menu ≡ ci sono "Annulla …" e "Ripeti …".
+    cartella"); senza niente da annullare è "Annulla", disattivata. Nel menu dello sfondo stanno
+    subito dopo Incolla, come in Explorer: "Annulla …" sempre, "Ripeti …" solo quando c'è.
 - **Tooltip:**
   - pannello `C_MENU`: titolo in `C_TEXT`, se serve su più righe; poi coppie etichetta (`C_DIM`) / valore (`C_TEXT`); le note senza etichetta in `C_FAINT`;
   - larghezza massima `TIP_MAX_W` (520).
@@ -540,7 +549,7 @@ sopra di essa, filtro e vista in basso).
     con la voce che farebbe un trascinamento normale già evidenziata.
 - **Pannello F12:** diagnostica, stile dei pannelli sovrapposti, largo `STATS_W` (440); compare
   come il menu.
-- **"Vai a"** (Ctrl+P · Ctrl+G · ≡ → "Vai a…", `goto.cpp`): pannello sovrapposto (`drawPanel`,
+- **"Vai a"** (Ctrl+P · Ctrl+G · clic sul percorso vuoto, `goto.cpp`): pannello sovrapposto (`drawPanel`,
   `R_M`, compare come il menu) centrato in orizzontale, appena sotto la riga del percorso, largo
   al massimo `GOTO_W` (600). Il resto della finestra non si attenua: è un'azione rapida, come un menu.
   - in alto una casella di testo (`TextField`, `drawField`) a `GAP_M` dai bordi; vuota mostra

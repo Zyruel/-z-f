@@ -557,7 +557,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (A.renaming) endRename(true);
         bool onPath = onPathBar(y);
         int chId = chromeHit(x, y);
-        if (chId != CH_NONE) { chromeExec(chId); return 0; } // ≡, barra laterale, ← → ↑, ☆
+        if (chId != CH_NONE) { chromeExec(chId); return 0; } // ⚙, ▯, ← → ↑, ☆, ◨
         if (fltClearAt(x, y)) {
             A.filter.clear(); // × del filtro
             rebuildView(true);
@@ -694,7 +694,8 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (gotoDblClk(x, y, (wp & MK_CONTROL) != 0)) return 0;
         if (optionsMouseDown(x, y)) return 0; // nel pannello il secondo clic conta come un clic
         int chId = chromeHit(x, y);
-        if (chId >= CH_BACK) { chromeExec(chId); return 0; } // doppio clic rapido su ← →: due passi
+        if (chId >= CH_BACK && chId <= CH_UP) { chromeExec(chId); return 0; } // doppio clic rapido su ← → ↑: due passi
+        if (chId != CH_NONE) return 0; // ▯ ☆ ◨: il secondo clic non riapre né richiude
         if (y < A.pathY) return 0;
         if (int pe = panelEdgeAt(x, y); pe >= 0) { panelEdgeReset(pe); return 0; } // bordo di un pannello: larghezza predefinita
         int b = colBorderAt(x, y);

@@ -1,5 +1,4 @@
-// [z]f — pannello di anteprima (Alt+P · ≡ → "Mostra anteprima" · pulsante a destra nella riga del
-// percorso).
+// [z]f — pannello di anteprima (Alt+P · pulsante ◨ a destra nella riga del percorso).
 //
 // A destra della lista mostra la voce sotto il cursore: immagini (decodificate con WIC), testo (con
 // la codifica riconosciuta), il contenuto delle cartelle; per tutto il resto l'icona grande della

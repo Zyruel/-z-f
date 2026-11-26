@@ -20,6 +20,31 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 000000000000000000000000000000000000000000. ⚙ al posto del menu ≡, ▯ nella riga del percorso (z-f-dev, novembre 2026)
+
+Il menu ≡ non c'è più: il pulsante in alto a sinistra è ⚙ e apre le opzioni. ▯ è sceso nella
+riga del percorso, a sinistra di ←, gemello di ◨. "Nuova finestra" ha Ctrl+N ed è nel menu della
+scheda; "Ripeti" è nel menu dello sfondo quando c'è. Compilato senza avvisi (MSVC).
+
+Provato da Claude in z-f-dev (C:\Windows\Web, poi C:\):
+- [x] barra del titolo: ⚙, schede, "+"; riga del percorso: ▯ ← → ↑ … ☆ ◨, con ▯ e ◨ in
+      `C_TEXT` a pannelli aperti;
+- [x] ▯ nasconde e rimostra la barra laterale; doppio clic su ◨ la chiude una volta sola (prima
+      il secondo clic la riapriva);
+- [x] tooltip di ⚙: "Opzioni · Scorciatoia Ctrl+,"; un clic apre le opzioni;
+- [x] tasto destro sulla scheda: Nuova scheda Ctrl+T, Nuova finestra Ctrl+N, Chiudi scheda,
+      Chiudi le altre schede;
+- [x] Ctrl+N apre un'altra finestra sulla stessa cartella;
+- [x] registro: solo le voci normali dell'avvio e "attesa vsync lunga".
+
+Restano:
+- [ ] **a 175%** (Zyruel): ⚙ e ▯ ben centrati, e la distanza fra ▯ e ← uguale a quella fra ☆ e ◨;
+- [ ] **versione nuova pronta** (`aggiornamenti-prova.py`): pallino su ⚙, tooltip con "Aggiorna a
+      [z]f …", piede delle opzioni con "Aggiorna a [z]f …" in `C_TEXT` cliccabile insieme alla
+      freccia; l'avviso dice "… o subito dalle opzioni";
+- [ ] "Ripeti …" nel menu dello sfondo dopo un Ctrl+Z, assente senza niente da ripetere;
+- [ ] tasto destro su ⚙ e su "+": nessun menu.
+
 ## 00000000000000000000000000000000000000000. Zoom della lista e vista nella barra di stato (z-f-dev, novembre 2026)
 
 Ctrl+rotellina passa per Dettagli (0%), Elenco (10%, nuovo) e Icone da 20 a 100%; il controllo

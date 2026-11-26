@@ -85,6 +85,7 @@ static void menuOpenTab(float cx, float cy, int i) {
     m.kind = MENU_TAB;
     m.target = i;
     menuAdd(L"Nuova scheda", M_TAB_NEW);
+    menuAdd(L"Nuova finestra", M_NEW_WINDOW);
     menuSep();
     menuAdd(L"Chiudi scheda", M_TAB_CLOSE);
     menuAdd(L"Chiudi le altre schede", M_TAB_OTHERS, A.tabs.size() > 1);
@@ -139,46 +140,6 @@ static void menuOpenView(float cx, float cy) {
     if (m.x + m.w > cx) { m.x = std::max(px(ui::GAP_XS), floorf(cx - m.w)); } // allineato a destra anche se ci starebbe
 }
 
-static void menuOpenApp(float cx, float cy) {
-    double t0 = nowMs();
-    PopupMenu& m = A.menu;
-    m.items.clear();
-    m.kind = MENU_TAB;
-    m.target = A.tab;
-    menuAdd(L"Nuova scheda", M_TAB_NEW);
-    menuAdd(L"Nuova finestra", M_NEW_WINDOW);
-    menuAdd(L"Vai a\x2026", M_GOTO);
-    menuAdd(A.prevOpen ? L"Nascondi anteprima" : L"Mostra anteprima", M_PREVIEW);
-    menuAddView();
-    menuSep();
-    menuAdd(undoLabel(false), M_UNDO, undoCan(false));
-    menuAdd(undoLabel(true), M_REDO, undoCan(true));
-    menuSep();
-    int st = defaultState(); // lettura del registro: microsecondi
-    menuAdd(L"Usa [z]f al posto di Explorer", M_SET_DEFAULT, true, st == 1 ? L"attivo" : st == 2 ? L"attivo (altro exe)" : st == 3 ? L"attivo (senza zip)" : L"");
-    menuAdd(L"Opzioni\x2026", M_OPTIONS);
-    menuSep();
-    m.labels.clear();
-    m.labels.push_back(updMenuLabel()); // versione, o "Aggiorna a [z]f …"; a destra lo stato (update.cpp)
-    menuAdd(m.labels.back().c_str(), M_VERSION, true, L"");
-    menuPlace(cx, cy, false, t0);
-}
-
-// Il risultato di un controllo arriva col menu ≡ aperto: la voce della versione cambia testo
-static void menuVersionRefresh() {
-    PopupMenu& m = A.menu;
-    if (!m.open || m.kind != MENU_TAB) return;
-    for (MenuItem& it : m.items)
-        if (it.id == M_VERSION) {
-            m.labels.push_back(updMenuLabel());
-            it.label = m.labels.back().c_str();
-            float need = (float)textWidth(it.label, (int)wcslen(it.label)) + updIconW() + m.pad * 2 + px(ui::MENU_KEYS_GAP);
-            m.w = floorf(std::min((float)G.w - px(ui::GAP_S), std::max(m.w, need)));
-            m.x = std::max(px(ui::GAP_XS), std::min(m.x, (float)G.w - px(ui::GAP_XS) - m.w));
-            A.dirty = true;
-        }
-}
-
 // cx, cy: coordinate client; screenPt: per il menu della shell; fromKeyboard: evidenzia la prima voce
 static void menuOpen(float cx, float cy, POINT screenPt, bool background, bool fromKeyboard) {
     double t0 = nowMs();
@@ -220,6 +181,7 @@ static void menuOpen(float cx, float cy, POINT screenPt, bool background, bool f
     } else if (!drives) {
         menuAdd(L"Incolla", M_PASTE, !zip && clipHasFiles());
         menuAdd(undoLabel(false), M_UNDO, undoCan(false)); // dopo Incolla, come in Explorer
+        if (undoCan(true)) menuAdd(undoLabel(true), M_REDO); // Ripeti solo quando c'è, come in Explorer
         menuAdd(L"Nuova cartella", M_NEWFOLDER, !zip);
         menuAdd(L"Aggiorna", M_REFRESH);
         menuAddView();
@@ -257,7 +219,7 @@ static void menuPlace(float cx, float cy, bool fromKeyboard, double t0) {
     for (const MenuItem& it : m.items) {
         if (!it.id) { h += m.sepH; seps = true; continue; }
         lw = std::max(lw, (float)textWidth(it.label, (int)wcslen(it.label)));
-        kw = std::max(kw, it.id == M_VERSION ? updIconW() : (float)textWidth(it.keys, (int)wcslen(it.keys)));
+        kw = std::max(kw, (float)textWidth(it.keys, (int)wcslen(it.keys)));
         if (it.icon) icons = true;
         h += m.ih;
     }
@@ -363,9 +325,7 @@ static void menuRun(int id, const CmdCtx& c) {
         break;
     case M_TAB_NEW:     tabNew(A.cur ? A.cur->path : L"", true); break;
     case M_TAB_CLOSE:   tabClose(target); break;
-    case M_SET_DEFAULT: toggleDefault(); break;
     case M_OPTIONS:     optionsOpen(); break;
-    case M_VERSION:     updAction(); break; // versione nuova pronta: riavvia; da scaricare a mano: la Release
     case M_GOTO:        gotoOpen(); break;
     case M_PREVIEW:     previewToggle(); break;
     case M_ICONS_S:       viewZoom(ZOOM_SMALL); break;
@@ -429,8 +389,6 @@ static void menuExec(int i) {
     c.target = m.target;
     c.kind = m.kind;
     std::wstring itemPath = (c.kind == MENU_CRUMB && i < (int)m.paths.size()) ? m.paths[i] : L"";
-    // La versione controlla gli aggiornamenti col menu aperto: l'anello di punti, poi il risultato
-    if (id == M_VERSION && U.st != UP_READY && U.st != UP_MANUAL) { updCheck(true); return; }
     menuClose();
     if (c.kind == MENU_CRUMB) { if (!itemPath.empty()) navigate(itemPath, 1, L""); return; }
     if (c.kind == MENU_DROP) { g_dropChoice = id; return; } // lo esegue chi ha aperto il menu (drag.cpp)
@@ -473,7 +431,7 @@ static void onContextMenu(POINT pt) {
         bool closeHit, plusHit;
         int t = tabHit(c.x, c.y, &closeHit, &plusHit);
         if (t >= 0) { menuOpenTab((float)c.x, (float)c.y, t); return; }
-        if (c.y < A.pathY) { menuOpenApp((float)c.x, (float)c.y); return; }
+        if (c.y < A.pathY) return; // ⚙ e "+": niente menu (lo spazio vuoto ha quello di sistema)
         int si = sideHit(c.x, c.y);
         if (si == -2) si = (int)A.favs.size(); // la freccia è sulla riga di Questo PC: il suo menu
         if (si >= 0) { menuOpenSide((float)c.x, (float)c.y, si); return; }

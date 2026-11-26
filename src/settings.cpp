@@ -21,7 +21,7 @@
 //   dialoghi=1             0: i dialoghi Apri e Salva degli altri programmi non saltano alla cartella di [z]f
 //   riapri_schede=0        1: la finestra principale riapre all'avvio le schede che aveva alla chiusura (schede.txt)
 //   finestre_separate=0    1: una cartella aperta da fuori (doppio clic, altri programmi) apre una finestra nuova, non una scheda
-//   aggiornamenti=1        0: niente controllo automatico degli aggiornamenti (≡ › versione controlla lo stesso)
+//   aggiornamenti=1        0: niente controllo automatico degli aggiornamenti (il clic sulla versione nelle opzioni controlla lo stesso)
 //   aggiornamenti_beta=1   anche le beta; senza la riga: sì se la versione in uso è una beta
 //   aggiornamenti_ultimo=0 ultimo controllo degli aggiornamenti (secondi dal 1970): uno al giorno
 // Si leggono all'avvio sul thread veloce della barra laterale (il thread UI non tocca il disco)

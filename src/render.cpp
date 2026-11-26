@@ -124,14 +124,10 @@ static void drawMenu() {
         }
         float tx = drawPanelItem(m.x, m.w, y, m.ih, m.pad, i == m.hot, it.icon,
                                  i < (int)m.paths.size() ? &m.paths[i] : nullptr, it.dim, m.iconW, k);
-        if (it.id == M_VERSION) { // a destra, al posto della scorciatoia, lo stato dell'aggiornamento
-            float iw = updIconW();
-            drawUpdateIcon(m.x + m.w - m.pad - iw, y, iw, m.ih, k);
-        }
         int kn = (int)wcslen(it.keys);
         float keysX = m.x + m.w - m.pad - (kn ? textWidth(it.keys, kn) : 0);
         uint32_t tc = !it.enabled ? C_FAINT : it.dim ? C_FAINT : C_TEXT;
-        float textEnd = kn ? keysX - px(ui::GAP_M) : it.id == M_VERSION ? m.x + m.w - m.pad - updIconW() - px(ui::GAP_M) : m.x + m.w - m.pad;
+        float textEnd = kn ? keysX - px(ui::GAP_M) : m.x + m.w - m.pad;
         drawText(tx, y + textOff, it.label, (int)wcslen(it.label), fadeA(tc, k), textEnd);
         if (kn) drawText(keysX, y + textOff, it.keys, kn, fadeA(it.enabled ? C_DIM : C_FAINT, k));
         y += m.ih;
@@ -419,11 +415,11 @@ static void render() {
 
     drawTabs(dt); // prima della riga del percorso: la scheda attiva ci sconfina e la riga ne copre il fondo
 
-    // --- riga del percorso: [←][→][↑] percorso a segmenti [☆] ---
+    // --- riga del percorso: [▯][←][→][↑] percorso a segmenti [☆][◨] ---
     rect(0, A.pathY, W, A.topH, C_BAR);
     rect(0, A.pathY + A.topH - 1, W, 1, C_LINE);
     {
-        float bx = px(ui::GAP_S) + A.navW * 3 + px(ui::GAP_M);
+        float bx = px(ui::GAP_S) + A.navW * 4 + px(ui::GAP_M); // a sinistra ▯ ← → ↑
         float bw = W - px(ui::GAP_S) - A.navW * 2 - px(ui::GAP_M) - bx; // a destra ☆ e anteprima
         float by = A.pathY + floorf((A.topH - A.rowH) * 0.5f), bh = A.rowH;
         float ty = by + textOff;

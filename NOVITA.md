@@ -10,6 +10,17 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 
 ## In preparazione
 
+- **Niente più menu ≡:** il pulsante in alto a sinistra è ora ⚙ e apre direttamente le opzioni.
+  Le voci del menu stavano già altrove: nuova scheda con "+" e Ctrl+T, "Vai a…" con Ctrl+P o un
+  clic sul percorso, anteprima con ◨ e Alt+P, vista nella barra di stato, annulla e ripeti con
+  Ctrl+Z e Ctrl+Y o dal menu dello sfondo (dove ora c'è anche "Ripeti", quando serve), "Usa [z]f
+  al posto di Explorer" e versione nelle opzioni. Una versione nuova si annuncia con il pallino su
+  ⚙, e in fondo alle opzioni "Aggiorna a [z]f …" si clicca per intero.
+- **Nuova finestra con Ctrl+N** (come in Explorer), e nel menu delle schede accanto a "Nuova
+  scheda". Prima era solo nel menu ≡.
+- **▯ accanto a ←:** il pulsante della barra laterale è sceso dalla barra del titolo alla riga del
+  percorso, all'altro capo rispetto a ◨. I due pulsanti dei pannelli sono sulla stessa riga, ognuno
+  sopra il pannello che apre. Il doppio clic su ▯, ☆ e ◨ non annulla più il primo clic.
 - **Zoom della lista con Ctrl+rotellina:** non cambia più il testo di tutta la finestra, ma solo
   la lista, passando per le viste: Dettagli (0%), **Elenco** (10%, nuova: icona e nome in colonne
   che scorrono in orizzontale, quante ne servono per l'altezza della finestra) e Icone da 20% a

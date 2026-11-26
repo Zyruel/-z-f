@@ -59,7 +59,7 @@ constexpr float PATH_BAR = 1.45f;  // altezza della riga del percorso, in righe
 constexpr float TAB_BAR = 1.35f;   // altezza della barra del titolo (schede), in righe
 constexpr float TAB_TOP = 5;       // spazio sopra le schede, nella barra del titolo
 constexpr float CAPTION_W = 46;    // pulsanti riduci/ingrandisci/chiudi (come in Windows)
-constexpr float NAV_W = 1.25f;     // pulsanti ← → ↑ ☆, in righe
+constexpr float NAV_W = 1.25f;     // pulsanti della riga del percorso (▯ ← → ↑ ☆ ◨), in righe
 constexpr float DRAG_MIN = 48;     // spazio minimo per trascinare la finestra nella barra del titolo
 constexpr float PAD_X = 12;        // margine orizzontale dei contenuti
 constexpr float SCROLL_W = 10, THUMB_MIN = 24;
@@ -101,7 +101,7 @@ constexpr float FILTER_W = 300, FILTER_MAX = 0.4f; // campo del filtro: larghezz
 constexpr float MENU_KEYBOARD_X = 48; // menu aperto da tastiera sullo sfondo o in elenco: distanza dall'inizio della lista
 constexpr float WINDOW_W = 1000, WINDOW_H = 680;   // finestra nuova
 constexpr float WINDOW_MIN_W = 420, WINDOW_MIN_H = 240;
-constexpr float ICON_FONT = 1.15f; // font delle icone (≡, ←, ×…): un po' più grande del testo, come nelle app di Windows
+constexpr float ICON_FONT = 1.15f; // font delle icone (⚙, ←, ×…): un po' più grande del testo, come nelle app di Windows
 constexpr float LINE_GAP = 3;      // interlinea del testo su più righe (tooltip, testo nell'anteprima)
 constexpr float LIST_ICON = 16;    // icone della shell in lista, barra laterale e menu (arrotondate alla scala DPI)
 // Segnaposto delle icone in lista (prima che arrivi l'icona vera), in frazioni del lato dell'icona:
@@ -125,7 +125,7 @@ constexpr float LIST_COL_W = 300;  // vista Elenco (zoom 10%): larghezza di una 
 // la luminosità, come l'anello di avanzamento di Windows. Diametro in frazione dell'icona
 constexpr int SPIN_DOTS = 8;
 constexpr float SPIN_DOT = 3, SPIN_SIZE = 1.0f, SPIN_MIN_ALPHA = 0.2f;
-// Pallino su ≡ quando c'è una versione nuova pronta: diametro, distanza dall'angolo in alto a destra
+// Pallino su ⚙ quando c'è una versione nuova pronta: diametro, distanza dall'angolo in alto a destra
 constexpr float BADGE = 6, BADGE_INSET = 8;
 
 // --- testo ------------------------------------------------------------------------------

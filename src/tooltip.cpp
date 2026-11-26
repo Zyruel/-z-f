@@ -375,7 +375,11 @@ static bool tipBuild() {
         break;
     case TIP_CHROME:
         switch (T.index) {
-        case CH_MENU:    T.title = L"Menu di [z]f"; tipRow(L"", L"Opzioni, nuova finestra, integrazione con Windows"); break;
+        case CH_OPTIONS:
+            T.title = L"Opzioni";
+            tipRow(L"Scorciatoia", shortcutsOf(M_OPTIONS));
+            if (updBadge()) tipRow(L"", updMenuLabel()); // il pallino: cosa c'è da fare nelle opzioni
+            break;
         case CH_SIDEBAR: T.title = A.sideVisible ? L"Nascondi la barra laterale" : L"Mostra la barra laterale"; tipRow(L"Scorciatoia", shortcutsOf(M_SIDEBAR)); break;
         case CH_BACK:
             T.title = L"Indietro";

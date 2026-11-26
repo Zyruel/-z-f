@@ -9,8 +9,7 @@ enum MenuId { M_OPEN = 1, M_OPENWITH, M_CUT, M_COPY, M_PASTE, M_COPYPATH, M_RENA
               M_FAV_TOGGLE,  // cartella corrente nei preferiti (Ctrl+D)
               M_FAV_SEL,     // cartella selezionata nei preferiti
               M_SIDE_OPEN, M_SIDE_UP, M_SIDE_DOWN, M_SIDE_REMOVE, M_SIDE_PROPS,
-              M_TAB_NEW, M_TAB_CLOSE, M_TAB_OTHERS, M_SET_DEFAULT, M_OPTIONS, M_NEW_WINDOW,
-              M_VERSION,     // riga della versione con lo stato dell'aggiornamento: controlla, aggiorna (update.cpp)
+              M_TAB_NEW, M_TAB_CLOSE, M_TAB_OTHERS, M_OPTIONS, M_NEW_WINDOW,
               M_DROP_COPY, M_DROP_MOVE, M_DROP_LINK, M_DROP_CANCEL, // trascinamento col tasto destro
               M_GOTO,        // "Vai a" (goto.cpp)
               M_PREVIEW,     // pannello di anteprima (preview.cpp)

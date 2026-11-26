@@ -71,7 +71,7 @@ condivise sono in `app.h`.
 | `update.cpp` | aggiornamento automatico dalle Release di GitHub (WinHTTP, JSON, versioni, impronta e firma con CNG), scambio dell'exe, riavvio di tutte le finestre, icona di stato |
 | `filedlg.cpp` | dialoghi Apri e Salva degli altri programmi nella cartella di [z]f (`SetWinEventHook`, campo del nome da un thread) |
 | `settings.cpp` | impostazioni e salvataggio atomico in background dei file in `%APPDATA%\z-f` |
-| `chrome.cpp` | cornice della finestra: barra del titolo con le schede, pulsanti, area non client, icona della finestra |
+| `chrome.cpp` | cornice della finestra: barra del titolo con le schede, pulsanti (anche quelli della riga del percorso), area non client, icona della finestra |
 | `crumbs.cpp` | percorso a segmenti cliccabili, menu delle sottocartelle |
 | `tooltip.cpp` | tooltip: contenuto, informazioni lette su un thread (anche per l'anteprima), disegno |
 | `preview.cpp` | pannello di anteprima: immagini (WIC), testo, cartelle, informazioni; lettura e decodifica su un thread |
@@ -81,7 +81,7 @@ condivise sono in `app.h`.
 | `drag.cpp` | trascinamento dei file: sorgente (oggetto dati della shell), destinazione (IDropTarget), rilascio alla shell su un thread |
 | `zipout.cpp` | dallo zip verso fuori: aprire, copiare e trascinare con i file estratti su un thread in `%TEMP%\z-f` |
 | `listmouse.cpp` | lista col mouse: selezione col rettangolo, colonne ridimensionabili (trascinamento, adattamento al contenuto), bordi dei pannelli |
-| `menu.cpp` | menu contestuale nostro (lista, voci della barra laterale, schede, applicazione) |
+| `menu.cpp` | menu contestuale nostro (lista, voci della barra laterale, schede, rilascio col tasto destro, vista) |
 | `hybrid.cpp` | WARP all'avvio, poi passaggio alla GPU |
 | `input.cpp` | tastiera, mouse, messaggi della finestra |
 | `main.cpp` | avvio, istanza unica e ciclo dei messaggi |
@@ -604,10 +604,14 @@ thread, ognuna rifà la ricerca) si misura a parte con `prove\vai-a-misura.cpp`.
 
 - **Menu nostro** (`menu.cpp`), disegnato come il resto dell'interfaccia, con le voci essenziali:
   - sui file: Apri, Apri con, Taglia, Copia, Copia percorso, Rinomina, Elimina, Proprietà;
-  - sullo sfondo: Incolla, Annulla, Nuova cartella (che parte già in rinomina), Aggiorna, Copia
+  - sullo sfondo: Incolla, Annulla (e Ripeti, quando c'è), Nuova cartella (che parte già in rinomina), Aggiorna, Copia
     percorso, Apri terminale qui, Proprietà;
   - in "Questo PC": "Connetti unità di rete…" e "Aggiungi percorso di rete…" sullo sfondo,
-    "Disconnetti" su un'unità di rete.
+    "Disconnetti" su un'unità di rete;
+  - sulle schede: Nuova scheda, Nuova finestra, Chiudi scheda, Chiudi le altre schede.
+
+  Non c'è un menu dell'applicazione: ⚙ apre direttamente le opzioni (`chromeExec`), dove stanno
+  anche l'integrazione con Windows e la versione con l'aggiornamento.
 
   Le scorciatoie delle voci vengono da `kShortcuts` (`options.cpp`, `shortcutFor`). Regole del
   menu (voci disattivate o assenti, scambio con `menu_completo`): `DESIGN.md`, "Menu
