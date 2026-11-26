@@ -14,6 +14,17 @@
       "Bash(tasklist:*)",
       "Bash(taskkill //PID:*)",
       "Bash(bash .claude/hooks/regole.sh --prova)",
+      "Bash(grep:*)",
+      "Bash(sed -n:*)",
+      "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(file:*)",
+      "Bash(cmd //c '.\\prove\\dev.bat:*)",
+      "Bash(powershell -NoProfile -File prove/memoria.ps1:*)",
+      "Bash(python -I prove/rotella.py:*)",
       "mcp__ccd_pr__get_status",
       "mcp__ccd_pr__bind_pr"
     ]
@@ -21,7 +32,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash|PowerShell",
+        "matcher": "Bash|PowerShell|mcp__computer-use__request_access|mcp__computer-use__open_application",
         "hooks": [
           {
             "type": "command",

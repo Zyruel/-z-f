@@ -3,8 +3,10 @@
 # Working set, memoria privata (commit), memoria GPU dedicata e condivisa (contatori "GPU Process
 # Memory", con i nomi inglesi anche su Windows in italiano), thread e handle. Il PID della finestra
 # di prova si legge con tasklist prima e dopo prove\dev.bat (vedi /prova).
-param([int[]]$Ids, [string]$Label = '')
-foreach ($id in $Ids) {
+param([string[]]$Ids, [string]$Label = '')
+# Da Bash, con -File, "1234,5678" arriva come una stringa sola: i PID si separano qui
+$pids = ($Ids -join ',') -split '[,\s]+' | Where-Object { $_ } | ForEach-Object { [int]$_ }
+foreach ($id in $pids) {
     $p = Get-Process -Id $id -ErrorAction SilentlyContinue
     if (-not $p) { "$id non trovato"; continue }
     $ded = 0; $sh = 0

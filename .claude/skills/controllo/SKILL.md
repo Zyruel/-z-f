@@ -1,6 +1,6 @@
 ---
 name: controllo
-description: Controlla che il codice di [z]f segua le regole di CLAUDE.md e docs/DESIGN.md (thread UI, PostMessage e generazione, leggerezza, misure, notice, theme.h e px(), componenti da riusare, foRun, saveDataAsync, kShortcuts, commenti, repository pubblico) e scrive un resoconto per gravità, senza toccare il codice. Da usare dopo una funzione nuova, prima di un rilascio, o quando Zyruel chiede un controllo delle regole. Argomento: moduli (thumbs, src/zip.cpp…), "cambiati" (predefinito) o "tutto".
+description: Controlla che il codice di [z]f segua le regole di CLAUDE.md e docs/DESIGN.md (thread UI, PostMessage e generazione, leggerezza, misure, notice, theme.h e px(), componenti da riusare, foRun, saveDataAsync, kShortcuts, commenti, repository pubblico; e per le cose nuove da cliccare: doppio clic, tasto destro, rotellina con un pannello aperto, dati della versione prima, nomi vecchi rimasti) e scrive un resoconto per gravità, senza toccare il codice. Da usare dopo una funzione nuova, prima di un rilascio, o quando Zyruel chiede un controllo delle regole. Argomento: moduli (thumbs, src/zip.cpp…), "cambiati" (predefinito) o "tutto".
 ---
 
 # /controllo — le regole di [z]f, controllate sul codice
@@ -178,6 +178,32 @@ con grep prima di segnalare.
   (`shortcutsOf`).
 - Un elemento visibile nuovo è descritto in DESIGN §7.
 
+### Interazione (con `cambiati`: per ogni cosa nuova o cambiata che si clicca o si preme)
+
+Non sono regole scritte altrove, ma i problemi che i controlli delle sessioni non trovavano e
+la revisione o il rilascio sì (7 correzioni nella 1.0.0-beta.6). Si seguono nel codice i
+messaggi che arrivano davvero (`input.cpp`, `chrome.cpp`, `options.cpp`):
+
+- **Doppio clic** (`CS_DBLCLKS`: il secondo clic arriva come `WM_LBUTTONDBLCLK`, o
+  `WM_NCLBUTTONDBLCLK` nella cornice): un pulsante che apre o chiude non si richiude né si
+  riapre al secondo clic, un collegamento non apre due volte la pagina, un pannello appena
+  aperto non prende il secondo clic come un clic fuori. Sbagliato tre volte nello stesso ciclo
+  (◨, ⚙, la versione nelle opzioni).
+- **Tasto destro** sull'elemento nuovo e sullo spazio vuoto intorno (barra del titolo: il menu
+  di sistema): un menu giusto o niente, mai il menu di un'altra cosa.
+- **Rotellina e Ctrl+rotellina, tasti e scorciatoie con un pannello aperto** (opzioni, menu,
+  "Vai a", anteprima): agiscono sul pannello o non fanno niente, mai su ciò che sta sotto e non
+  si vede.
+- **I dati della versione prima:** se cambia il formato di un file di `%APPDATA%\z-f` o il nome
+  di un'opzione, la lettura di quelli vecchi (una riga vecchia di `viste.txt` deve ridare la vista
+  che era).
+- **Ciò che è stato tolto o rinominato** (una voce di menu, un pulsante, una scorciatoia): grep
+  del nome vecchio e del suo simbolo in `src/`, nei documenti e nel README; nessun commento,
+  tooltip o avviso lo nomina ancora.
+
+Le segnalazioni vanno nel resoconto con lo scenario ("doppio clic su ⚙: …"); ciò che si può
+provare solo a mano va anche in `prove\da-verificare.md`.
+
 ### Pulizia (CLAUDE.md, principio 4 e "Convenzioni del codice")
 
 - **Codice duplicato o componenti rifatti** invece di riusati. L'elenco è in CLAUDE.md
@@ -247,7 +273,7 @@ Ciò che resta incerto dopo la lettura si riferisce con "da verificare" e il mot
 Solo il resoconto: **nessuna modifica**. Ordinato per gravità:
 
 1. Repository pubblico (prima di un push)
-2. Correttezza
+2. Correttezza (con l'interazione)
 3. Leggerezza e velocità
 4. Mai interrompere
 5. Coerenza

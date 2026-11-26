@@ -147,6 +147,10 @@ Come si compila e si prova, passo per passo: `/prova` (skill in `.claude/skills/
   `onKey` si scrivono a mano solo i tasti che dipendono dal contesto (frecce, Esc, Backspace,
   Ctrl+V, Ctrl+1…9…).
 - **Commenti:** spiegano il perché, non il cosa, in italiano.
+- **Modifiche ai file con lo strumento Edit**, anche quando sono tante nello stesso file. Gli
+  script (Python, `sed -i`) solo per un cambio meccanico uguale su molti file: nella 1.0.0-beta.6
+  gli script di sostituzione hanno dato 6 errori (heredoc non chiuso, testo non trovato, codifica
+  della console), Edit 2.
 
 ## Debiti tecnici noti (da sistemare quando si tocca quel codice)
 
