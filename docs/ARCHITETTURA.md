@@ -125,6 +125,13 @@ condivise sono in `app.h`.
   la forma di Explorer `/select,<percorso>`. Con un'opzione `--` (`--new-window`, `--gpu=...`) si
   apre comunque una finestra separata, che non riceve le cartelle aperte da fuori. Prova:
   `prove\istanza.bat`.
+- **Finestre separate** (opzione `finestre_separate`): la principale risponde a `WM_COPYDATA` con
+  2 invece di 1 e chi ha avviato [z]f prosegue come una "Nuova finestra" (non principale), dopo
+  aver chiuso il suo handle del mutex: altrimenti, chiusa la principale, il mutex resterebbe in
+  vita e l'avvio successivo cercherebbe per 3 secondi una principale che non c'è. L'opzione la
+  conosce solo la principale, che ha già letto le impostazioni: il processo nuovo non tocca il
+  disco prima della finestra. L'interruttore può stare in un'altra finestra, che lo comunica a
+  tutte con il messaggio registrato `z-f.finestre-separate`.
 - **Finestra Win32** con swapchain D3D11 in modalità flip e latenza di un frame
   (`SetMaximumFrameLatency(1)` e l'oggetto d'attesa della swapchain). La finestra compare subito
   con lo sfondo del tema.
@@ -179,6 +186,17 @@ condivise sono in `app.h`.
 
 - RTX 5070 Ti: contenuto visibile a 70–81 ms, passaggio alla GPU intorno ai 200 ms;
 - GPU persa (simulata): ripristino in 58 ms, di cui 36 sul thread dell'interfaccia;
+- memoria (novembre 2026, RTX 5070 Ti, elenco, `prove\memoria.ps1`): una finestra con una scheda
+  occupa 70 MB di working set e 84 MB di memoria privata, più 27 MB sulla GPU; con 11 schede
+  (System32, SysWOW64, Program Files…) 78 e 88 MB, quindi meno di 1 MB a scheda. Quasi tutto è il
+  driver della GPU caricato nel processo: con `--gpu=warp` la stessa finestra sta in 39 MB di
+  working set e 22 di privata. Dopo il passaggio alla GPU WARP si scarica (`D3D10Warp.dll` non
+  resta tra i moduli).
+  Ogni finestra in più è un processo con il suo driver: circa 63 MB di working set e 75 di
+  privata. La griglia aggiunge l'atlante delle miniature (64 MB sulla GPU) e fino a 96 MB di
+  copie in RAM (sezione Miniature);
+- avvio che consegna la cartella alla principale ed esce: 11–13 ms, processo compreso (il primo
+  58 ms, a disco freddo): è anche il costo in più di una finestra separata, prima del suo avvio.
 - con l'icona l'exe cresce di 46 KB, quasi tutti suoi (1.050.624 → 1.097.728 byte); il contenuto
   visibile non cambia (`prove\avvio.bat`, 20 avvii alternati: mediana 52,5 ms senza, 52,9 con).
 
@@ -863,7 +881,7 @@ sul thread; con il server spento l'errore arriva dopo 2 s, sempre sul thread.
   `barra_laterale`, `barra_laterale_larghezza`, `barra_tempi`, `animazioni`, `preferiti_aperti`,
   `unita_aperte`, `colonna_data`, `colonna_dimensione`, `colonna_destinazione`, `anteprima`,
   `anteprima_larghezza`, `carattere_anteprima`, `annulla_dopo_riavvio`, `menu_completo`,
-  `dimensione_cartelle`, `dialoghi`, `griglia_dimensione`, `riapri_schede`, `aggiornamenti`,
+  `dimensione_cartelle`, `dialoghi`, `griglia_dimensione`, `riapri_schede`, `finestre_separate`, `aggiornamenti`,
   `aggiornamenti_beta`, `aggiornamenti_ultimo`. Il pannello delle opzioni (`options.cpp`) le
   cambia con effetto immediato: dimensione e carattere del testo, animazioni, barra laterale, "Usa
   [z]f al posto di Explorer", "Menu completo di Windows col tasto destro", "Dialoghi Apri e Salva

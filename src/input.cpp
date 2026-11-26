@@ -216,6 +216,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         (msg == WM_KEYDOWN && !(lp & (1 << 30)) && wp != VK_SHIFT && wp != VK_CONTROL && wp != VK_MENU))
         shellMenuCancel();
     if (msg == g_msgRestart && msg) { restartBegin(false); return 0; } // un'altra finestra ha cliccato "Aggiorna"
+    if (msg == g_msgSeparate && msg) { A.separateWindows = wp != 0; A.dirty = true; return 0; } // l'interruttore in un'altra finestra
     switch (msg) {
     case WM_COPYDATA: // cartella aperta da una seconda istanza di [z]f
         return onCopyData((const COPYDATASTRUCT*)lp);

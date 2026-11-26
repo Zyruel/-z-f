@@ -478,7 +478,8 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   centrato, con il resto della finestra attenuato da `C_SHADOW`.
   - barra del titolo con ×; sezioni col titolo in `C_FAINT`; righe con etichetta a sinistra e
     controllo a destra, eventuale spiegazione sotto in `C_FAINT`;
-  - sezioni: Aspetto, Integrazione con Windows, File ("Annulla dopo il riavvio"), Avvio e
+  - sezioni: Aspetto, Integrazione con Windows ("Usa [z]f al posto di Explorer", "Una finestra per
+    ogni cartella aperta da fuori", menu completo, dialoghi), File ("Annulla dopo il riavvio"), Avvio e
     aggiornamenti ("Riapri le schede all'avvio", "Aggiornamenti automatici" con l'ora
     dell'ultimo controllo nella spiegazione, "Ricevi anche le beta"), Scorciatoie;
   - in fondo la versione e la build in `C_FAINT`, seguite dall'icona di stato dell'aggiornamento

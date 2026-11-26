@@ -196,7 +196,7 @@ static std::wstring shortcutsOf(int cmd) {
 enum OptId { OPT_NONE = -1, OPT_CLOSE = 1, OPT_FONT_MINUS, OPT_FONT_PLUS, OPT_FACE_PREV, OPT_FACE_NEXT,
              OPT_ANIM, OPT_SIDEBAR, OPT_DEFAULT, OPT_FOLDER, OPT_PREVIEW, OPT_MONO_PREV, OPT_MONO_NEXT,
              OPT_UNDO_PERSIST, OPT_SHELL_MENU, OPT_DIR_SIZES, OPT_DIALOGS, OPT_TIMES,
-             OPT_REOPEN, OPT_UPDATES, OPT_BETA, OPT_UPD_ACT };
+             OPT_REOPEN, OPT_UPDATES, OPT_BETA, OPT_UPD_ACT, OPT_SEPARATE };
 
 struct OptionsPanel {
     bool open = false;
@@ -212,7 +212,7 @@ struct OptionsPanel {
     int hover = OPT_NONE;
     HoverFade fade;
     float knobAnim = 0, knobSide = 0, knobDefault = 0, knobPreview = 0, knobUndo = 0, knobMenu = 0, knobDirSizes = 0, knobDialogs = 0, knobTimes = 0; // posizione animata degli interruttori
-    float knobReopen = 0, knobUpdates = 0, knobBeta = 0;
+    float knobReopen = 0, knobUpdates = 0, knobBeta = 0, knobSeparate = 0;
 } OP;
 
 static const wchar_t* kFaceChoices[] = { L"Segoe UI", L"Segoe UI Variable Text", L"Calibri", L"Tahoma", L"Verdana", nullptr };
@@ -282,6 +282,7 @@ static void optionsOpen() {
     OP.knobDialogs = A.dialogJump ? 1.0f : 0.0f;
     OP.knobTimes = A.timesBar ? 1.0f : 0.0f;
     OP.knobReopen = A.reopenTabs ? 1.0f : 0.0f;
+    OP.knobSeparate = A.separateWindows ? 1.0f : 0.0f;
     OP.knobUpdates = A.updAuto ? 1.0f : 0.0f;
     OP.knobBeta = updBeta() ? 1.0f : 0.0f;
     OP.faces = installedFaces(kFaceChoices, F.face);
@@ -322,6 +323,15 @@ static DWORD WINAPI settingsDirThread(void* p) {
     return 0;
 }
 
+// "Una finestra per ogni cartella aperta da fuori": decide la finestra principale (onCopyData), che
+// può essere un altro processo; lo sanno subito tutte le finestre di [z]f, anche quelle di prova
+static void separateWindowsToggle() {
+    A.separateWindows = !A.separateWindows;
+    settingsSave();
+    for (HWND w = nullptr; (w = FindWindowExW(nullptr, w, L"z-f", nullptr)) != nullptr;)
+        if (w != A.hwnd) PostMessageW(w, g_msgSeparate, A.separateWindows ? 1 : 0, 0);
+}
+
 static void optionsExec(int id) {
     switch (id) {
     case OPT_CLOSE:      optionsClose(); break;
@@ -341,6 +351,7 @@ static void optionsExec(int id) {
     case OPT_DIALOGS:    A.dialogJump = !A.dialogJump; settingsSave(); break;
     case OPT_TIMES:      A.timesBar = !A.timesBar; settingsSave(); break;
     case OPT_REOPEN:     A.reopenTabs = !A.reopenTabs; settingsSave(); break;
+    case OPT_SEPARATE:   separateWindowsToggle(); break;
     case OPT_UPDATES:    A.updAuto = !A.updAuto; settingsSave(); break;
     case OPT_BETA:       A.updBeta = updBeta() ? 0 : 1; settingsSave(); break;
     case OPT_UPD_ACT:    updAction(); break; // controlla, aggiorna, o apre la Release
@@ -567,6 +578,10 @@ static void drawOptions(double dt) {
           OP.defaultState == 2 ? L"Attivo con un altro eseguibile di [z]f: un clic lo assegna a questo"
                                : L"Doppio clic sulle cartelle, Win+E, programmi che aprono una cartella");
     sw(OP.defaultState == 1, OP.knobDefault, OPT_DEFAULT);
+    cy += rowH * 2 - px(ui::GAP_S);
+    label(L"Una finestra per ogni cartella aperta da fuori",
+          L"Invece di una scheda nella finestra principale. Una finestra occupa da 40 a 70 MB, una scheda meno di 1");
+    sw(A.separateWindows, OP.knobSeparate, OPT_SEPARATE);
     cy += rowH * 2 - px(ui::GAP_S);
     label(L"Menu completo di Windows col tasto destro",
           L"Al posto del menu di [z]f; Shift+tasto destro apre quello di [z]f. Si apre in 200\x2013" L"400 ms");

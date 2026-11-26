@@ -71,6 +71,8 @@ può (con il controllo dello schermo); altrimenti gli si chiede uno screenshot. 
 ## 3. Le altre prove in `prove\`
 
 - `istanza.bat`: istanza unica e `/select`;
+- `memoria.ps1 -Ids <pid>[,<pid>…]`: working set, memoria privata, memoria GPU, thread e handle
+  di ogni PID (da Bash: `powershell -NoProfile -File 'prove\memoria.ps1' -Ids <pid>`);
 - `avvio.bat [volte] [exe]`: tempi di avvio con `--prova-avvio` (nel registro "prova avvio:
   contenuto" e "prova avvio: primo fuoco"; predefiniti 10 volte e `build\z-f-dev.exe`). Ogni
   avvio porta una finestra in primo piano: **solo a PC libero**;

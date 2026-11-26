@@ -8,6 +8,12 @@ erano `0.N`. Ogni rilascio, dalla 1.0.0-beta.2, ha un tag `v<versione>` e una
 versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 [`ARCHITETTURA.md`](docs/ARCHITETTURA.md).
 
+## In preparazione
+
+- **Una finestra per ogni cartella aperta da fuori** (opzione, in Integrazione con Windows): il
+  doppio clic sul desktop, Win+E e gli altri programmi aprono una finestra nuova invece di una
+  scheda nella finestra principale. Ogni finestra occupa da 40 a 70 MB (secondo la scheda video), una scheda meno di 1 MB.
+
 ## 1.0.0-beta.4 (novembre 2026)
 
 - **[z]f ha un'icona:** "[z]" nel blu di [z]f su un quadrato scuro, nella barra delle

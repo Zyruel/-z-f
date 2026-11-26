@@ -270,6 +270,7 @@ struct App {
     // Avvio, riapertura delle schede e riavvio dopo un aggiornamento (tabs.cpp, main.cpp)
     bool reopenTabs = false;   // riapri_schede: la finestra principale riapre le sue schede all'avvio
     bool mainInstance = false; // finestra principale: riceve le cartelle aperte da fuori, salva schede.txt
+    bool separateWindows = false; // finestre_separate: la principale rimanda le cartelle aperte da fuori a una finestra nuova
     bool startDeferred = false; // avvio senza cartella: la prima aspetta di sapere se ci sono schede da riaprire
     std::wstring startDefault; // …e se non ce ne sono si va qui (la cartella utente)
     DWORD restartPid = 0;      // avviata da un aggiornamento: le schede sono in riavvio-<pid>.txt
@@ -295,6 +296,9 @@ static volatile double g_wicFirstMs = 0;
 // Proprietà della finestra principale (istanza unica): la mette main.cpp, la toglie input.cpp alla
 // chiusura, e chi avvia [z]f la cerca per consegnarle la cartella
 static const wchar_t* kInstanceProp = L"z-f.istanza";
+// "finestre_separate cambiata" tra le finestre di [z]f (RegisterWindowMessage, wParam il valore
+// nuovo): la usa la principale, ma l'interruttore può essere in un'altra finestra
+static UINT g_msgSeparate = 0;
 
 // Funzioni usate prima della loro definizione (l'ordine dei moduli è in z-f.cpp)
 static void startWatch(const std::wstring& path); // watch.cpp

@@ -20,6 +20,27 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 0000000000000000000000000000000. Una finestra per ogni cartella aperta da fuori (z-f-dev, novembre 2026)
+
+Provato da Claude senza schermo: con l'opzione accesa (simulata col messaggio
+`z-f.finestre-separate`) due aperture da fuori hanno aperto due processi nuovi, con l'opzione
+spenta una scheda nella principale. Restano:
+
+- [ ] Ctrl+, → Integrazione con Windows: l'interruttore "Una finestra per ogni cartella aperta da
+  fuori" si accende e si spegne, la spiegazione si legge per intero a 175%.
+- [ ] Con [z]f al posto di Explorer e l'opzione accesa: doppio clic su una cartella del desktop,
+  Win+E, "Apri percorso file" da un altro programma. Ognuno apre una finestra nuova, in primo
+  piano, con la cartella (e il file selezionato).
+- [ ] Interruttore acceso in una finestra aperta con "Nuova finestra": vale subito anche per la
+  principale (aprire una cartella da fuori apre una finestra nuova).
+- [ ] Chiusa la principale con le finestre separate ancora aperte, l'avvio successivo apre subito
+  (non dopo 3 secondi) e diventa la principale.
+- [ ] Con l'opzione spenta tutto come prima: una scheda nella finestra esistente.
+- [ ] Memoria a confronto, a PC libero: Esplora file aperto come lo apre una persona (Win+E, 10
+  volte) e la crescita del processo explorer.exe della shell, contro 10 schede e 10 finestre di
+  z-f-dev (`prove\memoria.ps1`). Avviato dall'app di Claude, explorer.exe apre ogni finestra in
+  un processo suo anche con `SeparateProcess=0`: quella misura non vale per l'uso normale.
+
 ## 000000000000000000000000000000. Correzioni del controllo prima della 1.0.0-beta.4 (z-f-dev, novembre 2026)
 
 I punti del controllo delle modifiche di questa versione: spazio delle unità lente azzerato se la
