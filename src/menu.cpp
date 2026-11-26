@@ -64,6 +64,7 @@ static void menuOpenSide(float cx, float cy, int i) {
     menuSep();
     if (it->path.empty()) { // Questo PC
         menuAdd(L"Connetti unità di rete\x2026", M_NET_CONNECT);
+        menuAdd(L"Aggiungi percorso di rete\x2026", M_NET_PLACE); // le parole di Windows, come la voce sopra
         menuAdd(L"Proprietà", M_SIDE_PROPS);
     } else if (it->place) {
         menuAdd(L"Proprietà", M_SIDE_PROPS);
@@ -211,6 +212,7 @@ static void menuOpen(float cx, float cy, POINT screenPt, bool background, bool f
         menuAddView();
         menuSep();
         menuAdd(L"Connetti unità di rete\x2026", M_NET_CONNECT);
+        menuAdd(L"Aggiungi percorso di rete\x2026", M_NET_PLACE);
         menuSep();
     }
     if (zip) { // la shell non vede dentro lo zip: niente Proprietà né menu di Windows
@@ -317,14 +319,15 @@ static void menuRun(int id, const CmdCtx& c) {
         if (!f.empty() || (kind == MENU_SIDE && si)) tabNew(f, false); // "" dalla barra laterale: Questo PC
         break;
     }
-    case M_NET_CONNECT: netStart(true, L""); break;
+    case M_NET_CONNECT: netStart(NET_CONNECT, L""); break;
+    case M_NET_PLACE: netStart(NET_PLACE, L""); break;
     case M_NET_DISCONNECT: {
         std::wstring d = sidePath;
         if (kind != MENU_SIDE) {
             std::vector<uint32_t> sel = selectedEntries();
             d = sel.size() == 1 ? std::wstring(A.cur->name(A.cur->e[sel[0]])) : L"";
         }
-        netStart(false, d);
+        netStart(NET_DISCONNECT, d);
         break;
     }
     case M_FAV_TOGGLE: if (A.cur) favToggle(A.cur->path); break;

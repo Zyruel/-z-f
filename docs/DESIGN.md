@@ -391,7 +391,7 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
     unità si chiude o si apre (ricordato); clic sul resto della voce, ci va. È evidenziata quando
     è aperta; a ramo chiuso porta la pillola `C_SEL_EDGE_PARENT` se la cartella aperta è su
     un'unità. Non riceve file trascinati. Menu (anche col tasto destro sulla freccia): Apri, Apri
-    in nuova scheda, Connetti unità di rete…, Proprietà;
+    in nuova scheda, Connetti unità di rete…, Aggiungi percorso di rete…, Proprietà;
   - preferiti vuoti: una riga con la scorciatoia che li aggiunge, in `C_FAINT`;
   - unità di rete: il nome della condivisione come in Explorer ("Condivisione (G:)", o quello dato
     dall'utente), non l'etichetta del disco sul server; `\\server\condivisione` nel tooltip
@@ -466,9 +466,12 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
     sono nostri e non si disegnano, ma entrano nella cartella aperta nell'ultima finestra di [z]f
     usata, appena si aprono e quando ci si torna dopo aver cambiato cartella in [z]f. Nessun avviso
     (è un'azione che si vede nel dialogo stesso); la scelta di una cartella non si tocca;
-  - in "Questo PC": "Connetti unità di rete…" nel menu dello sfondo, "Disconnetti" su un'unità
-    di rete. Il dialogo per connettere è quello di Windows (con la nostra finestra come
-    proprietaria); dopo la connessione si apre l'unità, come in Explorer;
+  - in "Questo PC": "Connetti unità di rete…" e "Aggiungi percorso di rete…" nel menu dello
+    sfondo, "Disconnetti" su un'unità di rete. Il dialogo per connettere è quello di Windows (con
+    la nostra finestra come proprietaria); dopo la connessione si apre l'unità, come in Explorer.
+    Anche la procedura per aggiungere un percorso di rete è quella di Windows, in una finestra a
+    sé come in Explorer; quando la si chiude la barra laterale si rilegge e il percorso nuovo
+    compare sotto Questo PC. I nomi delle due voci sono quelli di Windows;
   - **annulla e ripeti:** la voce dice cosa annulla ("Annulla spostamento", "Annulla nuova
     cartella"); senza niente da annullare è "Annulla", disattivata. Nel menu dello sfondo c'è solo
     "Annulla …", subito dopo Incolla come in Explorer; nel menu ≡ ci sono "Annulla …" e "Ripeti …".

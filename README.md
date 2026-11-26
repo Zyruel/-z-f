@@ -20,7 +20,8 @@ bit (provato su Windows 11).
   millisecondo e, quando non succede niente, non usa CPU. Il disco si legge sempre in background,
   quindi l'interfaccia non si blocca mai.
 - **Schede** e **barra laterale** con i preferiti (si riordinano trascinandoli) e Questo PC, con
-  le unità e i percorsi di rete; si connettono e disconnettono unità di rete.
+  le unità e i percorsi di rete; si connettono e disconnettono unità di rete e si aggiungono
+  percorsi di rete.
 - **Percorso a segmenti** cliccabili, con le sottocartelle in un menu su ogni "›".
 - **"Vai a"** (Ctrl+P): cerca mentre scrivi tra cartelle recenti, preferiti e le loro
   sottocartelle. Dal percorso (clic, Ctrl+L) parte dalla cartella aperta: si scrive il percorso

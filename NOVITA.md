@@ -10,6 +10,9 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 
 ## In preparazione
 
+- **Aggiungi percorso di rete…** nel menu di Questo PC (barra laterale e sfondo della lista),
+  accanto a "Connetti unità di rete…": apre la procedura di Windows, come Explorer, e quando la si
+  chiude il percorso nuovo compare sotto Questo PC. Prima per crearne uno serviva Explorer.
 - **Zip al posto di Explorer:** con "Usa [z]f al posto di Explorer" anche il doppio clic su uno
   zip fuori da [z]f (desktop, Download, il browser che apre un file scaricato) lo apre in [z]f
   come una cartella, invece che in Esplora file. Chi aveva già attivato l'opzione vede

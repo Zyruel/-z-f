@@ -507,6 +507,12 @@ tolto 2.842 voci su 10.266 in 0,6 ms, con il lock tenuto al massimo 0,17 ms per 
   come proprietaria, e poi apre l'unità. **Disconnettere** gira su un thread e non forza: con file
   aperti lo dice. Se la cartella aperta è sull'unità da disconnettere si passa prima a "Questo
   PC", perché il watcher la tiene aperta.
+- **Aggiungere un percorso di rete** apre la procedura di Windows ("Aggiunta guidata risorse di
+  rete") con il comando che usa Explorer, letto da dove lo legge Explorer:
+  `CommandStore\shell\Windows.AddNetworkLocation\command` in HKLM (oggi
+  `rundll32 shwebsvc.dll,AddNetPlaceRunDll`). Un thread avvia il processo e aspetta che finisca,
+  poi la barra laterale si rilegge (`sideLoad`): la procedura non dice se ha creato qualcosa, e il
+  percorso nuovo è una cartella in più in `Network Shortcuts`.
 - **Proprietà di Questo PC** apre Impostazioni › Sistema › Informazioni (`ms-settings:about`) su
   un thread.
 - **Preferiti** in `%APPDATA%\z-f\preferiti.txt`: una riga per cartella, con il nome mostrato dopo
@@ -535,6 +541,10 @@ tolto 2.842 voci su 10.266 in 0,6 ms, con il lock tenuto al massimo 0,17 ms per 
   spesso è la stessa per tutte.
 - Il dialogo per connettere ha [z]f come proprietaria perché alla chiusura [z]f torni davanti: un
   dialogo di un altro thread darebbe il fuoco alla finestra successiva.
+- La procedura dei percorsi di rete non ha un'interfaccia documentata: il punto d'ingresso in
+  shwebsvc.dll è interno a Windows. Leggendo il comando da `CommandStore` lo si segue se Windows lo
+  cambia. Gira in un processo suo, che non può avere [z]f come proprietaria: è una finestra a sé,
+  come in Explorer, e non blocca connetti e disconnetti (`g_netBusy` non la conta).
 - Un'unità ottica non si rilegge al ritorno sulla finestra: il DVD si avvierebbe ogni volta.
 - `ms-settings:about` sul thread dell'interfaccia costava 222 ms.
 
@@ -543,7 +553,10 @@ tolto 2.842 voci su 10.266 in 0,6 ms, con il lock tenuto al massimo 0,17 ms per 
 - voci locali: 16,6 ms al primo giro, 7 ms ai successivi; percorsi di rete (`netPlacesRead`)
   0,2–0,35 ms;
 - con un server spento simulato (8 s di attesa su un'unità di rete): voci locali a 97–153 ms
-  dall'avvio, l'unità di rete da sola dopo 8,1 s.
+  dall'avvio, l'unità di rete da sola dopo 8,1 s;
+- "Aggiungi percorso di rete…" (novembre 2026): sul thread dell'interfaccia solo la creazione del
+  thread; la procedura compare 30–140 ms dopo l'avvio del processo (tre giri), e quel processo
+  occupa 4,9 MB di memoria privata finché resta aperta.
 
 ## Percorso a segmenti e "Vai a"
 
@@ -581,7 +594,8 @@ thread, ognuna rifà la ricerca) si misura a parte con `prove\vai-a-misura.cpp`.
   - sui file: Apri, Apri con, Taglia, Copia, Copia percorso, Rinomina, Elimina, Proprietà;
   - sullo sfondo: Incolla, Annulla, Nuova cartella (che parte già in rinomina), Aggiorna, Copia
     percorso, Apri terminale qui, Proprietà;
-  - in "Questo PC": "Connetti unità di rete…" sullo sfondo e "Disconnetti" su un'unità di rete.
+  - in "Questo PC": "Connetti unità di rete…" e "Aggiungi percorso di rete…" sullo sfondo,
+    "Disconnetti" su un'unità di rete.
 
   Le scorciatoie delle voci vengono da `kShortcuts` (`options.cpp`, `shortcutFor`). Regole del
   menu (voci disattivate o assenti, scambio con `menu_completo`): `DESIGN.md`, "Menu

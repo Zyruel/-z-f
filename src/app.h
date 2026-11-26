@@ -16,7 +16,7 @@ enum MenuId { M_OPEN = 1, M_OPENWITH, M_CUT, M_COPY, M_PASTE, M_COPYPATH, M_RENA
               M_PREVIEW,     // pannello di anteprima (preview.cpp)
               M_UNDO, M_REDO, // annulla, ripeti (fileops.cpp)
               M_GRID_S, M_GRID_M, M_GRID_L, M_VIEW_LIST, // vista a griglia (miniature piccole, medie, grandi) o elenco
-              M_NET_CONNECT, M_NET_DISCONNECT, // unità di rete (sidebar.cpp)
+              M_NET_CONNECT, M_NET_DISCONNECT, M_NET_PLACE, // unità e percorsi di rete (sidebar.cpp)
               M_LINK_OPEN,   // collegamento: cartella della destinazione, con la destinazione selezionata (links.cpp)
               // Comandi senza voce di menu: legano i loro tasti in kShortcuts ai tooltip
               M_BACK, M_FWD, M_UP, M_EDIT_PATH, M_SIDEBAR, M_FILTER_CLEAR, M_GOTO_NEWTAB, M_GOTO_ENTER };

@@ -20,6 +20,26 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 0000000000000000000000000000000000000000. "Aggiungi percorso di rete…" in Questo PC (z-f-dev, novembre 2026)
+
+La voce apre la procedura di Windows con il comando di Explorer (letto da `CommandStore`); alla
+chiusura la barra laterale si rilegge. Compilato senza avvisi (MSVC).
+
+Provato da Claude in z-f-dev:
+- [x] Menu di Questo PC nella barra laterale: Apri, Apri in nuova scheda, Connetti unità di
+      rete…, Aggiungi percorso di rete…, Proprietà.
+- [x] La procedura si apre in primo piano; creato un percorso verso `\\localhost\C$` (senza
+      "Apri il percorso di rete…" all'ultima pagina): dopo Fine compare subito sotto Questo PC.
+      Tolto il percorso di prova e riaperta la procedura, con Annulla la barra si rilegge e la
+      voce sparisce.
+- [x] Registro: niente di nuovo oltre il passaggio WARP → GPU all'avvio.
+
+Resta a Zyruel:
+- [ ] La voce nel **menu dello sfondo** di Questo PC (lista): stessa procedura.
+- [ ] Con **"Apri il percorso di rete quando si sceglie il pulsante Fine"** spuntata (com'è di
+      solito): il percorso si apre (in [z]f se è il file manager predefinito) e compare sotto
+      Questo PC.
+
 ## 000000000000000000000000000000000000000. File solo online appena scaricati: icona e miniatura (z-f-dev, novembre 2026)
 
 Un file solo online ha ora l'icona del tipo (`iconSource`), così quando si scarica la chiave

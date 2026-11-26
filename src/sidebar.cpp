@@ -740,17 +740,45 @@ static void drawSidebar(double dt) {
     if (A.favDropAt >= 0 && A.favDropAt != A.favPress && A.favDropAt != A.favPress + 1) drawFavGap(A.favDropAt);
 }
 
-// --- unità di rete: connetti e disconnetti ----------------------------------------------
+// --- unità di rete: connetti e disconnetti; percorsi di rete: aggiungi -------------------------
 // mpr.dll può aspettare la rete: tutto gira su un thread. Il dialogo di Windows "Connetti unità
 // di rete" ha la nostra finestra come proprietaria, così resta davanti e la blocca come in Explorer.
 
-struct NetJob { HWND hwnd; bool connect; std::wstring drive; DWORD err; HANDLE watcher = nullptr; };
-static bool g_netBusy = false;
+enum NetOp { NET_CONNECT, NET_DISCONNECT, NET_PLACE };
+struct NetJob { HWND hwnd; NetOp op; std::wstring drive; DWORD err; HANDLE watcher = nullptr; };
+static bool g_netBusy = false; // connetti o disconnetti in corso (la procedura dei percorsi di rete no)
+
+// "Aggiungi percorso di rete": la procedura è di Windows e gira in un suo processo, che si aspetta
+// qui finché la si chiude. Il comando è quello di Explorer, letto da dove lo legge Explorer
+// (CommandStore): il punto d'ingresso in shwebsvc.dll non è documentato, così se Windows lo cambia
+// lo si segue.
+static DWORD netPlaceWizard() {
+    static const wchar_t kKey[] =
+        L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\CommandStore\\shell\\Windows.AddNetworkLocation\\command";
+    wchar_t cmd[2 * MAX_PATH];
+    DWORD size = sizeof(cmd);
+    // RRF_RT_REG_SZ accetta anche REG_EXPAND_SZ e lo espande (%SystemRoot%)
+    LSTATUS r = RegGetValueW(HKEY_LOCAL_MACHINE, kKey, nullptr, RRF_RT_REG_SZ, nullptr, cmd, &size);
+    if (r != ERROR_SUCCESS) return (DWORD)r;
+    STARTUPINFOW si = {};
+    si.cb = sizeof(si);
+    PROCESS_INFORMATION pi;
+    if (!CreateProcessW(nullptr, cmd, nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi)) return GetLastError();
+    CloseHandle(pi.hThread);
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    CloseHandle(pi.hProcess);
+    return NO_ERROR;
+}
 
 static DWORD WINAPI netThread(void* p) {
     NetJob* j = (NetJob*)p;
+    if (j->op == NET_PLACE) {
+        j->err = netPlaceWizard();
+        if (!PostMessageW(j->hwnd, WM_APP_NET, 0, (LPARAM)j)) delete j;
+        return 0;
+    }
     HRESULT co = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE); // il dialogo usa la shell
-    if (j->connect) {
+    if (j->op == NET_CONNECT) {
         typedef DWORD(WINAPI * PFN_Dialog)(LPCONNECTDLGSTRUCTW);
         auto dlg = (PFN_Dialog)mprProc("WNetConnectionDialog1W");
         NETRESOURCEW nr = {};
@@ -780,10 +808,12 @@ static DWORD WINAPI netThread(void* p) {
     return 0;
 }
 
-static void netStart(bool connect, const std::wstring& drive) {
-    if (g_netBusy) return;
+// La procedura dei percorsi di rete è una finestra a sé, come in Explorer: non blocca
+// connetti e disconnetti, e se ne possono aprire più d'una.
+static void netStart(NetOp op, const std::wstring& drive) {
+    if (g_netBusy && op != NET_PLACE) return;
     HANDLE watcher = nullptr;
-    if (!connect) {
+    if (op == NET_DISCONNECT) {
         if (drive.size() < 2) return;
         // La cartella aperta è sull'unità: il watcher la tiene aperta e Windows rifiuterebbe.
         // Si va subito su "Questo PC", con l'unità selezionata.
@@ -792,16 +822,21 @@ static void netStart(bool connect, const std::wstring& drive) {
             navigate(L"", 1, drive.substr(0, 2) + L"\\");
         }
     }
-    NetJob* j = new NetJob{ A.hwnd, connect, drive, 0, watcher };
+    NetJob* j = new NetJob{ A.hwnd, op, drive, 0, watcher };
     HANDLE h = CreateThread(nullptr, 0, netThread, j, 0, nullptr);
-    if (h) { CloseHandle(h); g_netBusy = true; }
+    if (h) { CloseHandle(h); if (op != NET_PLACE) g_netBusy = true; }
     else { if (watcher) CloseHandle(watcher); delete j; }
 }
 
 static void onNetDone(NetJob* j) {
-    g_netBusy = false;
+    if (j->op != NET_PLACE) g_netBusy = false;
     std::wstring d = j->drive.substr(0, std::min<size_t>(2, j->drive.size()));
-    if (j->connect) {
+    if (j->op == NET_PLACE) {
+        // La procedura non dice se ha creato qualcosa: si rilegge comunque. Il percorso nuovo
+        // compare sotto Questo PC (e lo apre Windows, se lo si sceglie nell'ultima pagina).
+        if (j->err == NO_ERROR) sideLoad();
+        else notice(L"Impossibile aprire la procedura per aggiungere un percorso di rete (codice " + std::to_wstring(j->err) + L")", false);
+    } else if (j->op == NET_CONNECT) {
         if (j->err == NO_ERROR) {
             sideLoad();
             if (!j->drive.empty()) navigate(j->drive, 1, L""); // come Explorer: si apre l'unità appena connessa

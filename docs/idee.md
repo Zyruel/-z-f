@@ -58,16 +58,6 @@ passano a Windows.
 
 ## Rete
 
-### "Aggiungi un percorso di rete…" dal menu di Questo PC (novembre 2026)
-
-I percorsi di rete di Windows ora si vedono sotto Questo PC. Per crearne uno serve oggi Explorer.
-
-- **Cosa servirebbe:** una voce nel menu di Questo PC (barra laterale e sfondo della lista),
-  accanto a "Connetti unità di rete…", che apre la procedura di Windows ("Aggiunta guidata
-  risorse di rete"), come fa Explorer, su un thread; alla chiusura si rilegge la barra
-  (`sideLoad`). Non è un dialogo nostro, come quello per connettere un'unità.
-- **Frena:** poco. Va trovato il modo giusto di aprirla (il comando di Windows non è documentato).
-
 ### Condivisioni visitate (novembre 2026)
 
 Mostrare tra le unità le condivisioni già aperte (per esempio quelle di un NAS),
