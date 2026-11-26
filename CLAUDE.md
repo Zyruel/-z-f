@@ -36,7 +36,9 @@ documentazione sono in italiano; `shader.hlsl` è solo ASCII.
 - **Documenti:**
   - `README.md`: breve, per chi usa [z]f (cos'è, dove scaricarlo, cosa sa fare, scorciatoie, come
     compilarlo). Niente misure né dettagli interni;
-  - `docs/ARCHITETTURA.md`: come è fatto, funzione per funzione, con le misure e la tabella dei moduli;
+  - `docs/ARCHITETTURA.md`: come è fatto, per area (come funziona, perché così, "Misurato:"), con
+    la tabella dei moduli. Niente storia (sta in `NOVITA.md`) né comportamento visibile (sta in
+    DESIGN e README);
   - `NOVITA.md`: cosa cambia in ogni versione; la sezione del rilascio è anche la nota della Release.
 - **Versione:** `ZF_VERSION` in `src/base.h`, con il Semantic Versioning (deciso con Zyruel a
   novembre 2026, dopo la 0.28): `1.0.0-beta.N` le beta, `1.0.0-rc.N` le candidate, `1.0.0` la
