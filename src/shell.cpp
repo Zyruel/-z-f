@@ -184,8 +184,9 @@ static bool clipSetFiles(const std::vector<uint32_t>& items, bool cut) {
 // shell sul thread del menu, con la finestra di [z]f come proprietaria dei dialoghi. Il thread resta
 // vivo dopo il primo uso (un'estensione può lasciargli finestre); se è ancora occupato da un comando
 // lungo, il menu successivo parte su un altro.
-// Sullo stesso thread vanno i comandi della shell senza menu (shellVerb: Shift+Canc, Proprietà di più
-// voci, Copia e Taglia di unità): costruire l'oggetto della shell costa quanto per il menu.
+// Sullo stesso thread vanno i comandi della shell senza menu (shellVerb: Shift+Canc, Proprietà, Apri
+// con, Copia e Taglia di unità): costruire l'oggetto della shell costa quanto per il menu, e su una
+// condivisione che non risponde aspetta il timeout di rete.
 
 enum SmCmd { SM_NONE, SM_PASTE, SM_REFRESH, SM_RENAME, SM_RECYCLE, SM_PASTE_INTO, SM_COPY, SM_CUT };
 enum { SM_ID_PASTE = 0x8001, SM_ID_REFRESH = 0x8002, SM_THREADS_MAX = 4 };
@@ -199,6 +200,7 @@ struct SmReq {
     std::string verb;                            // comando senza menu ("delete"…); vuoto: il menu
     std::wstring folder;                         // cartella aperta al clic ("" Questo PC)
     std::vector<std::wstring> names;             // voci (vuoto: sfondo)
+    std::wstring path;                           // comando su un percorso intero, non su voci di folder (shellVerbPath)
     std::wstring cursorName;                     // voce del cursore: è lei che si rinomina
     bool background = false, drives = false, shift = false, pasteOk = false;
     POINT pt = {};
@@ -241,24 +243,30 @@ static LRESULT CALLBACK smWndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     return DefWindowProcW(h, msg, wp, lp);
 }
 
+// Menu della shell per un percorso intero, chiesto alla cartella che lo contiene (come Explorer):
+// vale per file, cartelle, unità (la cartella è Questo PC) e \\server\condivisione (è \\server).
+// Sul thread del menu: il percorso si analizza qui, e su una rete che non risponde aspetta.
+static IContextMenu* smMenuForPath(HWND w, const std::wstring& path) {
+    void* obj = nullptr;
+    PIDLIST_ABSOLUTE pidl = nullptr;
+    if (SUCCEEDED(SHParseDisplayName(path.c_str(), nullptr, &pidl, 0, nullptr))) {
+        IShellFolder* parent = nullptr;
+        PCUITEMID_CHILD child = nullptr;
+        if (SUCCEEDED(SHBindToParent(pidl, IID_IShellFolder, (void**)&parent, &child))) {
+            parent->GetUIObjectOf(w, 1, &child, IID_IContextMenu, nullptr, &obj);
+            parent->Release();
+        }
+        CoTaskMemFree(pidl);
+    }
+    return (IContextMenu*)obj;
+}
+
 // Menu della shell per le voci di folder (sfondo se names è vuoto), sul thread del menu
 static IContextMenu* smMenuFor(HWND w, const std::wstring& folder, const std::vector<std::wstring>& names) {
     // Percorso di rete in Questo PC: la voce è un \\server\condivisione intero, che Questo PC non
-    // sa interpretare. Il menu si chiede alla cartella che lo contiene (\\server), come Explorer.
-    if (folder.empty() && names.size() == 1 && names[0].size() > 2 && names[0][0] == L'\\' && names[0][1] == L'\\') {
-        void* obj = nullptr;
-        PIDLIST_ABSOLUTE pidl = nullptr;
-        if (SUCCEEDED(SHParseDisplayName(names[0].c_str(), nullptr, &pidl, 0, nullptr))) {
-            IShellFolder* parent = nullptr;
-            PCUITEMID_CHILD child = nullptr;
-            if (SUCCEEDED(SHBindToParent(pidl, IID_IShellFolder, (void**)&parent, &child))) {
-                parent->GetUIObjectOf(w, 1, &child, IID_IContextMenu, nullptr, &obj);
-                parent->Release();
-            }
-            CoTaskMemFree(pidl);
-        }
-        return (IContextMenu*)obj;
-    }
+    // sa interpretare
+    if (folder.empty() && names.size() == 1 && names[0].size() > 2 && names[0][0] == L'\\' && names[0][1] == L'\\')
+        return smMenuForPath(w, names[0]);
     IShellFolder* sf = bindFolder(folder);
     if (!sf) return nullptr;
     void* obj = nullptr;
@@ -298,20 +306,21 @@ static void smInvoke(IContextMenu* cm, const SmReq* r, LPCSTR verbA, LPCWSTR ver
     if (owner && GetWindowThreadProcessId(owner, nullptr) == GetCurrentThreadId()) OleFlushClipboard();
 }
 
-// Comando senza menu (shellVerb). Si esegue anche se nel frattempo l'utente ha cliccato altrove: lo
-// ha chiesto lui, e le finestre che apre (conferma, Proprietà) sono quelle che aspetta.
+// Comando senza menu (shellVerb, shellVerbPath). Si esegue anche se nel frattempo l'utente ha
+// cliccato altrove: lo ha chiesto lui, e le finestre che apre (conferma, Proprietà, Apri con) sono
+// quelle che aspetta. Il tempo si misura anche se la shell non trova il percorso (rete che non risponde).
 static void smRunVerb(HWND w, const SmReq* r, SmRes* res) {
     res->verb = true;
-    res->items = (int)r->names.size();
+    res->items = r->path.empty() ? (int)r->names.size() : 1;
     double t0 = nowMs();
-    IContextMenu* cm = smMenuFor(w, r->folder, r->names);
-    if (!cm) return;
+    IContextMenu* cm = r->path.empty() ? smMenuFor(w, r->folder, r->names) : smMenuForPath(w, r->path);
     // Alcune implementazioni vogliono QueryContextMenu prima di InvokeCommand.
-    // CMF_DEFAULTONLY la tiene leggera: niente estensioni da caricare.
-    HMENU m = CreatePopupMenu();
-    cm->QueryContextMenu(m, 0, 1, 0x7FFF, CMF_DEFAULTONLY);
+    // CMF_DEFAULTONLY la tiene leggera: niente estensioni da caricare ("openas" funziona lo stesso).
+    HMENU m = cm ? CreatePopupMenu() : nullptr;
+    if (m) cm->QueryContextMenu(m, 0, 1, 0x7FFF, CMF_DEFAULTONLY);
     res->buildMs = nowMs() - t0;
     if (res->buildMs > ui::LOG_MENU) hitchLog("comando della shell lento", (unsigned)res->items, res->buildMs);
+    if (!cm) return;
     std::wstring verbW(r->verb.begin(), r->verb.end()); // ASCII
     smInvoke(cm, r, r->verb.c_str(), verbW.c_str(), r->shift, false, false);
     DestroyMenu(m);
@@ -467,9 +476,9 @@ static void showContextMenu(POINT screenPt, bool background) {
     smSend(r, L"Il menu di Windows è ancora occupato");
 }
 
-// Comando della shell senza menu: Shift+Canc ("delete"), Proprietà di più voci ("properties"), Copia
-// e Taglia dove non bastano i percorsi (unità, Questo PC). Oggetto della shell e QueryContextMenu
-// costano circa 80 µs a voce in locale e 400 µs su una condivisione (20.000 voci: 1,6 s e 8 s; misure
+// Comando della shell senza menu sulla selezione: Shift+Canc ("delete"), Proprietà ("properties"),
+// Apri con ("openas"), Copia e Taglia dove non bastano i percorsi (unità, Questo PC). Oggetto della
+// shell e QueryContextMenu costano circa 80 µs a voce in locale e 400 µs su una condivisione (20.000 voci: 1,6 s e 8 s; misure
 // con prove\shell-verbi.cpp), e "delete" conta gli elementi dentro InvokeCommand prima di chiedere
 // (altri 1,4 s) e poi elimina lì dentro: va tutto sul thread del menu della shell.
 static void shellVerb(const char* verb) {
@@ -491,6 +500,19 @@ static void shellVerb(const char* verb) {
     for (uint32_t ei : items) r->names.emplace_back(A.cur->name(A.cur->e[ei]), A.cur->e[ei].nameLen);
     r->drives = A.cur->isDrives;
     r->shift = GetKeyState(VK_SHIFT) < 0; // lo stato dei tasti è per thread: si legge qui
+    smSend(r, L"Windows è ancora occupato con un altro comando");
+}
+
+// Comando della shell su un percorso intero, dal thread del menu come shellVerb: Proprietà della
+// cartella aperta e delle voci della barra laterale (unità, percorsi di rete). Non
+// SHObjectProperties sul thread UI: la finestra avrebbe il suo thread, ma l'analisi del percorso no,
+// e una cartella su una condivisione che non risponde fermerebbe l'interfaccia per il timeout di rete.
+static void shellVerbPath(const char* verb, const std::wstring& path) {
+    if (path.empty()) return;
+    SmReq* r = new SmReq;
+    r->main = A.hwnd;
+    r->verb = verb;
+    r->path = path;
     smSend(r, L"Windows è ancora occupato con un altro comando");
 }
 
@@ -597,15 +619,11 @@ static DWORD WINAPI openThread(void* p) {
     return 0;
 }
 
+// Apri con: il verbo "openas" sul thread del menu, non SHOpenWithDialog sul thread UI, che è modale
+// (con la finestra aperta [z]f non si ridisegnerebbe). La finestra è di OpenWith.exe, un processo a parte.
 static void openWith() {
-    std::vector<uint32_t> v = selectedEntries();
-    if (v.size() != 1 || zipNoShell() || !oleReady()) return;
-    std::wstring p = joinPath(A.cur->path, A.cur->name(A.cur->e[v[0]]));
-    OPENASINFO oi = {};
-    oi.pcszFile = p.c_str();
-    oi.oaifInFlags = OAIF_ALLOW_REGISTRATION | OAIF_REGISTER_EXT | OAIF_EXEC;
-    g_shellCalls++;
-    SHOpenWithDialog(A.hwnd, &oi);
+    if (!A.cur || selectedEntries().size() != 1 || zipNoShell()) return;
+    shellVerb("openas");
 }
 
 static void copyPaths(bool folder) {
@@ -626,16 +644,11 @@ static void copyPaths(bool folder) {
                              one ? L"Impossibile copiare il percorso" : L"Impossibile copiare i percorsi" });
 }
 
+// Proprietà della selezione o della cartella aperta: sempre dal thread del menu (shellVerb)
 static void showProperties(bool folder) {
-    if (!A.cur || zipNoShell() || !oleReady()) return;
-    std::vector<uint32_t> v;
-    if (!folder) v = selectedEntries();
-    if (folder || v.size() == 1) {
-        std::wstring p = folder ? A.cur->path : joinPath(A.cur->path, A.cur->name(A.cur->e[v[0]]));
-        SHObjectProperties(A.hwnd, SHOP_FILEPATH, p.c_str(), nullptr); // non blocca: la finestra ha il suo thread
-    } else {
-        shellVerb("properties");
-    }
+    if (!A.cur || zipNoShell()) return;
+    if (folder) shellVerbPath("properties", A.cur->path);
+    else shellVerb("properties");
 }
 
 static void newFolder() {

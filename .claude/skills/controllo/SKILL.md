@@ -100,7 +100,9 @@ con grep prima di segnalare.
   trascinare, `shellObjectFor`; `IDropTarget`) si misura con `hitchLog` ("oggetto della shell
   lento"), perché i cicli modali della shell sono esclusi dal registro dei messaggi lenti
   (`g_shellCalls`); il menu completo della shell e i comandi senza menu (Shift+Canc, Proprietà di
-  più voci) passano dal thread del menu (`shellVerb` → `smSend` → `smRun`), non dal thread UI.
+  una o più voci, della cartella e della barra laterale, Apri con) passano dal thread del menu
+  (`shellVerb`/`shellVerbPath` → `smSend` → `smRun`), non dal thread UI: `SHObjectProperties` o
+  `SHOpenWithDialog` sul thread UI sono da segnalare.
 - **Lavoro su un thread senza `PostMessage` e contatore di generazione.** Il risultato arriva al
   thread UI con `PostMessage` (se fallisce, il risultato si libera: `if (!PostMessageW(…)) delete r;`)
   e il gestore lo scarta se la generazione non è più quella corrente (`gen`, `watchGen`, `sideGen`

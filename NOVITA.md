@@ -37,6 +37,11 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
   secondo e, se non ci riesce, lo dice e dice chi li tiene, invece di scrivere "Percorso copiato"
   senza averlo copiato; un Taglia non riuscito rimette il testo dov'era. [z]f non si ferma più se
   il programma che possedeva gli appunti è bloccato.
+- Proprietà (Alt+Invio, anche di una voce sola, della cartella aperta, delle unità e dei percorsi
+  di rete nella barra laterale) e "Apri con…" non fermano più [z]f: Windows li prepara sullo
+  stesso thread del menu completo, e intanto [z]f continua a rispondere. Prima una cartella su
+  una condivisione lenta o spenta bloccava la finestra finché la rete rispondeva, e con "Apri
+  con…" aperto [z]f non si ridisegnava.
 
 ## 1.0.0-beta.3 (novembre 2026)
 

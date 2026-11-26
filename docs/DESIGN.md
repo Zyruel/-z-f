@@ -446,10 +446,11 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   - il menu completo della shell compare quando Windows l'ha costruito (200–450 ms): lo fa un
     thread suo e intanto l'interfaccia continua. Un clic o un tasto in quell'attesa lo annulla:
     l'utente è passato ad altro e un menu che compare dopo sarebbe una sorpresa;
-  - Shift+Canc e Proprietà di più voci passano dallo stesso thread: la finestra di Windows
-    (conferma, Proprietà) compare quando la shell è pronta (20.000 file: circa 3 s per la
-    conferma) e l'interfaccia intanto continua. Un clic nell'attesa non la annulla: l'ha chiesta
-    l'utente, ed è una finestra che aspetta;
+  - Shift+Canc, Proprietà (di una o più voci, della cartella aperta, delle voci della barra
+    laterale) e "Apri con…" passano dallo stesso thread: la finestra di Windows (conferma,
+    Proprietà, Apri con) compare quando la shell è pronta (20.000 file: circa 3 s per la
+    conferma; una condivisione lenta: quanto la rete) e l'interfaccia intanto continua. Un clic
+    nell'attesa non la annulla: l'ha chiesta l'utente, ed è una finestra che aspetta;
   - **dialoghi Apri e Salva degli altri programmi** (`filedlg.cpp`, opzione `dialoghi`): non
     sono nostri e non si disegnano, ma entrano nella cartella aperta nell'ultima finestra di [z]f
     usata, appena si aprono e quando ci si torna dopo aver cambiato cartella in [z]f. Nessun avviso
@@ -652,9 +653,10 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
 - **Ciò che la shell fa sul thread UI si misura a parte** (`hitchLog` con "oggetto della shell"): i
   messaggi che entrano nei cicli modali della shell sono esclusi dal conteggio dei messaggi lenti
   (`g_shellCalls`), quindi senza questa misura il tempo non si vedrebbe. Il menu completo della
-  shell e i comandi della shell senza menu (Shift+Canc, Proprietà di più voci) non stanno sul thread
-  UI: li fa il thread del menu (`smRun`), che segna "menu della shell lento" e "comando della shell
-  lento" oltre `LOG_MENU`; F12 mostra i due tempi.
+  shell e i comandi della shell senza menu (Shift+Canc, Proprietà, Apri con: `shellVerb`, o
+  `shellVerbPath` per un percorso intero) non stanno sul thread UI: li fa il thread del menu
+  (`smRun`), che segna "menu della shell lento" e "comando della shell lento" oltre `LOG_MENU`; F12
+  mostra i due tempi. Niente `SHObjectProperties` né `SHOpenWithDialog` sul thread UI.
 - **File di [z]f** in `%APPDATA%\z-f`, scritti con `saveDataAsync`: file temporaneo, poi
   rinominato.
 - **Ogni modulo nuovo** entra in `z-f.cpp` (unity build), nella tabella dei moduli di

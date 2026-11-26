@@ -20,6 +20,38 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 0000000000000000000000000000. Proprietà e "Apri con…" sul thread del menu della shell (z-f-dev, novembre 2026)
+
+Correzione del controllo del codice (`shell.cpp`, `menu.cpp`): le Proprietà di una voce sola,
+della cartella aperta e delle voci della barra laterale erano `SHObjectProperties` sul thread
+dell'interfaccia, che analizza il percorso prima di aprire la finestra (su una condivisione che
+non risponde: il timeout di rete, senza traccia nel registro); "Apri con…" era
+`SHOpenWithDialog`, modale sul thread dell'interfaccia. Ora passano dal thread del menu della
+shell come Shift+Canc e le Proprietà di più voci: i verbi "properties" e "openas" (`shellVerb`, e
+`shellVerbPath` per un percorso intero), con la misura in F12 ("comando della shell") e nel
+registro oltre 50 ms.
+
+Provato da Claude su z-f-dev, in una cartella di prova con file finti:
+- [x] **Alt+Invio** su una cartella e su un file: le Proprietà compaiono (a.txt: 9,7 ms sul
+      thread del menu); dal menu dello sfondo, le Proprietà della cartella aperta;
+- [x] barra laterale: **Proprietà di Disco locale (C:)** e di un **percorso di rete** sotto Questo
+      PC (un NAS: la prima analisi del percorso ha impiegato 22,4 s, nel registro "comando della
+      shell lento" e in F12, e intanto l'interfaccia si ridisegnava; poi le Proprietà della
+      condivisione). In Questo PC nella lista, Alt+Invio su C:. I preferiti non hanno la voce
+      Proprietà;
+- [x] **"Apri con…"** su un .txt (8,2 ms sul thread) e su un file senza programma associato: la
+      finestra di Windows (OpenWith.exe, un processo a parte) compare; intanto un clic nella lista
+      di [z]f seleziona e mostra il tooltip (prima [z]f era fermo finché la finestra restava
+      aperta). Il clic la chiude, come fa Windows 11 quando perde il fuoco;
+- [x] registro: solo la riga del percorso di rete; MSVC: zero avvisi.
+
+Da provare a mano:
+- [ ] **condivisione che non risponde** (server spento o rete staccata): Alt+Invio su una sua
+      cartella e Proprietà del percorso di rete o dell'unità di rete nella barra laterale; la lista
+      deve rispondere durante l'attesa, poi una riga "comando della shell lento" (se Windows non
+      trova il percorso non compare niente, come prima);
+- [ ] Proprietà di un'unità ottica senza disco e di un'unità di rete con lettera.
+
 ## 000000000000000000000000000. Appunti: Copia percorso e Copia/Taglia nelle caselle su un thread (z-f-dev, novembre 2026)
 
 Correzione del controllo del codice (`text.cpp`, `clipSetText`): il testo si scriveva negli
