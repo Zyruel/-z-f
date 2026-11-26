@@ -161,6 +161,10 @@ constexpr float MARQUEE_SCROLL_MAX = 6;
 constexpr int WATCH_BATCH = 50;    // notifiche della cartella aperta raggruppate: al massimo una ricarica ogni tanto
 constexpr int SIDE_RELOAD = 5000;  // tornando a [z]f, unità e preferiti si rileggono se più vecchi di così
 constexpr int ZIP_TEMP_KEEP = 3 * 24 * 3600 * 1000; // file estratti da uno zip (%TEMP%\z-f): tolti all'estrazione dopo questo tempo
+// Dimensione delle cartelle (dirsize.cpp): un totale vale DS_FRESH, poi una richiesta lo riconta;
+// tooltip e anteprima vedono il parziale ogni DS_PROGRESS; la cache oltre il suo limite si pulisce
+// al massimo ogni DS_TRIM_EVERY
+constexpr int DS_FRESH = 60000, DS_PROGRESS = 100, DS_TRIM_EVERY = 15000;
 // Salto dei dialoghi Apri e Salva (filedlg.cpp, sul suo thread): ogni FD_POLL si guarda se il
 // dialogo è pronto, per al massimo FD_WAIT_MAX; poi FD_SETTLE di margine (prima, il comando fa
 // cadere il programma del dialogo). Attesa massima di una risposta del dialogo: FD_MSG_WAIT per il

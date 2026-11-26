@@ -20,6 +20,19 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 000000000000000000000000000000000000. Memoria delle cartelle enormi (z-f-dev, novembre 2026)
+
+Compilato senza avvisi (MSVC; zig non è installato). Provato da Claude su WinSxS con
+`prove\memoria.ps1`: 126 → 98–101 MB di privata. La colonna Dimensione mostra i totali (screenshot)
+e il conto arriva in fondo (30.720 cartelle in 6 s). La pulizia della cache è stata provata con
+soglie abbassate apposta (tiene le sottocartelle della cartella aperta). Log normale.
+
+- [ ] **Colonna Dimensione in una cartella grande, nell'uso normale:** i totali compaiono come
+      prima, dall'alto verso il basso, anche cambiando scheda a metà conto e tornando.
+- [ ] **Pulizia della cache con le soglie vere:** dopo qualche cartella grande (WinSxS, System32,
+      un `node_modules`) e più di un minuto, la colonna della cartella aperta resta piena.
+      Ordinare per dimensione mette ancora in ordine le cartelle già contate.
+
 ## 00000000000000000000000000000000000. Gesti del touchpad e tasti Indietro/Avanti (z-f-dev, novembre 2026)
 
 Compilato senza avvisi (MSVC). Senza schermo (accesso negato), con `WM_APPCOMMAND` mandato alla

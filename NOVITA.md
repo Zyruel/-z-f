@@ -8,6 +8,14 @@ erano `0.N`. Ogni rilascio, dalla 1.0.0-beta.2, ha un tag `v<versione>` e una
 versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 [`ARCHITETTURA.md`](docs/ARCHITETTURA.md).
 
+## In preparazione
+
+- **Meno memoria nelle cartelle enormi:** in WinSxS (30.734 cartelle) una finestra occupava 126 MB
+  e ora da 98 a 101; nella cartella utente resta sui 76. La lista non tiene più spazio vuoto
+  riservato durante la lettura, e il conto delle dimensioni delle cartelle non tiene più in
+  memoria un percorso completo per ogni cartella. Inoltre la sua memoria non cresce più con ogni
+  cartella grande visitata finché la finestra resta aperta.
+
 ## 1.0.0-beta.5 (novembre 2026)
 
 - **Gesti del touchpad:** "Spostamento indietro" e "Spostamento avanti" (Impostazioni →

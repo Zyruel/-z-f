@@ -194,7 +194,11 @@ condivise sono in `app.h`.
   resta tra i moduli).
   Ogni finestra in più è un processo con il suo driver: circa 63 MB di working set e 75 di
   privata. La griglia aggiunge l'atlante delle miniature (64 MB sulla GPU) e fino a 96 MB di
-  copie in RAM (sezione Miniature);
+  copie in RAM (sezione Miniature). Una cartella enorme pesa in proporzione: WinSxS (30.734
+  voci, nomi di 95 caratteri in media) porta la finestra da 76 a 98–101 MB di privata. Quasi
+  tutto è la lettura (nomi 5,6 MB, chiavi 6,2, minuscole 5,6, voci 1,2: sezione "Lettura delle
+  cartelle e lista"); la cache delle dimensioni delle cartelle, con 41.000 voci, pesa da 4 a 6 MB
+  (sezione "Dimensione delle cartelle");
 - avvio che consegna la cartella alla principale ed esce: 11–13 ms, processo compreso (il primo
   58 ms, a disco freddo): è anche il costo in più di una finestra separata, prima del suo avvio.
 - con l'icona l'exe cresce di 46 KB, quasi tutti suoi (1.050.624 → 1.097.728 byte); il contenuto
@@ -207,6 +211,11 @@ condivise sono in `app.h`.
 - **Lettura** (`listing.cpp`) su un thread: `FindFirstFileExW` con `FindExInfoBasic` e
   `FIND_FIRST_EX_LARGE_FETCH`. Lo stesso thread prepara i nomi in minuscolo per il filtro e le
   chiavi di ordinamento.
+- **Memoria della lista:** nomi, minuscole e chiavi stanno in tre vettori contigui, senza una
+  stringa per voce. La lista resta in memoria finché la cartella è aperta, quindi alla fine della
+  lettura un vettore con più di `kListSlackMax` (1 MB) di spazio vuoto si restringe (`listTrim`).
+  Le chiavi partono da 1,25 token per carattere (di solito ne servono 1,1): la stima basta e la
+  copia non serve.
 - **Ordinamento naturale** con chiavi precalcolate: ogni nome diventa una volta sola una sequenza
   di token da 16 bit (minuscole, accenti rimossi, numeri confrontati per valore), poi `memcmp`.
   Sostituisce `StrCmpLogicalW` (differenze in "Differenze note rispetto a Explorer").
@@ -423,16 +432,27 @@ tooltip su un JPEG), nessun file scaricato.
 - Un thread somma i file sotto una cartella senza seguire junction e collegamenti, come Explorer.
   Parte dopo il primo frame.
 - Tooltip e anteprima lo chiedono subito (`DS_TIP`, `DS_PREVIEW`): il totale si aggiorna ogni
-  `kDsProgressMs` (100 ms) mentre cresce, e si ferma se il mouse va altrove.
+  `DS_PROGRESS` (100 ms, `theme.h`) mentre cresce, e si ferma se il mouse va altrove.
 - La colonna Dimensione conta in background, con priorità di I/O bassa, le sottocartelle della
-  cartella aperta nell'ordine della vista.
-- I risultati restano in memoria per `kDsFreshMs` (un minuto), con le sottocartelle dirette, così
+  cartella aperta nell'ordine della vista. Il thread UI tiene gli indici delle voci e passa al
+  thread i percorsi a pezzi di `kDsChunk` (256): finito un pezzo, il thread lo dice con
+  `WM_APP_DIRSIZE` e `dirSizeRefill` gli dà il successivo. I percorsi tutti insieme erano 8 MB in
+  WinSxS.
+- I risultati restano in memoria per `DS_FRESH` (un minuto), con le sottocartelle dirette, così
   entrando ci sono già; una copia, uno spostamento, un'eliminazione o una ricarica li dimenticano
   prima.
+- La cache ha per chiave un hash a 64 bit del percorso in minuscolo (`dsHash`), non il percorso:
+  circa 100–150 byte a voce invece di 350. Due percorsi con lo stesso hash si confonderebbero, con una
+  probabilità di circa 3·10⁻¹⁰ su 100.000 cartelle. Oltre `kDsCacheMax` (50.000) voci il thread,
+  quando non ha altro da fare, toglie le scadute (`dsTrim`, al massimo ogni `DS_TRIM_EVERY`, 15 s), tranne le
+  sottocartelle della cartella aperta, che la colonna mostra. Lo fa a blocchi di bucket, quindi il
+  thread UI non aspetta il lock più di un blocco.
 - Le unità di rete e ottiche (`slowPath`) si contano solo a richiesta (tooltip, anteprima).
 
 **Misurato:** tutto C:\ (18 cartelle) in 14,4 s sul thread, con i frame a 0,12 ms (peggiore
-0,35).
+0,35). WinSxS (30.734 cartelle): contate in 6 s, 41.000 voci in cache, da 4 a 6 MB (con i
+percorsi come chiave e in coda erano circa 24). La pulizia, provata con soglie più basse, ha
+tolto 2.842 voci su 10.266 in 0,6 ms, con il lock tenuto al massimo 0,17 ms per blocco.
 
 ## Barra laterale
 
