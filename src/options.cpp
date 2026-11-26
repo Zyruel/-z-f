@@ -21,17 +21,16 @@ struct ShortcutGroup { const wchar_t* title; Shortcut* items; int n; };
 
 static Shortcut kNav[] = {
     { { K(M_OPEN, 0, VK_RETURN), { L"doppio clic", 0 } }, L"Apre la cartella o il file" },
-    { { K(M_UP, KA, VK_UP), { L"Backspace", 0 } }, L"Cartella superiore (col filtro, Backspace ne cancella una lettera)" },
+    { { K(M_UP, KA, VK_UP), { L"Backspace", 0 } }, L"Cartella superiore (Backspace: se non c'è un filtro)" },
     { { K(M_BACK, KA, VK_LEFT), { L"tasto laterale indietro", 0 } }, L"Indietro" },
     { { K(M_FWD, KA, VK_RIGHT), { L"tasto laterale avanti", 0 } }, L"Avanti" },
     { { { L"Clic su un segmento del percorso", 0 } }, L"Va a quella cartella" },
     { { { L"Clic su › nel percorso", 0 } }, L"Sottocartelle" },
-    { { { L"Clic sulla destinazione di un collegamento", 0 }, { L"clic centrale", 0 } },
-      L"Apre il percorso del file (in una nuova scheda)" },
+    { { { L"Clic su una destinazione", 0 }, { L"clic centrale", 0 } }, L"Apre il percorso del file (in una nuova scheda)" },
     { { K(M_EDIT_PATH, KC, 'L'), K(M_EDIT_PATH, 0, VK_F4), { L"clic sul percorso vuoto", 0 } }, L"Scrive il percorso" },
     { { K(M_GOTO, KC, 'P'), K(M_GOTO, KC, 'G') }, L"Vai a: cartelle recenti, preferiti, sottocartelle" },
     { { { L"Ctrl+Invio", M_GOTO_NEWTAB }, { L"clic centrale", 0 } }, L"Vai a: apre in una nuova scheda" },
-    { { { L"Tab", M_GOTO_ENTER } }, L"Vai a: entra nella cartella e ne mostra le sottocartelle" },
+    { { { L"Tab", M_GOTO_ENTER } }, L"Vai a: entra nella cartella e mostra le sottocartelle" },
     { { K(M_REFRESH, 0, VK_F5) }, L"Ricarica" },
 };
 static Shortcut kSel[] = {
@@ -39,14 +38,19 @@ static Shortcut kSel[] = {
     { { { L"Shift+frecce", 0 } }, L"Estende la selezione" },
     { { { L"Ctrl+frecce", 0 } }, L"Muove solo il cursore" },
     { { { L"Ctrl+Spazio", 0 } }, L"Seleziona o deseleziona la voce del cursore" },
-    { { { L"Ctrl+clic", 0 }, { L"Shift+clic", 0 } }, L"Alterna · intervallo" },
+    { { { L"Ctrl+clic", 0 }, { L"Shift+clic", 0 }, { L"Ctrl+Shift+clic", 0 } }, L"Alterna · intervallo · aggiunge l'intervallo" },
+    // Da icona e nome di una voce selezionata parte invece il trascinamento dei file (gruppo File)
+    { { { L"Trascina nella lista", 0 }, { L"con Ctrl", 0 }, { L"con Shift", 0 } }, L"Seleziona col rettangolo · alterna · aggiunge" },
+    { { { L"Clic sotto le righe", 0 } }, L"Toglie la selezione" },
     { { { L"Ctrl+A", 0 } }, L"Seleziona tutto ciò che è visibile" },
     { { { L"Lettere", 0 } }, L"Filtro sui nomi" },
+    { { { L"Backspace", 0 } }, L"Toglie l'ultima lettera del filtro" },
     { { { L"Esc", M_FILTER_CLEAR } }, L"Toglie il filtro, poi la selezione" },
 };
 static Shortcut kFiles[] = {
+    { { K(M_COPY, KC, 'C'), K(M_CUT, KC, 'X') }, L"Copia · taglia" },
     // Ctrl+V scritto a mano: nella lista incolla anche un percorso o un testo (smartPaste), il menu solo i file
-    { { K(M_COPY, KC, 'C'), K(M_CUT, KC, 'X'), { L"Ctrl+V", M_PASTE } }, L"Copia · taglia · incolla" },
+    { { { L"Ctrl+V", M_PASTE } }, L"Incolla i file; un percorso ci va, un testo filtra" },
     { { K(M_COPYPATH, KC | KS, 'C') }, L"Copia percorso" },
     { { K(M_NEWFOLDER, KC | KS, 'N') }, L"Nuova cartella" },
     { { K(M_RENAME, 0, VK_F2) }, L"Rinomina" },
@@ -55,8 +59,8 @@ static Shortcut kFiles[] = {
     { { K(M_REDO, KC, 'Y'), K(M_REDO, KC | KS, 'Z') }, L"Ripete l'operazione annullata" },
     { { K(M_PROPS, KA, VK_RETURN) }, L"Proprietà" },
     { { { L"Tasto destro", 0 }, { L"Menu", 0 } }, L"Menu contestuale" },
-    { { { L"Shift+tasto destro", 0 }, { L"Shift+F10", M_MORE } }, L"Menu completo della shell (con \"Menu completo di Windows\": quello di [z]f)" },
-    { { { L"Trascina", 0 } }, L"Sposta sulla stessa unità, altrimenti copia" },
+    { { { L"Shift+tasto destro", 0 }, { L"Shift+F10", M_MORE } }, L"Menu completo della shell (o di [z]f, con l'opzione)" },
+    { { { L"Trascina una voce selezionata", 0 } }, L"Sposta sulla stessa unità, altrimenti copia" },
     { { { L"Ctrl+trascina", M_DROP_COPY }, { L"Shift+trascina", M_DROP_MOVE }, { L"Alt+trascina", M_DROP_LINK } },
       L"Copia · sposta · crea collegamento" },
     { { { L"Trascina col tasto destro", 0 } }, L"Chiede se copiare, spostare o collegare" },
@@ -66,7 +70,7 @@ static Shortcut kTabs[] = {
     { { K(M_TAB_CLOSE, KC, 'W'), { L"clic centrale sulla scheda", 0 } }, L"Chiude la scheda" },
     { { { L"Ctrl+Tab", 0 }, { L"Ctrl+Shift+Tab", 0 } }, L"Scheda successiva · precedente" },
     { { { L"Ctrl+1…8", 0 }, { L"Ctrl+9", 0 } }, L"Scheda n · ultima scheda" },
-    { { { L"Clic centrale", M_NEWTAB } }, L"Apre una cartella in una nuova scheda" },
+    { { { L"Clic centrale", M_NEWTAB }, { L"Ctrl+clic su un preferito", 0 } }, L"Apre in una nuova scheda in background" },
     { { { L"Trascina su una scheda", 0 } }, L"La apre dopo un momento" },
 };
 static Shortcut kView[] = {
@@ -75,11 +79,15 @@ static Shortcut kView[] = {
     { { K(M_GRID_L, KC | KS, '2'), K(M_GRID_M, KC | KS, '3'), K(M_GRID_S, KC | KS, '4') },
       L"Griglia: miniature grandi · medie · piccole" },
     { { K(M_VIEW_LIST, KC | KS, '6') }, L"Elenco" },
-    { { { L"Trascina il bordo dell'anteprima", 0 }, { L"doppio clic", 0 } }, L"Larghezza dell'anteprima · predefinita" },
+    { { { L"Trascina il bordo di un pannello", 0 }, { L"doppio clic", 0 } }, L"Larghezza di barra laterale o anteprima · predefinita" },
+    { { { L"Clic sull'intestazione", 0 } }, L"Ordina per colonna (di nuovo: al contrario)" },
+    { { { L"Trascina il bordo di una colonna", 0 }, { L"doppio clic", 0 } }, L"Larghezza della colonna · adatta al contenuto" },
     { { K(M_FAV_TOGGLE, KC, 'D') }, L"Aggiunge o toglie dai preferiti" },
     { { { L"Trascina tra i preferiti", 0 } }, L"Aggiunge le cartelle ai preferiti" },
-    { { { L"Ctrl+rotellina", 0 }, { L"Ctrl+/−", 0 }, { L"Ctrl+0", 0 } }, L"Dimensione del testo (in griglia la rotellina cambia le miniature)" },
-    { { { L"Clic sull'intestazione", 0 } }, L"Ordina per colonna" },
+    { { { L"Trascina un preferito", 0 } }, L"Lo sposta tra gli altri (solo l'ordine)" },
+    { { { L"Clic su Preferiti", 0 }, { L"sulla freccia di Questo PC", 0 } }, L"Chiude o riapre la sezione" },
+    { { { L"Ctrl+rotellina", 0 }, { L"Ctrl+/−", 0 }, { L"Ctrl+0", 0 } }, L"Dimensione del testo · predefinita" },
+    { { { L"Ctrl+rotellina in griglia", 0 } }, L"Dimensione delle miniature" },
     { { K(M_OPTIONS, KC, VK_OEM_COMMA) }, L"Opzioni" },
     { { { L"F12", 0 } }, L"Statistiche e tempi" },
 };

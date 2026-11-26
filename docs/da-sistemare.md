@@ -49,3 +49,15 @@ quel codice, o tutti insieme in un momento tranquillo. Quando una voce è fatta 
   "vuota · 722 MB": dentro lo zip la voce è trattata come una cartella senza figli, perché il suo
   contenuto non si legge senza estrarla. Proposta: per uno zip dentro uno zip, l'anteprima di un
   file (icona, tipo e dimensione) invece di quella di una cartella vuota.
+- [ ] **Spostare la preparazione delle icone dopo il primo frame?** (novembre 2026, dal controllo
+  di tutto il codice). `iconInit` (`main.cpp`) avvia prima del primo frame il thread delle icone
+  per estensione (`IQ_EXT`), che chiama subito `CoInitializeEx` e `SHGetFileInfoW`: così shell32
+  e ole32 si caricano all'avvio nonostante `/DELAYLOAD`, su quel thread, mentre il thread UI fa il
+  primo frame con WARP (e, nel rendering ibrido, insieme a `hwThread`, sul loader lock di cui
+  parla `main.cpp` per il driver della GPU). Il vantaggio di adesso: le icone vere arrivano prima.
+  Da misurare con `prove\avvio.bat` (20 avvii alternati, come per l'icona della finestra) con
+  `iconInit` dove è e nel blocco "dopo il primo frame": contenuto visibile, primo fuoco, passaggio
+  alla GPU (F12) e quanto prima o dopo compaiono le icone vere al posto dei segnaposto (il lock e
+  l'evento di `iconInit` servono già a `iconSetSize` e al primo frame: si sposterebbe solo l'avvio
+  del thread). Decide
+  Zyruel; se resta dov'è, scriverlo come eccezione voluta in ARCHITETTURA.

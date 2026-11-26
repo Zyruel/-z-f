@@ -7,6 +7,8 @@
 //   barra_laterale_larghezza=210  in pixel a scala 100% (trascinando il bordo; doppio clic: predefinita)
 //   barra_tempi=0          1: sopra la barra di stato, i tempi misurati (lettura, ordinamento, frame…)
 //   animazioni=1           0: niente animazioni (tutto cambia di colpo)
+//   preferiti_aperti=1     0: la sezione Preferiti della barra laterale è chiusa (clic sul titolo)
+//   unita_aperte=1         0: il ramo delle unità sotto Questo PC è chiuso (clic sulla freccia)
 //   colonna_data=150       larghezza delle colonne Data e Dimensione in pixel a scala 100%
 //   colonna_dimensione=100 (trascinando il bordo nell'intestazione; doppio clic: adatta al contenuto)
 //   colonna_destinazione=300  colonna Destinazione, nelle cartelle con collegamenti (.lnk)

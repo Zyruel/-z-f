@@ -45,6 +45,10 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 - Zip dentro uno zip: se durante l'estrazione si va in un'altra cartella o scheda, [z]f resta lì
   invece di portare di forza nello zip estratto. Il trascinamento da uno zip compare nei tempi di
   F12 come gli altri.
+- Opzioni, Scorciatoie: l'elenco ha anche i gesti col mouse che mancavano (rettangolo di
+  selezione con Ctrl e Shift, Ctrl+Shift+clic, clic sotto le righe, bordi delle colonne, sezioni
+  della barra laterale, riordino dei preferiti) e nessuna descrizione finisce più in "…". Il
+  README ha lo stesso elenco, con le stesse parole.
 
 ## 1.0.0-beta.3 (novembre 2026)
 
