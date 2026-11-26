@@ -8,7 +8,7 @@ erano `0.N`. Ogni rilascio, dalla 1.0.0-beta.2, ha un tag `v<versione>` e una
 versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 [`ARCHITETTURA.md`](docs/ARCHITETTURA.md).
 
-## Prossima versione (in preparazione)
+## 1.0.0-beta.4 (novembre 2026)
 
 - **[z]f ha un'icona:** "[z]" nel blu di [z]f su un quadrato scuro, nella barra delle
   applicazioni, in Alt+Tab e sul file dell'exe; nitida anche a 16 px.
