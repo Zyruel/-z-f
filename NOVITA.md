@@ -27,6 +27,10 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
   Ctrl+Z e Ctrl+Y o dal menu dello sfondo (dove ora c'è anche "Ripeti", quando serve), "Usa [z]f
   al posto di Explorer" e versione nelle opzioni. Una versione nuova si annuncia con il pallino su
   ⚙, e in fondo alle opzioni "Aggiorna a [z]f …" si clicca per intero.
+- **La versione in fondo alle opzioni porta alla sua Release** su GitHub, con le novità e i
+  download; data e compilatore della build non ci sono più. Un clic sull'icona accanto controlla
+  gli aggiornamenti, e l'anello di punti resta almeno un giro, così si vede anche quando GitHub
+  risponde in un attimo. Anche la build di prova controlla, ma solo con quel clic, e non scarica.
 - **Nuova finestra con Ctrl+N** (come in Explorer), e nel menu delle schede accanto a "Nuova
   scheda". Prima era solo nel menu ≡.
 - **▯ accanto a ←:** il pulsante della barra laterale è sceso dalla barra del titolo alla riga del

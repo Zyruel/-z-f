@@ -227,6 +227,10 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (chromeNcMouse(hwnd, msg, wp)) return 0;
         break;
     case WM_SETCURSOR: // sul bordo tra due colonne: cursore ↔ (la finestra figlia è trasparente al mouse)
+        if (LOWORD(lp) == HTCLIENT && OP.open && OP.hover == OPT_VERSION) { // la versione porta alla sua Release
+            SetCursor(LoadCursorW(nullptr, IDC_HAND));
+            return TRUE;
+        }
         if (LOWORD(lp) == HTCLIENT && !A.menu.open && !OP.open && !gotoIsOpen()) {
             POINT c;
             GetCursorPos(&c);

@@ -336,10 +336,13 @@ doppione.
   - scheda attiva in `C_BAR` con barra `C_ACCENT` in alto; schede inattive in `C_TABBAR`, separate da un trattino `C_LINE`;
   - la × compare solo sulla scheda attiva o sotto il mouse.
 - **Versione e aggiornamento** (`update.cpp`): nel piede delle opzioni, a sinistra, la versione
-  ("[z]f 1.0.0-beta.3 · compilato il …") in `C_FAINT`, seguita da un'icona di stato larga quanto
-  il font di icone:
+  ("[z]f 1.0.0-beta.5") in `C_FAINT`, seguita da un'icona di stato larga quanto il font di icone.
+  La versione è un collegamento alla sua Release su GitHub (novità e download): sotto il mouse il
+  fondo `C_HOVER` arrotondato `R_S`, largo il testo più `GAP_S` per lato, e la manina di Windows
+  (`IDC_HAND`), come la destinazione di un collegamento nella lista. L'icona di stato:
   - non ancora controllato o errore: frecce circolari (`IC_SYNC`) in `C_FAINT`;
-  - controllo in corso: l'anello di punti in `C_DIM` (§5);
+  - controllo in corso: l'anello di punti in `C_DIM` (§5), per almeno un giro (`SPIN_PERIOD`):
+    un controllo dura 300–800 ms e altrimenti si vedrebbe solo un lampo;
   - aggiornato: cerchio pieno con la spunta (`IC_DONE`) in `C_DIM`;
   - versione nuova pronta: freccia di download (`IC_DOWNLOAD`) in `C_ACCENT`, e il testo diventa
     "Aggiorna a [z]f …" (da scaricare a mano: "Scarica [z]f …") in `C_TEXT`, cliccabile insieme
@@ -538,8 +541,8 @@ doppione.
     ogni cartella aperta da fuori", menu completo, dialoghi), File ("Annulla dopo il riavvio"), Avvio e
     aggiornamenti ("Riapri le schede all'avvio", "Aggiornamenti automatici" con l'ora
     dell'ultimo controllo nella spiegazione, "Ricevi anche le beta"), Scorciatoie;
-  - in fondo la versione e la build in `C_FAINT`, seguite dall'icona di stato dell'aggiornamento
-    (cliccabile, vedi "Versione e aggiornamento");
+  - in fondo la versione in `C_FAINT` (collegamento alla sua Release), seguita dall'icona di stato
+    dell'aggiornamento (cliccabile, vedi "Versione e aggiornamento");
   - si chiude con Esc (prima svuota la ricerca), con la × o cliccando fuori.
 - **Interruttore:** pillola 32×16 come in Windows 11: spento è un contorno `C_DIM` con il pallino
   `C_DIM`; acceso è pieno `C_ACCENT` con il pallino scuro. Il pallino scorre (τ come l'indicatore

@@ -954,7 +954,10 @@ nessuna conferma del nome, nome proposto intatto.
   che esca, al massimo `UPD_OLD_WAIT` (10 s).
 - **Quando non scambia:** se la cartella non è scrivibile o la Release non ha l'exe firmato,
   l'avviso dice che c'è una versione nuova e un clic apre la sua pagina. Mai su un exe in rete né
-  nelle build compilate con `ZF_DEV` (`build_zig.bat`).
+  nelle build compilate con `ZF_DEV` (`build.bat dev`, `build_zig.bat`): lì si controlla solo con
+  un clic sull'icona (`UpdJob::checkOnly`), per vedere l'icona di stato; ci si ferma prima del
+  download e l'ora del controllo non si salva, così quello giornaliero di `z-f.exe`, che usa le
+  stesse impostazioni, non si sposta.
 - **Riavvio di tutte le finestre** (`updRestartAll`, `restartLaunch`): "Aggiorna" manda alle altre
   finestre di [z]f un messaggio registrato (`z-f.riavvio`). Ognuna salva le sue schede in
   `riavvio-<pid>.txt` e la sua posizione, si chiude (con operazioni sui file in corso aspetta che
@@ -992,8 +995,9 @@ sul thread; con il server spento l'errore arriva dopo 2 s, sempre sul thread.
   cambia con effetto immediato: dimensione e carattere del testo, animazioni, barra laterale, "Usa
   [z]f al posto di Explorer", "Menu completo di Windows col tasto destro", "Dialoghi Apri e Salva
   nella cartella di [z]f", "Dimensione delle cartelle nella colonna", le opzioni di file, avvio e
-  aggiornamenti, l'elenco delle scorciatoie con ricerca. In fondo ha la versione con data e
-  compilatore della build e un collegamento alla cartella delle impostazioni.
+  aggiornamenti, l'elenco delle scorciatoie con ricerca. In fondo ha la versione, che apre la sua
+  Release su GitHub (`kUpdThisRelease`, `updOpenPage` su un thread), e un collegamento alla
+  cartella delle impostazioni.
 - **Lettura all'avvio:** impostazioni, preferiti, viste, recenti, annulla e schede li legge
   `sideFastThread`, e il primo frame lo aspetta al massimo 100 ms.
 - **Mai sovrascritti prima della lettura:** nessuno di questi file si scrive prima che sia stato
@@ -1028,7 +1032,7 @@ del Windows SDK, in `build\z-f.res`, che va al link con il resto.
 Oltre alla build di rilascio (`build\z-f.exe`) e a `debug`:
 
 - `build.bat dev` scrive la build di prova `build\z-f-dev.exe`, con le stesse opzioni più `ZF_DEV`
-  (non si aggiorna da sola): si compila anche mentre `z-f.exe` è aperto;
+  (non si aggiorna, controlla solo a richiesta): si compila anche mentre `z-f.exe` è aperto;
 - `build.bat prova prove\x.cpp <librerie>` compila un programma di prova con le opzioni di tutti, e
   l'exe va in `build\`. Il comando esatto è in cima a ogni file di `prove\`.
 

@@ -20,6 +20,25 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 000000000000000000000000000000000000000000000. Versione nelle opzioni come collegamento (z-f-dev, novembre 2026)
+
+Tolti data e compilatore dal piede delle opzioni; la versione apre la sua Release su GitHub;
+l'anello del controllo resta almeno un giro. Compilato senza avvisi (MSVC).
+
+Provato da Claude in z-f-dev:
+- [x] piede: "[z]f 1.0.0-beta.5" e l'icona subito dopo;
+- [x] con `--aggiorna-da=http://127.0.0.1:9` un clic sull'icona mostra l'anello, poi le frecce
+      circolari e l'avviso "Aggiornamenti non controllati";
+- [x] la Release `v1.0.0-beta.5` esiste (`gh release view`);
+- [x] z-f-dev controlla con un clic sull'icona (prima diceva solo "Build di prova"): ↻, l'anello,
+      poi il cerchio con la spunta; nel registro "aggiornamento: controllo 0x0002 604.9 ms".
+- [x] Zyruel: hover e clic sulla versione vanno ("tutto ok").
+
+Restano:
+- [ ] con `build\z-f.exe` un clic sull'icona mostra l'anello per circa un giro, poi la spunta;
+- [ ] con una versione nuova pronta, "Aggiorna a [z]f …" si clicca ancora per intero (niente
+      collegamento).
+
 ## 00000000000000000000000000000000000000000000. Banda in fondo all'anteprima (z-f-dev, novembre 2026)
 
 La riga d'informazione dell'anteprima diventa una banda come la barra di stato: a destra il tipo
