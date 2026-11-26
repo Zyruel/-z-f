@@ -254,8 +254,9 @@ static DWORD zipParse(HANDLE f, uint64_t fsize, ZipArchive& z) {
         }
         p += 46 + (size_t)nlen + xlen + clen;
         // Nome: UTF-8 se lo dice il bit 11 (o il campo Unicode), altrimenti la codepage OEM del sistema,
-        // come fanno Esplora file e 7-Zip quando creano uno zip (437 negli Stati Uniti, 850 in Italia: per
-        // le lettere accentate sono uguali)
+        // come fanno Esplora file e 7-Zip quando creano uno zip (437 negli Stati Uniti, 850 in Italia), e
+        // non sempre la 437 della specifica: così i nomi escono come in Esplora file anche per À, Á e simili,
+        // che nelle due codepage sono diverse (le minuscole accentate sono uguali)
         UINT cp = (flags & 0x800) || utf8 ? CP_UTF8 : CP_OEMCP;
         const char* src = utf8 ? (const char*)utf8 : (const char*)nm;
         int slen = utf8 ? (int)utf8Len : (int)nlen;

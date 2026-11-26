@@ -130,7 +130,7 @@ condivise sono in `app.h`.
   aver chiuso il suo handle del mutex: altrimenti, chiusa la principale, il mutex resterebbe in
   vita e l'avvio successivo cercherebbe per 3 secondi una principale che non c'è. Per lo stesso
   motivo la principale chiude il mutex in `WM_DESTROY`, insieme alla proprietà `z-f.istanza`, e
-  non a fine processo: uscire può durare secondi (vedi `docs/da-sistemare.md`). L'attesa di una
+  non a fine processo: uscire può durare secondi (vedi "Barra laterale", le voci lente). L'attesa di una
   principale non ancora creata è a tempo (`FWD_WAIT`, `FWD_POLL`): a giri di `Sleep(10)` durava
   4,7 s invece di 3, perché ogni `Sleep` dura un passo del timer di Windows (15,6 ms).
   Misurato: principale chiusa e cartella aperta subito dopo, la finestra nuova compare 20–23 ms
@@ -310,8 +310,11 @@ contenuto salterebbe in basso proprio mentre si clicca.
 - Da dove viene l'icona (percorso vero, cartella o estensione) lo decide una funzione sola,
   `iconSource`, usata anche dalle miniature e dall'anteprima. I percorsi di rete di Questo PC hanno
   l'icona di cartella senza chiedere niente alla rete (`iconDrive`).
-- Anche per i file solo online si chiede il percorso vero: `SHGetFileInfo` su un segnaposto non lo
-  scarica, la shell dà da sé l'icona generica del tipo, come in Explorer.
+- Un file solo online ha l'icona del tipo (`iconSource`), anche se il tipo avrebbe un'icona per
+  file: la shell gli darebbe comunque quella generica, come in Explorer. Così, quando il file si
+  scarica (aprendolo), cambiano gli attributi e con loro la chiave della cache, e l'icona vera
+  arriva da sola; con la chiave per percorso restava quella generica fino al riavvio. Costa anche
+  meno: una richiesta per tipo invece di una per file (15–40 ms l'una).
 - Il secondo e il terzo thread aspettano che il primo abbia preparato le icone di sistema della
   shell (`shellReady`). Lo stesso aspetta l'icona grande dell'anteprima e delle miniature
   (`pvBigIcon`), che usa le stesse icone di sistema su un altro thread.
@@ -335,7 +338,9 @@ contenuto salterebbe in basso proprio mentre si clicca.
   due chiamate falliva in 40 processi su 40; con l'attesa, l'icona grande arriva in 40 su 40.
 - Provato con `prove\online-prova.cpp`, che simula OneDrive con l'API Cloud Files di Windows:
   icona piccola, grande e jumbo di .exe, .ico, .lnk, .png e .jpg, nessuno scaricamento. Leggere i
-  primi 256 KB invece scarica il file.
+  primi 256 KB invece scarica il file. Scaricati da fuori un .exe e un .lnk, elenco, griglia e
+  anteprima mostrano la loro icona vera entro un secondo, senza riavviare; nessuno scaricamento da
+  [z]f.
 
 ## Miniature e vista a griglia
 
@@ -350,7 +355,8 @@ contenuto salterebbe in basso proprio mentre si clicca.
 
   Le miniature fatte con WIC si chiedono poi alla shell a riposo e a bassa priorità (al massimo
   `kThWarmMax`): entrano nella cache di Windows, anche per Explorer. I file solo online non si
-  leggono.
+  leggono; quando si scaricano (cambiano gli attributi, non data e dimensione) la voce si rifà da
+  capo e la miniatura arriva.
 - **Thread**, tutti sotto la priorità normale e partiti alla prima miniatura: uno per la cache di
   Windows e le icone, metà dei core fisici per WIC (da 2 a 8; 6 sul Ryzen 9 7900), uno per la
   shell, due per le cartelle di rete. In Questo PC le icone delle unità di rete e ottiche
@@ -511,6 +517,20 @@ tolto 2.842 voci su 10.266 in 0,6 ms, con il lock tenuto al massimo 0,17 ms per 
 
 - Una condivisione lenta (provata: 50–60 s per rispondere) non deve trattenere spazio e nomi delle
   unità locali: per questo le voci lente hanno il loro thread, dopo le locali.
+- Chiudendo la finestra mentre `sideSlowThread` aspetta la rete (`volumeRead`), il processo resta
+  vivo finché quella chiamata non torna: Windows non può fermare un thread dentro il redirector di
+  rete, e la richiesta di annullarla, che fa da sé alla fine del processo, il redirector non la
+  onora subito. Non si vede: la finestra sparisce subito e il mutex dell'istanza unica è già
+  chiuso (`WM_DESTROY`). Dopo "Aggiorna" la pulizia della versione di prima aspetta al massimo
+  `UPD_OLD_WAIT` su un thread; se non basta, la copia vecchia si toglie all'avvio dopo. Non c'è
+  rimedio leggero: queste chiamate non hanno una versione asincrona, e un processo a parte per
+  leggerle andrebbe contro la leggerezza.
+  **Misurato** (novembre 2026) con `prove\uscita-prova.cpp`, che legge le pile dei thread del
+  processo finché esce, e segni temporanei nel percorso d'uscita: il nostro codice arriva in fondo
+  (`atexit`) in 0,2 s, poi resta solo `sideSlowThread` dentro `volumeRead`, e il processo esce
+  dopo 3–10 s con un percorso di rete raggiunto via VPN. Nella stessa sessione, a rete sveglia,
+  esce in 0,3–0,6 s, con o senza percorsi di rete; anche con `--gpu=warp` era lento, quindi non è
+  la GPU.
 - Le unità di rete hanno il nome della condivisione e non l'etichetta del disco sul server, che
   spesso è la stessa per tutte.
 - Il dialogo per connettere ha [z]f come proprietaria perché alla chiusura [z]f torni davanti: un
@@ -730,7 +750,8 @@ lettore nostro, senza dipendenze e senza zipfldr della shell.
   aperto sui nodi, senza allocazioni. Gli ultimi `kZipKeep` (4) archivi restano in memoria, quindi
   entrare nelle sottocartelle non rilegge niente; se l'archivio cambia (dimensione o data) si
   rilegge. Nomi in UTF-8 (bit 11, o il campo Unicode di Info-ZIP) oppure nella codepage OEM del
-  sistema, come li scrivono Esplora file e 7-Zip (850 in Italia).
+  sistema, come li scrivono Esplora file e 7-Zip (850 in Italia), e non la 437 della specifica:
+  così i nomi sono gli stessi che mostra Esplora file, maiuscole accentate comprese.
 - **Percorsi:** il percorso continua oltre l'archivio (`C:\x\foto.zip\2024\mare`), quindi
   navigazione, schede, "Vai a", preferiti, filtro, ordinamento e griglia funzionano come altrove.
   Su un thread questi percorsi li riconosce `zipSplit`/`zipInside` (un `GetFileAttributes` sul
@@ -1013,8 +1034,9 @@ solo al primo uso (`/DELAYLOAD`):
   l'avvio dei thread delle icone dopo il primo frame è peggio su tutto. Misurato (novembre 2026,
   `prove\avvio.bat`, 2 × 20 avvii alternati, mediane prima e dopo lo spostamento): contenuto
   58–70 → 71–85 ms, prima icona vera 86–99 → 116–131 ms ("prova avvio: icone"). In più il
-  processo, chiuso appena arrivata la prima icona, restava vivo circa 7 s invece di 0,2 (vedi
-  `docs/da-sistemare.md`, il processo vivo dopo la chiusura).
+  processo, chiuso appena arrivata la prima icona, restava vivo circa 7 s invece di 0,2:
+  probabilmente il thread delle voci lente ancora sulla rete alla chiusura (vedi "Barra laterale",
+  dove è misurato su altre chiusure).
 
 WIC (anteprima e miniature, sul loro thread) e mpr.dll (unità di rete, `LoadLibraryExW`) si
 caricano solo al primo uso.

@@ -20,6 +20,25 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 000000000000000000000000000000000000000. File solo online appena scaricati: icona e miniatura (z-f-dev, novembre 2026)
+
+Un file solo online ha ora l'icona del tipo (`iconSource`), così quando si scarica la chiave
+cambia e l'icona vera arriva da sola; le miniature si rifanno anche quando cambiano solo gli
+attributi (`thEntry`). Compilato senza avvisi (MSVC).
+
+Provato da Claude con `prove\online-prova.cpp attendi` e z-f-dev sulla cartella dei segnaposto:
+- [x] All'apertura .exe, .lnk, .ico, .png e .jpg hanno l'icona generica, nessuno scaricamento da
+      z-f-dev (4 scaricamenti in tutto, tutti di `cat`, quelli chiesti apposta).
+- [x] Scaricati da Bash `regedit.exe` e `AdGuard.lnk`: in elenco, entro un secondo, l'icona vera
+      (e la destinazione del .lnk); `z-f.ico`, ancora online, resta generica.
+- [x] In griglia, scaricato il .png: la miniatura e l'anteprima grande arrivano da sole.
+- [x] Registro: solo il passaggio WARP → GPU all'avvio.
+
+Resta a Zyruel (serve OneDrive vero):
+- [ ] In una cartella di OneDrive, un .exe o un .lnk "solo online": icona generica; aperto (si
+      scarica), in [z]f l'icona diventa quella vera senza riavviare. Lo stesso per una foto in
+      griglia: dopo averla aperta compare la miniatura.
+
 ## 00000000000000000000000000000000000000. Icona con le misure di 175% e 225%, in PNG (z-f-dev, novembre 2026)
 
 Compilato senza avvisi (MSVC). Provato da Claude a 100%: la finestra prende 32 e 16 px, 10 avvii
@@ -686,7 +705,8 @@ in una cartella di prova con degli zip; `prove\prova.zip` va bene, oppure se ne 
 
 **Scelta da confermare:** i nomi senza il bit UTF-8 si leggono nella codepage OEM del sistema (come
 li scrivono Esplora file e 7-Zip), non sempre in 437 come dice la specifica: in Italia (850) le
-lettere accentate comuni sono uguali, ma À, Á e simili no. Segnata in `docs/da-sistemare.md`.
+lettere accentate comuni sono uguali, ma À, Á e simili no. Confermata da Zyruel (26/11/2026): si
+resta con la OEM, come Esplora file.
 
 ## 000000000000000. Incolla da uno zip (0.26, novembre 2026)
 

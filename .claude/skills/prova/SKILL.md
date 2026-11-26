@@ -97,6 +97,11 @@ può (con il controllo dello schermo); altrimenti gli si chiede uno screenshot. 
   l'API Cloud Files di Windows). `passi` misura le chiamate di [z]f su segnaposto nuovi;
   `attendi <secondi>` resta in ascolto mentre si prova z-f-dev sulla cartella con
   `prove\dev.bat`, e alla fine dice quanti file ha scaricato ogni processo.
+- `uscita-prova.cpp <pid> [secondi]`: cosa tiene vivo un processo dopo la chiusura. Si avvia
+  subito dopo `taskkill //PID <pid>` (senza `/F`) e scrive le pile dei thread quando cambiano,
+  fino all'uscita (solo nomi di modulo e offset: per le funzioni di [z]f si ricompila con
+  `LINK='/MAP:build\z-f-dev.map' cmd //c '.\build.bat dev'` e si cercano gli offset nel .map,
+  base `0x140000000`).
 - `appunti-prova.cpp`: gli appunti occupati da un altro programma. `occupa <secondi>
   [senza-finestra]` li tiene aperti, `fermo <secondi>` li possiede e non risponde ai messaggi
   (chi li svuota lo aspetta), `chi` dice proprietario e testo; si prova intanto Copia percorso o

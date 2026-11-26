@@ -358,7 +358,8 @@ static void thForget(ThumbEntry& t) { // pixel e posto se ne vanno; la voce si r
     thRestart(t);
 }
 
-// Miniatura della voce e (creata se manca); se il file è cambiato si rifà
+// Miniatura della voce e (creata se manca); se il file è cambiato si rifà, anche quando si è solo
+// scaricato (cambiano gli attributi, non data e dimensione): prima aveva l'icona al posto della miniatura
 static ThumbEntry& thEntry(const Entry& e) {
     std::wstring key = joinPath(A.cur->path, A.cur->name(e));
     auto it = TH.map.find(key);
@@ -371,7 +372,7 @@ static ThumbEntry& thEntry(const Entry& e) {
         t.online = onlineOnly(e.attr);
         t.mtime = e.mtime;
         t.size = e.size;
-    } else if (it->second.mtime != e.mtime || it->second.size != e.size) {
+    } else if (it->second.mtime != e.mtime || it->second.size != e.size || it->second.online != onlineOnly(e.attr)) {
         ThumbEntry& t = it->second;
         thForget(t);
         t.shown = false;

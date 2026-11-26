@@ -250,13 +250,15 @@ static bool iconPerFile(const wchar_t* ext) {
 // Da dove viene l'icona di una voce, la stessa in elenco (qui), in griglia (thIconKeyFor) e
 // nell'anteprima (pvBigIcon): ICON_REAL dal percorso vero (le unità e i tipi con un'icona per file),
 // ICON_DIR quella di cartella, ICON_EXT quella del tipo. Dentro uno zip il file non c'è sul disco:
-// per estensione.
+// per estensione. Un file solo online anche: la shell gli darebbe comunque l'icona generica, e con
+// la chiave per tipo, quando il file si scarica e gli attributi cambiano, cambia anche la chiave e
+// l'icona vera arriva da sola (con la chiave per percorso resterebbe quella generica in cache).
 enum { ICON_EXT, ICON_DIR, ICON_REAL };
 static int iconSource(const wchar_t* name, DWORD attr, bool drive, bool inZip) {
     if (drive) return ICON_REAL;
     if (attr & FILE_ATTRIBUTE_DIRECTORY) return ICON_DIR;
     const wchar_t* dot = wcsrchr(name, L'.');
-    return dot && iconPerFile(dot) && !inZip ? ICON_REAL : ICON_EXT;
+    return dot && iconPerFile(dot) && !inZip && !onlineOnly(attr) ? ICON_REAL : ICON_EXT;
 }
 
 // Un'unità di Questo PC, con l'icona sua (in background: può toccare l'unità). Un percorso di rete
