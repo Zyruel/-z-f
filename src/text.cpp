@@ -358,9 +358,20 @@ static void drawTextClipped(float x, float y, const wchar_t* s, int n, uint32_t 
 // Una sola implementazione per la barra del percorso e per la rinomina.
 // ============================================================================
 
+// Apre gli appunti riprovando: un altro programma può tenerli aperti per un attimo (rdpclip mentre
+// li passa al PC remoto, un gestore degli appunti). Aspetta: solo sui thread degli appunti.
+static bool clipOpen(HWND owner) {
+    double t0 = nowMs(); // il tempo vero: Sleep(50) dura 62 ms con il timer di sistema a 15,6
+    for (;;) {
+        if (OpenClipboard(owner)) return true;
+        if (nowMs() - t0 >= ui::CLIP_WAIT_MAX) return false;
+        Sleep(ui::CLIP_RETRY);
+    }
+}
+
 static std::wstring clipGetText(HWND h) {
     std::wstring t;
-    if (!OpenClipboard(h)) return t;
+    if (!clipOpen(h)) return t;
     HANDLE d = GetClipboardData(CF_UNICODETEXT);
     if (d) {
         const wchar_t* p = (const wchar_t*)GlobalLock(d);
@@ -392,16 +403,95 @@ static void clipAskText(HWND h, void* target) {
     if (t) CloseHandle(t); else delete c;
 }
 
-static void clipSetText(HWND h, const std::wstring& t) {
-    if (!OpenClipboard(h)) return;
-    EmptyClipboard();
-    HGLOBAL g = GlobalAlloc(GMEM_MOVEABLE, (t.size() + 1) * sizeof(wchar_t));
-    if (g) {
-        memcpy(GlobalLock(g), t.c_str(), (t.size() + 1) * sizeof(wchar_t));
-        GlobalUnlock(g);
-        if (!SetClipboardData(CF_UNICODETEXT, g)) GlobalFree(g);
+// Anche scrivere il testo (Copia e Taglia nelle caselle, "Copia percorso") lo fa un thread:
+// OpenClipboard fallisce finché un altro programma tiene aperti gli appunti, ed EmptyClipboard
+// manda WM_DESTROYCLIPBOARD a chi li possedeva, un altro processo che può essere fermo. L'esito
+// torna alla finestra (WM_APP_CLIPSET, onClipSet in input.cpp), che solo allora dice "copiato", o
+// perché non lo è. Il testo arriva negli appunti pochi millisecondi dopo il tasto: un Ctrl+V così
+// vicino non lo fa una persona.
+struct ClipSet {
+    HWND hwnd;
+    std::wstring text;
+    const wchar_t* done;  // avviso se riesce (nullptr: nessuno, come Ctrl+C nelle caselle)
+    const wchar_t* fail;  // inizio dell'avviso se non riesce: "Impossibile copiare il percorso"
+    void* target = nullptr; // Taglia: la casella, dove stava il testo e com'era la casella dopo,
+    int at = 0;             // per rimetterlo se gli appunti non lo prendono
+    std::wstring after;
+    LONG gen = 0;
+    bool ok = false, skipped = false;
+    DWORD err = 0;
+    std::wstring holder; // il programma che teneva aperti gli appunti ("rdpclip.exe"), se si sa
+};
+static volatile LONG g_clipSetGen = 0; // l'ultima scrittura chiesta: le precedenti non scrivono più
+
+// Il programma che tiene aperti gli appunti, per l'avviso; vuoto se non si sa (aperti senza finestra)
+static std::wstring clipHolder() {
+    DWORD pid = 0;
+    HWND w = GetOpenClipboardWindow();
+    if (!w || !GetWindowThreadProcessId(w, &pid)) return L"";
+    HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (!h) return L"";
+    wchar_t buf[MAX_PATH];
+    DWORD n = MAX_PATH;
+    std::wstring r;
+    if (QueryFullProcessImageNameW(h, 0, buf, &n)) {
+        const wchar_t* s = wcsrchr(buf, L'\\');
+        r = s ? s + 1 : buf;
     }
-    CloseClipboard();
+    CloseHandle(h);
+    return r;
+}
+
+static DWORD WINAPI clipSetThread(void* p) {
+    ClipSet* c = (ClipSet*)p;
+    double t0 = nowMs();
+    // Proprietaria degli appunti è la finestra di [z]f, anche se li apre questo thread
+    // (OpenClipboard non chiede che la finestra sia del thread che chiama). Con OpenClipboard(NULL)
+    // EmptyClipboard lascerebbe gli appunti senza proprietario, e la documentazione dice che allora
+    // SetClipboardData fallisce; una finestra di questo thread sparirebbe con lui. Al proprietario
+    // arriva poi solo WM_DESTROYCLIPBOARD, quando un altro scrive (DefWindowProc, un attimo): niente
+    // rendering ritardato, quindi niente WM_RENDERFORMAT. Se gli appunti li possedeva l'oggetto OLE
+    // di Copia (clipSetPaths), EmptyClipboard aspetta il thread UI, che lo libera senza aspettare.
+    if (clipOpen(c->hwnd)) {
+        // Si scrive solo se nel frattempo non è partita una copia più recente; il controllo ad
+        // appunti aperti tiene l'ordine anche tra due thread che riprovano
+        if (c->gen != g_clipSetGen) {
+            c->skipped = true;
+        } else if (!EmptyClipboard()) {
+            c->err = GetLastError();
+        } else {
+            size_t bytes = (c->text.size() + 1) * sizeof(wchar_t);
+            HGLOBAL g = GlobalAlloc(GMEM_MOVEABLE, bytes);
+            void* m = g ? GlobalLock(g) : nullptr;
+            if (m) {
+                memcpy(m, c->text.c_str(), bytes);
+                GlobalUnlock(g);
+                c->ok = SetClipboardData(CF_UNICODETEXT, g) != nullptr; // da qui la memoria è degli appunti
+            }
+            if (!c->ok) {
+                c->err = GetLastError();
+                if (g) GlobalFree(g);
+            }
+        }
+        CloseClipboard();
+    } else {
+        c->err = GetLastError();
+        c->holder = clipHolder();
+    }
+    double ms = nowMs() - t0;
+    if (!c->ok && !c->skipped) hitchLog("appunti non scritti", c->err, ms);
+    else if (ms > ui::LOG_MSG) hitchLog("appunti lenti (testo)", (unsigned)c->text.size(), ms);
+    if (!PostMessageW(c->hwnd, WM_APP_CLIPSET, 0, (LPARAM)c)) delete c;
+    return 0;
+}
+
+// Prende c (new ClipSet con hwnd, text, done, fail e, per Taglia, target/at/after)
+static void clipSetText(ClipSet* c) {
+    c->gen = InterlockedIncrement(&g_clipSetGen);
+    HANDLE t = CreateThread(nullptr, 0, clipSetThread, c, 0, nullptr);
+    if (t) { CloseHandle(t); return; }
+    c->err = GetLastError(); // senza thread l'avviso dice comunque che il testo non è negli appunti
+    if (!PostMessageW(c->hwnd, WM_APP_CLIPSET, 0, (LPARAM)c)) delete c;
 }
 
 struct TextField {
@@ -471,8 +561,15 @@ struct TextField {
             if (vk == 'A') { anchor = 0; caret = (int)text.size(); return true; }
             if (vk == 'C' || vk == 'X') {
                 if (hasSel()) {
-                    clipSetText(h, text.substr((size_t)selA(), (size_t)(selB() - selA())));
-                    if (vk == 'X') eraseSel();
+                    ClipSet* c = new ClipSet{ h, text.substr((size_t)selA(), (size_t)(selB() - selA())), nullptr,
+                                              vk == 'X' ? L"Impossibile tagliare il testo" : L"Impossibile copiare il testo" };
+                    if (vk == 'X') { // si taglia subito, come sempre: se gli appunti non lo prendono, torna (onClipSet)
+                        eraseSel();
+                        c->target = this;
+                        c->at = caret;
+                        c->after = text;
+                    }
+                    clipSetText(c);
                 }
                 return true;
             }

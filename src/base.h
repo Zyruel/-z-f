@@ -172,6 +172,7 @@ static inline uint32_t fadeA(uint32_t c, float a) {
 #define WM_APP_START      (WM_APP + 25) // schede da riaprire all'avvio lette (tabs.cpp): lParam StartTabs*
 #define WM_APP_UPDATE     (WM_APP + 26) // controllo o download dell'aggiornamento finito (update.cpp): lParam UpdJob*
 #define WM_APP_UPDCLEAN   (WM_APP + 27) // exe della versione precedente tolto dopo un aggiornamento (update.cpp)
+#define WM_APP_CLIPSET    (WM_APP + 28) // testo scritto negli appunti da un thread, o no (text.cpp): lParam ClipSet*
 
 template <class T> static void safeRelease(T*& p) { if (p) { p->Release(); p = nullptr; } }
 

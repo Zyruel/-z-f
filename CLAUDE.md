@@ -116,7 +116,8 @@ Come si compila e si prova, passo per passo: `/prova` (skill in `.claude/skills/
     letture in background, dopo le locali), `onlineOnly` (file solo online: non si leggono),
     `driveKind` (il tipo di unità con le parole di Windows), `uncShareRoot`;
   - file negli appunti e trascinati: `clipSetFiles` (Copia/Taglia, `shell.cpp`), `hdropPaths`
-    (lettura di `CF_HDROP` in un passaggio, `fileops.cpp`);
+    (lettura di `CF_HDROP` in un passaggio, `fileops.cpp`); testo negli appunti: `clipSetText` e
+    `clipAskText` (`text.cpp`, su un thread, con l'esito alla finestra);
   - percorsi dentro uno zip (`zip.cpp`): `zipSplit`/`zipInside` sul thread, `Listing::zipLen` sul
     thread UI, `zipReadMem` per leggere un file in memoria; aprire, copiare e trascinare da uno zip
     con `zipJobStart` (`zipout.cpp`). Niente shell su questi percorsi (zipfldr è lenta);

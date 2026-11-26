@@ -20,6 +20,39 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 000000000000000000000000000. Appunti: Copia percorso e Copia/Taglia nelle caselle su un thread (z-f-dev, novembre 2026)
+
+Correzione del controllo del codice (`text.cpp`, `clipSetText`): il testo si scriveva negli
+appunti sul thread dell'interfaccia, che poteva aspettare il programma che li possedeva (se
+bloccato), e "Percorso copiato" compariva anche quando gli appunti erano occupati e non si era
+copiato niente. Ora scrive un thread, che riprova per un secondo; l'avviso arriva con l'esito, e
+un fallimento dice chi tiene gli appunti. Un Taglia non riuscito rimette il testo nella casella,
+selezionato. Anche Ctrl+V riprova per un secondo se gli appunti sono occupati.
+
+Provato da Claude su z-f-dev, in una cartella di prova con file finti, con
+`prove\appunti-prova.cpp`:
+- [x] **Copia percorso** con Ctrl+Shift+C su una voce ("Percorso copiato"), su cinque voci
+      ("Percorsi copiati", una per riga) e dal menu col tasto destro; proprietaria degli appunti la
+      finestra di [z]f (classe `z-f`); dopo Ctrl+C sui file (oggetto OLE) Copia percorso li
+      sostituisce senza ritardi; chiudendo la finestra il testo resta negli appunti;
+- [x] **appunti tenuti aperti** 3–5 s: dopo un secondo "Impossibile copiare il percorso: gli
+      appunti sono aperti da appunti-prova.exe (codice 5)"; aperti senza finestra: "… da un altro
+      programma (codice 5)"; intanto le frecce muovono il cursore. Tenuti aperti 0,6 s: la copia
+      riesce (427 ms, nel registro "appunti lenti (testo)");
+- [x] **proprietario fermo** 4 s: `EmptyClipboard` aspetta 3,4 s sul thread, la lista risponde e
+      alla fine "Percorso copiato" (prima il thread dell'interfaccia sarebbe rimasto fermo 3,4 s);
+- [x] **caselle:** barra del percorso (Ctrl+L), rinomina (F2, poi Esc) e "Vai a": Ctrl+C, Ctrl+X e
+      Ctrl+V; in "Vai a" Taglia e Incolla rifanno la ricerca. Taglia con gli appunti occupati, nella
+      barra del percorso e in "Vai a": il testo torna selezionato (e la ricerca si rifà), con
+      "Impossibile tagliare il testo: …";
+- [x] registro: solo le voci d'avvio e le righe delle prove; MSVC: zero avvisi.
+
+Da provare a mano:
+- [ ] **Desktop remoto** (rdpclip) o un gestore degli appunti (Ditto, la cronologia di Win+V):
+      Copia percorso e Ctrl+C nella barra del percorso arrivano negli appunti, e nel PC remoto;
+- [ ] Copia percorso con migliaia di voci selezionate (il testo si prepara ancora sul thread
+      dell'interfaccia: con 20.000 voci, quanto dura?).
+
 ## 00000000000000000000000000. Barra laterale: prima le unità locali, poi rete e ottiche (z-f-dev, novembre 2026)
 
 Correzione del controllo del codice (`sidebar.cpp`): le unità si leggevano tutte nell'ordine

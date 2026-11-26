@@ -165,6 +165,10 @@ constexpr int ZIP_TEMP_KEEP = 3 * 24 * 3600 * 1000; // file estratti da uno zip 
 // campo del nome, FD_OK_WAIT per Apri/Salva (che entra nella cartella)
 constexpr int FD_POLL = 25, FD_WAIT_MAX = 3000, FD_SETTLE = 150;
 constexpr int FD_MSG_WAIT = 500, FD_OK_WAIT = 2000;
+// Appunti aperti da un altro programma (rdpclip, un gestore degli appunti): i thread che scrivono e
+// leggono il testo (text.cpp) riprovano ogni CLIP_RETRY, per al massimo CLIP_WAIT_MAX, come fanno
+// Windows Forms e WPF (10 volte, 100 ms)
+constexpr int CLIP_RETRY = 50, CLIP_WAIT_MAX = 1000;
 // Aggiornamento (update.cpp): primo controllo così tanto dopo il primo frame, poi al massimo uno
 // ogni UPD_EVERY secondi (anche a [z]f aperto: la condizione si guarda ogni UPD_TICK ms)
 constexpr int UPD_DELAY = 30000, UPD_TICK = 3600 * 1000;

@@ -620,8 +620,10 @@ static void copyPaths(bool folder) {
         }
     }
     if (t.empty()) return;
-    clipSetText(A.hwnd, t);
-    notice(t.find(L'\n') == std::wstring::npos ? L"Percorso copiato" : L"Percorsi copiati", true);
+    bool one = t.find(L'\n') == std::wstring::npos;
+    // L'avviso arriva con l'esito (onClipSet): dice "copiato" solo se il testo è negli appunti
+    clipSetText(new ClipSet{ A.hwnd, t, one ? L"Percorso copiato" : L"Percorsi copiati",
+                             one ? L"Impossibile copiare il percorso" : L"Impossibile copiare i percorsi" });
 }
 
 static void showProperties(bool folder) {

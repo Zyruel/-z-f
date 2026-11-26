@@ -81,6 +81,10 @@ può (con il controllo dello schermo); altrimenti gli si chiede uno screenshot. 
   l'API Cloud Files di Windows). `passi` misura le chiamate di [z]f su segnaposto nuovi;
   `attendi <secondi>` resta in ascolto mentre si prova z-f-dev sulla cartella con
   `prove\dev.bat`, e alla fine dice quanti file ha scaricato ogni processo.
+- `appunti-prova.cpp`: gli appunti occupati da un altro programma. `occupa <secondi>
+  [senza-finestra]` li tiene aperti, `fermo <secondi>` li possiede e non risponde ai messaggi
+  (chi li svuota lo aspetta), `chi` dice proprietario e testo; si prova intanto Copia percorso o
+  Taglia in una casella di z-f-dev.
 
 ## 4. Controllo dello schermo: le regole
 

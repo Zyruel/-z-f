@@ -184,7 +184,7 @@ con grep prima di segnalare.
   `drawTextMarked`, `readSubfolders`, `tipRow`, `readInfo`/`fileRows`/`driveRows`,
   `pvImage`/`pvText`/`pvBigIcon`, `itemRect`/`itemBg`/`itemAt`/`gridParts`,
   `TextField`/`drawField`, `slowPath`/`onlineOnly`/`driveKind`/`uncShareRoot`,
-  `clipSetFiles`/`hdropPaths`, `zipSplit`/`zipInside`/`zipReadMem`/`zipJobStart`,
+  `clipSetFiles`/`hdropPaths`, `clipSetText`/`clipAskText`, `zipSplit`/`zipInside`/`zipReadMem`/`zipJobStart`,
   `linkRead`/`linkOf`/`linkReveal`, `netPlacesRead`, `parentOf`, `notice`, `drawSpinner`,
   `tabsSerialize`/`tabsRestore`, `updCheck`/`updAction`/`drawUpdateIcon`/`updRestartAll`/
   `restartLaunch`, la cornice (`chrome.cpp`). Anche due funzioni nostre quasi uguali in moduli

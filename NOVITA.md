@@ -32,6 +32,11 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
   altre unità, né il nome di un preferito appena aggiunto. Le unità locali arrivano subito; quelle
   di rete e ottiche e i percorsi di rete dopo, una alla volta, e intanto mostrano il nome generico
   o quello di prima. Un DVD si rilegge solo quando lo si inserisce, non a ogni ritorno su [z]f.
+- Copia percorso (Ctrl+Shift+C) e Copia/Taglia nelle caselle di testo: se gli appunti sono
+  occupati da un altro programma (Desktop remoto, un gestore degli appunti) [z]f riprova per un
+  secondo e, se non ci riesce, lo dice e dice chi li tiene, invece di scrivere "Percorso copiato"
+  senza averlo copiato; un Taglia non riuscito rimette il testo dov'era. [z]f non si ferma più se
+  il programma che possedeva gli appunti è bloccato.
 
 ## 1.0.0-beta.3 (novembre 2026)
 
