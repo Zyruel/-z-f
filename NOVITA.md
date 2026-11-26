@@ -13,6 +13,12 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 - **Una finestra per ogni cartella aperta da fuori** (opzione, in Integrazione con Windows): il
   doppio clic sul desktop, Win+E e gli altri programmi aprono una finestra nuova invece di una
   scheda nella finestra principale. Ogni finestra occupa da 40 a 70 MB (secondo la scheda video), una scheda meno di 1 MB.
+- **Colonna Destinazione mai più larga di Nome:** con la finestra non a tutto schermo Nome restava
+  al suo minimo e lo spazio in più andava tutto a Destinazione; ora le due colonne crescono e
+  calano insieme. Allargando Data o Dimensione, lo spazio lo cede Destinazione.
+- **L'anteprima tiene la sua larghezza:** con la finestra stretta si adattano le colonne; prima
+  l'anteprima si prendeva lo spazio lasciato da ogni colonna stretta col mouse, e una colonna non
+  si riusciva ad allargare.
 
 ## 1.0.0-beta.4 (novembre 2026)
 

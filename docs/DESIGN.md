@@ -203,7 +203,10 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
     stringe cedono prima Destinazione (se c'è), poi Data e poi Dimensione, fino al minimo. Il testo
     che non ci sta finisce in "…";
   - **colonna Destinazione** (`lnk.cpp`, `links.cpp`): tra Nome e Data, solo nelle cartelle con
-    almeno un collegamento (.lnk), larga `LINK_W` (300) o quanto scelto (`colonna_destinazione`).
+    almeno un collegamento (.lnk), larga `LINK_W` (300) o quanto scelto (`colonna_destinazione`),
+    ma mai più larga di Nome (`LINK_MAX`, metà dello spazio tra l'inizio della lista e Data): con
+    la finestra stretta le due colonne crescono e calano insieme, e trascinando il bordo
+    Nome|Destinazione verso sinistra ci si ferma a metà.
     Ogni collegamento mostra il percorso a cui porta, in `C_DIM` come le date; i collegamenti
     senza percorso (app dello Store) e gli altri file lasciano la cella vuota. Sopra il testo
     della destinazione (non sullo spazio vuoto della colonna) il fondo `C_HOVER_STRONG`,
@@ -230,7 +233,8 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
     Windows e una linea verticale 1 px `C_LINE`, che diventa `C_SEL_EDGE` mentre la si trascina.
     Un clic sulla fascia non ordina;
   - ogni bordo comanda la colonna alla sua destra e segue il mouse (trascinando Data|Dimensione
-    Data si sposta intera). Esc durante il trascinamento rimette la larghezza di prima;
+    Data si sposta intera); allargando Data o Dimensione, lo spazio lo cede Destinazione, fino al
+    suo minimo. Esc durante il trascinamento rimette la larghezza di prima;
   - doppio clic sul bordo: la colonna si adatta al testo più largo tra intestazione (con la
     freccia) e voci della vista;
   - le larghezze valgono per tutte le cartelle e le schede e si salvano al rilascio
@@ -363,9 +367,11 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
     colonne (fascia `COL_GRIP` verso il pannello, `GAP_XS` verso la lista per non prendere la
     barra di scorrimento): cursore ↔, separatore in `C_SEL_EDGE` mentre lo si trascina, Esc torna
     a prima, doppio clic torna a `PREVIEW_W`; si salva al rilascio (`anteprima_larghezza`);
-  - **finestra stretta**: il pannello prende solo quello che la lista lascia con Data e Dimensione
-    alla larghezza scelta, quindi cede per primo, fino al minimo; poi cedono le colonne; se non
-    basta sparisce, ma resta aperto e torna quando c'è spazio. Aprendolo senza spazio: avviso.
+  - **finestra stretta**: il pannello tiene la larghezza scelta e cedono le colonne (prima
+    Destinazione, poi Data e Dimensione, come sopra); il pannello si stringe solo quando le colonne
+    sono tutte al minimo, e sotto `PREVIEW_MIN` sparisce, ma resta aperto e torna quando c'è
+    spazio. Aprendolo senza spazio: avviso. (Scelta con Zyruel: se il pannello cedesse per primo,
+    ogni colonna stretta col mouse lo allargherebbe, e allargare una colonna sarebbe impossibile.)
 - **Barra laterale:**
   - la sezione "Preferiti" ha il titolo in `C_FAINT` e una freccia ˅/› a destra; clic sul titolo: la sezione si chiude o si apre (ricordato);
     le voci stanno sotto il titolo rientrate di `SIDE_INDENT`, come le unità sotto Questo PC (lo

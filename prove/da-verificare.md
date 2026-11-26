@@ -20,6 +20,25 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 00000000000000000000000000000000. Destinazione mai più larga di Nome (z-f-dev, novembre 2026)
+
+Compilato senza avvisi. Provato da Zyruel su un altro PC con l'anteprima aperta ("decisamente
+meglio"); Claude non l'ha provato con il mouse. Restano da spuntare, in una cartella di prova con
+collegamenti e la finestra non a tutto schermo:
+
+- [ ] Stringendo e allargando la finestra, Nome e Destinazione crescono e calano insieme (prima
+  Nome restava al minimo); a tutto schermo Destinazione è larga quanto scelto, come prima.
+- [ ] Bordo Nome|Destinazione: verso destra Nome si allarga e Destinazione si stringe; verso
+  sinistra si ferma dove Destinazione sarebbe più larga di Nome.
+- [ ] Bordo Destinazione|Data: Data cambia larghezza e lo spazio si divide tra Nome e
+  Destinazione; nessun salto al rilascio.
+- [ ] Doppio clic sul bordo Nome|Destinazione con percorsi lunghi: si adatta, al massimo a metà.
+- [ ] Con l'anteprima aperta (Zyruel: "il pannello deve avere dimensione fissa"): l'anteprima
+  tiene la larghezza scelta stringendo la finestra, finché le colonne non sono tutte al minimo;
+  nessun bordo delle colonne la allarga o la stringe.
+- [ ] Bordo Destinazione|Data verso sinistra: Data si allarga (prima era bloccata) e Destinazione
+  cede fino al minimo; Nome non si muove.
+
 ## 0000000000000000000000000000000. Una finestra per ogni cartella aperta da fuori (z-f-dev, novembre 2026)
 
 Provato da Claude senza schermo: con l'opzione accesa (simulata col messaggio
