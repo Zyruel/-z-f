@@ -20,6 +20,39 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 0000000000000000000000000. Dialoghi Apri/Salva: un salto alla volta (z-f-dev, novembre 2026)
+
+Correzione del controllo del codice (`filedlg.cpp`): tornando a un dialogo due volte di fila con
+cartelle diverse partivano due thread sullo stesso dialogo. Il secondo poteva leggere come nome
+"vecchio" il percorso messo dal primo, e il suo "Salva" confermare il nome appena rimesso dal
+primo: il dialogo Salva avrebbe salvato il file (Apri lo avrebbe aperto). Ora ogni dialogo ha un
+thread solo: una cartella arrivata durante un salto aspetta, e vale l'ultima; se il salto in
+corso non ha ancora toccato il campo del nome, lo si lascia e si va subito all'ultima. I tempi
+del salto sono in `theme.h` (`FD_*`).
+
+Provato da Claude a PC bloccato, senza mouse né tastiera, con il nuovo `dialoghi-prova ritorno`
+(`prove\dialoghi-prova.cpp`): apre Salva, consegna la cartella A a z-f-dev (che viene davanti),
+torna al dialogo, poi lo stesso con B; scrive le cartelle in cui entra il dialogo e ogni conferma
+del nome (bloccata). 13 giri con tempi diversi (gli ultimi 7 con la build del commit):
+- [x] B arriva mentre A sta premendo "Salva": il dialogo entra in A e poi in B (B 180 ms dopo A);
+- [x] B arriva prima che A tocchi il campo: A lasciato, il dialogo entra direttamente in B,
+      235 ms dopo il ritorno (un salto normale: 220 ms);
+- [x] sempre: nome nel campo "prova salvataggio.txt", nessuna conferma del nome, dialogo annullato
+      alla fine senza salvare. Registro: solo le voci normali dell'avvio. MSVC: zero avvisi.
+- La stessa prova con la build di prima non ha mostrato il guasto (17 giri): con cartelle locali
+  "Salva" entra nella cartella in pochi ms, e il secondo ritorno più rapido (60 ms) arriva già
+  dopo. Con una cartella lenta (rete) la finestra in cui succedeva era più larga.
+
+Da provare a mano:
+- [ ] **ritorno rapido** con un dialogo Salva vero (Blocco note, Salva con nome): passa a [z]f,
+      cambia cartella, torna al dialogo, subito di nuovo a [z]f su un'altra cartella e di nuovo al
+      dialogo. Il dialogo finisce nell'ultima cartella, il nome proposto resta, niente viene
+      salvato;
+- [ ] **dialogo lento**: lo stesso con una cartella di rete (o un NAS lento) come prima cartella:
+      il dialogo finisce comunque nell'ultima e non salva niente;
+- [ ] F12, "dialoghi: ultimo salto (thread)": circa 200–250 ms dopo un salto (a PC bloccato
+      Claude non ha potuto leggerlo).
+
 ## 000000000000000000000000. File di [z]f mai sovrascritti prima della lettura (z-f-dev, novembre 2026)
 
 Correzione del controllo del codice (`settings.cpp`, `settingsSave`): con il disco lento il

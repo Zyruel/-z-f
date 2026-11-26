@@ -25,6 +25,9 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
   la barra laterale, una larghezza, aggiungere un preferito o passare alla griglia nei primi
   istanti non cancella più impostazioni, preferiti e viste salvati: il cambiamento si aggiunge a
   quelli letti.
+- Dialoghi Apri e Salva: tornando al dialogo due volte di fila con cartelle diverse, il dialogo
+  entra nell'ultima e il nome proposto resta. Prima i due salti potevano intrecciarsi, e nel caso
+  peggiore il dialogo Salva poteva salvare il file con il nome proposto.
 
 ## 1.0.0-beta.3 (novembre 2026)
 

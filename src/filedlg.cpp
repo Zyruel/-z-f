@@ -11,9 +11,22 @@
 // La scelta di una cartella (FOS_PICKFOLDERS) non si tocca: lì confermare la sceglierebbe.
 // Con più finestre (anche processi) di [z]f agisce solo l'ultima usata: il suo HWND sta in memoria
 // condivisa. Il thread UI fa solo controlli che non mandano messaggi all'altro processo (classe,
-// figli); i messaggi, che devono aspettare il dialogo, li manda un thread.
+// figli); i messaggi, che devono aspettare il dialogo, li manda un thread, uno per dialogo (FdWork).
 
-struct FdDialog { HWND h; std::wstring lastPath; double lastFgAt; };
+// Un salto alla volta per dialogo, su un thread suo. Due thread sullo stesso dialogo si
+// intreccerebbero: il secondo leggerebbe come nome "vecchio" il percorso messo dal primo, e il suo
+// Apri/Salva potrebbe confermare il nome appena rimesso dal primo (Salva salverebbe il file). Se
+// durante un salto si torna con un'altra cartella, vale l'ultima: il salto in corso si lascia se
+// non ha ancora toccato il campo del nome, altrimenti finisce e poi si fa l'ultima.
+struct FdWork {
+    HWND dlg = nullptr;
+    SRWLOCK lock = SRWLOCK_INIT; // solo per copiare want e i contatori: mai tenuto durante un messaggio
+    std::wstring want;           // cartella dell'ultima richiesta
+    unsigned gen = 0, taken = 0; // richieste arrivate, richieste prese dal thread
+    bool running = false;        // c'è un thread su questo dialogo
+};
+
+struct FdDialog { HWND h; std::wstring lastPath; double lastFgAt; std::shared_ptr<FdWork> work; };
 
 static struct FileDialogs {
     HWINEVENTHOOK hook = nullptr;
@@ -60,34 +73,59 @@ static bool fdReady(HWND dlg) {
     return view && (FindWindowExW(view, nullptr, L"DirectUIHWND", nullptr) || FindWindowExW(view, nullptr, L"SysListView32", nullptr));
 }
 
-struct FdJob { HWND dlg; std::wstring path; };
+// Una richiesta più nuova è arrivata mentre questa aspettava
+static bool fdStale(FdWork* w, unsigned gen) {
+    AcquireSRWLockShared(&w->lock);
+    bool stale = w->gen != gen;
+    ReleaseSRWLockShared(&w->lock);
+    return stale;
+}
 
-static constexpr int kFdPollMs = 25, kFdWaitMax = 120; // al massimo 3 s per un dialogo che si costruisce
-static constexpr int kFdSettleMs = 150;                // margine dopo che la vista è comparsa
-
-static DWORD WINAPI fdThread(void* p) {
-    FdJob* j = (FdJob*)p;
+// Un salto: aspetta il dialogo pronto, scrive la cartella nel campo del nome, preme Apri/Salva e
+// rimette il nome. Fino a che il campo non è cambiato, una richiesta più nuova fa lasciare questa;
+// dopo si va fino in fondo, perché solo così il nome proposto torna al suo posto.
+static void fdJump(FdWork* w, const std::wstring& path, unsigned gen) {
     double t0 = nowMs();
-    DWORD at = GetFileAttributesW(longPath(j->path).c_str());
+    DWORD at = GetFileAttributesW(longPath(path).c_str());
+    if (at == INVALID_FILE_ATTRIBUTES || !(at & FILE_ATTRIBUTE_DIRECTORY)) return;
     HWND edit = nullptr;
-    for (int i = 0; i < kFdWaitMax && IsWindow(j->dlg); i++) {
-        if (fdReady(j->dlg) && (edit = fdNameEdit(j->dlg)) != nullptr) break;
-        Sleep(kFdPollMs);
+    while (IsWindow(w->dlg) && !fdStale(w, gen)) {
+        if (fdReady(w->dlg) && (edit = fdNameEdit(w->dlg)) != nullptr) break;
+        if (nowMs() - t0 >= ui::FD_WAIT_MAX) return; // un dialogo che non si costruisce: si lascia stare
+        Sleep(ui::FD_POLL);
     }
-    if (edit) Sleep(kFdSettleMs);
-    if (edit && IsWindow(j->dlg) && at != INVALID_FILE_ATTRIBUTES && (at & FILE_ATTRIBUTE_DIRECTORY)) {
-        wchar_t old[2048] = {};
-        DWORD_PTR r = 0;
-        const UINT f = SMTO_ABORTIFHUNG | SMTO_BLOCK;
-        if (SendMessageTimeoutW(edit, WM_GETTEXT, 2048, (LPARAM)old, f, 500, &r) &&
-            SendMessageTimeoutW(edit, WM_SETTEXT, 0, (LPARAM)j->path.c_str(), f, 500, &r)) {
-            SendMessageTimeoutW(j->dlg, WM_COMMAND, MAKEWPARAM(IDOK, BN_CLICKED), (LPARAM)GetDlgItem(j->dlg, IDOK), f, 2000, &r);
-            SendMessageTimeoutW(edit, WM_SETTEXT, 0, (LPARAM)old, f, 500, &r); // il nome proposto torna
+    if (!edit) return;
+    for (double t1 = nowMs(); nowMs() - t1 < ui::FD_SETTLE; Sleep(ui::FD_POLL)) // il margine, lasciato appena serve
+        if (fdStale(w, gen)) return;
+    if (!IsWindow(w->dlg) || fdStale(w, gen)) return;
+    wchar_t old[2048] = {};
+    DWORD_PTR r = 0;
+    const UINT f = SMTO_ABORTIFHUNG | SMTO_BLOCK;
+    if (!SendMessageTimeoutW(edit, WM_GETTEXT, 2048, (LPARAM)old, f, ui::FD_MSG_WAIT, &r) || fdStale(w, gen)) return;
+    if (SendMessageTimeoutW(edit, WM_SETTEXT, 0, (LPARAM)path.c_str(), f, ui::FD_MSG_WAIT, &r)) {
+        SendMessageTimeoutW(w->dlg, WM_COMMAND, MAKEWPARAM(IDOK, BN_CLICKED), (LPARAM)GetDlgItem(w->dlg, IDOK), f, ui::FD_OK_WAIT, &r);
+        SendMessageTimeoutW(edit, WM_SETTEXT, 0, (LPARAM)old, f, ui::FD_MSG_WAIT, &r); // il nome proposto torna
+    }
+    // F12. Più dialoghi insieme hanno più thread: un intero a 64 bit scritto con Interlocked non si spezza
+    InterlockedExchange64(&A.fdJumpUs, (LONG64)((nowMs() - t0) * 1000));
+}
+
+// Il thread di un dialogo: fa l'ultima richiesta finché ne arrivano, poi finisce
+static DWORD WINAPI fdThread(void* p) {
+    std::shared_ptr<FdWork> w = std::move(*(std::shared_ptr<FdWork>*)p);
+    delete (std::shared_ptr<FdWork>*)p;
+    for (;;) {
+        AcquireSRWLockExclusive(&w->lock);
+        if (w->taken == w->gen) {
+            w->running = false;
+            ReleaseSRWLockExclusive(&w->lock);
+            return 0;
         }
-        A.fdJumpMs = nowMs() - t0; // F12 (un double scritto da un thread solo)
+        std::wstring path = w->want;
+        unsigned gen = w->taken = w->gen;
+        ReleaseSRWLockExclusive(&w->lock);
+        fdJump(w.get(), path, gen);
     }
-    delete j;
-    return 0;
 }
 
 // La finestra di [z]f visibile più in alto, tranne skip (FindWindowEx va in ordine di profondità;
@@ -127,9 +165,30 @@ static void CALLBACK fdOnForeground(HWINEVENTHOOK, DWORD, HWND h, LONG obj, LONG
     d->lastFgAt = nowMs();
     if (go) {
         d->lastPath = A.cur->path;
-        FdJob* j = new FdJob{ h, A.cur->path };
-        HANDLE th = CreateThread(nullptr, 0, fdThread, j, 0, nullptr);
-        if (th) CloseHandle(th); else delete j;
+        if (!d->work) {
+            d->work = std::make_shared<FdWork>();
+            d->work->dlg = h;
+        }
+        FdWork* w = d->work.get();
+        // Il thread tiene il lock solo per copiare: qui non si aspetta
+        AcquireSRWLockExclusive(&w->lock);
+        w->want = A.cur->path;
+        w->gen++;
+        bool start = !w->running;
+        w->running = true;
+        ReleaseSRWLockExclusive(&w->lock);
+        if (start) { // altrimenti la richiesta la prende il thread che c'è già, appena finisce
+            auto* p = new std::shared_ptr<FdWork>(d->work);
+            HANDLE th = CreateThread(nullptr, 0, fdThread, p, 0, nullptr);
+            if (th) CloseHandle(th);
+            else {
+                delete p;
+                AcquireSRWLockExclusive(&w->lock);
+                w->running = false;
+                w->taken = w->gen; // persa, come prima; la prossima cartella fa partire un thread
+                ReleaseSRWLockExclusive(&w->lock);
+            }
+        }
     }
     A.fdHookMs = std::max(A.fdHookMs, nowMs() - t0);
 }

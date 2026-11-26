@@ -551,7 +551,7 @@ static void render() {
                 row(L"collegamenti (thread)", L"%.1f ms%s", ms, ex);
             }
             if (A.fdHookMs > 0) row(L"dialoghi: notifica più lenta (UI)", L"%.3f ms%s", A.fdHookMs, L"");
-            if (A.fdJumpMs > 0) row(L"dialoghi: ultimo salto (thread)", L"%.1f ms%s", A.fdJumpMs, L"");
+            if (A.fdJumpUs > 0) row(L"dialoghi: ultimo salto (thread)", L"%.1f ms%s", (double)A.fdJumpUs / 1000, L"");
             int nUndo = 0, nRedo = 0;
             undoCounts(nUndo, nRedo);
             if (A.undoRecMs > 0 || nUndo || nRedo) {

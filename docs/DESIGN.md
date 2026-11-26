@@ -636,7 +636,8 @@ i comandi stanno dove servono (≡ per l'applicazione, ← → ↑ ☆ per la ca
   un handle su una cartella (il watcher), scrivere il log. Un lock preso dal thread UI non si tiene
   mai durante una scrittura su disco.
 - **Soglie del registro dei rallentamenti** (`LOG_*`) e tempi del lavoro in background
-  (`WATCH_BATCH`, `SIDE_RELOAD`, `ZIP_TEMP_KEEP`) stanno in `theme.h` come gli altri tempi.
+  (`WATCH_BATCH`, `SIDE_RELOAD`, `ZIP_TEMP_KEEP`, le attese del salto dei dialoghi `FD_*`) stanno
+  in `theme.h` come gli altri tempi.
   `LOG_ZIP` (100 ms) segna la lettura di una directory centrale ("zip: elenco lento") e
   un'estrazione ("zip: estrazione", col codice in MB) sui loro thread.
 - **Percorsi dentro uno zip** (`zip.cpp`): su un thread li riconosce `zipSplit`/`zipInside` (un

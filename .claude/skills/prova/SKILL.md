@@ -101,7 +101,9 @@ può (con il controllo dello schermo); altrimenti gli si chiede uno screenshot. 
 - Non usare `open_application` per un programma di confronto già aperto, perché ne apre una
   finestra nuova: per portarlo davanti basta cliccarlo.
 - Lo strumento che controlla lo schermo non lascia cliccare nei dialoghi Apri/Salva: il salto
-  "al ritorno" (`filedlg.cpp`) lo prova Zyruel.
+  "al ritorno" (`filedlg.cpp`) con un dialogo vero lo prova Zyruel. Senza mouse né tastiera lo
+  simula `dialoghi-prova ritorno <pid di z-f-dev> <A> <B> [ms] [ms in [z]f]`, che funziona anche a
+  PC bloccato (porta davanti le finestre e legge il primo piano dalla notifica).
 
 ## 5. Sessione cloud con il PC collegato
 
