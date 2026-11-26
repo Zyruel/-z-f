@@ -25,6 +25,9 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
   cartella grande visitata finché la finestra resta aperta.
 - **Anteprima di uno zip dentro uno zip:** diceva "Cartella vuota"; ora mostra icona, tipo,
   dimensione e data, come per gli altri file dentro uno zip.
+- **Icona grande nell'anteprima all'avvio:** con l'anteprima già aperta, a volte il primo file
+  senza anteprima restava senza l'icona grande (e così una miniatura della griglia). Ora c'è
+  sempre.
 - Il codice torna senza avvisi anche con `/W4`.
 
 ## 1.0.0-beta.5 (novembre 2026)

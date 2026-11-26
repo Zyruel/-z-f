@@ -88,7 +88,7 @@ può (con il controllo dello schermo); altrimenti gli si chiede uno screenshot. 
   `anteprima-prova.py` (anteprima);
 - misure e confronti a parte, senza interfaccia: `zip-prova.cpp`, `collegamenti-prova.cpp`,
   `dialoghi-prova.cpp`, `shell-verbi.cpp`, `vai-a-misura.cpp`, `costi-frame.cpp`,
-  `ime-avvio.cpp` (come si compilano è scritto in cima a ognuno);
+  `ime-avvio.cpp`, `icona-grande-prova.cpp` (come si compilano è scritto in cima a ognuno);
 - `online-prova.cpp`: file solo online senza OneDrive (una radice di sincronizzazione finta con
   l'API Cloud Files di Windows). `passi` misura le chiamate di [z]f su segnaposto nuovi;
   `attendi <secondi>` resta in ascolto mentre si prova z-f-dev sulla cartella con

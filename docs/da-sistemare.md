@@ -30,13 +30,6 @@ quel codice, o tutti insieme in un momento tranquillo. Quando una voce è fatta 
   l'IDList quando, alla creazione, la destinazione non è raggiungibile (per esempio un collegamento
   a un'unità di rete creato mentre l'unità non è collegata). Leggerlo vorrebbe dire decodificare
   gli elementi della IDList (unità, poi un nome per cartella).
-- [ ] **Icona grande mancante alla prima anteprima dopo l'avvio** (novembre 2026, visto una volta
-  provando i file solo online). z-f-dev aperto con l'anteprima già accesa su un PNG solo online:
-  righe d'informazione senza l'icona grande; tornandoci dopo, l'icona c'era. Causa probabile: il
-  thread dell'anteprima (e quelli delle miniature, `thIconWork`) chiede subito `SHGetImageList`,
-  senza aspettare `I.shellReady` come il secondo thread delle icone (`icons.cpp`: "insieme, la
-  prima chiamata falliva"). Da riprodurre (avvio con l'anteprima aperta su un file senza
-  anteprima) e, se è così, aspettare lo stesso evento in `pvBigIcon`.
 - [ ] **Icona di un file solo online dopo lo scaricamento** (novembre 2026, da verificare). Per
   .exe, .lnk, .ico la shell dà al segnaposto l'icona generica, e [z]f la tiene in cache per
   percorso (`iconFor`, `thIconKeyFor`); quando il file si scarica (aprendolo) gli attributi

@@ -307,7 +307,8 @@ contenuto salterebbe in basso proprio mentre si clicca.
 - Anche per i file solo online si chiede il percorso vero: `SHGetFileInfo` su un segnaposto non lo
   scarica, la shell dà da sé l'icona generica del tipo, come in Explorer.
 - Il secondo e il terzo thread aspettano che il primo abbia preparato le icone di sistema della
-  shell (`shellReady`).
+  shell (`shellReady`). Lo stesso aspetta l'icona grande dell'anteprima e delle miniature
+  (`pvBigIcon`), che usa le stesse icone di sistema su un altro thread.
 - L'alfa si ricava disegnando l'icona due volte, su nero e su bianco. Le icone vanno nell'atlante
   BGRA sulla GPU; finché un'icona non è pronta si vede un segnaposto, che l'icona sostituisce con
   una dissolvenza incrociata, e il thread UI non aspetta mai. Per la cache c'è anche una copia
@@ -323,6 +324,9 @@ contenuto salterebbe in basso proprio mentre si clicca.
   aspettare 20 s la sua icona e quelle delle unità in coda dietro, e passava la sua icona a tutte
   le cartelle.
 - I due thread insieme fallivano la prima chiamata: per questo il secondo aspetta il primo.
+  Misurato con `prove\icona-grande-prova.cpp` (un processo nuovo per volta, la prima
+  `SHGetFileInfo` e l'icona grande di `pvBigIcon` su due thread che partono insieme): una delle
+  due chiamate falliva in 40 processi su 40; con l'attesa, l'icona grande arriva in 40 su 40.
 - Provato con `prove\online-prova.cpp`, che simula OneDrive con l'API Cloud Files di Windows:
   icona piccola, grande e jumbo di .exe, .ico, .lnk, .png e .jpg, nessuno scaricamento. Leggere i
   primi 256 KB invece scarica il file.

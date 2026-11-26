@@ -211,6 +211,10 @@ static void pvScaleDown(const uint32_t* src, int sw, int sh, int stride, std::ve
 // senza anteprima, le unità e (in griglia) le cartelle. Le icone che non hanno la misura grande la shell le mette in un
 // angolo di 256 px: il ritaglio le riporta alla loro misura (non si ingrandiscono).
 static void pvBigIcon(const PvReq& r, PvRes& o) {
+    // Come i thread delle icone (iconThread): finché il thread IQ_EXT non ha fatto la prima
+    // SHGetFileInfo, una chiamata insieme alla sua fallisce (all'avvio con l'anteprima aperta
+    // restava senza icona; prove\icona-grande-prova.cpp: 40 processi su 40 senza l'attesa, 0 con).
+    WaitForSingleObject(I.shellReady, INFINITE);
     const wchar_t* ext = fileExt(r.path);
     bool dir = r.icon == ICON_DIR, real = r.icon == ICON_REAL;
     std::wstring fake = dir ? std::wstring(L"cartella") : std::wstring(L"file") + (ext ? ext : L"");
