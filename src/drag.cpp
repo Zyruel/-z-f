@@ -44,7 +44,10 @@ struct DragState {
     DWORD armButton = MK_LBUTTON; // tasto con cui è stato premuto (il destro chiede cosa fare)
     POINT down = {};
     bool preview = false;       // premuto nell'anteprima: partenza e clic rimandato nel suo PaneScope
-    const Listing* pressCur = nullptr; // …nella sua cartella di allora: se l'anteprima ne mostra un'altra, niente
+    // …nella sua cartella di allora: se l'anteprima ne mostra un'altra, niente. Il percorso e non il
+    // Listing: l'osservatore rilegge la stessa cartella con un Listing nuovo (un download in corso),
+    // e il trascinamento non deve fermarsi per questo
+    std::wstring pressPath;
     bool targetPreview = false; // la destinazione (DT_ROW, DT_LIST) è nella lista dell'anteprima
     int deferRow = -1;          // clic su una voce già selezionata: vale al rilascio, se non si trascina
     bool deferToggle = false;   // …ed era un Ctrl+clic
@@ -458,6 +461,9 @@ static void onShellDrop(ShellDrop* j) {
     A.dropMs = j->ms;
     A.changeAt = nowMs();
     transferNotice(j->fx, j->ok, hrCancelled(j->hr), j->notify, j->done, j->src.size(), j->name);
+    // Nella cartella dell'anteprima in rete non c'è l'osservatore: i collegamenti creati si vedono
+    // rileggendola qui, come dopo le operazioni di [z]f (onFileJob)
+    if (ListPane* p = previewPaneFor(j->path); p && j->ok && slowPath(p->cur->path)) previewRefresh();
     undoPush(std::move(j->op));
     delete j;
     A.dirty = true;
@@ -670,12 +676,11 @@ static IDataObject* dragPrepare(DWORD& allowed) {
     return obj;
 }
 
-
 // Tasto sinistro premuto su una riga (dopo aver aggiornato la selezione)
 static void dragArm(int x, int y, DWORD button) {
     DD.armed = true;
     DD.preview = g_inPane > 0;
-    DD.pressCur = A.cur;
+    DD.pressPath = A.cur ? A.cur->path : std::wstring();
     DD.armButton = button;
     DD.down = { x, y };
     SetCapture(A.hwnd);
@@ -696,7 +701,7 @@ static void dragPressRight(int x, int y) {
 // Premuto nell'anteprima, che intanto non mostra più quella cartella (come MQ.cur per il rettangolo)
 static bool dragPaneGone() {
     ListPane* p = pvPane();
-    return DD.preview && (!p || p->cur != DD.pressCur);
+    return DD.preview && (!p || !p->cur || !samePath(p->cur->path, DD.pressPath));
 }
 
 // Movimento col tasto premuto: oltre la soglia di Windows parte il trascinamento

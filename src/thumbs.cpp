@@ -814,13 +814,15 @@ static void thumbsFrame(int first, int last, bool preview) {
         c.fsDone = false;
     }
     // I posti dell'atlante sono grandi quanto il riquadro più grande tra le liste in Icone: se cambia
-    // si ricomincia da capo
+    // si ricomincia da capo. L'anteprima aperta in Icone conta anche quando per un momento mostra un
+    // file (come in anyTabGrid): scorrendo tra cartelle e file, con la lista al 20% e l'anteprima al
+    // 100%, l'atlante si rifaceva a ogni passo e le miniature della lista rientravano in dissolvenza
     int want = 0;
     for (const ThClient& k : TH.c) if (k.active) want = std::max(want, k.box);
+    if (A.prevOpen && A.prevZoom >= ZOOM_ICONS) want = std::max(want, TH.c[TC_PREVIEW].box);
     // Quando cresce, o quando scende almeno alla metà: con posti grandi il doppio l'atlante ne ha un
     // quarto, e a uno zoom piccolo le voci visibili non ci starebbero (al 175%, da 100 a 20%: 81
-    // posti invece di 1296). Le differenze minori restano: quando l'anteprima smette per un momento
-    // di mostrare una cartella non si rifanno tutte le miniature della lista a ogni passaggio
+    // posti invece di 1296). Le differenze minori restano
     if (want > TH.slotPx || want * 2 <= TH.slotPx) { thReset(); TH.slotPx = want; }
     if (A.cur != c.forList || A.cur->gen != c.forListGen) { // cartella nuova o ricaricata
         c.forList = A.cur;

@@ -64,7 +64,7 @@ static LayoutKeep layoutKeep() { return { cursorInView(A.scrollY, false), A.perL
 
 // Geometria delle voci dentro listX…listR, da listTop per listH, nella vista di A.zoom: colonne e
 // celle. La lista principale (layout) e l'anteprima di una cartella (preview.cpp, nel suo
-// PaneScope), che in Dettagli ha solo nome e dimensione: niente Data né Destinazione (noDate).
+// PaneScope), che in Dettagli non ha Destinazione e, a destra, nemmeno Data (noDate).
 static void layoutItems(bool noDate, const LayoutKeep& k) {
     // Colonne: Nome prende quello che avanza, Destinazione (se c'è), Data e Dimensione sono
     // allineate a destra. Se la finestra è stretta si stringono prima Destinazione, poi Data e poi
@@ -709,8 +709,8 @@ static void openSelected() {
     std::wstring full = joinPath(A.cur->path, A.cur->name(e));
     if (e.attr & FILE_ATTRIBUTE_DIRECTORY) {
         navigate(full, 1, L"");
-    } else if (g_inPane && zipNameEnd(full, full.size())) { // uno zip nell'anteprima: in una nuova scheda, come una cartella
-        navigate(full, 1, L"");
+    } else if (g_inPane && !A.cur->zipLen && zipNameEnd(full, full.size())) { // uno zip nell'anteprima: in una nuova scheda, come una cartella
+        navigate(full, 1, L""); // (dentro uno zip, uno zip è un file: si estrae, qui sotto)
     } else if (A.cur->zipLen) { // un file dentro uno zip: si estrae su un thread, poi si apre (zipout.cpp)
         zipJobStart(ZJ_OPEN, { A.view[A.sel] });
     } else if (zipNameEnd(full, full.size())) { // uno zip si apre come una cartella

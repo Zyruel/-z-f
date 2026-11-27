@@ -370,7 +370,10 @@ contenuto salterebbe in basso proprio mentre si clicca.
   generazione in `g_thLatest[]`: una richiesta vale se è di una delle due); mappa, code, thread e
   atlante sono in comune, e la chiave di una miniatura è percorso più lato (`thKey`), perché le
   due liste possono avere lati diversi. I posti dell'atlante sono grandi quanto il lato più grande
-  in uso (`slotPx`): solo quando quel massimo cambia si ricomincia da capo. Risultati e potature
+  in uso (`slotPx`): solo quando quel massimo cresce, o scende alla metà o meno, si ricomincia
+  da capo. L'anteprima aperta in Icone conta anche mentre per un momento mostra un file:
+  altrimenti, con la lista al 20% e l'anteprima al 100%, scorrendo tra cartelle e file l'atlante
+  si rifaceva a ogni passo e le miniature della lista rientravano in dissolvenza. Risultati e potature
   li fa la chiamata della lista principale, una volta per frame; le code di una lista si
   riprendono senza toccare quelle dell'altra.
 
@@ -488,7 +491,8 @@ Mostra la voce sotto il cursore e la segue mentre ci si muove con le frecce.
     scope rimandano all'uscita (in una prova di sviluppo il disegno nel ciclo, con lo stato
     scambiato, cancellava il `Listing` della lista principale).
   - *Disegno:* `pvPaneLayout` calcola la geometria nello scope (`layoutItems(!A.prevBottom, …)`:
-    a destra in Dettagli niente Data né Destinazione, in basso ci sono), poi `drawListItems` disegna dentro un **ritaglio**
+    in Dettagli niente Destinazione, perché i collegamenti dell'anteprima non si leggono, e a
+    destra nemmeno Data), poi `drawListItems` disegna dentro un **ritaglio**
     (`clipBegin`/`clipEnd` in `gfx.cpp`: uno stato del rasterizzatore con lo scissor, due draw call
     in più) perché le voci che scorrono, in Elenco anche in orizzontale, non sconfinino.
   - *Tastiera:* `PV.keys` (clic nel pannello, Tab). `onKey` apre lo scope tranne che per i tasti
@@ -497,8 +501,15 @@ Mostra la voce sotto il cursore e la segue mentre ci si muove con le frecce.
     `drawBarFilter` (`render.cpp`) lo disegna per la lista e, nello scope, per l'anteprima.
   - *Aggiornamento:* un secondo osservatore (`previewWatch` in `watch.cpp`, messaggio
     `WM_APP_PVCHANGED`, timer 17 per raggruppare le notifiche) segue la cartella mostrata, solo
-    sulle unità locali e non dentro uno zip; `pvPaneSet` rilegge tenendo selezione per nome,
-    cursore, scorrimento e la rinomina in corso.
+    sulle unità locali e non dentro uno zip; in rete si rilegge dopo le operazioni di [z]f
+    (`onFileJob`, anche annulla e ripeti, `onFsDone`) e dopo i comandi della shell e i rilasci
+    passati a lei (`onShellMenu` con `SmRes::invoked`, `onShellDrop`). `pvPaneSet` rilegge
+    tenendo selezione per nome, cursore, scorrimento e la rinomina in corso. `previewRefresh` non
+    supera una richiesta in corso: se il cursore è già su un'altra voce non fa niente (rifare la
+    richiesta di un'immagine grande la annullerebbe a ogni notifica), e se una rilettura è ancora in
+    corso la prossima parte quando arriva (`PV.refreshGen`, `PV.refreshAgain`), come
+    `refreshAgain` della lista. Il trascinamento premuto nell'anteprima confronta il percorso della
+    cartella, non il `Listing`: una rilettura della stessa cartella non lo ferma.
   - *Misurato* (F12, "anteprima: voci di una cartella"; RTX 5070 Ti, 2560×1392 a 175%): lista in
     Icone medie e anteprima in Icone grandi insieme, frame 0,12 ms (peggiore 0,24 scorrendo
     l'anteprima mentre arrivano le icone), voci dell'anteprima 0,01 ms. Avvio (`prove\avvio.bat`,

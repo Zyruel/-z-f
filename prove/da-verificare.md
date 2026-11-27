@@ -20,6 +20,30 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 00000000000000000000000000000000000000000000000000. Correzioni del controllo prima della 1.0.0-beta.7 (z-f-dev, novembre 2026)
+
+Otto correzioni dal `/controllo cambiati` prima del rilascio. Provato da Claude in z-f-dev a 175%,
+in una cartella di prova con file finti (scratchpad):
+- [x] doppio clic su "In basso" nel menu di ˅ (con l'anteprima a destra): l'anteprima va in basso
+  e la lista resta nella sua cartella; prima il secondo clic entrava nella cartella finita sotto
+  il mouse;
+- [x] Ctrl+rotellina sopra il menu della vista dell'anteprima aperto: il menu resta e la vista non
+  cambia; fuori dal menu lo chiude e cambia la vista, come prima;
+- [x] cartella dell'anteprima cambiata ogni 20 ms per 14 s (uno script che crea e cancella file):
+  i contatori dell'anteprima seguono (43, 41 file…); ↓ su un PNG di 7000×7000: l'immagine arriva
+  (decodifica 25 ms; lo stallo di prima, con una decodifica più lunga di 50 ms, qui non si
+  riproduceva);
+- [ ] **zip dentro uno zip** nell'anteprima: doppio clic su `interno.zip` mostrato dall'anteprima
+  di `archivio.zip`: si estrae e si apre come dalla lista (prima: "Non è una cartella"). Non
+  provato: aprirlo avvia il programma degli zip, che sul PC di Zyruel è [z]f;
+- [ ] **trascinamento dall'anteprima** di una cartella che cambia (un download in corso): parte;
+  prima si annullava a ogni rilettura;
+- [ ] **cartella di rete nell'anteprima:** Ctrl+Z di uno spostamento da lì la rilegge e mette il
+  cursore sul file tornato; Alt+trascina un file sull'anteprima (collegamento) e Shift+Canc con la
+  tastiera nell'anteprima la rileggono;
+- [ ] **miniature della lista** in Icone piccole al 20% con l'anteprima in Icone grandi: scorrendo
+  con ↓ tra cartelle e file, le miniature della lista non lampeggiano.
+
 ## 0000000000000000000000000000000000000000000000000. Correzioni della revisione del codice (z-f-dev, novembre 2026)
 
 Sette correzioni dopo la revisione del ramo: atlante delle miniature, risincronizzazione delle due
@@ -1347,8 +1371,8 @@ Cambiato:
   ci si avvicinava).
 
 Non provati a schermo (stavi usando il PC):
-- [ ] **memoria:** in una cartella di foto, griglia (Ctrl+Shift+2), scorri un po', poi elenco
-      (Ctrl+Shift+6): in Gestione attività la memoria di z-f-dev scende; tornando in griglia le
+- [ ] **memoria:** in una cartella di foto, Icone grandi (Ctrl+Shift+6), scorri un po', poi
+      Elenco (Ctrl+Shift+3): in Gestione attività la memoria di z-f-dev scende; tornando in griglia le
       miniature ricompaiono subito;
 - [ ] **F12 in griglia:** le righe "creazione dell'atlante" e "primo caricamento di WIC" hanno
       valori sensati (se la prima immagine la apre la griglia);
@@ -1459,7 +1483,7 @@ Resta da decidere:
 Durante le prove Claude ha messo in `%APPDATA%\z-f\recenti.txt` cartelle di prova e
 `\\localhost\C$`, poi le ha tolte (copia di prima nello scratchpad). La build di prova della GPU ha
 riscritto `impostazioni.txt` con `griglia_dimensione=2`: se prima avevi un'altra dimensione della
-griglia, rimettila con Ctrl+Shift+3/4.
+griglia, rimettila con Ctrl+Shift+4/5 (Icone piccole o medie).
 
 ## 000000. Correzioni del controllo del codice (z-f-dev, novembre 2026)
 

@@ -432,8 +432,9 @@ doppione.
     lista:
     - **vista** del pannello, una per tutte le cartelle che mostra (`anteprima_vista`): Dettagli
       (a destra icona, nome, dimensione in `C_DIM`: niente Data né Destinazione, il pannello è
-      stretto; in basso, largo quanto la lista, anche Data e Destinazione, con le larghezze e le
-      regole di restringimento delle colonne della lista), Elenco, Icone con le miniature, come
+      stretto; in basso, largo quanto la lista, anche Data, con le larghezze e le regole di
+      restringimento delle colonne della lista; la Destinazione dei collegamenti resta della
+      lista), Elenco, Icone con le miniature, come
       le viste della lista. Si sceglie dal suo
       controllo nella banda, con Ctrl+rotellina sopra il pannello e, con la tastiera
       nell'anteprima, con le scorciatoie delle viste;
@@ -458,8 +459,10 @@ doppione.
       nell'anteprima (un clic nel campo gliela dà), filtra solo le sue voci e i suoi contatori,
       resta quando la stessa cartella si rilegge e si toglie quando l'anteprima passa a un'altra
       voce. Esc e Backspace come nella lista;
-    - si rilegge da sola quando la cartella cambia (operazioni fatte lì o da fuori, solo sulle
-      unità locali; in rete con F5), tenendo selezione, cursore e scorrimento;
+    - si rilegge da sola quando la cartella cambia (operazioni fatte lì o da fuori, sulle unità
+      locali; in rete solo dopo le operazioni di [z]f e della shell fatte da [z]f, e con F5),
+      tenendo selezione, cursore e scorrimento; dopo Annulla o Ripeti il cursore va sull'elemento
+      tornato, come nella lista;
     - scorre con la rotellina come la lista (scorrimento morbido) e ha la sua barra di
       scorrimento; voci ritagliate al corpo del pannello;
   - **altri file, unità**: icona grande della shell (`PREVIEW_ICON`, 96, mai ingrandita) centrata

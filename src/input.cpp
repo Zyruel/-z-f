@@ -484,12 +484,16 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_MOUSEWHEEL: {
         tipHide();
         float lines = (float)GET_WHEEL_DELTA_WPARAM(wp) / WHEEL_DELTA;
-        if (A.menu.open && A.menu.visible < (int)A.menu.items.size()) { // menu che scorre
+        if (A.menu.open) {
             POINT c = { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
             ScreenToClient(hwnd, &c);
+            // Sopra il menu la rotellina è sua: scorre quello che scorre, sugli altri non fa niente
+            // (chiuderlo e andare avanti agirebbe su ciò che il menu copre, senza che si veda)
             if (menuInside(c.x, c.y)) {
-                menuScroll(-wheelSteps(lines * ui::WHEEL_LINES));
-                A.menu.hot = menuHit(c.x, c.y);
+                if (A.menu.visible < (int)A.menu.items.size()) {
+                    menuScroll(-wheelSteps(lines * ui::WHEEL_LINES));
+                    A.menu.hot = menuHit(c.x, c.y);
+                }
                 return 0;
             }
         }
@@ -757,7 +761,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         break;
     case WM_LBUTTONUP:
         if (A.menu.open) {
-            if (A.menu.pressed) menuExec(menuHit(GET_X_LPARAM(lp), GET_Y_LPARAM(lp)));
+            if (A.menu.pressed) { g_menuClickAt = nowMs(); menuExec(menuHit(GET_X_LPARAM(lp), GET_Y_LPARAM(lp))); }
             A.menu.pressed = false;
             return 0;
         }
@@ -779,6 +783,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_LBUTTONDBLCLK: {
         int y = GET_Y_LPARAM(lp), x = GET_X_LPARAM(lp);
         if (gotoDblClk(x, y, (wp & MK_CONTROL) != 0)) return 0;
+        if (!A.menu.open && nowMs() - g_menuClickAt < GetDoubleClickTime()) return 0; // il primo clic era su una voce di menu
         int chId = chromeHit(x, y);
         bool nav = chId >= CH_BACK && chId <= CH_UP;
         // ⚙ ▯ ☆ ˅ ◨: il secondo clic non riapre né richiude. Prima delle opzioni: su ⚙, appena

@@ -688,6 +688,8 @@ struct Preview {
     PvReq* pending = nullptr;   // in attesa di un thread (vale solo l'ultima)
     int running = 0;            // thread in corso
     double lastStart = 0;
+    uint64_t refreshGen = 0;    // la richiesta (gen) di una rilettura della cartella ancora in corso…
+    bool refreshAgain = false;  // …e un cambiamento arrivato intanto: si rilegge quando arriva
     PvRes* res = nullptr;       // contenuto mostrato (con la copia dei pixel della texture)
     // Scorrimento del testo: riga logica in cima e riga visiva dentro di essa
     int top = 0, topSub = 0, visRows = 0;
@@ -791,6 +793,7 @@ static void pvRequest(bool refresh) {
     int bw, bh;
     pvBox(bw, bh);
     PvReq* r = new PvReq{ A.hwnd, PV.gen, PV.item.path, PV.item.attr, PV.item.drive, PV.item.icon, bw, bh, (int)px(ui::PREVIEW_ICON), nullptr };
+    if (!refresh) PV.refreshAgain = false; // un'altra voce: la rilettura di quella di prima non serve più
     delete PV.pending;
     PV.pending = r;
     if (!refresh && !PV.stale) {
@@ -829,7 +832,14 @@ static void previewOnTimer(UINT_PTR id) {
 static void previewRefresh() {
     if (g_inPane) { g_paneAfter.push_back(previewRefresh); return; } // pvRequest misura il pannello con la geometria di App
     if (!PV.want || !PV.pane.cur) return;
+    // Il cursore è già su un'altra voce (un file grande che si decodifica): rifarne la richiesta la
+    // annullerebbe, e con una cartella che cambia di continuo non arriverebbe mai
+    if (PV.stale || PV.item.path != PV.shown.path) return;
+    // Una rilettura in corso non si supera (una cartella lenta da leggere non si aggiornerebbe mai):
+    // la prossima parte quando arriva questa, come refreshAgain della lista
+    if (PV.refreshGen == PV.gen) { PV.refreshAgain = true; return; }
     pvRequest(true);
+    PV.refreshGen = PV.gen;
 }
 
 // Vista delle cartelle nell'anteprima (menu della sua vista, Ctrl+rotellina e scorciatoie con la
@@ -940,6 +950,7 @@ static void pvClear() {
     InterlockedExchange64(&g_pvLatest, (LONG64)PV.gen);
     delete PV.pending;
     PV.pending = nullptr;
+    PV.refreshAgain = false;
     PV.stale = false;
     KillTimer(A.hwnd, 12);
     pvSetResult(nullptr);
@@ -1008,6 +1019,8 @@ static void onPreviewResult(PvRes* o) {
 
     A.dirty = true;
     pvPump();
+    PV.refreshGen = 0;
+    if (PV.refreshAgain) { PV.refreshAgain = false; previewRefresh(); }
 }
 
 static void previewToggle() {
@@ -1144,7 +1157,8 @@ static float pvBar(const PvGeom& g, uint32_t icon, const wchar_t* name, bool dat
 
 // Geometria della lista dell'anteprima: dal bordo con la lista principale al bordo della finestra,
 // sotto l'intestazione (a destra le righe sono allineate a quelle della lista), fino alla banda in
-// fondo. In basso il pannello è largo come la lista: in Dettagli c'è anche Data (e Destinazione)
+// fondo. In basso il pannello è largo come la lista: in Dettagli c'è anche Data (la Destinazione
+// no: i collegamenti dell'anteprima non si leggono)
 static void pvPaneLayout() {
     PvGeom g = pvGeom();
     float x0 = g.x0 - A.padX, x1 = g.x1 + A.padX, top = g.top + A.headH, bottom = g.footY;

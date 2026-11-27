@@ -331,7 +331,7 @@ static void drawListItems(double dt, double now, bool preview, bool cursor) {
                 { const wchar_t* k = driveKind((UINT)e.size); drawText(dateX, y + textOff, k, (int)wcslen(k), C_DIM, dateEnd); }
             } else {
                 int n;
-                if (A.dateW > 0) { // l'anteprima non ha la colonna Data
+                if (A.dateW > 0) { // l'anteprima a destra non ha la colonna Data
                     n = fmtDate(e.mtime, buf);
                     drawText(dateX, y + textOff, buf, n, C_DIM, dateEnd);
                 }

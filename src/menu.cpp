@@ -7,6 +7,9 @@
 // I comandi (MenuId) stanno in app.h, perché anche i tooltip ne mostrano le scorciatoie.
 
 static int g_dropChoice = 0; // voce scelta nel menu del trascinamento col tasto destro (0: nessuna)
+// Quando una voce è stata eseguita col clic: il secondo clic di un doppio clic arriva a menu chiuso e
+// non deve aprire la voce della lista che intanto è sotto il mouse (come GT.closedAt per "Vai a")
+static double g_menuClickAt = -1e18;
 
 static void menuClose() {
     if (!A.menu.open) return;

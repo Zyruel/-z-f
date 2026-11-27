@@ -215,6 +215,7 @@ struct SmReq {
 struct SmRes {
     int slot, cmd = SM_NONE, items = 0;
     bool verb = false;
+    bool invoked = false;                        // la shell ha eseguito un comando (può aver cambiato la cartella)
     HRESULT verbErr = S_OK;                      // comando: perché la shell non ha trovato le voci
     std::string verbName;
     double buildMs = -1;                         // menu: costruzione; comando: tutto prima di InvokeCommand
@@ -343,6 +344,7 @@ static void smRunVerb(HWND w, const SmReq* r, SmRes* res) {
     if (!cm) { res->verbErr = FAILED(hr) ? hr : E_FAIL; return; }
     std::wstring verbW(r->verb.begin(), r->verb.end()); // ASCII
     smInvoke(cm, r, r->verb.c_str(), verbW.c_str(), r->shift, false, false);
+    res->invoked = true;
     DestroyMenu(m);
     cm->Release();
 }
@@ -405,7 +407,7 @@ static void smRun(HWND w, SmCtx& ctx, SmReq* r) {
         else if (!_wcsicmp(verb, L"paste") && (r->background || !r->pasteDest.empty())) res->cmd = SM_PASTE_INTO;
         else if (!_wcsicmp(verb, L"copy") && files) res->cmd = SM_COPY;
         else if (!_wcsicmp(verb, L"cut") && files) res->cmd = SM_CUT;
-        else smInvoke(cm, r, MAKEINTRESOURCEA(cmd - 1), MAKEINTRESOURCEW(cmd - 1), shift, GetKeyState(VK_CONTROL) < 0, true);
+        else { smInvoke(cm, r, MAKEINTRESOURCEA(cmd - 1), MAKEINTRESOURCEW(cmd - 1), shift, GetKeyState(VK_CONTROL) < 0, true); res->invoked = true; }
     }
     if (m) DestroyMenu(m);
     if (cm) cm->Release();
@@ -568,22 +570,30 @@ static void onShellMenu(SmRes* r) {
     bool here = A.cur && !_wcsicmp(A.cur->path.c_str(), r->folder.c_str());
     // Un menu aperto nell'anteprima: Aggiorna e Rinomina valgono per la sua lista, se mostra ancora quella cartella
     ListPane* pv = here ? nullptr : previewPaneFor(r->folder);
-    PaneScope ps(r->cmd == SM_REFRESH || r->cmd == SM_RENAME ? pv : nullptr);
-    if (pv && ps.p) here = true;
-    std::vector<std::wstring> paths;
-    for (const std::wstring& n : r->names) paths.push_back(joinPath(r->folder, n.c_str()));
-    switch (r->cmd) {
-    case SM_PASTE:      if (!r->folder.empty()) pasteFiles(r->folder); break;
-    case SM_PASTE_INTO: pasteFiles(r->pasteDest.empty() ? r->folder : r->pasteDest); break;
-    case SM_REFRESH:    if (here) refreshNow(); break;
-    case SM_RECYCLE:    recyclePaths(std::move(paths)); break;
-    case SM_COPY:       clipSetPaths(paths, false); break;
-    case SM_CUT:        clipSetPaths(paths, true); break;
-    case SM_RENAME:     // nella cartella aperta, se c'è ancora
-        if (here && !A.renaming)
-            for (int i = 0; i < (int)A.view.size(); i++)
-                if (!_wcsicmp(A.cur->name(A.cur->e[A.view[(size_t)i]]), r->cursorName.c_str())) { A.sel = i; beginRename(); break; }
-        break;
+    // Un comando della shell (Shift+Canc, Nuovo, un'estensione) nella cartella dell'anteprima in rete:
+    // lì non c'è l'osservatore, si rilegge qui come dopo le operazioni di [z]f. Proprietà e Apri con
+    // non cambiano niente
+    if (pv && r->invoked && slowPath(pv->cur->path) && r->verbName != "properties" && r->verbName != "openas") previewRefresh();
+    {
+        // Lo scope solo per il comando: closeIfIdle, qui sotto, può chiudere la finestra (e salvare le
+        // schede), e deve vedere la lista principale
+        PaneScope ps(r->cmd == SM_REFRESH || r->cmd == SM_RENAME ? pv : nullptr);
+        if (pv && ps.p) here = true;
+        std::vector<std::wstring> paths;
+        for (const std::wstring& n : r->names) paths.push_back(joinPath(r->folder, n.c_str()));
+        switch (r->cmd) {
+        case SM_PASTE:      if (!r->folder.empty()) pasteFiles(r->folder); break;
+        case SM_PASTE_INTO: pasteFiles(r->pasteDest.empty() ? r->folder : r->pasteDest); break;
+        case SM_REFRESH:    if (here) refreshNow(); break;
+        case SM_RECYCLE:    recyclePaths(std::move(paths)); break;
+        case SM_COPY:       clipSetPaths(paths, false); break;
+        case SM_CUT:        clipSetPaths(paths, true); break;
+        case SM_RENAME:     // nella cartella aperta, se c'è ancora
+            if (here && !A.renaming)
+                for (int i = 0; i < (int)A.view.size(); i++)
+                    if (!_wcsicmp(A.cur->name(A.cur->e[A.view[(size_t)i]]), r->cursorName.c_str())) { A.sel = i; beginRename(); break; }
+            break;
+        }
     }
     delete r;
     A.dirty = true;

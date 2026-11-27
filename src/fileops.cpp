@@ -860,7 +860,25 @@ static void onFileJob(FileJob* j) {
     // lui, e rileggere anche qui la leggerebbe due volte). Le stesse cartelle che previewWatch salta
     ListPane* pp = previewPaneFor(j->dest);
     if (!pp && !j->src.empty()) pp = previewPaneFor(parentPath(j->src[0]));
-    if (pp && slowPath(pp->cur->path)) previewRefresh();
+    // Annulla e ripeti non hanno src né dest: valgono le cartelle dei loro elementi, e il cursore va
+    // sull'elemento tornato, come nella lista (qui anche in locale: la rilettura dell'osservatore
+    // può essere partita prima che l'elemento tornasse)
+    bool pvSelect = false;
+    if (j->kind == J_INVERT && pvPane()) {
+        for (const UndoItem& it : j->op.items) {
+            if (it.kind == IK_RECYCLED || it.kind == IK_RMDIR || it.b.empty() || !previewPaneFor(parentPath(it.b))) continue;
+            PV.selectAfter = leafOf(it.b);
+            pp = pvPane();
+            pvSelect = true;
+            break;
+        }
+        for (size_t i = 0; !pp && i < j->op.items.size(); i++) {
+            const UndoItem& it = j->op.items[i];
+            if (!it.b.empty()) pp = previewPaneFor(parentPath(it.b));
+            if (!pp && !it.a.empty()) pp = previewPaneFor(parentPath(it.a));
+        }
+    }
+    if (pp && (pvSelect || slowPath(pp->cur->path))) previewRefresh();
     if (j->kind == J_INVERT) {
         UH.busy = false;
         A.undoMs = j->ms;
