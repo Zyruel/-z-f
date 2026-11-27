@@ -8,7 +8,7 @@ erano `0.N`. Ogni rilascio, dalla 1.0.0-beta.2, ha un tag `v<versione>` e una
 versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 [`ARCHITETTURA.md`](docs/ARCHITETTURA.md).
 
-## 1.0.0-beta.8 (in corso)
+## 1.0.0-beta.8 (novembre 2026)
 
 - **Pannello delle opzioni più leggibile:**
   - scrivendo, la ricerca mostra solo le scorciatoie trovate, in cima al pannello e con le

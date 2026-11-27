@@ -4,7 +4,7 @@ File explorer per Windows, veloce e leggero: C++ con Win32 e Direct3D 11, senza 
 dipendenze. L'obiettivo è che ogni operazione sembri istantanea. È gratuito e il codice è
 libero, con [licenza MIT](LICENSE).
 
-**Versione attuale: 1.0.0-beta.7.** Cosa cambia in ogni versione è in [`NOVITA.md`](NOVITA.md).
+**Versione attuale: 1.0.0-beta.8.** Cosa cambia in ogni versione è in [`NOVITA.md`](NOVITA.md).
 
 ## Scaricare
 
