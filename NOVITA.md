@@ -77,7 +77,9 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
   - passando ad altra finestra (Alt+Tab) mentre si trascina la barra di scorrimento, la lista non
     segue più il mouse senza tasto premuto;
   - trascinando file sopra l'anteprima, quando questa passa a un'altra cartella la destinazione si
-    aggiorna subito, non al movimento successivo del mouse.
+    aggiorna subito, non al movimento successivo del mouse;
+  - la colonna Destinazione mostra anche i collegamenti creati quando la destinazione non era
+    raggiungibile (per esempio verso un'unità di rete non collegata): prima restavano vuoti.
 
 ## 1.0.0-beta.8 (novembre 2026)
 

@@ -4,8 +4,10 @@
 //
 // Compilare (da Bash, nella cartella del progetto; l'exe va in build\):
 //   cmd //c '.\build.bat prova prove\collegamenti-prova.cpp ole32.lib shell32.lib'
+// Per ognuno prova anche la sola IDList, come se mancasse la LinkInfo. Con --crea, prima scrive
+// nella cartella data dei collegamenti a destinazioni irraggiungibili (senza LinkInfo) e li prova.
 // Uso:
-//   build\collegamenti-prova.exe cartella [cartella…]
+//   build\collegamenti-prova.exe [--crea cartella] cartella [cartella…]
 // Esempio, tutti i collegamenti del PC che contano:
 //   build\collegamenti-prova.exe "%USERPROFILE%\Desktop" "%PUBLIC%\Desktop" "%APPDATA%\Microsoft\Windows\Start Menu" "%ProgramData%\Microsoft\Windows\Start Menu"
 
@@ -35,6 +37,32 @@ static void collect(const std::wstring& dir, std::vector<std::wstring>& out) {
     FindClose(h);
 }
 
+// Collegamenti a destinazioni che non esistono: Windows li salva senza LinkInfo, con la sola IDList
+// (il caso di un'unità di rete non collegata), e la destinazione si legge solo da lì
+static void createUnreachable(const std::wstring& dir) {
+    static const wchar_t* kTargets[] = {
+        L"Q:\\Cartella inesistente\\Documento con un nome lungo.txt",
+        L"Q:\\Àccènti e spazi\\Più giù\\file.dat",
+        L"Q:\\CORTO\\A.TXT",
+        L"\\\\server-inesistente\\condivisione\\cartella\\file.txt",
+    };
+    CreateDirectoryW(dir.c_str(), nullptr);
+    int i = 0;
+    for (const wchar_t* t : kTargets) {
+        IShellLinkW* sl = nullptr;
+        if (FAILED(CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&sl)))) continue;
+        HRESULT hr = sl->SetPath(t);
+        IPersistFile* pf = nullptr;
+        if (SUCCEEDED(sl->QueryInterface(IID_PPV_ARGS(&pf)))) {
+            std::wstring out = dir + L"\\irraggiungibile-" + std::to_wstring(++i) + L".lnk";
+            HRESULT hs = pf->Save(out.c_str(), TRUE);
+            wprintf(L"creato %s -> %s (SetPath 0x%08lX, Save 0x%08lX)\n", out.c_str(), t, (unsigned long)hr, (unsigned long)hs);
+            pf->Release();
+        }
+        sl->Release();
+    }
+}
+
 int wmain(int argc, wchar_t** argv) {
     if (argc < 2) { fwprintf(stderr, L"uso: collegamenti-prova cartella [cartella…]\n"); return 2; }
     SetConsoleOutputCP(CP_UTF8);
@@ -42,10 +70,16 @@ int wmain(int argc, wchar_t** argv) {
     QueryPerformanceFrequency(&fq);
     g_qpcFreq = (double)fq.QuadPart;
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    int first = 1;
+    if (!wcscmp(argv[1], L"--crea")) {
+        if (argc < 3) { fwprintf(stderr, L"uso: collegamenti-prova --crea cartella\n"); return 2; }
+        createUnreachable(argv[2]);
+        first = 2;
+    }
     std::vector<std::wstring> files;
-    for (int i = 1; i < argc; i++) collect(argv[i], files);
+    for (int i = first; i < argc; i++) collect(argv[i], files);
 
-    int same = 0, both = 0, oursOnly = 0, shellOnly = 0, diff = 0;
+    int same = 0, both = 0, oursOnly = 0, shellOnly = 0, diff = 0, idsSame = 0, idsNone = 0, idsDiff = 0, idsMissed = 0;
     double oursMs = 0, oursMax = 0, shellMs = 0;
     for (const std::wstring& f : files) {
         std::wstring ours;
@@ -72,6 +106,28 @@ int wmain(int argc, wchar_t** argv) {
         }
         shellMs += nowMs() - t0;
 
+        // La IDList da sola, come se la LinkInfo mancasse: deve dare lo stesso percorso (o nessuno,
+        // per le cartelle speciali e le app)
+        std::wstring ids;
+        {
+            HANDLE h = CreateFileW(f.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr);
+            std::vector<uint8_t> b(kLinkMaxBytes);
+            DWORD k = 0;
+            if (h != INVALID_HANDLE_VALUE) { if (!ReadFile(h, b.data(), (DWORD)b.size(), &k, nullptr)) k = 0; CloseHandle(h); }
+            if (k >= 0x4E && (lkU32(b.data() + 0x14) & 1))
+                ids = lkIdList(b.data() + 0x4E, b.data() + std::min<size_t>(k, 0x4E + (size_t)lkU16(b.data() + 0x4C)));
+        }
+        // Senza percorso solo per noi: radici che non leggiamo (la cartella dell'utente, Download), con
+        // la LinkInfo sempre presente perché Windows scrive la sola IDList solo se la destinazione
+        // è irraggiungibile, e allora la radice è Computer
+        if (ids.empty() && !shell.empty()) idsMissed++;
+        else if (ids.empty()) idsNone++;
+        else if (!_wcsicmp(ids.c_str(), shell.c_str())) idsSame++;
+        else {
+            idsDiff++;
+            wprintf(L"%s\n  IDList:  %s\n  Windows: %s\n", f.c_str(), ids.c_str(), shell.c_str());
+        }
+
         if (ours.empty() && shell.empty()) { same++; continue; }
         if (!_wcsicmp(ours.c_str(), shell.c_str())) { same++; both++; continue; }
         if (shell.empty()) oursOnly++; else if (ours.empty()) shellOnly++; else diff++;
@@ -80,6 +136,8 @@ int wmain(int argc, wchar_t** argv) {
     size_t n = files.size();
     wprintf(L"\n%zu collegamenti: %d uguali (%d con un percorso), %d diversi, %d solo noi, %d solo Windows\n",
             n, same, both, diff, oursOnly, shellOnly);
+    wprintf(L"solo IDList: %d come Windows, %d diversi, %d senza percorso anche per Windows, %d senza percorso solo per noi (radice non letta o senza IDList)\n",
+            idsSame, idsDiff, idsNone, idsMissed);
     if (n)
         wprintf(L"tempo a collegamento: noi %.3f ms (il più lento %.2f ms), IShellLink %.3f ms\n",
                 oursMs / n, oursMax, shellMs / n);

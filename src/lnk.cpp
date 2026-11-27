@@ -2,8 +2,9 @@
 //
 // Il file (di solito meno di 4 KB) si legge in un colpo e il percorso della destinazione viene,
 // nell'ordine, dalla variabile d'ambiente (%ProgramFiles%\…), dalla LinkInfo (unità locale, unità
-// di rete col suo nome "V:", oppure \server\condivisione) o dal percorso relativo. La destinazione
-// non si tocca mai: niente rete, niente risoluzione. IShellLink farebbe lo stesso caricando COM e
+// di rete col suo nome "V:", oppure \server\condivisione), dalla IDList (se la LinkInfo manca) o dal
+// percorso relativo. La destinazione non si tocca mai: niente rete, niente risoluzione.
+// IShellLink farebbe lo stesso caricando COM e
 // la shell; il confronto con lui è in prove\collegamenti-prova.cpp. I collegamenti senza percorso
 // (app dello Store, Pannello di controllo) non hanno destinazione: target vuoto.
 // Lo usano la colonna Destinazione (links.cpp) e tooltip e anteprima (readInfo), sui loro thread.
@@ -44,6 +45,65 @@ static std::wstring lkJoin(std::wstring base, const std::wstring& suffix) {
     return base + suffix;
 }
 
+// Nome di una cartella o di un file nella IDList: quello lungo, dal blocco 0xBEEF0004 (il suo offset
+// dall'inizio della voce è negli ultimi 2 byte della voce), altrimenti quello primario dopo i 14 byte
+// fissi (8.3 nella codepage di sistema, o UTF-16 con il bit 0x04 del tipo)
+static std::wstring lkIdName(const uint8_t* p, const uint8_t* ie, uint8_t type) {
+    size_t sz = (size_t)(ie - p), ext = lkU16(ie - 2);
+    if (ext >= 14 && ext + 8 <= sz) {
+        const uint8_t* x = p + ext;
+        size_t xs = lkU16(x), ver = lkU16(x + 2);
+        if (lkU32(x + 4) == 0xBEEF0004 && xs <= (size_t)(ie - x)) {
+            // dove comincia il nome lungo dipende dalla versione del blocco (Windows XP 3, Vista 7, 7 8, 8+ 9)
+            size_t off = ver >= 9 ? 46 : ver >= 8 ? 42 : ver >= 7 ? 38 : ver >= 3 ? 20 : 0;
+            if (off && off + 2 <= xs) {
+                std::wstring s = lkWide(x + off, x + xs);
+                if (!s.empty()) return s;
+            }
+        }
+    }
+    return (type & 0x04) ? lkWide(p + 14, ie) : lkAnsi(p + 14, ie);
+}
+
+// Percorso dalla IDList (l'elenco di elementi della shell), per i collegamenti senza LinkInfo: Windows
+// scrive solo la IDList quando, alla creazione, la destinazione non è raggiungibile (un'unità di rete
+// non collegata). Si capiscono solo gli elementi di un percorso: Computer o Rete come radice, l'unità
+// ("C:\"), il computer e la condivisione di rete ("\\server\condivisione"), poi una voce per cartella.
+// Qualunque altro elemento (cartelle speciali, app, Pannello di controllo): nessun percorso.
+static std::wstring lkIdList(const uint8_t* p, const uint8_t* end) {
+    static const uint8_t kComputer[16] = { 0xE0, 0x4F, 0xD0, 0x20, 0xEA, 0x3A, 0x69, 0x10,
+                                           0xA2, 0xD8, 0x08, 0x00, 0x2B, 0x30, 0x30, 0x9D };
+    static const uint8_t kNetwork[16] = { 0x60, 0x2C, 0x8D, 0x20, 0xEA, 0x3A, 0x69, 0x10,
+                                          0xA2, 0xD7, 0x08, 0x00, 0x2B, 0x30, 0x30, 0x9D };
+    std::wstring path;
+    while (p + 2 <= end) {
+        size_t sz = lkU16(p);
+        if (!sz) break; // fine dell'elenco
+        if (sz < 4 || sz > (size_t)(end - p)) return L"";
+        const uint8_t* ie = p + sz;
+        uint8_t type = p[2];
+        if (type == 0x1F) { // radice
+            if (sz < 20 || (memcmp(p + 4, kComputer, 16) && memcmp(p + 4, kNetwork, 16))) return L"";
+        } else if ((type & 0x70) == 0x20) { // unità, in testo: "C:\"
+            if (sz < 6 || p[4] != ':' || !iswalpha(p[3])) return L"";
+            path = lkAnsi(p + 3, ie);
+        } else if ((type & 0x70) == 0x40) { // rete: "\\server", poi "\\server\condivisione"
+            // "Rete di Microsoft Windows" e il dominio, prima del computer, non sono percorsi: si saltano
+            std::wstring s = sz > 4 ? lkAnsi(p + 4, ie) : L"";
+            if (s.size() > 2 && s[0] == L'\\' && s[1] == L'\\') path = s;
+        } else if ((type & 0x70) == 0x30) { // cartella o file
+            if (path.empty() || sz < 16) return L"";
+            std::wstring name = lkIdName(p, ie, type);
+            if (name.empty()) return L"";
+            path = lkJoin(path, name);
+        } else {
+            return L"";
+        }
+        p = ie;
+    }
+    return path;
+}
+
 // Destinazione dai byte del collegamento. false: non è un collegamento
 static bool linkParse(const uint8_t* b, size_t n, const std::wstring& lnkPath, std::wstring& target, bool& dir) {
     static const uint8_t kClsid[16] = { 0x01, 0x14, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -54,15 +114,22 @@ static bool linkParse(const uint8_t* b, size_t n, const std::wstring& lnkPath, s
     uint32_t flags = lkU32(b + 0x14);
     dir = (lkU32(b + 0x18) & FILE_ATTRIBUTE_DIRECTORY) != 0; // attributi della destinazione quando è stato creato
     size_t pos = 0x4C;
-    if (flags & 0x1) { // HasLinkTargetIDList: si salta (la LinkInfo dice lo stesso in forma di percorso)
+    const uint8_t *ids = nullptr, *idsEnd = nullptr;
+    if (flags & 0x1) { // HasLinkTargetIDList: si legge solo se manca la LinkInfo, che dice lo stesso come percorso
         if (pos + 2 > n) return true;
-        pos += 2 + (size_t)lkU16(b + pos);
+        size_t len = lkU16(b + pos);
+        ids = b + pos + 2;
+        idsEnd = b + std::min(n, pos + 2 + len);
+        pos += 2 + len;
     }
     std::wstring local, device, net, suffix;
-    if ((flags & 0x2) && !(flags & 0x100) && pos + 0x1C <= n) { // HasLinkInfo, senza ForceNoLinkInfo
+    if ((flags & 0x2) && pos + 0x1C <= n) { // HasLinkInfo
         const uint8_t* li = b + pos;
         uint32_t size = lkU32(li), hdr = lkU32(li + 4), lf = lkU32(li + 8);
         if (size < 0x1C || pos + size > n) return true;
+        // Con ForceNoLinkInfo la LinkInfo c'è ma non vale: non se ne legge niente, si salta per
+        // arrivare ai testi che seguono
+        if (flags & 0x100) lf = 0;
         const uint8_t* le = li + size;
         auto at = [&](uint32_t off) -> const uint8_t* { return off && off < size ? li + off : nullptr; };
         const uint8_t* p;
@@ -83,8 +150,10 @@ static bool linkParse(const uint8_t* b, size_t n, const std::wstring& lnkPath, s
                 else if ((q = in(devOff))) device = lkAnsi(q, ce);
             }
         }
-        if (hdr >= 0x24 && (p = at(lkU32(li + 0x20)))) suffix = lkWide(p, le);
-        else if ((p = at(lkU32(li + 0x18)))) suffix = lkAnsi(p, le);
+        if (lf & 3) { // senza base il suffisso non serve
+            if (hdr >= 0x24 && (p = at(lkU32(li + 0x20)))) suffix = lkWide(p, le);
+            else if ((p = at(lkU32(li + 0x18)))) suffix = lkAnsi(p, le);
+        }
         pos += size;
     }
     // StringData: nome, percorso relativo, cartella di lavoro, argomenti, icona (in quest'ordine)
@@ -122,6 +191,7 @@ static bool linkParse(const uint8_t* b, size_t n, const std::wstring& lnkPath, s
     if (target.empty()) target = lkJoin(local, suffix);
     if (target.empty()) target = lkJoin(device, suffix);
     if (target.empty()) target = lkJoin(net, suffix);
+    if (target.empty() && ids) target = lkIdList(ids, idsEnd);
     if (target.empty() && !rel.empty()) { // relativo alla cartella del collegamento (solo testo, niente disco)
         std::wstring base = lnkPath.substr(0, lnkPath.find_last_of(L'\\') + 1) + rel;
         wchar_t full[2048];

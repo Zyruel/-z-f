@@ -17,12 +17,3 @@ quel codice, o tutti insieme in un momento tranquillo. Quando una voce è fatta 
   lista in Icone a 20% con circa 220 miniature visibili e anteprima in Icone grandi, tutte piene
   anche scorrendo. A 175% resta da provare (`prove\da-verificare.md`): lì i posti sono 81, ma
   anche le miniature visibili sono circa un terzo.
-
-- [ ] **Collegamenti senza LinkInfo** (colonna Destinazione, `lnk.cpp`). Il nostro lettore prende
-  il percorso dalla LinkInfo, dalla variabile d'ambiente o dal percorso relativo; un collegamento
-  che ha solo l'elenco di elementi della shell (IDList) resta senza destinazione. Sui 177 del PC
-  non ce n'è nessuno (tutti uguali a Windows). Da rivedere se su un altro PC ne compare uno vuoto
-  dove le proprietà di Windows mostrano un percorso. Un caso concreto (26/11): Windows scrive solo
-  l'IDList quando, alla creazione, la destinazione non è raggiungibile (per esempio un collegamento
-  a un'unità di rete creato mentre l'unità non è collegata). Leggerlo vorrebbe dire decodificare
-  gli elementi della IDList (unità, poi un nome per cartella).

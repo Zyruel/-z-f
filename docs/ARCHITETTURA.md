@@ -1060,6 +1060,11 @@ lettore nostro, senza dipendenze e senza zipfldr della shell.
 - **Lettore nostro** (`linkRead`, solo su un thread), senza la shell: LinkInfo, variabili
   d'ambiente come `%windir%`, percorso relativo. La destinazione non si tocca mai, quindi una
   condivisione irraggiungibile non rallenta niente.
+- **Senza LinkInfo:** Windows la omette quando, alla creazione, la destinazione non è raggiungibile
+  (un'unità di rete non collegata), e resta solo la IDList, l'elenco di elementi della shell.
+  `lkIdList` ne legge solo gli elementi di un percorso: radice Computer o Rete, unità, computer e
+  condivisione, poi una voce per cartella col nome lungo (blocco `0xBEEF0004`). Le altre radici
+  (cartella dell'utente, Download, app) non si leggono: lì la LinkInfo c'è sempre.
 - **Colonna Destinazione** (`colonna_destinazione`): che ci sia lo dice il thread di lettura dai
   nomi, così la lista non cambia forma. Le destinazioni le legge un thread nell'ordine della vista
   e restano in memoria per percorso e data, quindi una ricarica le ritrova subito. `linkOf` dà la
@@ -1069,7 +1074,9 @@ lettore nostro, senza dipendenze e senza zipfldr della shell.
 
 **Misurato** con `prove\collegamenti-prova.cpp` su tutti i 177 collegamenti del PC: uguali a
 `IShellLink` di Windows, 0,09 ms l'uno contro 0,86; la prima lettura dopo l'avvio del PC circa
-5 ms, per disco e antivirus, sul thread.
+5 ms, per disco e antivirus, sul thread. La sola IDList (28/11, 72 collegamenti di Desktop e menu
+Start): 35 percorsi uguali a Windows e nessuno diverso, come nei collegamenti irraggiungibili
+creati dalla prova con `--crea`; 0,12 ms l'uno, come prima.
 
 ## Dialoghi Apri e Salva
 
