@@ -77,7 +77,7 @@ static void onKey(WPARAM vk, bool alt) {
     ListPane* kp = previewHasKeys() ? pvPane() : nullptr;
     bool window = false;
     switch (cmd) {
-    case M_BACK: case M_FWD: case M_UP: case M_EDIT_PATH: case M_GOTO: case M_PREVIEW: case M_SIDEBAR: case M_OPTIONS:
+    case M_BACK: case M_FWD: case M_UP: case M_EDIT_PATH: case M_GOTO: case M_PREVIEW: case M_PREVIEW_SWAP: case M_SIDEBAR: case M_OPTIONS:
     case M_NEW_WINDOW: case M_TAB_NEW: case M_TAB_CLOSE: case M_FAV_TOGGLE: case M_UNDO: case M_REDO: case M_PANE_KEYS:
         window = true;
         break;
@@ -192,11 +192,6 @@ static void onDpi(UINT dpi) {
 }
 
 static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
-
-// × del campo del filtro nella barra di stato (c'è solo mentre si filtra: render la misura)
-static bool fltClearAt(int x, int y) {
-    return A.fltClearW > 0 && inBar(y) && x >= A.fltX + A.fltW - A.fltClearW && x < A.fltX + A.fltW;
-}
 
 // Rotellina per gli elenchi che scorrono a righe intere (menu, "Vai a"). I touchpad di
 // precisione e le rotelle libere mandano frazioni di scatto: sommate, arrivano a una riga invece
@@ -514,6 +509,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         // Sopra l'anteprima di una cartella (o sulla sua vista) è la vista dell'anteprima
         if ((GET_KEYSTATE_WPARAM(wp) & MK_CONTROL) || viewCtlAt(c.x, c.y) || pvViewAt(c.x, c.y)) {
             bool pv = pvViewAt(c.x, c.y) || (inPreview(c.x, c.y) && PV.paneShown);
+            if (!pv && inPreview(c.x, c.y)) return 0; // sopra un testo o un'immagine: niente vista da cambiare (la lista non è sotto il mouse)
             A.wheelAcc += GET_WHEEL_DELTA_WPARAM(wp);
             while (A.wheelAcc >= WHEEL_DELTA) { A.wheelAcc -= WHEEL_DELTA; pv ? previewZoom(A.prevZoom + 1) : zoomStep(1); }
             while (A.wheelAcc <= -WHEEL_DELTA) { A.wheelAcc += WHEEL_DELTA; pv ? previewZoom(A.prevZoom - 1) : zoomStep(-1); }
@@ -621,7 +617,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         renameCommitAll();
         bool onPath = onPathBar(y);
         int chId = chromeHit(x, y);
-        if (chId != CH_NONE) { chromeExec(chId); return 0; } // ⚙, ▯, ← → ↑, ☆, ◨
+        if (chId != CH_NONE) { chromeExec(chId); return 0; } // ⚙, ▯, ← → ↑, ☆, ◨, ˅
         if (fltClearAt(x, y)) {
             A.filter.clear(); // × del filtro
             rebuildView(true);
@@ -632,13 +628,12 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (ListPane* p = pvPane(); p && inPreview(x, y)) { // filtro dell'anteprima: × o clic nel campo
             PaneScope ps(p);
             if (fltClearAt(x, y)) { A.filter.clear(); rebuildView(true); }
-            if (A.fltW > 0 && inBar(y) && x >= A.fltX && x < A.fltX + A.fltW) {
+            if (fltFieldAt(x, y)) {
                 PV.keys = true; // si scrive lì
                 A.dirty = true;
                 return 0;
             }
         }
-        if (A.fltW > 0 && inBar(y) && x >= A.fltX && x < A.fltX + A.fltW) PV.keys = false; // campo del filtro della lista
         if (viewCtlAt(x, y)) { menuOpenView(A.viewX + A.viewW, barTop()); return 0; } // vista: menu sopra il controllo
         if (pvViewAt(x, y)) { PaneScope ps(pvPane()); menuOpenView(PV.viewX + PV.viewW, barTop()); return 0; } // vista dell'anteprima
         if (y < A.pathY) { // barra delle schede
@@ -792,7 +787,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (optionsMouseDown(x, y, true)) return 0; // nel pannello il secondo clic conta come un clic
         if (nav) { chromeExec(chId); return 0; } // doppio clic rapido su ← → ↑: due passi
         if (y < A.pathY) return 0;
-        if (int pe = panelEdgeAt(x, y); pe >= 0) { panelEdgeReset(pe); return 0; } // bordo di un pannello: larghezza predefinita
+        if (int pe = panelEdgeAt(x, y); pe >= 0) { panelEdgeReset(pe); return 0; } // bordo di un pannello: larghezza (o altezza) predefinita
         int b = colBorderAt(x, y);
         if (b >= 0) { colFit(b); return 0; } // bordo tra due colonne: adatta al contenuto
         // Il primo clic ha aperto la destinazione di un collegamento: il secondo non apre la voce
@@ -814,6 +809,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         int id = c == APPCOMMAND_BROWSER_BACKWARD ? M_BACK : c == APPCOMMAND_BROWSER_FORWARD ? M_FWD
                : c == APPCOMMAND_BROWSER_REFRESH ? M_REFRESH : 0;
         if (!id) break; // volume, musica…: a Windows
+        PaneScope ps(id == M_REFRESH && previewHasKeys() ? pvPane() : nullptr); // Aggiorna come F5: con la tastiera nell'anteprima rilegge quella
         historyCmd(id);
         return TRUE;
     }

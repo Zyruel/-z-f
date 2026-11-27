@@ -232,7 +232,7 @@ static void drawChromeButton(int id, bool toolbar) {
     float a = en ? hoverAlpha(CH.fade, id) : 0;
     bool closeBtn = id == CH_CLOSE;
     if (CH.pressed == id && en) a = 1;
-    if (id == CH_PREVIEW_POS && A.menu.open && A.menu.kind == MENU_PREVIEW) a = 1; // col suo menu aperto, come "›" nel percorso
+    if (id == CH_PREVIEW_POS && A.menu.open && A.menu.kind == MENU_PREVIEW_POS) a = 1; // col suo menu aperto, come "›" nel percorso
     if (a > 0) {
         bool caption = id == CH_MIN || id == CH_MAX || id == CH_CLOSE; // pulsanti di sistema: squadrati e a filo, come in Windows
         uint32_t hc = fadeA(closeBtn ? C_CLOSE : (toolbar ? C_HOVER : C_HOVER_STRONG), a);

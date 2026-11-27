@@ -399,7 +399,9 @@ doppione.
     è nella barra di stato.
 - **Pannello di anteprima** (Alt+P · ◨, `preview.cpp`): non è un
   pannello sovrapposto ma una parte della finestra, in una di due **posizioni** (˅ accanto a ◨,
-  o "Posizione dell'anteprima ‹ A destra ›" nelle opzioni; `anteprima_posizione`):
+  Alt+Shift+P che le alterna, o "Posizione dell'anteprima ‹ A destra ›" nelle opzioni;
+  `anteprima_posizione`). Nel menu di ˅ la scorciatoia sta sulla voce della posizione non attiva,
+  dove porterebbe:
   - **a destra** (predefinita): a destra della lista, dall'intestazione al fondo della finestra,
     come la barra laterale; lista, barra dei tempi e barra di stato finiscono alla sua sinistra
     (`A.listR`);
@@ -781,8 +783,8 @@ doppione.
 - **Avvisi:** participio, cosa è successo: "Percorso copiato", "Tolta dai preferiti".
 - **Errori:** cosa non va e su cosa, senza scuse né codici in evidenza. Il codice va tra
   parentesi alla fine, se c'è.
-- **Scorciatoie:** `Ctrl+Shift+C` (tasti col "+", nessuno spazio); più alternative separate da
-  " · ". La descrizione comincia con un verbo al presente ("Va indietro", "Apre le proprietà"),
+- **Scorciatoie:** `Ctrl+Shift+C` (tasti col "+", nessuno spazio; i modificatori nell'ordine di
+  Windows, Ctrl, Alt, Shift: `Alt+Shift+P`); più alternative separate da " · ". La descrizione comincia con un verbo al presente ("Va indietro", "Apre le proprietà"),
   e dice abbastanza anche letta da sola ("Va alla cartella di quel segmento", non "Va a quella
   cartella").
 - **Opzioni:** l'etichetta è il nome di ciò che l'interruttore accende ("Versioni beta",

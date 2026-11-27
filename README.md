@@ -28,7 +28,7 @@ bit (provato su Windows 11).
   con le sottocartelle suggerite.
 - **Lista:** filtro mentre scrivi, ordinamento naturale, selezione multipla e col rettangolo,
   colonne ridimensionabili, tooltip con le informazioni di file, cartelle e unità.
-- **Anteprima** (Alt+P) di immagini, testo e cartelle, a destra o in basso (˅ accanto a ◨);
+- **Anteprima** (Alt+P) di immagini, testo e cartelle, a destra o in basso (˅ accanto a ◨, Alt+Shift+P);
   una cartella nell'anteprima è una seconda lista, con la sua vista e il suo filtro, su cui si
   seleziona, si copia, si trascina e si rinomina.
 - **Viste con lo zoom** (Ctrl+rotellina): Dettagli, Elenco a colonne, Icone con le miniature da
@@ -127,6 +127,7 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 |---|---|
 | Ctrl+B | Mostra o nasconde la barra laterale |
 | Alt+P | Mostra o nasconde l'anteprima |
+| Alt+Shift+P | Sposta l'anteprima a destra o in basso |
 | Tab · clic nel pannello | Passa la tastiera alla lista o all'anteprima di una cartella |
 | Doppio clic nell'anteprima | Apre il file; una cartella in una nuova scheda in background |
 | Ctrl+Shift+2 · Ctrl+Shift+3 | Passa alla vista Dettagli · Elenco |

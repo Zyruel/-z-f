@@ -42,6 +42,27 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
   per un elemento ("Filtra 1 elemento…", "Filtra 12.345 elementi…"); in una cartella vuota non
   c'è; nell'anteprima di una cartella letta in parte ha il "+" ("Filtra 5.000+ elementi…"), come i
   contatori, che ora hanno anche loro il punto delle migliaia.
+- **Alt+Shift+P** sposta l'anteprima da destra in basso e viceversa; il menu ˅ e il suo tooltip
+  mostrano la scorciatoia.
+- **Correzioni nell'anteprima di una cartella:**
+  - Ctrl+rotellina sopra l'anteprima di un testo o di un'immagine non cambia più la vista della
+    lista;
+  - il tasto Aggiorna della tastiera, con la tastiera nell'anteprima, rilegge l'anteprima come F5
+    (prima rileggeva la lista);
+  - una vista scelta dal menu dell'anteprima vale anche se intanto l'anteprima mostra un'altra
+    cartella (prima diceva "L'anteprima non mostra più quella cartella");
+  - durante una rinomina nella lista non compaiono più i tooltip delle voci dell'anteprima;
+  - una vera cartella con un nome come "Backup.zip" si aggiorna da sola anche nell'anteprima;
+  - se la cartella cambia mentre si trascina la sua barra di scorrimento, il mouse torna libero.
+- **Una cartella che si aggiorna da sola tiene la selezione com'è**, nella lista e
+  nell'anteprima, con lo stesso codice: senza nessuna voce selezionata (tolte con Ctrl+clic) non
+  seleziona più da sé quella del cursore; se le voci selezionate spariscono, si seleziona quella
+  che ne prende il posto, come prima.
+- **Messaggi dell'anteprima più precisi:** con l'anteprima in basso e la finestra troppo bassa
+  dice "troppo bassa" (non "troppo stretta"); Tab con l'anteprima nascosta per mancanza di spazio
+  dice perché, invece di "L'anteprima è chiusa"; il testo incollato nell'anteprima, che non si
+  accetta, è segnalato in rosso come un rifiuto; il tooltip del filtro dell'anteprima mostra le
+  scorciatoie per darle la tastiera (Tab · clic nel pannello).
 
 ## 1.0.0-beta.7 (novembre 2026)
 

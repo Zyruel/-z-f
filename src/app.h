@@ -20,7 +20,8 @@ enum MenuId { M_OPEN = 1, M_OPENWITH, M_CUT, M_COPY, M_PASTE, M_COPYPATH, M_RENA
               M_LINK_OPEN,   // collegamento: cartella della destinazione, con la destinazione selezionata (links.cpp)
               // Comandi senza voce di menu: legano i loro tasti in kShortcuts ai tooltip
               M_BACK, M_FWD, M_UP, M_EDIT_PATH, M_SIDEBAR, M_FILTER_CLEAR, M_GOTO_NEWTAB, M_GOTO_ENTER,
-              M_PANE_KEYS }; // Tab: la tastiera tra la lista e l'anteprima di una cartella (preview.cpp)
+              M_PANE_KEYS,   // Tab: la tastiera tra la lista e l'anteprima di una cartella (preview.cpp)
+              M_PREVIEW_SWAP }; // Alt+Shift+P: l'anteprima da destra in basso e viceversa
 
 // "Questo PC" per la shell: è una cartella virtuale, la si raggiunge col suo CLSID
 static const wchar_t kThisPc[] = L"::{20D04FE0-3AEA-1069-A2D8-08002B30309D}";
@@ -29,7 +30,7 @@ static const wchar_t kThisPc[] = L"::{20D04FE0-3AEA-1069-A2D8-08002B30309D}";
 // id 0 = separatore. icon: 0 nessuna, 1 cartella, 2 unità (path in PopupMenu::paths), 3 segno di
 // spunta (la scelta attuale). dim: elemento nascosto
 struct MenuItem { const wchar_t* label; const wchar_t* keys; int id; bool enabled; int icon = 0; bool dim = false; };
-enum { MENU_LIST, MENU_SIDE, MENU_TAB, MENU_CRUMB, MENU_DROP, MENU_VIEW, MENU_PREVIEW };
+enum { MENU_LIST, MENU_SIDE, MENU_TAB, MENU_CRUMB, MENU_DROP, MENU_VIEW, MENU_PREVIEW_POS }; // POS: la posizione dell'anteprima, da non confondere con PopupMenu::preview (un menu aperto nell'anteprima)
 struct PopupMenu {
     bool open = false, background = false, pressed = false;
     float x = 0, y = 0, w = 0, h = 0, ih = 0, sepH = 0, pad = 0, vpad = 0;
@@ -88,6 +89,11 @@ struct SideItem {
 // Evidenziazione al passaggio del mouse che sfuma: entra la voce nuova, esce la precedente
 struct HoverFade { int cur = -1, prev = -1; float a = 0, pa = 0; };
 
+// Cartelle tra le voci della vista, per i contatori della barra in fondo (viewDirs, render.cpp): si
+// contano di nuovo solo quando cambiano Listing o numero di voci, o se dirty (un filtro diverso può
+// dare lo stesso numero di voci, ma non le stesse; un Listing nuovo può stare all'indirizzo di prima)
+struct ViewCounts { const Listing* forList = nullptr; size_t n = 0; int dirs = 0; bool dirty = true; };
+
 // Una lista di voci con la sua geometria. Quella principale vive nei campi di App (il codice della
 // lista non sa di altre liste); l'anteprima di una cartella (preview.cpp) ha la sua, e per
 // disegnarla o agirci la si scambia con quella di App per la durata di un PaneScope: così ogni
@@ -100,6 +106,8 @@ struct ListPane {
     int sel = 0, anchor = -1, hover = -1;
     float scrollY = 0, scrollTarget = 0;
     std::wstring filter;
+    double filterMs = 0; // F12: ultimo filtro applicato (applyFilter)
+    ViewCounts counts;
     int sortCol = COL_NAME;
     bool sortDesc = false;
     int zoom = 0;
@@ -273,6 +281,9 @@ struct App {
     const wchar_t* prevKind = nullptr;
     double prevReadMs = 0, prevDecodeMs = 0, prevTexMs = 0;
     double prevPaneMs = 0, prevPaneMax = 0; // F12: disegno della lista dell'anteprima (UI, per frame)
+    // F12: aggiornamento automatico dell'anteprima di una cartella, come quello della lista
+    int prevNotifyCount = 0, prevRefreshCount = 0;
+    double prevChangeAt = 0, prevRefreshStart = 0, prevRefreshLatency = 0;
 
     // Vista (thumbs.cpp): un livello di zoom per cartella (viste.txt). 0 Dettagli, 1 Elenco, poi
     // Icone da 20% a 100% (ZOOM_* più sotto)
@@ -329,7 +340,8 @@ struct App {
     float navMenuW = 0;                           // ˅ della posizione dell'anteprima, accanto a ◨
     float fltX = 0, fltW = 0, fltClearW = 0;      // campo del filtro, a sinistra nella barra di stato
     float fltWant = 0;                            // larghezza voluta del filtro (layout); fltW è quella che ci sta
-    bool fltClearHover = false, countsDirty = false;
+    bool fltClearHover = false;
+    ViewCounts counts; // cartelle tra le voci della vista (viewDirs)
     // Avvio, riapertura delle schede e riavvio dopo un aggiornamento (tabs.cpp, main.cpp)
     bool reopenTabs = false;   // riapri_schede: la finestra principale riapre le sue schede all'avvio
     bool mainInstance = false; // finestra principale: riceve le cartelle aperte da fuori, salva schede.txt
@@ -361,6 +373,8 @@ static void paneSwap(ListPane& p) {
     std::swap(A.scrollY, p.scrollY);
     std::swap(A.scrollTarget, p.scrollTarget);
     A.filter.swap(p.filter);
+    std::swap(A.filterMs, p.filterMs);
+    std::swap(A.counts, p.counts);
     std::swap(A.sortCol, p.sortCol);
     std::swap(A.sortDesc, p.sortDesc);
     std::swap(A.zoom, p.zoom);
@@ -510,10 +524,12 @@ static bool previewHasKeys();                        // preview.cpp: la tastiera
 static ListPane* previewPaneFor(const std::wstring& folder); // preview.cpp: la lista dell'anteprima, se mostra questa cartella (per un PaneScope)
 static ListPane* pvPane();                           // preview.cpp: la lista dell'anteprima di una cartella (per un PaneScope; nullptr se non c'è o si è già in uno scope)
 static ListPane* pvPaneAt(int x, int y);             // preview.cpp: …se il punto è sopra le sue voci
+static bool listsBusy();                             // preview.cpp: la lista o l'anteprima rinomina o ha la barra trascinata (dentro uno scope o fuori)
 static void previewKeysToggle();                     // preview.cpp: Tab
 static void previewKeysFor(bool preview);            // preview.cpp: la tastiera all'anteprima (true) o alla lista
 static bool pvViewAt(int x, int y);                  // preview.cpp: il controllo della vista nella banda dell'anteprima
 static void previewToggle();                         // preview.cpp: Alt+P, pulsante, menu
+static const wchar_t* previewNoRoom();               // preview.cpp: perché l'anteprima aperta non si vede (finestra troppo stretta o bassa)
 static void previewPlace(bool bottom);               // preview.cpp: a destra o in basso (menu di ˅, opzioni)
 static void menuOpenPreview(float right, float top); // menu.cpp: menu della posizione dell'anteprima, sotto ˅
 static void viewZoom(int zoom);                      // thumbs.cpp: livello di zoom della cartella corrente

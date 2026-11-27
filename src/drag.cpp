@@ -773,8 +773,11 @@ static void dragTick() {
 static void drawDrop() {
     if (!DD.over || DD.effect == DROPEFFECT_NONE) return;
     float t = std::max(1.0f, floorf(A.scale)), r = px(ui::R_S);
-    // Una voce o lo spazio dell'anteprima: lo stesso bordo, con la sua geometria
-    PaneScope ps((DD.kind == DT_ROW || DD.kind == DT_LIST) && DD.targetPreview ? pvPane() : nullptr);
+    // Una voce o lo spazio dell'anteprima: lo stesso bordo, con la sua geometria. Se intanto l'anteprima
+    // non mostra più la cartella, fino al prossimo movimento del mouse non c'è dove disegnarlo
+    bool inPv = (DD.kind == DT_ROW || DD.kind == DT_LIST) && DD.targetPreview;
+    if (inPv && !pvPane()) return;
+    PaneScope ps(inPv ? pvPane() : nullptr);
     switch (DD.kind) {
     case DT_ROW: {
         Box b = itemBg(DD.index);

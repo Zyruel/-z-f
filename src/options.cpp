@@ -78,6 +78,7 @@ static Shortcut kTabs[] = {
 static Shortcut kView[] = {
     { { K(M_SIDEBAR, KC, 'B') }, L"Mostra o nasconde la barra laterale" },
     { { K(M_PREVIEW, KA, 'P') }, L"Mostra o nasconde l'anteprima" },
+    { { K(M_PREVIEW_SWAP, KA | KS, 'P') }, L"Sposta l'anteprima a destra o in basso" },
     { { K(M_PANE_KEYS, 0, VK_TAB), { L"clic nel pannello", 0 } }, L"Passa la tastiera alla lista o all'anteprima di una cartella" },
     { { { L"Doppio clic nell'anteprima", 0 } }, L"Apre il file; una cartella in una nuova scheda in background" },
     { { K(M_VIEW_DETAILS, KC | KS, '2'), K(M_VIEW_LIST, KC | KS, '3') }, L"Passa alla vista Dettagli · Elenco" },
@@ -109,9 +110,9 @@ static const ShortcutGroup kShortcuts[] = {
 // Nome di un tasto come lo scrive Windows in italiano: "Ctrl+Shift+C", "Alt+↑", "Invio", "Canc"
 static std::wstring keyName(UINT vk, int mods) {
     std::wstring s;
-    if (mods & KC) s += L"Ctrl+";
-    if (mods & KS) s += L"Shift+";
+    if (mods & KC) s += L"Ctrl+"; // l'ordine di Windows: Ctrl, Alt, Shift (Alt+Shift+P)
     if (mods & KA) s += L"Alt+";
+    if (mods & KS) s += L"Shift+";
     switch (vk) {
     case VK_RETURN:    s += L"Invio"; break;
     case VK_DELETE:    s += L"Canc"; break;
@@ -368,13 +369,13 @@ static int optionsHit(int x, int y) {
 }
 
 // --- input: true se l'evento è stato gestito dal pannello ------------------------------
-// again: secondo clic di un doppio clic. Conta come un clic, tranne su versione e aggiornamento:
-// aprirebbero la pagina due volte (o ripeterebbero l'aggiornamento)
+// again: secondo clic di un doppio clic. Conta come un clic, tranne su versione, aggiornamento e
+// posizione dell'anteprima: aprirebbero la pagina due volte, ripeterebbero l'aggiornamento o
+// rimetterebbero l'anteprima dov'era
 static bool optionsMouseDown(int x, int y, bool again = false) {
     if (!OP.open) return false;
     if (x < OP.x || x >= OP.x + OP.w || y < OP.y || y >= OP.y + OP.h) { optionsClose(); return true; } // clic fuori
     int id = optionsHit(x, y);
-    // La posizione dell'anteprima ha due valori: il secondo clic la riporterebbe dov'era
     if (again && (id == OPT_VERSION || id == OPT_UPD_ACT || id == OPT_PREVIEW_POS_PREV || id == OPT_PREVIEW_POS_NEXT)) return true;
     if (id != OPT_NONE) optionsExec(id);
     return true;
@@ -607,7 +608,7 @@ static void drawOptions(double dt) {
         button(bx + bw + vw, cy, bw, next, nextId);
         cy += rowH;
     };
-    auto face = [&](const wchar_t* t, const std::wstring& val, int prevId, int nextId) {
+    auto namePick = [&](const wchar_t* t, const std::wstring& val, int prevId, int nextId) { // tra nomi: caratteri, posizioni
         pickRow(t, val, px(ui::OPT_FACE_W), L"\x2039", L"\x203A", prevId, nextId);
     };
 
@@ -620,15 +621,15 @@ static void drawOptions(double dt) {
         _snwprintf(b, 15, L"%d px", F.px);
         b[15] = 0;
         pickRow(L"Dimensione del testo", b, px(ui::OPT_VALUE_W), L"\x2212", L"+", OPT_FONT_MINUS, OPT_FONT_PLUS);
-        face(L"Carattere", F.face, OPT_FACE_PREV, OPT_FACE_NEXT);
+        namePick(L"Carattere", F.face, OPT_FACE_PREV, OPT_FACE_NEXT);
         opt(L"Animazioni", nullptr, A.animations, OP.knobAnim, OPT_ANIM);
         cy += px(ui::GAP_M);
 
         section(L"Finestra");
         opt(L"Barra laterale", nullptr, A.sideVisible, OP.knobSide, OPT_SIDEBAR);
         opt(L"Anteprima", nullptr, A.prevOpen, OP.knobPreview, OPT_PREVIEW);
-        face(L"Posizione dell'anteprima", A.prevBottom ? L"In basso" : L"A destra", OPT_PREVIEW_POS_PREV, OPT_PREVIEW_POS_NEXT);
-        face(L"Carattere dell'anteprima", FM.face, OPT_MONO_PREV, OPT_MONO_NEXT);
+        namePick(L"Posizione dell'anteprima", A.prevBottom ? L"In basso" : L"A destra", OPT_PREVIEW_POS_PREV, OPT_PREVIEW_POS_NEXT);
+        namePick(L"Carattere dell'anteprima", FM.face, OPT_MONO_PREV, OPT_MONO_NEXT);
         cy += px(ui::GAP_M);
 
         section(L"Integrazione con Windows");

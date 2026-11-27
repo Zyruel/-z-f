@@ -203,6 +203,18 @@ static float drawBarCounts(float right, float y0, int dirs, int files, bool more
     return left;
 }
 
+// Cartelle tra le voci della vista della lista di App (anche l'anteprima, nel suo PaneScope), per i
+// contatori: contate solo quando cambiano (ViewCounts), non a ogni frame
+static int viewDirs() {
+    ViewCounts& c = A.counts;
+    if (c.forList != A.cur || c.n != A.view.size() || c.dirty) {
+        c.dirs = 0;
+        for (uint32_t ei : A.view) if (A.cur->e[ei].attr & FILE_ATTRIBUTE_DIRECTORY) c.dirs++;
+        c.forList = A.cur; c.n = A.view.size(); c.dirty = false;
+    }
+    return c.dirs;
+}
+
 // Fondo di una voce (finestra): selezione e hover arrotondati R_S, come le liste di Windows 11
 static void drawItemBg(int vi, float x, float y, float w, float h) {
     float ha = hoverAlpha(A.rowFade, vi), r = px(ui::R_S);
@@ -236,7 +248,8 @@ static void drawRowIcon(const Entry& e, float x, float y, double now) {
 
 // Voci della lista di App (virtualizzate: solo quelle visibili), cursore, rettangolo e barra di
 // scorrimento: la lista principale e, nel suo PaneScope, l'anteprima di una cartella (preview:
-// niente Data, niente copertura a destra in Elenco, il ritaglio lo fa chi chiama). cursor: si
+// niente copertura a destra in Elenco, il ritaglio lo fa chi chiama; le colonne le decide
+// pvPaneLayout, a destra senza Data). cursor: si
 // disegna il cursore (solo nella lista che ha la tastiera).
 static void drawListItems(double dt, double now, bool preview, bool cursor) {
     float s = A.scale;
@@ -574,15 +587,8 @@ static void render() {
             rightX = drawBarView(rightX, sy0, w, viewIcon(A.zoom), viewName(A.zoom), ha, true);
         }
         if (A.cur) {
-            static const void* cFor = nullptr;
-            static size_t cN = (size_t)-1;
-            static int cDirs = 0;
-            if (cFor != (const void*)A.cur || cN != A.view.size() || A.countsDirty) {
-                cDirs = 0;
-                for (uint32_t ei : A.view) if (A.cur->e[ei].attr & FILE_ATTRIBUTE_DIRECTORY) cDirs++;
-                cFor = A.cur; cN = A.view.size(); A.countsDirty = false;
-            }
-            rightX = drawBarCounts(rightX, sy0, cDirs, (int)A.view.size() - cDirs, false);
+            int dirs = viewDirs();
+            rightX = drawBarCounts(rightX, sy0, dirs, (int)A.view.size() - dirs, false);
         }
         drawBarFilter(rightX, sy0, dt, false);
         float leftX = fx + A.fltW + px(ui::GAP_L);
@@ -711,6 +717,13 @@ static void render() {
                 row(L"anteprima: decodifica (thread)", L"%.1f ms%s", A.prevDecodeMs, L"");
                 row(L"anteprima: texture (thread UI)", L"%.2f ms%s", A.prevTexMs, L"");
                 if (A.prevPaneMax > 0) row2(L"anteprima: voci di una cartella (UI, per frame)", A.prevPaneMs, A.prevPaneMax);
+                if (previewWatching() || A.prevNotifyCount || A.prevRefreshCount) { // come l'aggiornamento della lista
+                    rows[nr].label = L"anteprima: aggiornamento automatico"; rows[nr].head = false;
+                    _snwprintf(rows[nr].val, 95, L"%s · %d notifiche · %d riletture", previewWatching() ? L"attivo" : L"non attivo",
+                               A.prevNotifyCount, A.prevRefreshCount);
+                    rows[nr].val[95] = 0; nr++;
+                    if (A.prevRefreshCount) row(L"anteprima: ultima rilettura (da notifica a schermo)", L"%.1f ms%s", A.prevRefreshLatency, L"");
+                }
             }
             if (g_wicFirstMs > 0) row(L"primo caricamento di WIC", L"%.1f ms%s", (double)g_wicFirstMs, L" (thread: anteprima o miniature)");
             if (A.th.threads) { // griglia: fonti delle miniature, texture, memoria, prima schermata

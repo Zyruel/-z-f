@@ -14,7 +14,7 @@
 // colonna alla sua destra. Doppio clic: adatta quella colonna al testo più largo. Le larghezze si
 // salvano in impostazioni.txt al rilascio, mai durante il trascinamento. Lo stesso codice muove i
 // bordi della barra laterale e dell'anteprima (panelEdgeAt); per loro il doppio clic torna alla
-// larghezza predefinita.
+// larghezza predefinita (all'altezza, per l'anteprima in basso).
 
 enum { MQ_REPLACE, MQ_TOGGLE, MQ_ADD };
 

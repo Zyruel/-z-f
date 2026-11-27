@@ -46,6 +46,10 @@ static bool inPreview(int x, int y) {
 // l'anteprima, se è in basso) o, nel PaneScope dell'anteprima, la sua banda in fondo alla finestra
 static float barTop() { return (g_inPane ? (float)G.h : A.footY) - A.statusH; }
 static bool inBar(int y) { return y >= barTop() && y < barTop() + A.statusH; }
+// Campo del filtro nella barra in fondo della lista di App (anche l'anteprima, nel suo PaneScope) e
+// la sua ×, che c'è solo mentre si filtra: le misure le decide il disegno (drawBarFilter)
+static bool fltFieldAt(int x, int y) { return A.fltW > 0 && inBar(y) && x >= A.fltX && x < A.fltX + A.fltW; }
+static bool fltClearAt(int x, int y) { return A.fltClearW > 0 && fltFieldAt(x, y) && x >= A.fltX + A.fltW - A.fltClearW; }
 // Barra dei tempi e di stato della lista principale
 static bool inListFoot(int x, int y) {
     return x >= A.sideW && x < A.listR && y >= A.footY - A.footH && y < A.footY;
@@ -112,6 +116,14 @@ static void layoutItems(bool noDate, const LayoutKeep& k) {
     if (k.cursor && changed && viewLen() > 0 && !cursorInView(A.scrollTarget, true)) ensureVisible();
 }
 
+// Filtro all'inizio della barra in fondo, allineato alla lista di App (anche l'anteprima, nel suo
+// PaneScope). Questa è la larghezza voluta: quella mostrata (fltW) la decide il disegno
+// (drawBarFilter), che con la lista stretta la cede a contatori e vista
+static void fltLayout() {
+    A.fltX = A.listX + px(ui::GAP_S);
+    A.fltWant = floorf(std::min(px(ui::FILTER_W), (A.listR - A.listX) * ui::FILTER_MAX));
+}
+
 static void layout() {
     if (g_inPane) { g_paneAfter.push_back(layout); return; } // App è l'anteprima (PaneScope): all'uscita
     LayoutKeep keep = layoutKeep();
@@ -161,10 +173,7 @@ static void layout() {
     }
     A.footY = A.prevBottom && A.prevW > 0 ? A.prevY : (float)G.h;
     A.listH = std::max(0.0f, A.footY - A.listTop - A.footH);
-    // Filtro: all'inizio della barra di stato, allineato alla lista. Questa è la larghezza voluta:
-    // quella mostrata (fltW) la decide il disegno, che con la lista stretta la cede a contatori e vista
-    A.fltX = A.listX + px(ui::GAP_S);
-    A.fltWant = floorf(std::min(px(ui::FILTER_W), (A.listR - A.listX) * ui::FILTER_MAX));
+    fltLayout();
     A.fltW = A.fltWant;
     layoutItems(false, keep);
 }
@@ -396,7 +405,7 @@ static void applyFilter() {
             if (wcsstr(A.cur->lowerName(A.cur->e[i]), needle.c_str())) A.view.push_back(i);
     }
     A.filterMs = nowMs() - t0;
-    A.countsDirty = true; // un filtro diverso può dare lo stesso numero di voci, ma non le stesse
+    A.counts.dirty = true; // un filtro diverso può dare lo stesso numero di voci, ma non le stesse
 }
 
 static void rebuildView(bool keepSelection) {
@@ -474,74 +483,75 @@ static const wchar_t* errText(DWORD e) {
 }
 
 
-static void applyRefresh(Listing* l) {
-    // Stato da conservare
-    std::wstring selName, anchorName, renameName;
+// La stessa cartella riletta (l) nella lista di App: la principale (applyRefresh) o, nel suo
+// PaneScope, l'anteprima (pvPaneSet). Restano filtro e scorrimento; selezione, cursore, ancora e voce
+// in rinomina si ritrovano per nome (minuscolo: buildLower). selectAfter: dopo una rinomina o una
+// nuova cartella, la voce su cui mettere il cursore (renameAfter: da rinominare); se la lettura non
+// la contiene ancora, resta per la prossima
+static void listReload(Listing* l, std::wstring& selectAfter, bool& renameAfter) {
+    std::unordered_map<std::wstring, bool> selNames;
+    std::wstring curName, anchorName, renameName;
     int oldSel = A.sel;
-    if (A.cur && A.sel >= 0 && A.sel < (int)A.view.size()) selName = A.cur->name(A.cur->e[A.view[A.sel]]);
-    // La voce in rinomina per nome suo: il cursore può essersi spostato durante la rinomina
-    if (A.cur && A.renaming && A.renameEntry >= 0 && A.renameEntry < (int)A.cur->e.size())
-        renameName = A.cur->name(A.cur->e[A.renameEntry]);
-    if (A.cur && A.anchor >= 0 && A.anchor < (int)A.cur->e.size()) anchorName = A.cur->name(A.cur->e[A.anchor]);
-    std::unordered_map<std::wstring, int> selNames; // nomi selezionati (insensibili a maiuscole)
-    if (A.cur)
-        for (size_t i = 0; i < A.selFlags.size(); i++)
-            if (A.selFlags[i]) {
-                std::wstring n = A.cur->name(A.cur->e[i]);
-                CharLowerBuffW(&n[0], (DWORD)n.size());
-                selNames[n] = 1;
-            }
-    float sy = A.scrollY, st = A.scrollTarget;
-
+    bool hadSel = false;
+    if (const Listing* o = A.cur) {
+        if (A.sel >= 0 && A.sel < (int)A.view.size()) curName = o->lowerName(o->e[A.view[A.sel]]);
+        // La voce in rinomina per nome suo: il cursore può essersi spostato durante la rinomina
+        if (A.renaming && A.renameEntry >= 0 && A.renameEntry < (int)o->e.size()) renameName = o->lowerName(o->e[A.renameEntry]);
+        if (A.anchor >= 0 && A.anchor < (int)o->e.size()) anchorName = o->lowerName(o->e[A.anchor]);
+        for (size_t i = 0; i < A.selFlags.size() && i < o->e.size(); i++)
+            if (A.selFlags[i]) { selNames[o->lowerName(o->e[i])] = true; hadSel = true; }
+    }
     delete A.cur;
     A.cur = l;
     A.order.swap(l->order);
     std::vector<uint32_t>().swap(l->order);
-    A.sortMs = l->sortMs;
     applyFilter();
 
     A.selFlags.assign(l->e.size(), 0);
     A.anchor = -1;
-    if (!selNames.empty() || !anchorName.empty()) {
-        std::wstring n;
+    int renameEntry = -1;
+    if (hadSel || !anchorName.empty() || !renameName.empty())
         for (size_t i = 0; i < l->e.size(); i++) {
-            n.assign(l->name(l->e[i]), l->e[i].nameLen);
-            CharLowerBuffW(&n[0], (DWORD)n.size());
-            if (selNames.count(n)) A.selFlags[i] = 1;
-            if (A.anchor < 0 && !anchorName.empty() && _wcsicmp(l->name(l->e[i]), anchorName.c_str()) == 0) A.anchor = (int)i;
+            const wchar_t* n = l->lowerName(l->e[i]);
+            if (hadSel && selNames.count(n)) A.selFlags[i] = 1;
+            if (A.anchor < 0 && anchorName == n) A.anchor = (int)i;
+            if (renameEntry < 0 && renameName == n) renameEntry = (int)i;
         }
-    }
     selKeepVisible();
     A.sel = -1;
-    if (!selName.empty())
+    if (!curName.empty())
         for (int i = 0; i < (int)A.view.size(); i++)
-            if (_wcsicmp(l->name(l->e[A.view[i]]), selName.c_str()) == 0) { A.sel = i; break; }
-    if (A.sel < 0) A.sel = std::max(0, std::min(oldSel, (int)A.view.size() - 1)); // eliminato: resta lì
-    if (!A.view.empty() && selCount(nullptr) == 0) selOnly(A.sel); // eliminata: si seleziona quella che ne prende il posto
-    A.scrollY = sy;
-    A.scrollTarget = st;
+            if (curName == l->lowerName(l->e[A.view[i]])) { A.sel = i; break; }
+    if (A.sel < 0) A.sel = std::max(0, std::min(oldSel, (int)A.view.size() - 1)); // eliminata: resta lì
+    // Sparita la selezione (eliminata da fuori, Canc): si seleziona la voce che ne prende il posto.
+    // Senza selezione prima (Ctrl+clic l'ha tolta) resta senza: la ricarica non sceglie al posto dell'utente
+    if (hadSel && !A.view.empty() && selCount(nullptr) == 0) selOnly(A.sel);
     clampScroll();
 
     // Prima la rinomina già aperta, poi quella della nuova cartella: beginRename imposta già la voce
     // giusta nella lista nuova, e questo controllo la rimetterebbe su un nome della lista vecchia
-    if (A.renaming) { // la voce in rinomina esiste ancora?
-        A.renameEntry = -1;
-        if (!renameName.empty())
-            for (size_t i = 0; i < l->e.size(); i++)
-                if (_wcsicmp(l->name(l->e[i]), renameName.c_str()) == 0) { A.renameEntry = (int)i; break; }
+    if (A.renaming) { // la voce in rinomina esiste ancora? Il nome che si sta scrivendo resta
+        A.renameEntry = renameEntry;
         if (A.renameEntry < 0) A.renaming = false;
     }
-    if (!A.selectAfterRefresh.empty()) { // dopo una rinomina
+    if (!selectAfter.empty()) {
+        std::wstring want = selectAfter;
+        CharLowerBuffW(&want[0], (DWORD)want.size());
         for (int i = 0; i < (int)A.view.size(); i++)
-            if (_wcsicmp(l->name(l->e[A.view[i]]), A.selectAfterRefresh.c_str()) == 0) {
+            if (want == l->lowerName(l->e[A.view[i]])) {
                 A.sel = i;
                 selOnly(i);
                 ensureVisible();
-                A.selectAfterRefresh.clear();
-                if (A.renameAfterRefresh) { A.renameAfterRefresh = false; beginRename(); }
+                selectAfter.clear();
+                if (renameAfter) { renameAfter = false; beginRename(); }
                 break;
             }
     }
+}
+
+static void applyRefresh(Listing* l) {
+    A.sortMs = l->sortMs;
+    listReload(l, A.selectAfterRefresh, A.renameAfterRefresh);
     A.refreshCount++;
     A.refreshLatency = nowMs() - A.refreshStart;
     A.dirty = true;

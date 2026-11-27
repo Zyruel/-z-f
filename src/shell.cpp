@@ -606,7 +606,7 @@ static void smartPaste() {
     if (!A.cur) return;
     if (clipHasFiles()) { pasteFiles(); return; }
     if (g_inPane) { // nell'anteprima solo i file: un testo filtrerebbe (o sposterebbe) la lista principale
-        notice(L"Nell'anteprima si incollano solo file: il testo si incolla nella lista", true);
+        notice(L"Nell'anteprima si incollano solo file: il testo si incolla nella lista", false); // un rifiuto
         return;
     }
     clipAskText(A.hwnd, nullptr); // il testo arriva in smartPasteText

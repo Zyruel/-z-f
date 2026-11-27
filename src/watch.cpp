@@ -163,18 +163,23 @@ static HANDLE g_pvWatchStop = nullptr;
 static uint64_t g_pvWatchGen = 0;
 static std::wstring g_pvWatchPath;
 static bool g_pvChangePending = false; // una rilettura aspetta il timer 17: le notifiche intanto si sommano
+static bool g_pvWatchOff = false;      // l'osservatore si è perso: F5 riprova, come per la lista (A.watching)
 
-// La cartella mostrata dall'anteprima (vuoto: nessuna). Solo locali: su una condivisione aprire la
+// La cartella mostrata dall'anteprima (nullptr: nessuna). Solo locali: su una condivisione aprire la
 // cartella può costare secondi e tenerla aperta la blocca; lì si rilegge con F5 e dopo le operazioni
-// fatte da [z]f (onFileJob, onFsDone).
-static void previewWatch(const std::wstring& path) {
-    if (path == g_pvWatchPath) return;
+// fatte da [z]f (onFileJob, onFsDone). Dentro uno zip niente: l'archivio non avvisa (lo dice zipLen,
+// non il nome: una vera cartella "Backup.zip" si osserva). retry: F5, anche sulla stessa cartella
+static void previewWatch(const Listing* l, bool retry = false) {
+    std::wstring path = l && !l->zipLen ? l->path : L"";
+    if (path == g_pvWatchPath && !(retry && g_pvWatchOff)) return;
     g_pvWatchPath = path;
+    g_pvWatchOff = false;
     if (g_pvWatchStop) { SetEvent(g_pvWatchStop); CloseHandle(g_pvWatchStop); g_pvWatchStop = nullptr; }
     g_pvWatchGen++; // le notifiche in coda della cartella di prima si scartano
     KillTimer(A.hwnd, 17);
     g_pvChangePending = false;
-    if (path.empty() || slowPath(path) || zipPathLike(path)) return;
+    A.prevChangeAt = 0;
+    if (path.empty() || slowPath(path)) return;
     HANDLE stop = CreateEventW(nullptr, TRUE, FALSE, nullptr), mine = nullptr;
     if (!stop) return;
     if (!DuplicateHandle(GetCurrentProcess(), stop, GetCurrentProcess(), &mine, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
@@ -189,13 +194,19 @@ static void previewWatch(const std::wstring& path) {
     g_pvWatchStop = mine;
 }
 
+static bool previewWatching() { return g_pvWatchStop && !g_pvWatchOff; } // F12
+
 // Come per la lista, le notifiche si raggruppano: una rilettura ogni WATCH_BATCH al massimo (timer 17)
 static void onPreviewDirChanged(uint64_t gen, int what) {
     if (gen != g_pvWatchGen) return;
-    // Non più osservata (cancellata e ricreata, inaccessibile): la prossima rilettura riparte da capo
-    if (what != WATCH_CHANGED) g_pvWatchPath.clear();
-    if (what == WATCH_UNAVAILABLE || g_pvChangePending) return;
+    // Non più osservata (cancellata e ricreata, inaccessibile): non riparte da sola, perché su un file
+    // system che la perde subito rileggerebbe ogni WATCH_BATCH. Riparte con F5 o con un'altra cartella
+    if (what != WATCH_CHANGED) g_pvWatchOff = true;
+    if (what == WATCH_UNAVAILABLE) return;
+    A.prevNotifyCount++;
+    if (g_pvChangePending) return;
     g_pvChangePending = true;
+    A.prevChangeAt = nowMs(); // F12: la rilettura si misura da qui
     SetTimer(A.hwnd, 17, ui::WATCH_BATCH, nullptr);
 }
 
@@ -210,7 +221,7 @@ static void requestRefresh() {
 
 // F5, "Aggiorna": ricarica subito; se la cartella non era osservata (watcher fallito) si riprova
 static void refreshNow() {
-    if (g_inPane) { previewRefresh(); return; } // F5 o "Aggiorna" nell'anteprima
+    if (g_inPane) { previewWatch(A.cur, true); previewRefresh(); return; } // F5 o "Aggiorna" nell'anteprima
     if (!A.cur) return;
     if (!A.watching) startWatch(A.cur->path);
     A.changeAt = nowMs();

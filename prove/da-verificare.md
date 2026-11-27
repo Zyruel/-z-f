@@ -20,6 +20,37 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 0000000000000000000000000000000000000000000000000000. Punti minori del controllo della 1.0.0-beta.7 (z-f-dev, novembre 2026)
+
+Correttezza, velocità, testi e pulizia attorno all'anteprima di una cartella (`docs/da-sistemare.md`,
+27/11). Provato da Claude in z-f-dev, in una cartella di prova con file finti:
+- [x] Alt+Shift+P sposta l'anteprima da in basso a destra e ritorno; nel menu ˅ la scorciatoia
+  sta sulla voce non attiva;
+- [x] Ctrl+rotellina sopra l'anteprima di un testo: la lista resta in Dettagli (sopra la lista
+  passa a Elenco, come prima);
+- [x] F12 "anteprima: aggiornamento automatico" e "ultima rilettura" (58–71 ms) creando file da
+  fuori nella cartella mostrata;
+- [x] filtro nell'anteprima: contatori delle voci filtrate (0 · 13), quelli della lista invariati;
+  una rilettura con il filtro lo tiene, con il cursore sulla stessa voce e i contatori nuovi;
+- [x] tooltip del filtro dell'anteprima: "Tastiera qui: Tab · clic nel pannello";
+- [x] F2 nella lista, mouse su una voce dell'anteprima: nessun tooltip; dopo Esc ricompare;
+- [x] menu della vista dell'anteprima aperto, la cartella mostrata rinominata da fuori, "Icone
+  piccole": la vista cambia, senza "L'anteprima non mostra più quella cartella";
+- [x] WinSxS in Icone a finestra intera: "griglia: disegno delle voci" 0,24 ms (peggiore 0,59);
+- [ ] Tab con l'anteprima aperta ma senza spazio (finestra stretta, o bassa con l'anteprima in
+  basso): "La finestra è troppo stretta/bassa per l'anteprima", non "chiusa"; Alt+P nella
+  finestra bassa con l'anteprima in basso: "troppo bassa";
+- [ ] testo negli appunti, Ctrl+V con la tastiera nell'anteprima: l'avviso è rosso;
+- [ ] tasto Aggiorna della tastiera (o il gesto del browser) con la tastiera nell'anteprima: si
+  rilegge l'anteprima, non la lista;
+- [ ] trascinamento della barra di scorrimento dell'anteprima mentre la cartella cambia voce (il
+  cursore della lista si sposta da sé, per esempio per un'eliminazione da fuori): il mouse torna
+  libero al rilascio;
+- [ ] un file trascinato sopra l'anteprima di una cartella mentre l'anteprima sparisce: nessun
+  bordo disegnato sopra la lista;
+- [ ] lista e anteprima in Icone alla stessa misura, con file dello stesso tipo: passando
+  l'anteprima a Dettagli le icone per tipo della lista arrivano tutte, senza scorrere.
+
 ## 000000000000000000000000000000000000000000000000000. Pannello delle opzioni dalla revisione di design (z-f-dev, novembre 2026)
 
 Fase 1 della revisione di design del 27/11. Provato da Claude in z-f-dev a 100% (2560×1440),
