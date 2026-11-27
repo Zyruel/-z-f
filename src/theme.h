@@ -120,7 +120,7 @@ constexpr float PREVIEW_H = 280, PREVIEW_HMIN = 140;
 constexpr int PREVIEW_LIST_ROWS = 4;
 constexpr float PREVIEW_ICON = 96;
 // Vista a icone: lato del riquadro delle miniature per ogni livello di zoom, da 20% a 100% (Ctrl+rotellina;
-// Ctrl+Shift+4/3/2 portano a 40, 70 e 100%: ZOOM_SMALL, ZOOM_MEDIUM, ZOOM_LARGE in app.h); icona
+// Ctrl+Shift+4/5/6 portano a 40, 70 e 100%: ZOOM_SMALL, ZOOM_MEDIUM, ZOOM_LARGE in app.h); icona
 // dei file senza miniatura in frazione del riquadro; righe del nome sotto la miniatura
 constexpr float THUMB_PX[9] = { 64, 80, 96, 112, 128, 160, 192, 224, 256 };
 constexpr float THUMB_ICON = 0.5f;

@@ -15,9 +15,12 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
   col tasto destro, Copia, Taglia, Incolla, Elimina, Rinomina, Proprietà, trascinamento verso
   fuori e rilascio sopra (su una sottocartella o nella cartella mostrata).
 - **La vista dell'anteprima si sceglie:** il controllo in fondo a destra del pannello, prima
-  inerte, apre il menu delle viste (Dettagli, Elenco, Icone piccole, medie, grandi, con le
-  miniature); anche Ctrl+rotellina sopra il pannello. Una vista per il pannello, uguale per tutte
-  le cartelle, che si ricorda.
+  inerte, apre il menu delle viste (Icone grandi, medie, piccole, Elenco, Dettagli, con le
+  miniature; nello stesso ordine anche il menu della lista, con Dettagli accanto al controllo);
+  anche Ctrl+rotellina sopra il pannello. Una vista per il pannello, uguale per tutte le
+  cartelle, che si ricorda.
+- **Scorciatoie delle viste nell'ordine del menu, dal basso:** Ctrl+Shift+2 Dettagli, 3 Elenco,
+  4 Icone piccole, 5 medie, 6 grandi (prima erano al contrario, 2 Icone grandi … 6 Dettagli).
 - **Doppio clic nell'anteprima:** un file si apre; una cartella si apre in una nuova scheda in
   background, come col clic centrale. Nell'anteprima non si scende e la lista resta dov'è.
 - **Tab** passa la tastiera tra la lista e l'anteprima (anche un clic nel pannello; Esc la

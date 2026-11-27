@@ -264,8 +264,8 @@ doppione.
     scala 100%);
   - clic su un'intestazione: Data e Dimensione partono dal più recente e dal più grande, Nome e
     Destinazione dalla A.
-- **Viste e zoom** (Ctrl+rotellina · controllo della vista nella barra di stato · Ctrl+Shift+2/3/4
-  per le icone, 5 per Elenco, 6 per Dettagli · menu dello sfondo → "Mostra come
+- **Viste e zoom** (Ctrl+rotellina · controllo della vista nella barra di stato · Ctrl+Shift+2 per
+  Dettagli, 3 per Elenco, 4/5/6 per le icone piccole, medie, grandi · menu dello sfondo → "Mostra come
   icone"/"Mostra come dettagli", `thumbs.cpp`): un solo livello di zoom per cartella sceglie la
   vista. **0% Dettagli** (la lista con le colonne, sopra), **10% Elenco**, **da 20% a 100%
   Icone**, a passi di 10% (`ZOOM_*`, `THUMB_PX`). Ctrl+rotellina cambia un livello per scatto e
@@ -537,9 +537,9 @@ doppione.
     ViewAll) in `C_FAINT` e nome ("Dettagli", "Elenco", "Icone") in `C_DIM`, largo sempre
     quanto il nome più largo, così cambiando vista non si sposta niente. Sotto il mouse, e finché
     il suo menu è aperto, fondo `C_HOVER` arrotondato `R_S` come i pulsanti della riga del
-    percorso. Clic: menu delle viste, sopra il controllo e allineato al suo bordo destro (Dettagli,
-    Elenco, Icone piccole, medie, grandi con le scorciatoie; la vista attuale col segno di
-    spunta). La rotellina sopra il controllo cambia lo zoom come Ctrl+rotellina. Nessuna
+    percorso. Clic: menu delle viste, sopra il controllo e allineato al suo bordo destro (Icone
+    grandi, medie, piccole, Elenco, Dettagli con le scorciatoie: dalla più grande alla più
+    piccola, così Dettagli è accanto al controllo; la vista attuale col segno di spunta). La rotellina sopra il controllo cambia lo zoom come Ctrl+rotellina. Nessuna
     percentuale: lo zoom si vede dalla lista;
   - prima, a `GAP_M`, una barretta verticale 1 px `C_LINE` alta quanto il campo del filtro meno
     `GAP_XS` per parte; poi, a `GAP_L`, i contatori di cartelle e file (con le icone, della vista:
@@ -720,8 +720,7 @@ doppione.
   scrive il nome ("Ctrl+Shift+N"). Vale solo con esattamente quei modificatori (Ctrl+Shift+W non
   chiude la scheda). In `onKey` restano scritti a mano solo i tasti che dipendono dal contesto.
 - **Si seguono le convenzioni di Windows e dei browser:** Ctrl+C/X/V, F2, Canc, Alt+frecce,
-  Ctrl+T/W/Tab, Ctrl+L, F5, Alt+P (il riquadro di anteprima di Explorer), Ctrl+Shift+2/3/4/5/6 (le
-  viste di Explorer: grandi, medie, piccole, elenco, dettagli), Ctrl+Z e Ctrl+Y
+  Ctrl+T/W/Tab, Ctrl+L, F5, Alt+P (il riquadro di anteprima di Explorer), Ctrl+Z e Ctrl+Y
   (anche Ctrl+Shift+Z) per annullare e ripetere le operazioni sui file. Dentro una casella di
   testo Ctrl+Z non tocca i file.
 - **Esc toglie un livello alla volta:** rettangolo, bordo o preferito trascinato (si torna a prima), conferma del cestino → menu →

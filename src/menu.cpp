@@ -120,7 +120,8 @@ static void menuAddView() {
 
 // Menu della vista, dal suo controllo nella barra di stato: la vista attuale ha il segno di spunta
 // (le icone solo se lo zoom è uno dei tre delle scorciatoie). Si apre sopra il controllo, allineato
-// al suo bordo destro (cx)
+// al suo bordo destro (cx): le voci vanno dalla più grande alla più piccola, così Dettagli, la più
+// usata, è la più vicina al controllo
 static void menuOpenView(float cx, float cy) {
     double t0 = nowMs();
     PopupMenu& m = A.menu;
@@ -128,8 +129,8 @@ static void menuOpenView(float cx, float cy) {
     m.kind = MENU_VIEW;
     m.target = -1;
     static const struct { const wchar_t* label; int id, zoom; } kViews[] = {
-        { L"Dettagli", M_VIEW_DETAILS, ZOOM_DETAILS }, { L"Elenco", M_VIEW_LIST, ZOOM_LIST },
-        { L"Icone piccole", M_ICONS_S, ZOOM_SMALL }, { L"Icone medie", M_ICONS_M, ZOOM_MEDIUM }, { L"Icone grandi", M_ICONS_L, ZOOM_LARGE },
+        { L"Icone grandi", M_ICONS_L, ZOOM_LARGE }, { L"Icone medie", M_ICONS_M, ZOOM_MEDIUM }, { L"Icone piccole", M_ICONS_S, ZOOM_SMALL },
+        { L"Elenco", M_VIEW_LIST, ZOOM_LIST }, { L"Dettagli", M_VIEW_DETAILS, ZOOM_DETAILS },
     };
     for (const auto& v : kViews) {
         menuAdd(v.label, v.id);

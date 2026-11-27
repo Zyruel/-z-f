@@ -129,8 +129,8 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Alt+P | Mostra o nasconde l'anteprima |
 | Tab · clic nel pannello | La tastiera alla lista o all'anteprima di una cartella |
 | Doppio clic nell'anteprima | Apre il file; una cartella in una nuova scheda in background |
-| Ctrl+Shift+2 · Ctrl+Shift+3 · Ctrl+Shift+4 | Icone grandi · medie · piccole (zoom 100 · 70 · 40%) |
-| Ctrl+Shift+5 · Ctrl+Shift+6 | Elenco · Dettagli |
+| Ctrl+Shift+2 · Ctrl+Shift+3 | Dettagli · Elenco |
+| Ctrl+Shift+4 · Ctrl+Shift+5 · Ctrl+Shift+6 | Icone piccole · medie · grandi (zoom 40 · 70 · 100%) |
 | Ctrl+rotellina | Zoom della lista: Dettagli, Elenco, Icone da 20 a 100% (sull'anteprima: la sua vista) |
 | Trascina il bordo di un pannello · doppio clic | Larghezza di barra laterale o anteprima (altezza, in basso) · predefinita |
 | Clic su ˅ accanto a ◨ | Anteprima a destra o in basso |
