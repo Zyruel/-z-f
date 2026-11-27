@@ -703,6 +703,11 @@ struct Preview {
     float viewX = 0, viewW = 0; // controllo della vista nella banda (solo per una cartella)
     bool viewHover = false;
     HoverFade viewFade;
+    // Cartelle tra le voci filtrate (contatori della banda), per questa lista e questo filtro;
+    // cntFor torna nullptr a ogni Listing nuovo (pvPaneSet, pvPaneClear)
+    const Listing* cntFor = nullptr;
+    std::wstring cntFilter;
+    int cntDirs = 0;
 } PV;
 
 // Tab: la tastiera passa tra la lista e l'anteprima di una cartella. Nell'anteprima il cursore
@@ -852,6 +857,7 @@ static void pvPaneClear() {
     previewWatch(L"");
     delete PV.pane.cur;
     PV.pane = ListPane();
+    PV.cntFor = nullptr;
     PV.keys = false;
     PV.selectAfter.clear();
     PV.renameAfter = false;
@@ -878,6 +884,7 @@ static void pvPaneSet(Listing* l, bool same) {
     // La geometria (dell'ultimo frame) resta: serve a tenere in vista il cursore
     delete p.cur;
     p.cur = l;
+    PV.cntFor = nullptr; // contatori da rifare (l può stare all'indirizzo di quello di prima)
     previewWatch(l->path); // cambiamenti da fuori o dalle operazioni: si rilegge (stessa cartella: niente di nuovo)
     p.order = l->order;
     p.view = p.order;
@@ -1248,9 +1255,14 @@ static void drawPvDir(const PvGeom& g, double dt, double now) {
     if (o.err || !PV.pane.cur) return;
     const ListPane& p = PV.pane;
     int dirs = o.info.dirs, files = o.info.files;
-    if (!p.filter.empty()) {
-        dirs = 0;
-        for (uint32_t ei : p.view) if (p.cur->e[ei].attr & FILE_ATTRIBUTE_DIRECTORY) dirs++;
+    if (!p.filter.empty()) { // contate solo quando cambiano cartella o filtro, non a ogni frame
+        if (PV.cntFor != p.cur || PV.cntFilter != p.filter) {
+            PV.cntFor = p.cur;
+            PV.cntFilter = p.filter;
+            PV.cntDirs = 0;
+            for (uint32_t ei : p.view) if (p.cur->e[ei].attr & FILE_ATTRIBUTE_DIRECTORY) PV.cntDirs++;
+        }
+        dirs = PV.cntDirs;
         files = (int)p.view.size() - dirs;
     }
     right = drawBarCounts(right, g.footY, dirs, files, o.more);

@@ -14,6 +14,8 @@
 //   colonna_destinazione=300  colonna Destinazione, nelle cartelle con collegamenti (.lnk)
 //   anteprima=0            pannello di anteprima (Alt+P)
 //   anteprima_larghezza=360  in pixel a scala 100% (trascinando il bordo; doppio clic: predefinita)
+//   anteprima_posizione=destra  dove sta l'anteprima: destra o basso (˅ accanto a ◨, opzioni)
+//   anteprima_altezza=280  in basso, in pixel a scala 100% (trascinando il bordo; doppio clic: predefinita)
 //   anteprima_vista=dettagli  vista delle cartelle nell'anteprima: dettagli, elenco, icone 40 (come viste.txt)
 //   carattere_anteprima=Cascadia Mono  testo nell'anteprima (se non è installato: Cascadia Mono, Consolas)
 //   annulla_dopo_riavvio=0 1: la cronologia di Ctrl+Z si salva in annulla.txt e si ritrova al riavvio

@@ -20,6 +20,27 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 0000000000000000000000000000000000000000000000000. Correzioni della revisione del codice (z-f-dev, novembre 2026)
+
+Sette correzioni dopo la revisione del ramo: atlante delle miniature, risincronizzazione delle due
+liste in Icone, trascinamento dall'anteprima, rilettura dopo un'operazione, contatori col filtro,
+avviso di Ctrl+V. Provato da Claude in z-f-dev a 175%, finestra ingrandita, in una cartella di PNG
+finti (scratchpad):
+- [x] lista in Icone grandi, poi Ctrl+rotellina fino al 20%: tutte le miniature visibili (circa
+  320); prima i posti restavano grandi come al 100% e ne stavano 81;
+- [x] lista e anteprima in basso tutte e due in Icone medie, anteprima scorsa: miniature in tutte e
+  due; F12 "griglia: risultati e richieste" 0,00 ms (peggiore 0,02), frame 0,16 ms;
+- [x] trascinamento di un file selezionato dall'anteprima su una cartella della lista: spostato; la
+  cartella locale dell'anteprima si rilegge dall'osservatore (il file sparisce, 399 file);
+- [x] filtro "img-01" nell'anteprima: contatori 0 cartelle, 100 file;
+- [x] Ctrl+C del percorso e Ctrl+V con la tastiera nell'anteprima: avviso "Nell'anteprima si
+  incollano solo file…";
+- [ ] trascinamento premuto nell'anteprima mentre arriva un'altra cartella (si sposta il cursore
+  della lista con la tastiera e si preme subito su una voce della vecchia): non deve partire; non
+  riprodotto (servono una cartella lenta e il tempo giusto);
+- [ ] operazione in una cartella di rete mostrata dall'anteprima: si rilegge da sola (lì non c'è
+  l'osservatore).
+
 ## 000000000000000000000000000000000000000000000000. Anteprima a destra o in basso (z-f-dev, novembre 2026)
 
 Il pannello di anteprima ha un rettangolo suo (`prevX/Y/W/H`) e la barra di stato della lista

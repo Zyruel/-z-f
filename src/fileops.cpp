@@ -856,8 +856,11 @@ static void onFileJob(FileJob* j) {
         dirSizeForget(j->dest);
         for (const UndoItem& it : j->op.items) { dirSizeForget(it.a); dirSizeForget(it.b); }
     }
-    // Nell'anteprima di una cartella in rete non c'è l'osservatore: si rilegge qui (in locale lo fa lui)
-    if (previewPaneFor(j->dest) || (!j->src.empty() && previewPaneFor(parentPath(j->src[0])))) previewRefresh();
+    // Nell'anteprima di una cartella in rete non c'è l'osservatore: si rilegge qui (in locale lo fa
+    // lui, e rileggere anche qui la leggerebbe due volte). Le stesse cartelle che previewWatch salta
+    ListPane* pp = previewPaneFor(j->dest);
+    if (!pp && !j->src.empty()) pp = previewPaneFor(parentPath(j->src[0]));
+    if (pp && slowPath(pp->cur->path)) previewRefresh();
     if (j->kind == J_INVERT) {
         UH.busy = false;
         A.undoMs = j->ms;

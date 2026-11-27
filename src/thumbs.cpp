@@ -527,8 +527,9 @@ static void thumbsDeviceChanged() {
 
 // --- code -----------------------------------------------------------------------------------
 // Il thread UI si riprende le richieste non ancora partite (quelle sui thread arrivano comunque):
-// di una lista (client), o di tutte (-1). Quelle dell'altra lista restano in coda.
-static void thQueuesTakeBack(int client = -1) {
+// di una lista (client), o di tutte (-1). Quelle dell'altra lista restano in coda. taken: le voci
+// riprese (icona, chiave), per chi deve sapere quali non sono state richieste di nuovo
+static void thQueuesTakeBack(int client = -1, std::vector<std::pair<bool, std::wstring>>* taken = nullptr) {
     if (!TH.started) return;
     std::deque<ThumbReq> old[POOL_N];
     EnterCriticalSection(&TH.lock);
@@ -544,6 +545,7 @@ static void thQueuesTakeBack(int client = -1) {
             auto& m = r.icon ? TH.icons : TH.map;
             auto it = m.find(r.key);
             if (it != m.end()) it->second.queued = false;
+            if (taken) taken->emplace_back(r.icon, r.key);
         }
 }
 
@@ -570,9 +572,8 @@ static int thPoolFor(const ThumbReq& r, bool perFile) {
 // (della lista ci, che è quella in A: la principale o l'anteprima nel suo PaneScope)
 static void thSync(int ci, int first, int last) {
     ThClient& c = TH.c[ci];
-    thQueuesTakeBack(ci);
-    for (int k = 0; k < TC_N; k++) // una voce in comune che l'altra lista aveva lasciato perché era in coda
-        if (k != ci && TH.c[k].active) TH.c[k].needSync = true;
+    std::vector<std::pair<bool, std::wstring>> taken;
+    thQueuesTakeBack(ci, &taken);
     int n = (int)A.view.size(), span = std::max(1, last - first);
     int a0 = c.dir >= 0 ? last : first - span, a1 = c.dir >= 0 ? last + span : first;
     int b0 = c.dir >= 0 ? first - span : last, b1 = c.dir >= 0 ? first : last + span;
@@ -610,6 +611,18 @@ static void thSync(int ci, int first, int last) {
             }
         }
     thPush(add);
+    // Una voce ripresa e non più voluta da questa lista può servire all'altra, che non l'aveva chiesta
+    // perché era già in coda: solo allora l'altra si risincronizza (sempre, le due liste si
+    // risincronizzerebbero a vicenda a ogni frame). Le chiavi hanno il lato: in comune solo a pari lato
+    bool dropped = false;
+    for (const auto& k : taken) {
+        auto& m = k.first ? TH.icons : TH.map;
+        auto it = m.find(k.second);
+        if (it != m.end() && it->second.state == THS_NEW && !it->second.queued) { dropped = true; break; }
+    }
+    if (dropped)
+        for (int k = 0; k < TC_N; k++)
+            if (k != ci && TH.c[k].active && TH.c[k].box == c.box) TH.c[k].needSync = true;
 }
 
 // Risultati arrivati dai thread: pronti, o si prova la fonte successiva, o l'icona. Il passo
@@ -801,12 +814,14 @@ static void thumbsFrame(int first, int last, bool preview) {
         c.fsDone = false;
     }
     // I posti dell'atlante sono grandi quanto il riquadro più grande tra le liste in Icone: se cambia
-    // si ricomincia da capo (con una lista sola è il suo riquadro, come prima)
+    // si ricomincia da capo
     int want = 0;
     for (const ThClient& k : TH.c) if (k.active) want = std::max(want, k.box);
-    // Solo se cresce: quando l'anteprima smette per un momento di mostrare una cartella i posti
-    // restano, invece di rifare tutte le miniature della lista a ogni passaggio
-    if (want > TH.slotPx) { thReset(); TH.slotPx = want; }
+    // Quando cresce, o quando scende almeno alla metà: con posti grandi il doppio l'atlante ne ha un
+    // quarto, e a uno zoom piccolo le voci visibili non ci starebbero (al 175%, da 100 a 20%: 81
+    // posti invece di 1296). Le differenze minori restano: quando l'anteprima smette per un momento
+    // di mostrare una cartella non si rifanno tutte le miniature della lista a ogni passaggio
+    if (want > TH.slotPx || want * 2 <= TH.slotPx) { thReset(); TH.slotPx = want; }
     if (A.cur != c.forList || A.cur->gen != c.forListGen) { // cartella nuova o ricaricata
         c.forList = A.cur;
         c.forListGen = A.cur->gen;

@@ -44,6 +44,7 @@ struct DragState {
     DWORD armButton = MK_LBUTTON; // tasto con cui è stato premuto (il destro chiede cosa fare)
     POINT down = {};
     bool preview = false;       // premuto nell'anteprima: partenza e clic rimandato nel suo PaneScope
+    const Listing* pressCur = nullptr; // …nella sua cartella di allora: se l'anteprima ne mostra un'altra, niente
     bool targetPreview = false; // la destinazione (DT_ROW, DT_LIST) è nella lista dell'anteprima
     int deferRow = -1;          // clic su una voce già selezionata: vale al rilascio, se non si trascina
     bool deferToggle = false;   // …ed era un Ctrl+clic
@@ -674,6 +675,7 @@ static IDataObject* dragPrepare(DWORD& allowed) {
 static void dragArm(int x, int y, DWORD button) {
     DD.armed = true;
     DD.preview = g_inPane > 0;
+    DD.pressCur = A.cur;
     DD.armButton = button;
     DD.down = { x, y };
     SetCapture(A.hwnd);
@@ -691,12 +693,18 @@ static void dragPressRight(int x, int y) {
     dragArm(x, y, MK_RBUTTON);
 }
 
+// Premuto nell'anteprima, che intanto non mostra più quella cartella (come MQ.cur per il rettangolo)
+static bool dragPaneGone() {
+    ListPane* p = pvPane();
+    return DD.preview && (!p || p->cur != DD.pressCur);
+}
+
 // Movimento col tasto premuto: oltre la soglia di Windows parte il trascinamento
 static bool dragCheck(int x, int y, WPARAM wp) {
     if (!DD.armed) return false;
     if (!(wp & DD.armButton)) { DD.armed = false; return false; }
     if (abs(x - DD.down.x) <= GetSystemMetrics(SM_CXDRAG) && abs(y - DD.down.y) <= GetSystemMetrics(SM_CYDRAG)) return false;
-    if (DD.preview && !pvPane()) { DD.armed = false; ReleaseCapture(); return false; } // l'anteprima è cambiata
+    if (dragPaneGone()) { DD.armed = false; ReleaseCapture(); return false; } // l'anteprima è cambiata
     DWORD allowed = 0;
     IDataObject* obj;
     {
@@ -712,7 +720,7 @@ static void dragRelease() {
     if (DD.armed) { DD.armed = false; ReleaseCapture(); }
     int r = DD.deferRow;
     DD.deferRow = -1;
-    if (DD.preview && !pvPane()) return;
+    if (dragPaneGone()) return;
     PaneScope ps(DD.preview ? pvPane() : nullptr);
     if (r < 0 || r >= (int)A.view.size()) return;
     if (DD.deferToggle) { // Ctrl+clic su una voce selezionata: la toglie
