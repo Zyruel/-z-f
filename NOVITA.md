@@ -8,7 +8,7 @@ erano `0.N`. Ogni rilascio, dalla 1.0.0-beta.2, ha un tag `v<versione>` e una
 versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 [`ARCHITETTURA.md`](docs/ARCHITETTURA.md).
 
-## 1.0.0-beta.7 (in corso)
+## 1.0.0-beta.7 (novembre 2026)
 
 - **L'anteprima di una cartella è una seconda lista.** Non si scende nelle sue sottocartelle, ma
   sulle voci si agisce come nella lista: selezione (clic, Ctrl, Shift, rettangolo), tooltip, menu
