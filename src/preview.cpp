@@ -755,16 +755,18 @@ static void pvSetResult(PvRes* o) {
     if (o && !o->px.empty()) A.prevTexMs = nowMs() - t0;
 }
 
-// Geometria del pannello: contenuto tra x0 e x1, da bodyTop a bodyBot; banda in fondo da footY
+// Geometria del pannello (il rettangolo di layout, dopo il bordo di 1 px: a sinistra, o sopra in
+// basso): contenuto tra x0 e x1, da bodyTop a bodyBot; banda in fondo da footY
 struct PvGeom { float x0, x1, top, bodyTop, bodyBot, footY, bot; };
 static PvGeom pvGeom() {
     PvGeom g;
-    g.x0 = A.listR + 1 + A.padX;
-    g.x1 = (float)G.w - A.padX;
-    g.top = A.sideTop;
-    g.bot = (float)G.h; // fino in fondo, come la barra laterale: la banda in fondo continua la
-                        // barra di stato della lista
-    g.bodyTop = A.sideTop + A.headH + px(ui::GAP_M);
+    float edgeX = A.prevBottom ? 0.0f : 1.0f, edgeY = A.prevBottom ? 1.0f : 0.0f;
+    g.x0 = A.prevX + edgeX + A.padX;
+    g.x1 = A.prevX + A.prevW - A.padX;
+    g.top = A.prevY + edgeY;
+    g.bot = A.prevY + A.prevH; // fino in fondo, come la barra laterale: a destra la banda in fondo
+                               // continua la barra di stato della lista
+    g.bodyTop = g.top + A.headH + px(ui::GAP_M);
     g.footY = g.bot - A.statusH;
     g.bodyBot = g.footY - px(ui::GAP_S);
     return g;
@@ -1015,6 +1017,19 @@ static void previewToggle() {
     A.dirty = true;
 }
 
+// A destra o in basso: ognuna con la sua misura. Il contenuto resta; un'immagine si rifà alla
+// misura nuova (previewSync), la lista di una cartella si dispone di nuovo al frame
+static void previewPlace(bool bottom) {
+    if (A.prevBottom == bottom) return;
+    A.prevBottom = bottom;
+    settingsSave();
+    layout();
+    if (A.prevOpen && !A.prevW) notice(bottom ? L"La finestra è troppo bassa per l'anteprima in basso"
+                                              : L"La finestra è troppo stretta per l'anteprima", true);
+    A.hover = -1;
+    A.dirty = true;
+}
+
 // --- testo che va a capo --------------------------------------------------------------------
 static int pvLineCount() { return (int)PV.res->lines.size(); }
 static int pvLineStart(int L) { return (int)PV.res->lines[(size_t)L]; }
@@ -1075,7 +1090,7 @@ static void pvTextScroll(int delta) {
 
 // --- input ----------------------------------------------------------------------------------
 static bool previewWheel(int x, int y, float lines) {
-    if (A.prevW <= 0 || x < A.listR || y < A.sideTop) return false;
+    if (!inPreview(x, y)) return false;
     if (!PV.res) return true;
     if (ListPane* p = PV.paneShown ? pvPane() : nullptr) { // una cartella: scorre come la lista
         PaneScope ps(p);
@@ -1100,7 +1115,7 @@ static ListPane* pvPaneAt(int x, int y) {
 }
 // Controllo della vista nella banda dell'anteprima (solo per una cartella)
 static bool pvViewAt(int x, int y) {
-    return PV.viewW > 0 && y >= G.h - A.statusH && x >= PV.viewX && x < PV.viewX + PV.viewW;
+    return PV.viewW > 0 && inPreview(x, y) && y >= G.h - A.statusH && x >= PV.viewX && x < PV.viewX + PV.viewW;
 }
 
 // --- disegno --------------------------------------------------------------------------------
@@ -1111,7 +1126,7 @@ static bool pvViewAt(int x, int y) {
 static float pvBar(const PvGeom& g, uint32_t icon, const wchar_t* name, bool data, bool choose = false) {
     static const wchar_t* const kNames[] = { viewName(ZOOM_DETAILS), viewName(ZOOM_LIST), viewName(ZOOM_ICONS),
                                              L"Testo", L"Immagine", L"Informazioni" };
-    float w = barViewW(kNames, 6), right = (float)G.w - A.padX + px(ui::GAP_S), ha = 0;
+    float w = barViewW(kNames, 6), right = g.x1 + px(ui::GAP_S), ha = 0;
     if (choose) {
         PV.viewX = right - w;
         PV.viewW = w;
@@ -1121,19 +1136,21 @@ static float pvBar(const PvGeom& g, uint32_t icon, const wchar_t* name, bool dat
 }
 
 // Geometria della lista dell'anteprima: dal bordo con la lista principale al bordo della finestra,
-// con le righe allineate a quelle della lista (sotto l'intestazione), fino alla banda in fondo
+// sotto l'intestazione (a destra le righe sono allineate a quelle della lista), fino alla banda in
+// fondo. In basso il pannello è largo come la lista: in Dettagli c'è anche Data (e Destinazione)
 static void pvPaneLayout() {
-    float x0 = A.listR + 1, top = A.listTop, bottom = (float)G.h - A.statusH;
+    PvGeom g = pvGeom();
+    float x0 = g.x0 - A.padX, x1 = g.x1 + A.padX, top = g.top + A.headH, bottom = g.footY;
     PaneScope ps(&PV.pane);
     LayoutKeep k = layoutKeep();
     A.listX = x0;
-    A.listR = (float)G.w;
+    A.listR = x1;
     A.listTop = top;
     A.listH = std::max(0.0f, bottom - top);
     // Filtro nella banda in fondo, come nella barra di stato della lista (lo stringe drawBarFilter)
     A.fltX = A.listX + px(ui::GAP_S);
     A.fltWant = floorf(std::min(px(ui::FILTER_W), (A.listR - A.listX) * ui::FILTER_MAX));
-    layoutItems(true, k);
+    layoutItems(!A.prevBottom, k);
     if (PV.keepFirst >= 0) { scrollToItem(PV.keepFirst); PV.keepFirst = -1; }
     clampScroll();
 }
@@ -1182,7 +1199,7 @@ static void drawPvText(const PvGeom& g) {
             s = q;
         }
     }
-    drawPanelScroll((float)G.w, g.bodyTop, rows * lh, PV.top, std::max(1, whole), n, 1);
+    drawPanelScroll(A.prevX + A.prevW, g.bodyTop, rows * lh, PV.top, std::max(1, whole), n, 1);
 }
 
 static void drawPvImage(const PvGeom& g) {
@@ -1283,13 +1300,23 @@ static void drawPreview(double dt) {
 static void drawPreviewBody(double dt) {
     if (A.prevW <= 0) return;
     hoverFadeUpdate(PV.viewFade, PV.viewHover ? 0 : -1, dt);
-    float W = (float)G.w, x = A.listR;
+    float x = A.prevX, W = A.prevX + A.prevW;
     PvGeom g = pvGeom();
-    // Intestazione allineata a quella delle colonne; bordo con la lista (C_SEL_EDGE mentre lo si trascina)
-    rect(x, g.top, W - x, A.headH, C_HEADER);
-    rect(x, g.top + A.headH - 1, W - x, 1, C_LINE);
-    rect(x, g.top, 1, g.bot - g.top, A.colDrag == EDGE_PREVIEW ? C_SEL_EDGE : C_LINE);
-    drawBarBand(x + 1, W, g.footY, A.statusH); // sempre, come la barra di stato; il contenuto la riempie
+    // Bordo con la lista (C_SEL_EDGE mentre lo si trascina): a sinistra per tutta l'altezza, o sopra.
+    // In basso il fondo copre le voci della lista che scorrono oltre la barra di stato
+    uint32_t edge = A.colDrag == EDGE_PREVIEW ? C_SEL_EDGE : C_LINE;
+    float bx = x;
+    if (A.prevBottom) {
+        rect(x, A.prevY, A.prevW, A.prevH, C_BG);
+        rect(x, A.prevY, A.prevW, 1, edge);
+    } else {
+        rect(x, g.top, 1, g.bot - g.top, edge);
+        bx = x + 1;
+    }
+    // Intestazione: a destra allineata a quella delle colonne
+    rect(bx, g.top, W - bx, A.headH, C_HEADER);
+    rect(bx, g.top + A.headH - 1, W - bx, 1, C_LINE);
+    drawBarBand(bx, W, g.footY, A.statusH); // sempre, come la barra di stato; il contenuto la riempie
     if (!PV.want) return;
     // Il contenuto precedente resta finché arriva il nuovo; dopo LOADING_AFTER si vedono il nome
     // e "caricamento…". Senza contenuto precedente il nome si vede subito.

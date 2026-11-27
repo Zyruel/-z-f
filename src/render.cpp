@@ -152,7 +152,7 @@ static const wchar_t* viewName(int zoom) {
 }
 static uint32_t viewIcon(int zoom) { return zoom == ZOOM_DETAILS ? IC_DETAILS : zoom == ZOOM_LIST ? IC_LIST : IC_GRID; }
 // Controllo della vista nella barra di stato (il disegno lo misura)
-static bool viewCtlAt(int x, int y) { return A.viewW > 0 && y >= G.h - A.statusH && x >= A.viewX && x < A.viewX + A.viewW; }
+static bool viewCtlAt(int x, int y) { return A.viewW > 0 && y >= A.footY - A.statusH && y < A.footY && x >= A.viewX && x < A.viewX + A.viewW; }
 
 // --- barre in fondo: della lista (barra di stato, barra dei tempi) e dell'anteprima -----------
 // Le stesse parti nei due pannelli, così l'anteprima si legge come la lista. Si disegnano da
@@ -518,12 +518,12 @@ static void render() {
 
     drawTabs(dt); // prima della riga del percorso: la scheda attiva ci sconfina e la riga ne copre il fondo
 
-    // --- riga del percorso: [▯][←][→][↑] percorso a segmenti [☆][◨] ---
+    // --- riga del percorso: [▯][←][→][↑] percorso a segmenti [☆][˅][◨] ---
     rect(0, A.pathY, W, A.topH, C_BAR);
     rect(0, A.pathY + A.topH - 1, W, 1, C_LINE);
     {
         float bx = px(ui::GAP_S) + A.navW * 4 + px(ui::GAP_M); // a sinistra ▯ ← → ↑
-        float bw = W - px(ui::GAP_S) - A.navW * 2 - px(ui::GAP_M) - bx; // a destra ☆ e anteprima
+        float bw = W - px(ui::GAP_S) - A.navW * 2 - A.navMenuW - px(ui::GAP_M) - bx; // a destra ☆ ˅ ◨
         float by = A.pathY + floorf((A.topH - A.rowH) * 0.5f), bh = A.rowH;
         float ty = by + textOff;
         drawCrumbs(bx, bx + bw, by, bh, ty, dt);
@@ -532,8 +532,9 @@ static void render() {
 
     // --- in basso: barra dei tempi e barra di stato (con il filtro) ---
     // Barra laterale e anteprima arrivano in fondo alla finestra: queste stanno tra le due, sotto la
-    // lista, perché parlano della lista (filtro, contatori, vista).
-    float sy0 = H - A.statusH, bx0 = A.sideW, bx1 = A.listR;
+    // lista, perché parlano della lista (filtro, contatori, vista). Con l'anteprima in basso stanno
+    // sopra di lei (footY).
+    float sy0 = A.footY - A.statusH, bx0 = A.sideW, bx1 = A.listR;
     drawBarBand(bx0, bx1, sy0, A.statusH);
     if (A.timesH > 0) { // tempi misurati, solo con l'opzione (barra_tempi)
         float ty0 = sy0 - A.timesH;
@@ -794,7 +795,7 @@ static void render() {
         float pw = px(ui::STATS_W), ph = nr * lh + px(ui::GAP_XL) + lh;
         PanelEnter e = panelEnter(A.statsOpenedAt, ui::DUR_MENU);
         float k = e.k;
-        float sx = W - pw - A.padX - A.sbW, sy = H - A.footH - ph - px(ui::GAP_M) - e.dy;
+        float sx = W - pw - A.padX - A.sbW, sy = A.footY - A.footH - ph - px(ui::GAP_M) - e.dy; // sopra le barre della lista
         drawPanel(sx, sy, pw, ph, px(ui::R_M), k);
         float yy = sy + px(ui::GAP_M);
         float lx = sx + px(ui::GAP_L), vx = sx + pw - px(ui::GAP_L);

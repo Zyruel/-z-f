@@ -169,6 +169,8 @@ static std::string settingsText() {
     d += "colonna_destinazione=" + std::to_string(lroundf(A.colLink)) + "\r\n";
     d += std::string("anteprima=") + (A.prevOpen ? "1" : "0") + "\r\n";
     d += "anteprima_larghezza=" + std::to_string(lroundf(A.prevWidth)) + "\r\n";
+    d += std::string("anteprima_posizione=") + (A.prevBottom ? "basso" : "destra") + "\r\n";
+    d += "anteprima_altezza=" + std::to_string(lroundf(A.prevHeight)) + "\r\n";
     d += "anteprima_vista=" + viewText(A.prevZoom) + "\r\n";
     d += "carattere_anteprima=" + toUtf8(FM.face) + "\r\n";
     d += std::string("annulla_dopo_riavvio=") + (A.undoPersist ? "1" : "0") + "\r\n";
@@ -231,6 +233,11 @@ static bool settingsApply(const std::vector<std::wstring>& lines) {
         else if (k == L"anteprima_larghezza") {
             int n = _wtoi(v.c_str()); // il massimo lo decide la finestra (layout)
             if (n >= (int)ui::PREVIEW_MIN && n <= 8000) A.prevWidth = (float)n;
+        }
+        else if (k == L"anteprima_posizione") A.prevBottom = v == L"basso";
+        else if (k == L"anteprima_altezza") {
+            int n = _wtoi(v.c_str()); // il massimo lo decide la finestra (layout)
+            if (n >= (int)ui::PREVIEW_HMIN && n <= 8000) A.prevHeight = (float)n;
         }
         else if (k == L"annulla_dopo_riavvio") A.undoPersist = v == L"1";
         else if (k == L"menu_completo") A.shellMenu = v == L"1";

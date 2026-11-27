@@ -137,6 +137,25 @@ static void menuOpenView(float cx, float cy) {
     }
     menuPlace(cx, cy, false, t0);
     if (m.x + m.w > cx) { m.x = std::max(px(ui::GAP_XS), floorf(cx - m.w)); } // allineato a destra anche se ci starebbe
+    // Sopra anche se sotto ci sarebbe posto: con l'anteprima in basso la barra di stato non è in fondo
+    if (m.y >= cy && cy - m.h >= px(ui::GAP_XS)) m.y = floorf(cy - m.h);
+}
+
+// ˅ accanto a ◨: dove sta l'anteprima, con la spunta sulla posizione attuale (come il menu della
+// vista). Vale anche ad anteprima chiusa: la si ritrova lì quando si apre. Sotto il pulsante,
+// allineato al suo bordo destro (right, top)
+static void menuOpenPreview(float right, float top) {
+    double t0 = nowMs();
+    PopupMenu& m = A.menu;
+    m.items.clear();
+    m.kind = MENU_PREVIEW;
+    m.target = -1;
+    menuAdd(L"A destra", M_PREVIEW_RIGHT);
+    if (!A.prevBottom) m.items.back().icon = 3;
+    menuAdd(L"In basso", M_PREVIEW_BOTTOM);
+    if (A.prevBottom) m.items.back().icon = 3;
+    menuPlace(right, top, false, t0);
+    if (m.x + m.w > right) m.x = std::max(px(ui::GAP_XS), floorf(right - m.w));
 }
 
 // cx, cy: coordinate client; screenPt: per il menu della shell; fromKeyboard: evidenzia la prima voce
@@ -330,7 +349,9 @@ static void menuRun(int id, const CmdCtx& c) {
     case M_OPTIONS:     optionsOpen(); break;
     case M_GOTO:        gotoOpen(); break;
     case M_PREVIEW:     previewToggle(); break;
-    case M_ICONS_S:       viewZoom(ZOOM_SMALL); break;
+    case M_PREVIEW_RIGHT:  previewPlace(false); break;
+    case M_PREVIEW_BOTTOM: previewPlace(true); break;
+    case M_ICONS_S:      viewZoom(ZOOM_SMALL); break;
     case M_ICONS_M:       viewZoom(ZOOM_MEDIUM); break;
     case M_ICONS_L:       viewZoom(ZOOM_LARGE); break;
     case M_VIEW_LIST:    viewZoom(ZOOM_LIST); break;

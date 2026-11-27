@@ -404,7 +404,13 @@ static bool tipBuild() {
         case CH_PREVIEW:
             T.title = A.prevOpen ? L"Nascondi l'anteprima" : L"Mostra l'anteprima";
             tipRow(L"Scorciatoia", shortcutFor(M_PREVIEW));
-            if (A.prevOpen && !A.prevW) tipRow(L"", L"La finestra è troppo stretta per mostrarla");
+            tipRow(L"Posizione", A.prevBottom ? L"in basso" : L"a destra");
+            if (A.prevOpen && !A.prevW) tipRow(L"", A.prevBottom ? L"La finestra è troppo bassa per mostrarla" : L"La finestra è troppo stretta per mostrarla");
+            break;
+        case CH_PREVIEW_POS:
+            T.title = L"Posizione dell'anteprima";
+            tipRow(L"Adesso", A.prevBottom ? L"in basso" : L"a destra");
+            tipRow(L"", L"Clic per scegliere: a destra o in basso");
             break;
         default: return false;
         }
@@ -502,15 +508,15 @@ static void tipTarget(int x, int y, int& kind, int& index, bool& preview) {
     if (plusHit) { kind = TIP_TABPLUS; return; }
     int chId = chromeHit(x, y);
     if (chId != CH_NONE && chId != CH_MIN && chId != CH_MAX && chId != CH_CLOSE) { kind = TIP_CHROME; index = chId; return; }
-    if (y >= G.h - A.statusH && x >= A.fltX && x < A.fltX + A.fltW) { kind = TIP_FILTER; return; }
-    if (ListPane* p = pvPane(); p && y >= G.h - A.statusH && x >= p->fltX && x < p->fltX + p->fltW) { // quello dell'anteprima
+    if (inBar(y) && x >= A.fltX && x < A.fltX + A.fltW) { kind = TIP_FILTER; return; }
+    if (ListPane* p = pvPane(); p && inPreview(x, y) && y >= G.h - A.statusH && x >= p->fltX && x < p->fltX + p->fltW) { // quello dell'anteprima
         kind = TIP_FILTER;
         preview = true;
         return;
     }
     if (viewCtlAt(x, y)) { kind = TIP_VIEW; return; }
     if (pvViewAt(x, y)) { kind = TIP_VIEW; index = 1; return; }
-    if (A.timesH > 0 && x >= A.sideW && x < A.listR && y >= G.h - A.footH && y < G.h - A.statusH) { kind = TIP_STATS; return; }
+    if (A.timesH > 0 && inListFoot(x, y) && y < A.footY - A.statusH) { kind = TIP_STATS; return; }
     if (t >= 0) { kind = closeHit ? TIP_TABCLOSE : TIP_TAB; index = t; return; }
     if (int ft = favTrashAt(x, y); ft >= 0) { kind = TIP_FAVDEL; index = ft; return; }
     int si = sideHit(x, y);

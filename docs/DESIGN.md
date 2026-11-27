@@ -179,7 +179,7 @@ uno esistente basta con una piccola estensione.
 
 ```
 [⚙] [scheda][scheda][+]  ·····trascina·····              [–][□][×]    barra del titolo (C_TABBAR)
-[▯][←][→][↑]  Questo PC › Disco locale (C:) › Users             [☆][◨]    riga del percorso (C_BAR)
+[▯][←][→][↑]  Questo PC › Disco locale (C:) › Users          [☆][˅][◨]    riga del percorso (C_BAR)
 Preferiti ˅  │ Nome ↑              Data       Dimensione │ foto.jpg         intestazione (C_HEADER)
   Desktop    │ …                                         │                  lista (C_BG) │ anteprima (C_BG)
 Unità ˅      │                                           │  [immagine]
@@ -191,6 +191,20 @@ Barra laterale e anteprima sono le due colonne della finestra e arrivano in fond
 dei tempi e barra di stato (con il filtro a sinistra, contatori e vista a destra) parlano della
 lista e stanno sotto di lei, tra le due. L'anteprima ha in fondo la sua banda, fatta delle stesse
 parti e alla stessa altezza: le due bande si leggono come una sola, divisa dal bordo del pannello.
+
+Con l'**anteprima in basso** la barra laterale arriva sempre in fondo; a destra di lei, dall'alto:
+lista, barra dei tempi e barra di stato, poi l'anteprima (bordo orizzontale, intestazione col
+nome, contenuto, banda in fondo alla finestra), larga quanto la lista:
+
+```
+Preferiti ˅  │ Nome ↑              Data       Dimensione        intestazione
+  Desktop    │ …                                                lista
+             │ [⏷ Filtra 72 elementi…]  🗀 53 🗋 19 │ ☰ Dettagli   barra di stato
+             ├─────────────────────────────────────────────────  bordo dell'anteprima
+             │ foto.jpg                                         intestazione dell'anteprima
+             │                 [immagine]
+             │ 4032 × 3024 · …                     │ 🖼 Immagine   banda dell'anteprima
+```
 
 Sopra, quando servono: menu, tooltip, pannello delle opzioni, "Vai a" (sotto la riga del percorso), F12.
 
@@ -357,9 +371,10 @@ doppione.
 - **Pulsanti a icona** (⚙, ▯, ← → ↑, ☆, ◨, pulsanti di sistema): quadrati o larghi `NAV_W` righe,
   icona centrata, hover come le voci. Disattivati in `C_FAINT` (← senza cronologia). Uno stato
   attivo si mostra col colore dell'icona (☆ piena in `C_ACCENT` se la cartella è tra i preferiti).
-  Il doppio clic ripete il comando solo su ← → ↑ (due passi); su ⚙ ▯ ☆ ◨ conta come un clic.
+  Il doppio clic ripete il comando solo su ← → ↑ (due passi); su ⚙ ▯ ☆ ˅ ◨ conta come un clic.
   Nel pannello delle opzioni il secondo clic conta come un clic, tranne sulla versione e
-  sull'icona dell'aggiornamento (aprirebbero la pagina due volte).
+  sull'icona dell'aggiornamento (aprirebbero la pagina due volte) e su ‹ › della posizione
+  dell'anteprima (con due valori, la riporterebbe dov'era).
 - **Icone:** dal font di icone di Windows (Segoe Fluent Icons, Segoe MDL2 Assets su Windows 10),
   scala di grigi, dimensione 1,15 × testo; codici in `text.cpp` (`IC_*`). Niente immagini nel
   programma. Le icone di file e cartelle restano quelle della shell.
@@ -368,17 +383,28 @@ doppione.
   - clic su un segmento: ci va; su "›": menu delle sottocartelle (il "›" resta evidenziato finché il menu è aperto); clic centrale: nuova scheda; spazio vuoto: "Vai a" dalla cartella aperta (vedi "Vai a");
   - nomi come altrove: unità con la loro etichetta, preferiti con il loro nome;
   - se non c'è spazio i primi livelli finiscono in "…", che li elenca in un menu;
-  - a sinistra ▯ ← → ↑, a destra ☆ ◨. I due pannelli ai due capi della riga, ognuno sopra il
-    bordo del pannello che apre: ▯ (barra laterale, icona DockLeft) e ◨ (anteprima, DockRight),
-    gemelli, in `C_TEXT` se il pannello è aperto e `C_DIM` se è chiuso. La vista non sta qui: è
-    nella barra di stato.
+  - a sinistra ▯ ← → ↑, a destra ☆ ˅ ◨. I due pannelli ai due capi della riga, ognuno sopra il
+    bordo del pannello che apre: ▯ (barra laterale, icona DockLeft) e ◨ (anteprima, DockRight;
+    DockBottom quando l'anteprima è in basso, e allora non sta sopra un bordo), gemelli, in
+    `C_TEXT` se il pannello è aperto e `C_DIM` se è chiuso. ◨ apre e chiude l'anteprima dove
+    sta. Subito a sinistra di ◨, come la metà di un pulsante doppio, **˅** (ChevronDown, `C_DIM`,
+    largo `NAV_MENU_W` righe): un clic apre sotto di lui, allineato al suo bordo destro, il menu
+    della posizione dell'anteprima ("A destra", "In basso", con la spunta su quella attuale); ˅
+    ha il fondo `C_HOVER` finché il menu è aperto, come "›" nel percorso. La vista non sta qui:
+    è nella barra di stato.
 - **Pannello di anteprima** (Alt+P · ◨, `preview.cpp`): non è un
-  pannello sovrapposto ma una parte della finestra, a destra della lista, dall'intestazione al
-  fondo della finestra, come la barra laterale; lista, barra dei tempi e barra di stato finiscono
-  alla sua sinistra (`A.listR`).
-  - fondo `C_BG` come la lista, separatore verticale 1 px `C_LINE`; in alto un'intestazione alta
-    una riga e allineata a quella delle colonne (`C_HEADER`, linea `C_LINE` sotto) con il nome
-    della voce in `C_TEXT` (è il contenuto, non un'etichetta);
+  pannello sovrapposto ma una parte della finestra, in una di due **posizioni** (˅ accanto a ◨,
+  o "Posizione dell'anteprima ‹ A destra ›" nelle opzioni; `anteprima_posizione`):
+  - **a destra** (predefinita): a destra della lista, dall'intestazione al fondo della finestra,
+    come la barra laterale; lista, barra dei tempi e barra di stato finiscono alla sua sinistra
+    (`A.listR`);
+  - **in basso**: sotto la barra di stato della lista, dal bordo della barra laterale a quello
+    della finestra, fino in fondo; lista e barre finiscono sopra di lei (`A.footY`). Tutto il
+    resto è uguale.
+  - fondo `C_BG` come la lista, separatore 1 px `C_LINE` (verticale a destra, orizzontale in
+    basso); in alto un'intestazione alta una riga (a destra allineata a quella delle colonne;
+    `C_HEADER`, linea `C_LINE` sotto) con il nome della voce in `C_TEXT` (è il contenuto, non
+    un'etichetta);
   - contenuto a `PAD_X` dai lati e `GAP_M` sotto l'intestazione;
   - **banda in fondo**, sempre, come la barra di stato e con le sue stesse parti (`drawBarBand`,
     `drawBarCounts`, `drawBarView` in `render.cpp`): fondo `C_BAR` alto `statusH`, linea `C_LINE`
@@ -405,8 +431,10 @@ doppione.
     l'intestazione. Non si scende nelle sue sottocartelle, ma sulle voci si agisce come nella
     lista:
     - **vista** del pannello, una per tutte le cartelle che mostra (`anteprima_vista`): Dettagli
-      (icona, nome, dimensione a destra in `C_DIM`: niente Data né Destinazione, il pannello è
-      stretto), Elenco, Icone con le miniature, come le viste della lista. Si sceglie dal suo
+      (a destra icona, nome, dimensione in `C_DIM`: niente Data né Destinazione, il pannello è
+      stretto; in basso, largo quanto la lista, anche Data e Destinazione, con le larghezze e le
+      regole di restringimento delle colonne della lista), Elenco, Icone con le miniature, come
+      le viste della lista. Si sceglie dal suo
       controllo nella banda, con Ctrl+rotellina sopra il pannello e, con la tastiera
       nell'anteprima, con le scorciatoie delle viste;
     - hover, selezione (clic, Ctrl, Shift, rettangolo), tooltip, menu col tasto destro (delle
@@ -446,6 +474,12 @@ doppione.
     colonne (fascia `COL_GRIP` verso il pannello, `GAP_XS` verso la lista per non prendere la
     barra di scorrimento): cursore ↔, separatore in `C_SEL_EDGE` mentre lo si trascina, Esc torna
     a prima, doppio clic torna a `PREVIEW_W`; si salva al rilascio (`anteprima_larghezza`);
+  - **altezza** (in basso), con una misura sua, così ognuna delle due posizioni ritrova la sua:
+    predefinita `PREVIEW_H` (280), minima `PREVIEW_HMIN` (140), al massimo `PREVIEW_MAX` della
+    finestra e quanto lascia alla lista l'intestazione con `PREVIEW_LIST_ROWS` (4) righe e le
+    barre; sotto il minimo sparisce come a destra (avviso "troppo bassa"). Il bordo si afferra
+    allo stesso modo (fascia `COL_GRIP` verso il pannello, `GAP_XS` verso la barra di stato),
+    cursore ↕, stesso Esc e doppio clic (`PREVIEW_H`); si salva al rilascio (`anteprima_altezza`);
   - **finestra stretta**: il pannello tiene la larghezza scelta e cedono le colonne (prima
     Destinazione, poi Data e Dimensione, come sopra); il pannello si stringe solo quando le colonne
     sono tutte al minimo, e sotto `PREVIEW_MIN` sparisce, ma resta aperto e torna quando c'è
@@ -491,7 +525,7 @@ doppione.
     `COL_GRIP` per lato, per tutta l'altezza): cursore ↔, bordo in `C_SEL_EDGE` mentre lo si
     trascina, Esc torna a prima, doppio clic torna a `SIDE_W`; si salva al rilascio
     (`barra_laterale_larghezza`). Una barra più larga toglie spazio prima all'anteprima.
-- **Barra di stato** (sotto la lista, tra barra laterale e anteprima):
+- **Barra di stato** (sotto la lista, tra barra laterale e anteprima, o sopra l'anteprima in basso):
   - a sinistra, a `GAP_S` dall'inizio della lista, il **campo del filtro**: largo `FILTER_W` (al
     massimo `FILTER_MAX` della barra), ma mai sopra i contatori, a `GAP_L` da loro; con la lista
     tanto stretta da lasciargli meno di `FILTER_MIN` (2) altezze del campo non si disegna (il filtro si scrive
@@ -668,7 +702,8 @@ doppione.
 | trascina da icona o nome di una voce selezionata | sposta sulla stessa unità, altrimenti copia; Ctrl copia, Shift sposta, Alt collega |
 | trascina da un altro punto della lista (anche dal nome di una voce non selezionata) | rettangolo di selezione; Ctrl alterna, Shift aggiunge |
 | trascina un bordo nell'intestazione | larghezza della colonna; doppio clic: adatta al contenuto |
-| trascina il bordo della barra laterale o dell'anteprima | larghezza del pannello; doppio clic: predefinita |
+| trascina il bordo della barra laterale o dell'anteprima | larghezza del pannello (altezza dell'anteprima in basso); doppio clic: predefinita |
+| clic su ˅ accanto a ◨ | posizione dell'anteprima: a destra o in basso |
 | trascina un preferito | lo sposta tra gli altri preferiti (solo l'ordine); Esc annulla |
 | cestino a destra di un preferito | primo clic: "Togli?"; secondo clic: lo toglie dai preferiti |
 | trascina col tasto destro | al rilascio, un menu chiede cosa fare |

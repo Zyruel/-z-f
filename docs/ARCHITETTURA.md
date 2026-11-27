@@ -487,8 +487,8 @@ Mostra la voce sotto il cursore e la segue mentre ci si muove con le frecce.
     com'è sempre. Per sicurezza `render`, `layout`, `tabActivate` e `onPreviewResult` dentro uno
     scope rimandano all'uscita (in una prova di sviluppo il disegno nel ciclo, con lo stato
     scambiato, cancellava il `Listing` della lista principale).
-  - *Disegno:* `pvPaneLayout` calcola la geometria nello scope (`layoutItems(true, …)`: in
-    Dettagli niente Data né Destinazione), poi `drawListItems` disegna dentro un **ritaglio**
+  - *Disegno:* `pvPaneLayout` calcola la geometria nello scope (`layoutItems(!A.prevBottom, …)`:
+    a destra in Dettagli niente Data né Destinazione, in basso ci sono), poi `drawListItems` disegna dentro un **ritaglio**
     (`clipBegin`/`clipEnd` in `gfx.cpp`: uno stato del rasterizzatore con lo scissor, due draw call
     in più) perché le voci che scorrono, in Elenco anche in orizzontale, non sconfinino.
   - *Tastiera:* `PV.keys` (clic nel pannello, Tab). `onKey` apre lo scope tranne che per i tasti
@@ -513,6 +513,24 @@ Mostra la voce sotto il cursore e la segue mentre ci si muove con le frecce.
   immagine, sul thread. Sul thread dell'interfaccia resta solo la texture, una per immagine, grande
   al massimo quanto il pannello.
 - F12 mostra lettura, decodifica e texture dell'ultima anteprima.
+- **Posizione: a destra o in basso** (`A.prevBottom`). `layout` calcola una volta il rettangolo del
+  pannello (`prevX`, `prevY`, `prevW`, `prevH`; `prevW` 0 se non si vede, in tutte e due le
+  posizioni) e `footY`, il fondo della barra di stato della lista (la finestra, o l'inizio
+  dell'anteprima in basso). Il resto chiede a loro: `inPreview` per i punti nel pannello,
+  `barTop`/`inBar` per la barra in fondo della lista di `App` (quella principale a `footY`, nel
+  `PaneScope` la banda dell'anteprima in fondo alla finestra), `inListFoot` per barra dei tempi e di
+  stato; `pvGeom` e `pvPaneLayout` partono dal rettangolo. Il bordo è lo stesso `EDGE_PREVIEW`:
+  `edgeVertical` dice se si trascina in verticale (cursore ↕), `colChosen` dà `prevHeight` o
+  `prevWidth`, ognuna salvata a parte. In basso il pannello riempie il suo fondo di `C_BG`: le
+  voci della lista non sono ritagliate, e una cella di Icone che scorre oltre la barra di stato
+  verrebbe vista sotto.
+  - *Perché un rettangolo:* prima la posizione era scritta in una ventina di punti come
+    `x >= A.listR` e `G.h - A.statusH`; ora è in `layout`, e una terza posizione toccherebbe solo lì.
+  - *La scelta:* `CH_PREVIEW_POS` (˅ accanto a ◨, `chrome.cpp`) apre `menuOpenPreview`; le
+    voci e il selettore delle opzioni chiamano `previewPlace`, che salva e rifà il layout.
+  - *Misurato* (F12; RTX 5070 Ti, 2560×1392 a 175%, anteprima in basso in Icone medie scorrendo
+    una cartella da 2000 file): frame 0,12 ms (peggiore 0,28), voci dell'anteprima 0,02 ms
+    (peggiore 0,07): come a destra.
 
 **Perché così.** Leggere l'inizio di un file solo online lo scarica: provato con
 `prove\online-prova.cpp` in una cartella di segnaposto (anteprima aperta e cursore su ogni voce,
@@ -1056,7 +1074,8 @@ sul thread; con il server spento l'errore arriva dopo 2 s, sempre sul thread.
 - **Le impostazioni** di `impostazioni.txt`, modificabili anche a mano: `dimensione`, `carattere`,
   `barra_laterale`, `barra_laterale_larghezza`, `barra_tempi`, `animazioni`, `preferiti_aperti`,
   `unita_aperte`, `colonna_data`, `colonna_dimensione`, `colonna_destinazione`, `anteprima`,
-  `anteprima_larghezza`, `anteprima_vista`, `carattere_anteprima`, `annulla_dopo_riavvio`, `menu_completo`,
+  `anteprima_larghezza`, `anteprima_posizione` (`destra` o `basso`), `anteprima_altezza`,
+  `anteprima_vista`, `carattere_anteprima`, `annulla_dopo_riavvio`, `menu_completo`,
   `dimensione_cartelle`, `dialoghi`, `riapri_schede`, `finestre_separate`, `aggiornamenti`,
   `aggiornamenti_beta`, `aggiornamenti_ultimo` (e, solo in lettura, `griglia_dimensione` delle
   versioni fino alla 1.0.0-beta.5). Il pannello delle opzioni (`options.cpp`) le

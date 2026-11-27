@@ -20,6 +20,39 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 000000000000000000000000000000000000000000000000. Anteprima a destra o in basso (z-f-dev, novembre 2026)
+
+Il pannello di anteprima ha un rettangolo suo (`prevX/Y/W/H`) e la barra di stato della lista
+finisce a `footY`. Provato da Claude in z-f-dev, nella cartella di `prove\anteprima-prova.py`, a
+175% e finestra piccola; poi il PC è stato preso da Zyruel e il resto è rimasto da fare.
+- [x] ˅ accanto a ◨ (al posto del tasto destro, scelta di Zyruel): tooltip "Posizione
+  dell'anteprima", clic → menu "A destra" / "In basso" sotto il pulsante con la spunta, ˅
+  evidenziato; In basso: lista, barra di stato, anteprima con intestazione e banda in fondo;
+  icona DockBottom; ◨ chiude e riapre l'anteprima in basso;
+- [x] doppio clic su ˅ (il menu resta aperto) e su ‹ › nelle opzioni (la posizione cambia una
+  volta sola); clic su ˅ col suo menu aperto (si chiude);
+- [x] cartella in Dettagli in basso: nome, Data e Dimensione; Tab, filtro dell'anteprima (lettere,
+  contatori), menu della vista dell'anteprima sopra il suo controllo;
+- [x] immagine e testo in basso: l'immagine si rifà alla misura nuova, il testo va a capo su tutta
+  la larghezza, la rotellina lo scorre;
+- [x] bordo: trascinato in su allarga l'anteprima e la lista tiene in vista il cursore; doppio
+  clic → altezza predefinita;
+- [x] ritorno a destra con la larghezza di prima; opzioni: "Posizione dell'anteprima ‹ › "
+  cambia posizione; riaprendo, la posizione si ricorda (`anteprima_posizione`);
+- [ ] corretto ma non riprovato: il menu della vista della **lista** si apriva sotto il
+  controllo, sopra l'anteprima (c'era posto); ora si apre sempre sopra;
+- [x] cursore ↕ sul bordo, Esc durante il trascinamento (torna all'altezza di prima);
+- [ ] finestra bassa: l'anteprima sparisce (resta aperta) e torna allargandola; aprirla senza
+  spazio: avviso "troppo bassa";
+- [ ] Icone grandi nell'anteprima in basso a 175% a tutto schermo (atlante, `da-sistemare.md`);
+  Elenco in basso con la barra di scorrimento orizzontale (il bordo non la prende);
+- [ ] trascinamento di file da e verso l'anteprima in basso; rettangolo nella lista accanto al
+  bordo; rinomina nell'anteprima in basso;
+- [x] tooltip di ◨ (riga Posizione), del filtro della lista e della barra dei tempi con
+  l'anteprima in basso;
+- [x] F12 con l'anteprima in basso in Icone medie, finestra ingrandita: frame 0,12 ms (peggiore
+  0,28); il pannello F12 sta sopra le barre della lista.
+
 ## 00000000000000000000000000000000000000000000000. Anteprima di una cartella come seconda lista (z-f-dev, novembre 2026)
 
 La cartella nell'anteprima è una lista vera (`ListPane` scambiato con `App` nei `PaneScope`), con

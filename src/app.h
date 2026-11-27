@@ -13,6 +13,7 @@ enum MenuId { M_OPEN = 1, M_OPENWITH, M_CUT, M_COPY, M_PASTE, M_COPYPATH, M_RENA
               M_DROP_COPY, M_DROP_MOVE, M_DROP_LINK, M_DROP_CANCEL, // trascinamento col tasto destro
               M_GOTO,        // "Vai a" (goto.cpp)
               M_PREVIEW,     // pannello di anteprima (preview.cpp)
+              M_PREVIEW_RIGHT, M_PREVIEW_BOTTOM, // sua posizione (˅ accanto a ◨)
               M_UNDO, M_REDO, // annulla, ripeti (fileops.cpp)
               M_ICONS_S, M_ICONS_M, M_ICONS_L, M_VIEW_LIST, M_VIEW_DETAILS, // viste: Icone (40, 70, 100%), Elenco, Dettagli
               M_NET_CONNECT, M_NET_DISCONNECT, M_NET_PLACE, // unità e percorsi di rete (sidebar.cpp)
@@ -28,7 +29,7 @@ static const wchar_t kThisPc[] = L"::{20D04FE0-3AEA-1069-A2D8-08002B30309D}";
 // id 0 = separatore. icon: 0 nessuna, 1 cartella, 2 unità (path in PopupMenu::paths), 3 segno di
 // spunta (la scelta attuale). dim: elemento nascosto
 struct MenuItem { const wchar_t* label; const wchar_t* keys; int id; bool enabled; int icon = 0; bool dim = false; };
-enum { MENU_LIST, MENU_SIDE, MENU_TAB, MENU_CRUMB, MENU_DROP, MENU_VIEW };
+enum { MENU_LIST, MENU_SIDE, MENU_TAB, MENU_CRUMB, MENU_DROP, MENU_VIEW, MENU_PREVIEW };
 struct PopupMenu {
     bool open = false, background = false, pressed = false;
     float x = 0, y = 0, w = 0, h = 0, ih = 0, sepH = 0, pad = 0, vpad = 0;
@@ -261,8 +262,12 @@ struct App {
 
     // Pannello di anteprima (preview.cpp)
     bool prevOpen = false;            // scelto dall'utente (Alt+P), in impostazioni.txt
-    float prevWidth = ui::PREVIEW_W;  // larghezza scelta (px a scala 100%, in impostazioni.txt)
-    float prevW = 0;                  // larghezza mostrata: 0 se chiuso o se la finestra è troppo stretta
+    bool prevBottom = false;          // posizione scelta: sotto la lista invece che a destra (anteprima_posizione)
+    float prevWidth = ui::PREVIEW_W;  // larghezza scelta a destra (px a scala 100%, in impostazioni.txt)
+    float prevHeight = ui::PREVIEW_H; // altezza scelta in basso (px a scala 100%, anteprima_altezza)
+    // Rettangolo mostrato, dall'intestazione al fondo della finestra (layout). prevW è 0 se il
+    // pannello è chiuso o non c'è spazio, in tutte e due le posizioni
+    float prevX = 0, prevY = 0, prevW = 0, prevH = 0;
     int prevZoom = 0;                 // vista delle cartelle nell'anteprima, una per il pannello (anteprima_vista)
     // F12: ultima anteprima (lettura e decodifica sul thread, texture sul thread UI), primo caricamento di WIC
     const wchar_t* prevKind = nullptr;
@@ -308,6 +313,7 @@ struct App {
     float topH, headH, rowH, statusH, listTop, listH, sbW, padX, dateW, sizeW;
     float timesH = 0;                 // barra dei tempi (0 se spenta)
     float footH = 0;                  // sotto la lista: barra dei tempi più barra di stato
+    float footY = 0;                  // fondo della barra di stato: la finestra, o l'anteprima in basso
     float dateX = 0, sizeX = 0;       // inizio delle colonne Data e Dimensione
     float linkX = 0, linkW = 0;       // colonna Destinazione (linkW 0: non c'è, e linkX = dateX)
     float nameEnd = 0;                // fine del testo del nome (prima della colonna successiva)
@@ -320,6 +326,7 @@ struct App {
     float cellX = 0, cellW = 0, cellH = 0, thumbPx = 0;
     float sortX[4] = {};              // Elenco e Icone: etichette di ordinamento nell'intestazione (inizi e fine)
     float btnW, capW, navW, tabStripX, tabStripW; // barra del titolo e riga del percorso
+    float navMenuW = 0;                           // ˅ della posizione dell'anteprima, accanto a ◨
     float fltX = 0, fltW = 0, fltClearW = 0;      // campo del filtro, a sinistra nella barra di stato
     float fltWant = 0;                            // larghezza voluta del filtro (layout); fltW è quella che ci sta
     bool fltClearHover = false, countsDirty = false;
@@ -504,6 +511,8 @@ static void previewKeysToggle();                     // preview.cpp: Tab
 static void previewKeysFor(bool preview);            // preview.cpp: la tastiera all'anteprima (true) o alla lista
 static bool pvViewAt(int x, int y);                  // preview.cpp: il controllo della vista nella banda dell'anteprima
 static void previewToggle();                         // preview.cpp: Alt+P, pulsante, menu
+static void previewPlace(bool bottom);               // preview.cpp: a destra o in basso (menu di ˅, opzioni)
+static void menuOpenPreview(float right, float top); // menu.cpp: menu della posizione dell'anteprima, sotto ˅
 static void viewZoom(int zoom);                      // thumbs.cpp: livello di zoom della cartella corrente
 static void zoomStep(int delta);                     // thumbs.cpp: Ctrl+rotellina
 static int viewZoomOf(const std::wstring& path);     // thumbs.cpp: vista ricordata della cartella

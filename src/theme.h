@@ -60,6 +60,7 @@ constexpr float TAB_BAR = 1.35f;   // altezza della barra del titolo (schede), i
 constexpr float TAB_TOP = 5;       // spazio sopra le schede, nella barra del titolo
 constexpr float CAPTION_W = 46;    // pulsanti riduci/ingrandisci/chiudi (come in Windows)
 constexpr float NAV_W = 1.25f;     // pulsanti della riga del percorso (▯ ← → ↑ ☆ ◨), in righe
+constexpr float NAV_MENU_W = 0.75f; // ˅ accanto a ◨ (posizione dell'anteprima), in righe: metà pulsante doppio
 constexpr float DRAG_MIN = 48;     // spazio minimo per trascinare la finestra nella barra del titolo
 constexpr float PAD_X = 12;        // margine orizzontale dei contenuti
 constexpr float SCROLL_W = 10, THUMB_MIN = 24;
@@ -111,9 +112,12 @@ constexpr float LIST_ICON = 16;    // icone della shell in lista, barra laterale
 constexpr float PH_TAB_Y = 0.12f, PH_TAB_W = 0.45f, PH_TAB_H = 0.2f;
 constexpr float PH_BODY_Y = 0.25f, PH_BODY_CUT = 0.3f;
 constexpr float PH_FILE_X = 0.15f, PH_FILE_W = 0.7f;
-// Pannello di anteprima: larghezza predefinita e minima (impostazioni.txt la cambia), massima in
-// frazione della finestra; icona grande per i file senza anteprima
+// Pannello di anteprima: larghezza (a destra) e altezza (in basso) predefinite e minime
+// (impostazioni.txt le cambia), massime in frazione della finestra; in basso la lista sopra tiene
+// almeno PREVIEW_LIST_ROWS righe; icona grande per i file senza anteprima
 constexpr float PREVIEW_W = 360, PREVIEW_MIN = 220, PREVIEW_MAX = 0.5f;
+constexpr float PREVIEW_H = 280, PREVIEW_HMIN = 140;
+constexpr int PREVIEW_LIST_ROWS = 4;
 constexpr float PREVIEW_ICON = 96;
 // Vista a icone: lato del riquadro delle miniature per ogni livello di zoom, da 20% a 100% (Ctrl+rotellina;
 // Ctrl+Shift+4/3/2 portano a 40, 70 e 100%: ZOOM_SMALL, ZOOM_MEDIUM, ZOOM_LARGE in app.h); icona

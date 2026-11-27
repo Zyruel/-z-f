@@ -254,12 +254,15 @@ static void drawMarquee(bool preview) {
 // Larghezza w (pixel) per la colonna comandata dal bordo b: tra il minimo e lo spazio che lascia
 // al nome il suo minimo (Destinazione anche non più larga di Nome, linkMax). Pannelli: tra il
 // minimo e la frazione massima della finestra; l'anteprima anche entro quello che la lista lascia
-// con le colonne al minimo
+// con le colonne al minimo (in basso: con PREVIEW_LIST_ROWS righe; lì w è l'altezza)
 static void colSetWidth(int b, float w) {
     float mn, mx;
     if (b == EDGE_SIDE) {
         mn = px(ui::SIDE_MIN);
         mx = floorf(G.w * ui::SIDE_MAX);
+    } else if (edgeVertical(b)) {
+        mn = px(ui::PREVIEW_HMIN);
+        mx = std::min(floorf(G.h * ui::PREVIEW_MAX), previewRoomH());
     } else if (b == EDGE_PREVIEW) {
         mn = px(ui::PREVIEW_MIN);
         mx = std::min(floorf(G.w * ui::PREVIEW_MAX), previewRoom());
@@ -275,30 +278,33 @@ static void colSetWidth(int b, float w) {
     A.dirty = true;
 }
 
-static void colDragStart(int b, int x) {
+// Il bordo dell'anteprima in basso si trascina in verticale: lì conta y (edgeVertical)
+static void colDragStart(int b, int x, int y) {
     tipHide();
     A.colDrag = b;
-    A.colDragX0 = x;
+    A.colDragX0 = edgeVertical(b) ? y : x;
     A.colDragW0 = colShown(b);
     A.colDragSaved = colChosen(b);
     SetCapture(A.hwnd);
-    SetCursor(LoadCursorW(nullptr, IDC_SIZEWE)); // con il mouse catturato WM_SETCURSOR non arriva
+    SetCursor(LoadCursorW(nullptr, edgeVertical(b) ? IDC_SIZENS : IDC_SIZEWE)); // con il mouse catturato WM_SETCURSOR non arriva
     A.dirty = true;
 }
 
-static void colDragMove(int x) {
-    if (x == A.colDragX0) { // tornato al punto di partenza: il valore di prima, non quello ristretto
+static void colDragMove(int x, int y) {
+    int at = edgeVertical(A.colDrag) ? y : x;
+    if (at == A.colDragX0) { // tornato al punto di partenza: il valore di prima, non quello ristretto
         colChosen(A.colDrag) = A.colDragSaved;
         A.dirty = true;
         return;
     }
-    // Il bordo segue il mouse: quello della barra laterale le sta a destra, gli altri a sinistra di ciò che comandano
-    float d = (float)(A.colDragX0 - x);
+    // Il bordo segue il mouse: quello della barra laterale le sta a destra, gli altri a sinistra (o
+    // sopra) di ciò che comandano
+    float d = (float)(A.colDragX0 - at);
     colSetWidth(A.colDrag, A.colDragW0 + (A.colDrag == EDGE_SIDE ? -d : d));
 }
 
 static void panelEdgeReset(int b) { // doppio clic sul bordo di un pannello
-    colChosen(b) = b == EDGE_SIDE ? ui::SIDE_W : ui::PREVIEW_W;
+    colChosen(b) = b == EDGE_SIDE ? ui::SIDE_W : edgeVertical(b) ? ui::PREVIEW_H : ui::PREVIEW_W;
     settingsSave();
     A.dirty = true;
 }

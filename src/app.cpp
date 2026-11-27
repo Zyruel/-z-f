@@ -20,12 +20,35 @@ static float previewRoom() {
     return floorf((float)G.w - A.listX - px(ui::COL_NAME_MIN) - cols - A.padX - A.sbW);
 }
 
-// Anteprima: la larghezza scelta, al massimo PREVIEW_MAX della finestra e quello che la lista
-// lascia con le colonne al minimo; sotto PREVIEW_MIN sparisce (resta aperta: torna quando c'è spazio).
-static float previewWidth() {
+// In basso: l'altezza che lascia alla lista l'intestazione, PREVIEW_LIST_ROWS righe e le barre in fondo
+static float previewRoomH() {
+    return floorf((float)G.h - A.listTop - A.rowH * ui::PREVIEW_LIST_ROWS - A.footH);
+}
+
+// Anteprima: la misura scelta (larghezza a destra, altezza in basso), al massimo PREVIEW_MAX della
+// finestra e quello che la lista lascia (a destra con le colonne al minimo, in basso con
+// PREVIEW_LIST_ROWS righe); sotto il minimo sparisce (resta aperta: torna quando c'è spazio).
+static float previewSize() {
     if (!A.prevOpen) return 0;
+    if (A.prevBottom) {
+        float h = std::min({px(A.prevHeight), floorf(G.h * ui::PREVIEW_MAX), previewRoomH()});
+        return h >= px(ui::PREVIEW_HMIN) ? h : 0;
+    }
     float w = std::min({px(A.prevWidth), floorf(G.w * ui::PREVIEW_MAX), previewRoom()});
     return w >= px(ui::PREVIEW_MIN) ? w : 0;
+}
+
+// Punto dentro il pannello di anteprima (intestazione, corpo e banda in fondo)
+static bool inPreview(int x, int y) {
+    return A.prevW > 0 && x >= A.prevX && x < A.prevX + A.prevW && y >= A.prevY && y < A.prevY + A.prevH;
+}
+// Riga della barra in fondo alla lista di App: la barra di stato della lista principale (sopra
+// l'anteprima, se è in basso) o, nel PaneScope dell'anteprima, la sua banda in fondo alla finestra
+static float barTop() { return (g_inPane ? (float)G.h : A.footY) - A.statusH; }
+static bool inBar(int y) { return y >= barTop() && y < barTop() + A.statusH; }
+// Barra dei tempi e di stato della lista principale
+static bool inListFoot(int x, int y) {
+    return x >= A.sideW && x < A.listR && y >= A.footY - A.footH && y < A.footY;
 }
 
 static float lineLen();
@@ -109,6 +132,7 @@ static void layout() {
     A.btnW = A.tabH;
     A.capW = px(ui::CAPTION_W);
     A.navW = floorf(A.rowH * ui::NAV_W);
+    A.navMenuW = floorf(A.rowH * ui::NAV_MENU_W);
     A.tabStripX = A.btnW + px(ui::GAP_S);
     A.tabStripW = std::max(0.0f, G.w - A.capW * 3 - px(ui::DRAG_MIN) - A.tabStripX - A.rowH * ui::TAB_PLUS_W);
     A.pathY = A.tabH;
@@ -119,9 +143,24 @@ static void layout() {
     A.listTop = A.sideTop + A.headH;
     A.timesH = A.timesBar ? A.rowH : 0;
     A.footH = A.statusH + A.timesH;
-    A.listH = std::max(0.0f, (float)G.h - A.listTop - A.footH);
-    A.prevW = previewWidth();
-    A.listR = G.w - A.prevW;
+    // Anteprima a destra: dall'intestazione al fondo, la lista alla sua sinistra. In basso: sotto le
+    // barre della lista, larga quanto la lista, fino al fondo
+    float ps = previewSize();
+    if (A.prevBottom) {
+        A.prevX = A.listX;
+        A.prevW = ps > 0 ? (float)G.w - A.listX : 0;
+        A.prevH = ps;
+        A.prevY = (float)G.h - ps;
+        A.listR = (float)G.w;
+    } else {
+        A.prevW = ps;
+        A.prevX = (float)G.w - ps;
+        A.prevY = A.sideTop;
+        A.prevH = ps > 0 ? (float)G.h - A.sideTop : 0;
+        A.listR = A.prevX;
+    }
+    A.footY = A.prevBottom && A.prevW > 0 ? A.prevY : (float)G.h;
+    A.listH = std::max(0.0f, A.footY - A.listTop - A.footH);
     // Filtro: all'inizio della barra di stato, allineato alla lista. Questa è la larghezza voluta:
     // quella mostrata (fltW) la decide il disegno, che con la lista stretta la cede a contatori e vista
     A.fltX = A.listX + px(ui::GAP_S);
@@ -139,21 +178,31 @@ static float colBorderX(int b) { return (b == 0 ? A.dateX : b == 1 ? A.sizeX : A
 // laterale, anteprima): cursore ↔, Esc torna a prima, si salva al rilascio (listmouse.cpp).
 enum { EDGE_SIDE = 3, EDGE_PREVIEW = 4 };
 static float& colChosen(int b) {
-    return b == 0 ? A.colDate : b == 1 ? A.colSize : b == 2 ? A.colLink : b == EDGE_SIDE ? A.sideWidth : A.prevWidth;
+    return b == 0 ? A.colDate : b == 1 ? A.colSize : b == 2 ? A.colLink : b == EDGE_SIDE ? A.sideWidth
+         : A.prevBottom ? A.prevHeight : A.prevWidth;
 }
 static float colShown(int b) {
-    return b == 0 ? A.dateW : b == 1 ? A.sizeW : b == 2 ? A.linkW : b == EDGE_SIDE ? A.sideW : A.prevW;
+    return b == 0 ? A.dateW : b == 1 ? A.sizeW : b == 2 ? A.linkW : b == EDGE_SIDE ? A.sideW
+         : A.prevBottom ? A.prevH : A.prevW;
 }
-// Bordo di un pannello sotto il mouse: EDGE_SIDE, EDGE_PREVIEW o -1. Tutti e due per tutta
-// l'altezza. Barra laterale: COL_GRIP per lato (la lista ha GAP_S di margine). Anteprima: COL_GRIP
-// verso il pannello, solo GAP_XS verso la lista per non prendere la barra di scorrimento.
+// Bordo di un pannello sotto il mouse: EDGE_SIDE, EDGE_PREVIEW o -1. Barra laterale per tutta
+// l'altezza: COL_GRIP per lato (la lista ha GAP_S di margine). Anteprima per tutto il suo lato:
+// COL_GRIP verso il pannello, solo GAP_XS verso la lista per non prendere la barra di scorrimento
+// (in basso, quella orizzontale di Elenco).
 static int panelEdgeAt(int x, int y) {
     if (y < A.sideTop) return -1;
-    float grip = px(ui::COL_GRIP);
+    float grip = px(ui::COL_GRIP), in = px(ui::GAP_XS);
     if (A.sideW > 0 && x >= A.sideW - grip && x < A.sideW + grip) return EDGE_SIDE;
-    if (A.prevW > 0 && x >= A.listR - px(ui::GAP_XS) && x < A.listR + grip) return EDGE_PREVIEW;
+    if (A.prevW <= 0) return -1;
+    if (A.prevBottom) {
+        if (x >= A.prevX && y >= A.prevY - in && y < A.prevY + grip) return EDGE_PREVIEW;
+    } else if (x >= A.prevX - in && x < A.prevX + grip) {
+        return EDGE_PREVIEW;
+    }
     return -1;
 }
+// Il bordo b si trascina in verticale (quello dell'anteprima in basso) e non in orizzontale
+static bool edgeVertical(int b) { return b == EDGE_PREVIEW && A.prevBottom; }
 static int colBorderAt(int x, int y) {
     if (A.zoom != ZOOM_DETAILS) return -1; // in Elenco e Icone l'intestazione ha solo le etichette per ordinare
     if (y < A.sideTop || y >= A.listTop || x < A.listX || x >= A.listR - A.sbW) return -1;

@@ -201,6 +201,7 @@ static std::wstring shortcutsOf(int cmd) {
 
 enum OptId { OPT_NONE = -1, OPT_CLOSE = 1, OPT_FONT_MINUS, OPT_FONT_PLUS, OPT_FACE_PREV, OPT_FACE_NEXT,
              OPT_ANIM, OPT_SIDEBAR, OPT_DEFAULT, OPT_FOLDER, OPT_PREVIEW, OPT_MONO_PREV, OPT_MONO_NEXT,
+             OPT_PREVIEW_POS_PREV, OPT_PREVIEW_POS_NEXT,
              OPT_UNDO_PERSIST, OPT_SHELL_MENU, OPT_DIR_SIZES, OPT_DIALOGS, OPT_TIMES,
              OPT_REOPEN, OPT_UPDATES, OPT_BETA, OPT_UPD_ACT, OPT_SEPARATE, OPT_VERSION };
 
@@ -329,6 +330,7 @@ static void optionsExec(int id) {
     case OPT_ANIM:       A.animations = !A.animations; settingsSave(); break;
     case OPT_SIDEBAR:    sidebarToggle(); break;
     case OPT_PREVIEW:    previewToggle(); break;
+    case OPT_PREVIEW_POS_PREV: case OPT_PREVIEW_POS_NEXT: previewPlace(!A.prevBottom); break; // due posizioni: ‹ e › si alternano
     case OPT_MONO_PREV:  optionsMonoFace(-1); break;
     case OPT_MONO_NEXT:  optionsMonoFace(1); break;
     case OPT_DEFAULT:    toggleDefault(); break; // lo stato si rilegge all'esito (WM_APP_DEFAULT)
@@ -370,7 +372,8 @@ static bool optionsMouseDown(int x, int y, bool again = false) {
     if (!OP.open) return false;
     if (x < OP.x || x >= OP.x + OP.w || y < OP.y || y >= OP.y + OP.h) { optionsClose(); return true; } // clic fuori
     int id = optionsHit(x, y);
-    if (again && (id == OPT_VERSION || id == OPT_UPD_ACT)) return true;
+    // La posizione dell'anteprima ha due valori: il secondo clic la riporterebbe dov'era
+    if (again && (id == OPT_VERSION || id == OPT_UPD_ACT || id == OPT_PREVIEW_POS_PREV || id == OPT_PREVIEW_POS_NEXT)) return true;
     if (id != OPT_NONE) optionsExec(id);
     return true;
 }
@@ -547,8 +550,8 @@ static void drawOptions(double dt) {
         button(bx + bw + vw, cy, bw, L"+", OPT_FONT_PLUS);
         cy += rowH;
     }
-    // Selettore di un carattere: "‹  Segoe UI  ›"
-    auto faceRow = [&](const wchar_t* t, const std::wstring& face, int prevId, int nextId) {
+    // Selettore tra alcuni valori: "‹  Segoe UI  ›" (caratteri, posizione dell'anteprima)
+    auto pickRow = [&](const wchar_t* t, const std::wstring& face, int prevId, int nextId) {
         label(t, nullptr);
         float bw = rowH, vw = px(ui::OPT_FACE_W);
         float bx = right - bw * 2 - vw;
@@ -560,7 +563,7 @@ static void drawOptions(double dt) {
         button(bx + bw + vw, cy, bw, L"\x203A", nextId);
         cy += rowH;
     };
-    faceRow(L"Carattere", F.face, OPT_FACE_PREV, OPT_FACE_NEXT);
+    pickRow(L"Carattere", F.face, OPT_FACE_PREV, OPT_FACE_NEXT);
     label(L"Animazioni", nullptr);
     sw(A.animations, OP.knobAnim, OPT_ANIM);
     cy += rowH;
@@ -570,7 +573,8 @@ static void drawOptions(double dt) {
     label(L"Anteprima", nullptr);
     sw(A.prevOpen, OP.knobPreview, OPT_PREVIEW);
     cy += rowH;
-    faceRow(L"Carattere dell'anteprima", FM.face, OPT_MONO_PREV, OPT_MONO_NEXT);
+    pickRow(L"Posizione dell'anteprima", A.prevBottom ? L"In basso" : L"A destra", OPT_PREVIEW_POS_PREV, OPT_PREVIEW_POS_NEXT);
+    pickRow(L"Carattere dell'anteprima", FM.face, OPT_MONO_PREV, OPT_MONO_NEXT);
     label(L"Barra dei tempi", L"Sopra la barra di stato: lettura, ordinamento, frame, avvio. F12 per tutti i dettagli");
     sw(A.timesBar, OP.knobTimes, OPT_TIMES);
     cy += rowH * 2 - px(ui::GAP_S);

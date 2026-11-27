@@ -734,7 +734,7 @@ static void dragTick() {
         bool scrolled = false;
         {
             // Sopra l'anteprima di una cartella scorre quella (nel suo PaneScope), altrimenti la lista
-            PaneScope ps(x >= A.listR && PV.paneShown ? pvPane() : nullptr);
+            PaneScope ps(inPreview(x, y) && PV.paneShown ? pvPane() : nullptr);
             if (x >= A.listX && x < itemsRight() && y >= A.listTop - A.headH && y < A.listTop + A.listH && maxScroll() > 0) {
                 // Vicino ai bordi lungo l'asse (in alto anche sull'intestazione; in Elenco a sinistra e a destra)
                 int dir = listView() ? (x < A.listX + A.rowH ? -1 : x >= itemsRight() - A.rowH ? 1 : 0)

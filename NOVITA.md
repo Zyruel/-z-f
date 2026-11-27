@@ -25,6 +25,12 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 - **Filtro nell'anteprima:** in basso a sinistra del pannello, come nella barra di stato della
   lista. Con la tastiera nell'anteprima si scrive lì, e filtra solo le sue voci.
 - L'anteprima di una cartella si aggiorna da sola quando la cartella cambia (sulle unità locali).
+- **L'anteprima a destra o in basso:** dal nuovo ˅ accanto a ◨ (un piccolo menu con le due
+  posizioni) o nelle opzioni ("Posizione dell'anteprima"); ◨ continua ad aprirla e chiuderla dove
+  sta, e diventa ⬓ quando è in basso. In basso sta sotto la barra di stato della
+  lista, larga quanto la lista, con la sua altezza (il bordo si trascina in verticale, doppio
+  clic per quella predefinita); una cartella lì mostra anche la colonna Data. Ognuna delle due
+  posizioni ricorda la sua misura.
 
 ## 1.0.0-beta.6 (novembre 2026)
 

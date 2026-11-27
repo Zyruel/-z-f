@@ -1,11 +1,12 @@
 // [z]f — cornice della finestra disegnata da [z]f: le schede stanno nella barra del titolo.
 //
 //   [⚙] [scheda][scheda][+]   ·····trascina·····   [–][□][×]
-//   [▯][←][→][↑]  Questo PC › Disco locale (C:) › Users           [☆][◨]
+//   [▯][←][→][↑]  Questo PC › Disco locale (C:) › Users        [☆][˅][◨]
 //
 // La barra del titolo è della finestra (schede, opzioni, pulsanti di sistema); la riga del percorso
 // di quello che si guarda (navigazione, preferito, pannelli). ▯ e ◨ sono gemelli: stessa riga,
-// ognuno sopra il bordo del pannello che apre.
+// ognuno sopra il bordo del pannello che apre. ◨ apre e chiude l'anteprima dove sta; ˅ accanto,
+// come la metà di un pulsante doppio, apre il menu della posizione (a destra o in basso).
 //
 // L'area client arriva fino al bordo superiore (WM_NCCALCSIZE); WM_NCHITTEST dice a Windows cos'è
 // ogni punto: bordo superiore per ridimensionare, spazio vuoto per trascinare (doppio clic:
@@ -16,7 +17,7 @@
 // La vista (Dettagli, Elenco, Icone) non è qui: sta nella barra di stato, accanto ai contatori
 enum ChromeId { CH_NONE = -1, CH_OPTIONS = 1, CH_MIN, CH_MAX, CH_CLOSE, // barra del titolo
                CH_SIDEBAR, CH_BACK, CH_FWD, CH_UP,                      // riga del percorso, a sinistra
-               CH_STAR, CH_PREVIEW };                                   // a destra: l'anteprima è l'ultimo
+               CH_STAR, CH_PREVIEW_POS, CH_PREVIEW };                   // a destra: l'anteprima è l'ultimo
 
 typedef int(WINAPI* PFN_GetSystemMetricsForDpi)(int, UINT);
 static PFN_GetSystemMetricsForDpi pGetSystemMetricsForDpi;
@@ -71,9 +72,14 @@ static bool chromeRect(int id, float& x, float& y, float& w, float& h) {
     case CH_SIDEBAR: case CH_BACK: case CH_FWD: case CH_UP: // a sinistra: ▯ ← → ↑
         x = px(ui::GAP_S) + (id - CH_SIDEBAR) * A.navW; y = A.pathY + floorf((A.topH - A.rowH) * 0.5f);
         w = A.navW; h = A.rowH; return true;
-    case CH_STAR: case CH_PREVIEW: // a destra: ☆ ◨
-        x = W - px(ui::GAP_S) - A.navW * (CH_PREVIEW + 1 - id); y = A.pathY + floorf((A.topH - A.rowH) * 0.5f);
-        w = A.navW; h = A.rowH; return true;
+    case CH_STAR: case CH_PREVIEW_POS: case CH_PREVIEW: // a destra: ☆ ˅ ◨ (˅ più stretto)
+        y = A.pathY + floorf((A.topH - A.rowH) * 0.5f);
+        h = A.rowH;
+        w = id == CH_PREVIEW_POS ? A.navMenuW : A.navW;
+        x = W - px(ui::GAP_S) - A.navW;
+        if (id != CH_PREVIEW) x -= A.navMenuW;
+        if (id == CH_STAR) x -= A.navW;
+        return true;
     }
     return false;
 }
@@ -120,6 +126,12 @@ static void chromeExec(int id) {
     case CH_UP:      goUp(); break;
     case CH_STAR:    favToggle(A.cur->path); break;
     case CH_PREVIEW: previewToggle(); break;
+    case CH_PREVIEW_POS: { // sotto il pulsante, allineato al suo bordo destro
+        float x, y, w, h;
+        chromeRect(id, x, y, w, h);
+        menuOpenPreview(x + w, y + h);
+        break;
+    }
     }
     A.dirty = true;
 }
@@ -220,6 +232,7 @@ static void drawChromeButton(int id, bool toolbar) {
     float a = en ? hoverAlpha(CH.fade, id) : 0;
     bool closeBtn = id == CH_CLOSE;
     if (CH.pressed == id && en) a = 1;
+    if (id == CH_PREVIEW_POS && A.menu.open && A.menu.kind == MENU_PREVIEW) a = 1; // col suo menu aperto, come "›" nel percorso
     if (a > 0) {
         bool caption = id == CH_MIN || id == CH_MAX || id == CH_CLOSE; // pulsanti di sistema: squadrati e a filo, come in Windows
         uint32_t hc = fadeA(closeBtn ? C_CLOSE : (toolbar ? C_HOVER : C_HOVER_STRONG), a);
@@ -243,7 +256,11 @@ static void drawChromeButton(int id, bool toolbar) {
         if (fav) col = C_ACCENT;
         break;
     }
-    case CH_PREVIEW: cp = IC_PREVIEW; if (A.prevOpen) col = C_TEXT; break; // aperta: come ▯ con la barra laterale
+    case CH_PREVIEW: // il lato dove sta; aperta: come ▯ con la barra laterale
+        cp = A.prevBottom ? IC_PREVIEW_BOTTOM : IC_PREVIEW;
+        if (A.prevOpen) col = C_TEXT;
+        break;
+    case CH_PREVIEW_POS: cp = IC_CHEVRON_DOWN; break;
     }
     drawUiIcon(x, y, w, h, cp, col);
     if (id == CH_OPTIONS && updBadge()) { // versione nuova pronta: un pallino su ⚙, le opzioni dicono "Aggiorna"
@@ -266,5 +283,6 @@ static void drawChromeToolbar() {
     drawChromeButton(CH_FWD, true);
     drawChromeButton(CH_UP, true);
     drawChromeButton(CH_STAR, true);
+    drawChromeButton(CH_PREVIEW_POS, true);
     drawChromeButton(CH_PREVIEW, true);
 }

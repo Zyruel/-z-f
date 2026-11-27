@@ -195,7 +195,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
 
 // × del campo del filtro nella barra di stato (c'è solo mentre si filtra: render la misura)
 static bool fltClearAt(int x, int y) {
-    return A.fltClearW > 0 && y >= G.h - A.statusH && x >= A.fltX + A.fltW - A.fltClearW && x < A.fltX + A.fltW;
+    return A.fltClearW > 0 && inBar(y) && x >= A.fltX + A.fltW - A.fltClearW && x < A.fltX + A.fltW;
 }
 
 // Rotellina per gli elenchi che scorrono a righe intere (menu, "Vai a"). I touchpad di
@@ -279,8 +279,9 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             POINT c;
             GetCursorPos(&c);
             ScreenToClient(hwnd, &c);
-            if (A.colDrag >= 0 || colBorderAt(c.x, c.y) >= 0 || panelEdgeAt(c.x, c.y) >= 0) {
-                SetCursor(LoadCursorW(nullptr, IDC_SIZEWE));
+            int pe = A.colDrag >= 0 ? A.colDrag : panelEdgeAt(c.x, c.y);
+            if (pe >= 0 || colBorderAt(c.x, c.y) >= 0) {
+                SetCursor(LoadCursorW(nullptr, edgeVertical(pe) ? IDC_SIZENS : IDC_SIZEWE)); // ↕ per l'anteprima in basso
                 return TRUE;
             }
             // Destinazione di un collegamento: la manina dice che è un collegamento da seguire
@@ -508,7 +509,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         // Elenco, Icone da 20 a 100%), un livello per scatto intero. Il resto della finestra non cambia
         // Sopra l'anteprima di una cartella (o sulla sua vista) è la vista dell'anteprima
         if ((GET_KEYSTATE_WPARAM(wp) & MK_CONTROL) || viewCtlAt(c.x, c.y) || pvViewAt(c.x, c.y)) {
-            bool pv = pvViewAt(c.x, c.y) || (c.x >= A.listR && c.y >= A.sideTop && PV.paneShown);
+            bool pv = pvViewAt(c.x, c.y) || (inPreview(c.x, c.y) && PV.paneShown);
             A.wheelAcc += GET_WHEEL_DELTA_WPARAM(wp);
             while (A.wheelAcc >= WHEEL_DELTA) { A.wheelAcc -= WHEEL_DELTA; pv ? previewZoom(A.prevZoom + 1) : zoomStep(1); }
             while (A.wheelAcc <= -WHEEL_DELTA) { A.wheelAcc += WHEEL_DELTA; pv ? previewZoom(A.prevZoom - 1) : zoomStep(-1); }
@@ -536,7 +537,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             TrackMouseEvent(&tme);
             A.trackingMouse = true;
         }
-        if (A.colDrag >= 0) { colDragMove(x); return 0; }
+        if (A.colDrag >= 0) { colDragMove(x, y); return 0; }
         if (favMouseMove(x, y)) return 0;
         if (gotoMouseMove(x, y)) { tipMouseMove(x, y); return 0; }
         if (optionsMouseMove(x, y)) return 0;
@@ -624,18 +625,18 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             A.dirty = true;
             return 0;
         }
-        if (ListPane* p = pvPane(); p && y >= G.h - A.statusH) { // filtro dell'anteprima: × o clic nel campo
+        if (ListPane* p = pvPane(); p && inPreview(x, y)) { // filtro dell'anteprima: × o clic nel campo
             PaneScope ps(p);
             if (fltClearAt(x, y)) { A.filter.clear(); rebuildView(true); }
-            if (A.fltW > 0 && x >= A.fltX && x < A.fltX + A.fltW) {
+            if (A.fltW > 0 && inBar(y) && x >= A.fltX && x < A.fltX + A.fltW) {
                 PV.keys = true; // si scrive lì
                 A.dirty = true;
                 return 0;
             }
         }
-        if (A.fltW > 0 && y >= G.h - A.statusH && x >= A.fltX && x < A.fltX + A.fltW) PV.keys = false; // campo del filtro della lista
-        if (viewCtlAt(x, y)) { menuOpenView(A.viewX + A.viewW, G.h - A.statusH); return 0; } // vista: menu sopra il controllo
-        if (pvViewAt(x, y)) { PaneScope ps(pvPane()); menuOpenView(PV.viewX + PV.viewW, G.h - A.statusH); return 0; } // vista dell'anteprima
+        if (A.fltW > 0 && inBar(y) && x >= A.fltX && x < A.fltX + A.fltW) PV.keys = false; // campo del filtro della lista
+        if (viewCtlAt(x, y)) { menuOpenView(A.viewX + A.viewW, barTop()); return 0; } // vista: menu sopra il controllo
+        if (pvViewAt(x, y)) { PaneScope ps(pvPane()); menuOpenView(PV.viewX + PV.viewW, barTop()); return 0; } // vista dell'anteprima
         if (y < A.pathY) { // barra delle schede
             bool closeHit, plusHit;
             int t = tabHit(x, y, &closeHit, &plusHit);
@@ -648,7 +649,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             if (!crumbClick(x, y)) gotoOpenHere();
             return 0;
         }
-        if (int pe = panelEdgeAt(x, y); pe >= 0) { colDragStart(pe, x); return 0; } // bordo di un pannello: larghezza
+        if (int pe = panelEdgeAt(x, y); pe >= 0) { colDragStart(pe, x, y); return 0; } // bordo di un pannello: larghezza (altezza)
         if (x < A.sideW && favMouseDown(x, y)) return 0; // preferito: cestino, o clic che vale al rilascio (si può trascinare)
         if (x < A.sideW) { // barra laterale
             int si = sideHit(x, y);
@@ -662,12 +663,12 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         // Le voci dell'anteprima di una cartella si usano come quelle della lista: lo stesso codice qui
         // sotto, nel suo PaneScope. Il clic dà la tastiera alla lista o all'anteprima
         ListPane* pp = pvPaneAt(x, y);
-        if (x >= A.listR && !pp) return 0; // nell'anteprima, fuori dalle voci di una cartella, niente da cliccare
+        if (inPreview(x, y) && !pp) return 0; // nell'anteprima, fuori dalle voci di una cartella, niente da cliccare
         PV.keys = pp != nullptr;
-        if (!pp && y >= G.h - A.footH) return 0; // barra dei tempi e di stato: niente da cliccare oltre la × del filtro
+        if (!pp && inListFoot(x, y)) return 0; // barra dei tempi e di stato: niente da cliccare oltre la × del filtro
         if (!pp && y < A.listTop) { // intestazione: bordo → larghezza della colonna; altrove → ordinamento
             int b = colBorderAt(x, y);
-            if (b >= 0) { colDragStart(b, x); return 0; }
+            if (b >= 0) { colDragStart(b, x, y); return 0; }
             int col = colAt(x);
             if (col < 0) return 0; // Elenco e Icone: fuori dalle etichette
             if (col == A.sortCol) A.sortDesc = !A.sortDesc;
@@ -780,7 +781,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (gotoDblClk(x, y, (wp & MK_CONTROL) != 0)) return 0;
         int chId = chromeHit(x, y);
         bool nav = chId >= CH_BACK && chId <= CH_UP;
-        // ⚙ ▯ ☆ ◨: il secondo clic non riapre né richiude. Prima delle opzioni: su ⚙, appena
+        // ⚙ ▯ ☆ ˅ ◨: il secondo clic non riapre né richiude. Prima delle opzioni: su ⚙, appena
         // aperte, sarebbe un clic fuori dal pannello e le richiuderebbe
         if (chId != CH_NONE && !nav) return 0;
         if (optionsMouseDown(x, y, true)) return 0; // nel pannello il secondo clic conta come un clic
