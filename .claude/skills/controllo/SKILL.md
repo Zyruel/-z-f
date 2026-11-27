@@ -30,6 +30,12 @@ lì, e se i due documenti sono cambiati valgono loro (e la lista va aggiornata).
 Con pochi file (fino a 3–4 moduli) il controllo lo fa la sessione stessa; con di più si dividono
 i file in fette come per `tutto`.
 
+**Quando:** sul codice che va nel commit, cioè dopo l'ultima modifica. Se dopo il controllo si
+cambia ancora codice (una richiesta in più di Zyruel, una correzione), prima del commit si
+ricontrollano i file toccati dopo, con la sezione "Interazione" sulle cose nuove. Nella
+1.0.0-beta.7 il controllo delle due sessioni è venuto prima delle ultime richieste (filtro
+dell'anteprima, menu ˅), e due dei problemi trovati dal rilascio erano proprio lì.
+
 ## 2. Con `tutto`: quattro subagenti in parallelo
 
 Fette (ogni nome è `src/<nome>.cpp`, salvo dove c'è l'estensione):

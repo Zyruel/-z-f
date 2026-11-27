@@ -51,6 +51,10 @@ può (con il controllo dello schermo); altrimenti gli si chiede uno screenshot. 
   Get-FileHash): per copiare e verificare gli exe si usa Bash (`cp`, `sha1sum`). Dalla shell Bash
   i backslash nei testi passati a script (heredoc, sed) possono dimezzarsi o diventare caratteri
   di controllo: per scrivere percorsi nei file .md si usa lo strumento Edit.
+- **Python e la console:** `python -I -X utf8` per il codice in linea che stampa testo non ASCII
+  (nomi di file, trascrizioni): la console di Windows non è UTF-8 e con `-I` le variabili
+  `PYTHONUTF8` e `PYTHONIOENCODING` sono ignorate (4 errori `UnicodeEncodeError` nella
+  1.0.0-beta.7). Gli script di `prove\` lo fanno da soli (`sys.stdout.reconfigure`).
 - **Fine riga: non si controllano né si rimettono.** Nel repository i file sono LF e
   `core.autocrlf=true` li converte in un senso e nell'altro; nella copia di lavoro CRLF e LF
   convivono (22 e 18 file in `src\` alla 1.0.0-beta.6) e git non vede differenze, MSVC nemmeno.

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Hook PreToolUse di Claude Code per Bash, PowerShell e due strumenti del controllo dello schermo
 # (request_access, open_application; .claude/settings.json): ferma prima che
-# partano i comandi che infrangono le regole di CLAUDE.md. Uscita 2 = comando bloccato, e il motivo
+# partano i comandi che infrangono le regole di CLAUDE.md (finestre chiuse per nome, registro,
+# git, modifiche ai file con Python in linea, nomi per lo schermo). Uscita 2 = comando bloccato, e il motivo
 # arriva a Claude su stderr. Le regole sono scritte lì; qui solo il controllo, perché a memoria
 # venivano dimenticate (finestre chiuse per nome: 20 volte nelle sessioni della 1.0.0-beta.4).
 # Prova: bash .claude/hooks/regole.sh --prova
@@ -46,6 +47,13 @@ if [ "$1" = "--prova" ]; then
 0|git commit -q -F - <<'EOF'\nMai --no-verify ne' push su main\nEOF
 0|grep -n \"taskkill /IM\" CLAUDE.md
 0|cmd //c '.\\build.bat dev'
+2|cd src && python - <<'EOF'\np='tooltip.cpp'\ns=open(p,encoding='utf-8').read()\nopen(p,'w',encoding='utf-8',newline='').write(s)\nEOF
+2|python -I -X utf8 -c \"import pathlib; pathlib.Path('NOVITA.md').write_text('x')\"
+2|python3 -c \"s=open('src/app.cpp').read(); open('src/app.cpp', mode=\\\"w\\\").write(s)\"
+0|python -I -X utf8 -c \"print(open('NOVITA.md',encoding='utf-8').read()[:100])\"
+0|python - <<'EOF'\nimport json\nopen('dati.json','w').write('{}')\nEOF
+0|python -I prove/rotella.py 1234 2
+0|python -I -X utf8 .claude/skills/bilancio/raccogli.py 1.0.0-beta.7
 CASI
     # Controllo dello schermo: JSON intero (atteso|strumento|input)
     while IFS='|' read -r atteso t i; do
@@ -129,5 +137,14 @@ chk "${G}push${N}[[:space:]:+${Q}\\]main([[:space:]${Q}\\;&|]|$)" \
     "pusha su main. main si aggiorna solo con la pull request di /rilascio, che lancia Zyruel (CLAUDE.md, \"Repository\")."
 chk "${G}push${N}[[:space:]](--force([[:space:]${Q}\\;&|=]|$)|-[a-z]*f[a-z]*([[:space:]]|$))" \
     "forza il push. Su origin non si riscrive la storia: chiedilo a Zyruel."
+
+# Sorgenti e documenti modificati con Python in linea (python -c, python - <<): la regola di Edit
+# scritta in CLAUDE.md non è bastata (34 script così in una sessione della 1.0.0-beta.7, con i
+# backslash dei .md rovinati). Servono tre cose insieme: codice in linea, un file aperto in
+# scrittura, un file di src/ o un .md.
+PY="${A}(python3?|py)([.]exe)?([[:space:]]${N})?[[:space:]](-c|-)([[:space:]]|$)"
+W="(open[(][^)]*,[[:space:]]*(mode[[:space:]]*=[[:space:]]*)?[\\]*[${Q}][wa]|write_(text|bytes)[(])"
+F="([.](cpp|h|hlsl|md)([^[:alnum:]]|$)|src[/\\])"
+[[ $cmd =~ $PY && $cmd =~ $W && $cmd =~ $F ]] && blocca "modifica sorgenti o documenti con uno script Python in linea. Le modifiche ai file si fanno con lo strumento Edit (CLAUDE.md, \"Convenzioni del codice\"). Per un cambio meccanico uguale su molti file: uno script in un file dello scratchpad, con un assert per ogni sostituzione."
 
 exit 0
