@@ -274,6 +274,25 @@ condivise sono in `app.h`.
   spazio di allineamento della voce; la data di creazione porta la voce da 40 a 48 byte.
   Le estensioni nascoste accorciano solo il testo disegnato (`shownLen`): nomi, filtro e percorsi
   restano interi.
+- **Filtro per colonna** (`columns.cpp`): `colBucket(col, voce, ctx)` dice in quale valore di una
+  colonna sta una voce, con una chiave che non dipende dalla lettura (un periodo, un anno, una
+  fascia, un bit d'attributo; per Tipo l'estensione come testo, puntata dentro `Listing::lower`).
+  Il filtro (`ColFilter`: le chiavi scelte per colonna, le estensioni in ordine) è della lista come
+  quello per nome: sta in `App`, si scambia con `TabState` (`tabSwap`) e con `ListPane`
+  (`paneSwap`), si azzera in `onListing` e resta con le ricariche, che passano da `applyFilter`.
+  `filterInto` applica il filtro per nome e poi quelli delle colonne (`colMatchInit` una volta,
+  `colMatches` per voce: le chiavi sotto 64 come bit, le estensioni con la ricerca binaria);
+  saltando una colonna dà le voci da contare nel suo menu (`colValues`), così i numeri non cambiano
+  mentre si spunta. `ColCtx` prepara una volta per applicazione ciò che serve oltre alla voce: gli
+  inizi dei periodi in ora locale come FILETIME UTC (`TzSpecificLocalTimeToSystemTime`, e una
+  tabella degli inizi d'anno dal 1980; prima si calcola voce per voce) e i totali delle cartelle già
+  contati (`dirSizeTotals`). Con il filtro per Dimensione un totale che arriva può cambiare la vista:
+  `onDirSize` arma un timer (al più una volta ogni `WATCH_BATCH`) e `refilterQuiet` rifiltra senza
+  far scorrere la lista. I gruppi (fase 3) useranno la stessa `colBucket`.
+  *Perché le chiavi e non le etichette:* il confronto per voce resta un bit o un `wcscmp`, e il
+  filtro sopravvive a una rilettura della stessa cartella.
+  *Perché il menu resta aperto:* `MenuItem::keep` (voce a spunta): `menuExec` cambia la spunta e
+  non chiude; il doppio clic su un menu aperto conta come un clic in più (`WM_LBUTTONDBLCLK`).
 - **Colonne ridimensionabili** (`listmouse.cpp`): il doppio clic su un bordo adatta la colonna
   senza formattare ogni voce, perché le date hanno tutte la stessa forma, per le dimensioni basta
   il valore più grande di ogni unità, e Tipo e Attributi si misurano una volta per estensione e
@@ -303,6 +322,13 @@ condivise sono in `app.h`.
   0,49 ms (peggiore 0,64); adattamento di Tipo al contenuto 0,22 ms;
 - rettangolo al massimo 0,01 ms a movimento con 30.734 voci (WinSxS); adattamento di una colonna
   0,11 ms sulle stesse voci;
+- filtro per colonna su WinSxS (30.734 voci, 30.732 cartelle), MSVC, prima apertura del menu con i
+  conteggi e filtro applicato (F12: "menu del filtro di una colonna", "filtro"): Tipo 0,3 e
+  0,1 ms; Data modifica 0,7 e 0,5 ms; Dimensione, con i totali delle cartelle, 8,0 e 6,6 ms (era
+  11,9 e 11,1 prima che `dsEachDir` continuasse l'hash della cartella invece di costruire ogni
+  percorso: il resto sono le ricerche nella cache dei totali). Con il filtro per Dimensione, mentre
+  si contano le cartelle la vista si rifiltra al più ogni 50 ms: fino a circa il 13% del thread UI
+  su una cartella come WinSxS;
 - aggiornamento in tempo reale: circa 54 ms dalla notifica allo schermo; con 1000 file spostati in
   12 s, 272 ricariche e nessun file perso.
 

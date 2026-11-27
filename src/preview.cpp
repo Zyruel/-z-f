@@ -910,7 +910,8 @@ static void pvPaneSet(Listing* l, bool same, bool partial) {
     p.cur = l;
     p.order.swap(l->order);
     std::vector<uint32_t>().swap(l->order); // come la lista (listReload): non resta l'ordine della cartella di prima
-    p.filter.clear(); // il filtro è della cartella mostrata
+    p.filter.clear(); // i filtri sono della cartella mostrata
+    p.colFilter.clear();
     p.view = p.order;
     p.counts.dirty = true; // l può stare all'indirizzo del Listing di prima
     p.selFlags.assign(l->e.size(), 0);

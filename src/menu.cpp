@@ -182,6 +182,63 @@ static void menuOpenHeader(float cx, float cy) {
     menuPlace(cx, cy, false, t0);
 }
 
+// Menu del filtro di una colonna: le spunte vengono dal filtro (A.colFilter), "Tutti" quando la
+// colonna non filtra. Si rifanno dopo ogni clic: il menu resta aperto (voci keep)
+static void menuFilterChecks() {
+    PopupMenu& m = A.menu;
+    int c = m.target;
+    for (size_t i = 0; i < m.items.size(); i++)
+        m.items[i].icon = (i == 0 ? !A.colFilter.on(c) : colFilterHas(A.colFilter, c, m.vals[i])) ? 3 : 0;
+}
+
+// Imbuto accanto al titolo della colonna c: "Tutti", poi i valori presenti col numero di voci (al posto
+// della scorciatoia), contate con gli altri filtri ma non con quello della colonna, così non cambiano
+// mentre si spunta. Sotto l'intestazione, allineato all'imbuto (x)
+static void menuOpenFilter(int c, float x) {
+    double t0 = nowMs();
+    if (!A.cur || !colFilterable(c)) return;
+    PopupMenu& m = A.menu;
+    m.items.clear();
+    m.labels.clear();
+    m.paths.clear();
+    m.vals.clear();
+    m.kind = MENU_FILTER;
+    m.target = c;
+    std::vector<uint32_t> vis;
+    filterInto(vis, c);
+    std::vector<ColCount> vals;
+    colValues(c, A.cur, vis, A.colFilter, vals);
+    auto add = [&](std::wstring label, int n, ColValue v) {
+        m.labels.push_back(std::move(label));
+        const wchar_t* l = m.labels.back().c_str();
+        m.labels.push_back(withThousands((uint64_t)n));
+        menuAdd(l, M_COLFILTER, true, m.labels.back().c_str());
+        m.items.back().keep = true;
+        m.vals.push_back(std::move(v));
+    };
+    add(L"Tutti", (int)vis.size(), ColValue{});
+    for (ColCount& v : vals) {
+        std::wstring label = colValueLabel(c, v.v); // prima: l'ordine degli argomenti non è garantito, e v.v si sposta
+        add(std::move(label), v.n, std::move(v.v));
+    }
+    menuFilterChecks();
+    menuPlace(x, A.listTop, false, t0);
+    A.colFltMenuMs = nowMs() - t0;
+    if (A.colFltMenuMs > ui::LOG_MSG) hitchLog("menu del filtro lento", (int)A.cur->e.size(), A.colFltMenuMs);
+}
+
+// Clic (o Invio) su una voce del menu del filtro: "Tutti" toglie il filtro della colonna, un valore
+// si aggiunge o si toglie. La lista cambia subito, il menu resta
+static void menuFilterToggle(int i) {
+    PopupMenu& m = A.menu;
+    int c = m.target;
+    if (i == 0) A.colFilter.clear(c);
+    else colFilterFlip(A.colFilter, c, m.vals[i]);
+    menuFilterChecks();
+    rebuildView(true);
+    A.dirty = true;
+}
+
 // cx, cy: coordinate client; screenPt: per il menu della shell; fromKeyboard: evidenzia la prima voce
 static void menuOpen(float cx, float cy, POINT screenPt, bool background, bool fromKeyboard) {
     double t0 = nowMs();
@@ -342,7 +399,12 @@ static void menuRun(int id, const CmdCtx& c) {
     const SideItem* si = kind == MENU_SIDE ? sideItem(target) : nullptr;
     std::wstring sidePath = si ? si->path : L"";
     if (id >= M_COLUMN && id < M_COLUMN_END) { // menu delle colonne: mostra o nasconde, per tutte le cartelle
-        A.colOn ^= 1u << (id - M_COLUMN);
+        int col = id - M_COLUMN;
+        A.colOn ^= 1u << col;
+        if (!(A.colOn >> col & 1)) { // un filtro che non si vede non resta: nemmeno nelle altre schede
+            for (TabState& t : A.tabs) t.colFilter.clear(col); // (si rileggono tornando attive)
+            if (A.colFilter.on(col)) { A.colFilter.clear(col); rebuildView(true); }
+        }
         layout();
         settingsSave();
         A.dirty = true;
@@ -438,6 +500,11 @@ static void menuRun(int id, const CmdCtx& c) {
 static void menuExec(int i) {
     PopupMenu& m = A.menu;
     if (i < 0 || i >= (int)m.items.size() || !m.items[i].id || !m.items[i].enabled) return;
+    if (m.items[i].keep) { // voce a spunta: cambia e il menu resta, con la voce attiva
+        m.hot = i;
+        if (m.kind == MENU_FILTER) menuFilterToggle(i);
+        return;
+    }
     int id = m.items[i].id;
     CmdCtx c;
     c.bg = m.background;

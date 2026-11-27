@@ -38,6 +38,7 @@
 #include <vector>
 #include <deque>
 #include <string>
+#include <string_view>   // estensioni contate senza copiarle (filtro per colonna, columns.cpp)
 #include <unordered_map>
 #include <unordered_set>
 #include <memory>        // shared_ptr: archivi zip letti, condivisi tra i thread (zip.cpp)

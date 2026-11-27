@@ -23,16 +23,33 @@ enum MenuId { M_OPEN = 1, M_OPENWITH, M_CUT, M_COPY, M_PASTE, M_COPYPATH, M_RENA
               M_PANE_KEYS,   // Tab: la tastiera tra la lista e l'anteprima di una cartella (preview.cpp)
               M_PREVIEW_SWAP, // Alt+Shift+P: l'anteprima da destra in basso e viceversa
               M_COLUMN,      // menu delle colonne: M_COLUMN + COL_* mostra o nasconde quella colonna (columns.cpp)
-              M_COLUMN_END = M_COLUMN + COL_COUNT };
+              M_COLUMN_END = M_COLUMN + COL_COUNT,
+              M_COLFILTER = M_COLUMN_END }; // voce del menu del filtro di una colonna (PopupMenu::vals dice quale valore)
 
 // "Questo PC" per la shell: è una cartella virtuale, la si raggiunge col suo CLSID
 static const wchar_t kThisPc[] = L"::{20D04FE0-3AEA-1069-A2D8-08002B30309D}";
 
 // Menu contestuale nostro: disegnato come il resto dell'interfaccia, si apre in un frame
 // id 0 = separatore. icon: 0 nessuna, 1 cartella, 2 unità (path in PopupMenu::paths), 3 segno di
-// spunta (la scelta attuale). dim: elemento nascosto
-struct MenuItem { const wchar_t* label; const wchar_t* keys; int id; bool enabled; int icon = 0; bool dim = false; };
-enum { MENU_LIST, MENU_SIDE, MENU_TAB, MENU_CRUMB, MENU_DROP, MENU_VIEW, MENU_PREVIEW_POS, MENU_HEADER }; // HEADER: le colonne, dall'intestazione; POS: la posizione dell'anteprima, da non confondere con PopupMenu::preview (un menu aperto nell'anteprima)
+// spunta (la scelta attuale). dim: elemento nascosto. keep: voce a spunta, il clic la cambia e il
+// menu resta aperto (si sceglie più di un valore: il filtro di una colonna)
+struct MenuItem { const wchar_t* label; const wchar_t* keys; int id; bool enabled; int icon = 0; bool dim = false; bool keep = false; };
+enum { MENU_LIST, MENU_SIDE, MENU_TAB, MENU_CRUMB, MENU_DROP, MENU_VIEW, MENU_PREVIEW_POS, MENU_HEADER, MENU_FILTER }; // HEADER: le colonne, dall'intestazione; FILTER: il filtro di una colonna (target); POS: la posizione dell'anteprima, da non confondere con PopupMenu::preview (un menu aperto nell'anteprima)
+
+// Valore di una colonna nel filtro (columns.cpp, colBucket): la chiave e, per un'estensione di
+// Tipo, l'estensione in minuscolo
+struct ColValue { uint32_t key = 0; std::wstring ext; };
+// Filtro per colonna (columns.cpp): per ogni colonna le chiavi dei valori scelti, per Tipo anche le
+// estensioni scelte (minuscole, in ordine per la ricerca binaria). Vuoto: la colonna non filtra. È
+// della lista, come il filtro per nome: si scambia con le schede e con l'anteprima
+struct ColFilter {
+    std::vector<uint32_t> keys[COL_COUNT];
+    std::vector<std::wstring> exts;
+    bool on(int c) const { return !keys[c].empty() || (c == COL_TYPE && !exts.empty()); }
+    bool any() const { for (int c = 0; c < COL_COUNT; c++) if (on(c)) return true; return false; }
+    void clear(int c) { keys[c].clear(); if (c == COL_TYPE) exts.clear(); }
+    void clear() { for (int c = 0; c < COL_COUNT; c++) clear(c); }
+};
 struct PopupMenu {
     bool open = false, background = false, pressed = false;
     float x = 0, y = 0, w = 0, h = 0, ih = 0, sepH = 0, pad = 0, vpad = 0;
@@ -47,6 +64,7 @@ struct PopupMenu {
     // Menu con voci dinamiche (sottocartelle): le etichette vivono qui (deque: indirizzi stabili)
     std::deque<std::wstring> labels;
     std::vector<std::wstring> paths; // percorso di ogni voce, stesso indice di items
+    std::vector<ColValue> vals;      // MENU_FILTER: il valore di ogni voce, stesso indice di items (la prima è "Tutti")
     // Scorrimento, se le voci non stanno nella finestra (solo menu senza separatori)
     int first = 0, visible = 0;
     float iconW = 0;
@@ -65,6 +83,7 @@ struct TabState {
     int sel = 0, anchor = -1;
     float scrollY = 0, scrollTarget = 0;
     std::wstring filter;
+    ColFilter colFilter;
     std::vector<std::wstring> back, fwd;
     int sortCol = COL_NAME;
     bool sortDesc = false;
@@ -108,6 +127,7 @@ struct ListPane {
     int sel = 0, anchor = -1, hover = -1;
     float scrollY = 0, scrollTarget = 0;
     std::wstring filter;
+    ColFilter colFilter;
     double filterMs = 0; // F12: ultimo filtro applicato (applyFilter)
     ViewCounts counts;
     int sortCol = COL_NAME;
@@ -171,6 +191,7 @@ struct App {
     float dragOffset = 0;
 
     std::wstring filter;
+    ColFilter colFilter;              // filtri delle colonne (columns.cpp), dopo quello per nome
     bool renaming = false;
     TextField renameField;
     int renameEntry = -1;
@@ -272,6 +293,11 @@ struct App {
     int colDragX0 = 0;                // trascinamento di un bordo: x di partenza…
     float colDragW0 = 0, colDragSaved = 0; // …larghezza mostrata allora e valore scelto prima (per Esc)
     double colFitMs = 0;              // doppio clic sul bordo: adattamento al contenuto (F12)
+    // Filtro per colonna nell'intestazione (columns.cpp): colonna sotto il mouse che mostra l'imbuto,
+    // l'imbuto stesso sotto il mouse (il suo fondo, in dissolvenza); apertura del menu con i conteggi (F12)
+    int colFltHead = -1, colFltGlyph = -1;
+    HoverFade colFltFade;
+    double colFltMenuMs = 0;
     double mqMs = 0, mqMax = 0;       // selezione col rettangolo: aggiornamento a ogni movimento (F12)
     double crumbMs = 0, crumbMax = 0; // barra del percorso: segmenti e posizioni, a ogni frame (F12)
 
@@ -383,6 +409,7 @@ static void paneSwap(ListPane& p) {
     std::swap(A.scrollY, p.scrollY);
     std::swap(A.scrollTarget, p.scrollTarget);
     A.filter.swap(p.filter);
+    std::swap(A.colFilter, p.colFilter);
     std::swap(A.filterMs, p.filterMs);
     std::swap(A.counts, p.counts);
     std::swap(A.sortCol, p.sortCol);
@@ -497,6 +524,7 @@ static uint64_t zipJobStart(int kind, std::vector<uint32_t> items); // zipout.cp
 static void dirSizeQueueCurrent();                // dirsize.cpp: colonna Dimensione della cartella aperta
 static void dirSizeForget(const std::wstring& path); // dirsize.cpp: totale non più valido (e quelli sopra)
 static void dirSizeForgetAll();                   // dirsize.cpp: nessun totale vale più (operazioni su migliaia di voci)
+static void dirSizeTotals(const Listing* l, std::vector<uint64_t>& out); // dirsize.cpp: totale già contato di ogni cartella (filtro per Dimensione)
 static void linksQueueCurrent();                  // links.cpp: destinazioni dei collegamenti della cartella aperta
 static void tabNew(const std::wstring& path, bool activate, const std::wstring& select = L""); // tabs.cpp
 static void updateTitle();                        // tabs.cpp

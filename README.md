@@ -29,8 +29,9 @@ bit (provato su Windows 11).
 - **Lista:** filtro mentre scrivi, ordinamento naturale, selezione multipla e col rettangolo,
   tooltip con le informazioni di file, cartelle e unità.
 - **Colonne** a scelta (tasto destro sull'intestazione): Tipo (l'estensione), Data modifica, Data
-  creazione, Dimensione, Attributi; ridimensionabili e adattabili al contenuto. Le estensioni nei
-  nomi si possono nascondere.
+  creazione, Dimensione, Attributi; ridimensionabili e adattabili al contenuto, e filtrabili per
+  valore con l'imbuto accanto al titolo (estensioni, periodi come Oggi e Ieri, fasce di dimensione, attributi).
+  Le estensioni nei nomi si possono nascondere.
 - **Anteprima** (Alt+P) di immagini, testo e cartelle, a destra o in basso (˅ accanto a ◨, Alt+Shift+P);
   una cartella nell'anteprima è una seconda lista, con la sua vista e il suo filtro, su cui si
   seleziona, si copia, si trascina e si rinomina.

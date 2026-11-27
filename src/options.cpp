@@ -46,7 +46,7 @@ static Shortcut kSel[] = {
     { { { L"Ctrl+A", 0 } }, L"Seleziona tutto ciò che è visibile" },
     { { { L"Lettere", 0 } }, L"Filtra i nomi mentre si scrive" },
     { { { L"Backspace", 0 } }, L"Toglie l'ultima lettera del filtro" },
-    { { { L"Esc", M_FILTER_CLEAR } }, L"Toglie il filtro, poi la selezione (nell'anteprima, poi torna alla lista)" },
+    { { { L"Esc", M_FILTER_CLEAR } }, L"Toglie il filtro per nome, poi quelli delle colonne, poi la selezione (nell'anteprima, poi torna alla lista)" },
 };
 static Shortcut kFiles[] = {
     { { K(M_COPY, KC, 'C'), K(M_CUT, KC, 'X') }, L"Copia · taglia" },

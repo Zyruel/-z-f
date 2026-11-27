@@ -243,6 +243,31 @@ static int colAt(int x) {
     return COL_NAME;
 }
 
+struct Box { float x, y, w, h; };
+// Imbuto del filtro della colonna c nell'intestazione di Dettagli (colHeadParts, columns.cpp): il
+// rettangolo cliccabile, con GAP_XS intorno, alto l'intestazione meno GAP_XS sopra e sotto
+static Box colGlyphBox(int c) {
+    HeadParts h = colHeadParts(c, colTitle(c, colArrow() == c), true);
+    float m = px(ui::GAP_XS);
+    return { h.glyphX - m, A.sideTop + m, (float)F.lineH + m * 2, A.headH - 1 - m * 2 };
+}
+// Colonna dell'imbuto sotto il punto, -1 se nessuna (solo dove si vede)
+static int colGlyphAt(int x, int y) {
+    if (A.zoom != ZOOM_DETAILS || y < A.sideTop || y >= A.listTop) return -1;
+    for (int c : kColOrder) {
+        if (!colGlyphShown(c)) continue;
+        Box b = colGlyphBox(c);
+        if (x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) return c;
+    }
+    return -1;
+}
+// Colonna con filtro la cui intestazione è sotto il punto (l'imbuto compare lì), -1 se nessuna
+static int colFilterHeadAt(int x, int y) {
+    if (A.zoom != ZOOM_DETAILS || A.colDrag >= 0 || y < A.sideTop || y >= A.listTop || x < A.listX || x >= A.listR - A.sbW) return -1;
+    int c = colAt(x);
+    return colFilterable(c) && A.colWd[c] > 0 ? c : -1;
+}
+
 // --- animazioni ---------------------------------------------------------------------------
 // Avvicinamento esponenziale: costante di tempo tau in ms (circa 3·tau per arrivare al 95%).
 static float approach(float v, float target, double dt, float tau, float eps) {
@@ -295,7 +320,6 @@ static void scrollOffset(float& ox, float& oy) {
 
 // --- voci: un solo posto per "rettangolo di una voce" e "voce sotto il punto" ----------------
 // Dettagli, Elenco e Icone passano da qui (in Dettagli: una colonna alta una riga).
-struct Box { float x, y, w, h; };
 // Rettangolo della voce vi nel contenuto, senza scorrimento: x come nella finestra, y da 0 =
 // inizio della lista. Nella finestra: (x - ox, listTop + y - oy), con scrollOffset.
 static Box itemRect(int vi) {
@@ -405,22 +429,33 @@ static void selKeepVisible() {
     A.selFlags.swap(vis);
 }
 
-// Applica il filtro all'ordine corrente (sottostringa, maiuscole/minuscole indifferenti)
+// Le voci dell'ordine corrente che passano il filtro per nome (sottostringa, maiuscole/minuscole
+// indifferenti) e quelli delle colonne (columns.cpp), tranne quello della colonna skip (-1: tutti):
+// la vista, e le voci da contare nel menu del filtro di una colonna
+static void filterInto(std::vector<uint32_t>& out, int skip) {
+    out.clear();
+    ColMatch m;
+    bool cols = A.cur && colMatchInit(m, A.colFilter, A.cur, skip);
+    if (A.filter.empty() && !cols) { out = A.order; return; }
+    std::wstring needle = A.filter;
+    if (!needle.empty()) CharLowerBuffW(&needle[0], (DWORD)needle.size());
+    out.reserve(A.order.size());
+    for (uint32_t i : A.order) {
+        const Entry& e = A.cur->e[i];
+        if (!needle.empty() && !wcsstr(A.cur->lowerName(e), needle.c_str())) continue;
+        if (cols && !colMatches(m, e)) continue;
+        out.push_back(i);
+    }
+}
+
+// Applica i filtri all'ordine corrente
 static void applyFilter() {
     double t0 = nowMs();
-    A.view.clear();
-    if (A.filter.empty()) {
-        A.view = A.order;
-    } else {
-        std::wstring needle = A.filter;
-        CharLowerBuffW(&needle[0], (DWORD)needle.size());
-        A.view.reserve(A.order.size());
-        for (uint32_t i : A.order)
-            if (wcsstr(A.cur->lowerName(A.cur->e[i]), needle.c_str())) A.view.push_back(i);
-    }
+    filterInto(A.view, -1);
     A.filterMs = nowMs() - t0;
     A.counts.dirty = true; // un filtro diverso può dare lo stesso numero di voci, ma non le stesse
 }
+static bool filtering() { return !A.filter.empty() || A.colFilter.any(); }
 
 static void rebuildView(bool keepSelection) {
     int before = A.cur ? selCount(nullptr) : 0;
@@ -436,6 +471,21 @@ static void rebuildView(bool keepSelection) {
     if ((!keepSelection && before <= 1) || selCount(nullptr) == 0) selOnly(A.sel);
     clampScroll();
     ensureVisible();
+}
+
+// I filtri danno un risultato diverso senza che l'utente abbia fatto niente (un totale di cartella
+// arrivato, con il filtro per Dimensione): come rebuildView, ma la lista non scorre verso il cursore
+static void refilterQuiet() {
+    if (!A.cur) return;
+    uint32_t selEntry = A.sel >= 0 && A.sel < (int)A.view.size() ? A.view[A.sel] : UINT32_MAX;
+    applyFilter();
+    int sel = -1;
+    for (int i = 0; selEntry != UINT32_MAX && i < (int)A.view.size(); i++)
+        if (A.view[i] == selEntry) { sel = i; break; }
+    A.sel = sel >= 0 ? sel : std::max(0, std::min(A.sel, (int)A.view.size() - 1));
+    selKeepVisible();
+    clampScroll();
+    A.dirty = true;
 }
 
 static void resort() {
@@ -640,6 +690,7 @@ static void onListing(Listing* l) {
     if (A.noticeKeep) A.noticeKeep = false; // l'avviso spiega proprio questo cambio di cartella
     else A.error.clear();
     A.filter.clear();
+    A.colFilter.clear(); // i filtri sono della cartella: cambiandola si tolgono tutti
     A.view = A.order;
     A.sel = 0;
     A.scrollY = A.scrollTarget = 0;

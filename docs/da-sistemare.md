@@ -5,6 +5,13 @@ quel codice, o tutti insieme in un momento tranquillo. Quando una voce è fatta 
 (la storia resta in git). Le idee nuove sono in `idee.md`, le prove a mano in
 `prove\da-verificare.md`, i debiti tecnici più grandi in `CLAUDE.md`.
 
+- [ ] **Filtro per Dimensione su cartelle enormi** (27/11, da decidere con Zyruel): con il filtro
+  attivo e la dimensione delle cartelle accesa, ogni totale che arriva fa rifiltrare la vista, al
+  più ogni `WATCH_BATCH` (50 ms); in WinSxS un rifiltro costa 6,6 ms (le ricerche di 30.732
+  cartelle nella cache dei totali, `dsEachDir`), quindi fino al 13% del thread UI finché il conto
+  va avanti. Se pesa: un intervallo più lungo solo per questo, o i totali tenuti per indice di voce
+  nel `Listing` e aggiornati solo per le cartelle arrivate.
+
 - [ ] **Punti minori della revisione e del controllo prima della 1.0.0-beta.8** (27/11). Interazione:
   - doppio clic fuori dalle opzioni: il primo clic le chiude, il secondo (`WM_LBUTTONDBLCLK`)
     apre il file sotto (`input.cpp`, prima di `openSelected`); segnare l'ora della chiusura come

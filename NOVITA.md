@@ -23,6 +23,18 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 - **Estensioni nascoste**, con l'opzione "Estensioni dei file nei nomi" (sezione File): i nomi dei
   file nella lista finiscono prima dell'ultimo punto; tooltip, anteprima e rinomina mostrano il nome
   intero.
+- **Filtro per colonna:** con il mouse sull'intestazione di Tipo, Data modifica, Data creazione,
+  Dimensione o Attributi compare un imbuto accanto al titolo; il clic apre l'elenco dei valori
+  presenti, ognuno col numero di voci, da spuntare (il menu resta aperto mentre si sceglie):
+  - **Tipo:** le estensioni, più Cartelle e Senza estensione;
+  - **date:** Oggi, Ieri, Questa settimana, Settimana scorsa, Questo mese, Mese scorso,
+    Quest'anno, poi gli anni (e Data futura);
+  - **Dimensione:** fasce da Vuoti a Oltre 4 GB; le cartelle vanno nella fascia del loro totale,
+    se la dimensione delle cartelle è accesa;
+  - **Attributi:** uno per attributo.
+  Una colonna filtrata ha titolo e imbuto in azzurro; i filtri di più colonne valgono insieme e con
+  quello per nome. Restano con le ricariche e l'ordinamento, si tolgono cambiando cartella; Esc
+  toglie prima il filtro per nome, poi quelli delle colonne.
 
 - **Barre in fondo allineate:** con l'anteprima in basso, la barretta, i contatori e il controllo
   della vista della barra di stato stanno sopra quelli della banda dell'anteprima, e nelle due

@@ -129,6 +129,10 @@ Come si compila e si prova, passo per passo: `/prova` (skill in `.claude/skills/
     `drawBarView`/`barViewW`, `drawBarFilter` (`render.cpp`), disegnate da destra;
   - le colonne di Dettagli (`columns.cpp`): `kCols`, `kColOrder`, `colWanted`, `colStart`/
     `colEnd`, `colText`, `colTitle`; il nome come si mostra, con le estensioni nascoste: `shownLen`;
+    il valore di una voce in una colonna (filtro, gruppi): `colBucket` con `ColCtx`, `colValueLabel`,
+    `colValues` (i valori con i conteggi), e il filtro `ColFilter` (`colMatchInit`/`colMatches`,
+    applicato da `filterInto` in `app.cpp`);
+  - il menu con le voci a spunta che non lo chiudono: `MenuItem::keep`;
   - le voci di una lista, la principale e (nel suo `PaneScope`) l'anteprima di una cartella:
     `drawListItems`, `layoutItems` (`ListPane`, `paneSwap` in `app.h`);
   - le schede da salvare o riaprire: `tabsSerialize`, `tabsRestore` (`tabs.cpp`);
@@ -170,15 +174,11 @@ Come si compila e si prova, passo per passo: `/prova` (skill in `.claude/skills/
 
 ## Prossimi passi (concordati, in quest'ordine)
 
-**Colonne (1.0.0-beta.9), in tre fasi.** Fatta la 1: colonne a scelta (Tipo, Data creazione,
-Attributi, menu col tasto destro sull'intestazione, `columns.cpp`) ed estensioni nascoste.
-Restano, in quest'ordine:
-2. **filtro per colonna:** un "˅" sotto il mouse accanto al titolo di Tipo, date, Dimensione e
-   Attributi apre un menu con i valori presenti, il conteggio e le spunte (il clic non chiude il
-   menu); valori da una funzione sola (`colBucket`), riusata dai gruppi: estensioni; Oggi, Ieri,
-   Questa settimana… poi gli anni; fasce di dimensione; attributi. Stato per scheda, si azzera
-   cambiando cartella come il filtro per nome; Esc toglie prima quello, poi questi;
-3. **gruppi:** "Raggruppa per…" nel menu delle colonne, in tutte le viste, gruppi richiudibili
+**Colonne (1.0.0-beta.9), in tre fasi.** Fatte la 1 (colonne a scelta, estensioni nascoste) e
+la 2 (filtro per colonna: imbuto accanto al titolo, menu a spunte che resta aperto, `colBucket`,
+`ColFilter`). Resta:
+3. **gruppi:** con i valori di `colBucket` (gli attributi lì sono più d'uno per voce: da
+   decidere); "Raggruppa per…" nel menu delle colonne, in tutte le viste, gruppi richiudibili
    con un clic sull'intestazione del gruppo, ricordati per cartella in `viste.txt`. `A.view`
    resta di sole voci: una tabella dei gruppi cambia la geometria (`itemRect`, `itemAt`,
    `contentLen`, tastiera per linee, rettangolo).

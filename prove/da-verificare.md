@@ -20,6 +20,31 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 0000000000000000000000000000000000000000000000000000000. Filtro per colonna (z-f-dev, novembre 2026)
+
+Seconda fase delle colonne. Già provato da Claude a 100%, in una cartella di file finti
+(`python -I prove\colonne-prova.py <cartella>`: estensioni, date in tutti i periodi, fasce di
+dimensione, attributi) e in WinSxS: imbuto sotto il mouse accanto a Tipo, Data modifica,
+Dimensione (a sinistra del titolo) e Attributi; menu con "Tutti", valori e conteggi giusti (".jpg"
+e ".JPG" insieme, il 1975 prima della tabella degli anni, i totali delle cartelle in WinSxS); il
+menu resta aperto spuntando col mouse e con Spazio; doppio clic su una voce = due clic; due
+colonne filtrate insieme e col filtro per nome; titolo e imbuto in azzurro, anche in Elenco; Esc
+toglie prima il filtro per nome, poi quelli delle colonne; nascondere Attributi ne toglie il
+filtro; misure (ARCHITETTURA). Restano:
+- [ ] a 175%: imbuto, fondo sotto il mouse e titolo con la freccia dell'ordinamento nelle colonne
+      strette (il titolo finisce in "…" se non c'è posto), menu sotto l'intestazione;
+- [ ] Dimensione con "Dimensione delle cartelle" accesa in una cartella con sottocartelle ancora
+      da contare: "Cartelle" nel menu, poi le cartelle entrano nella loro fascia mentre arrivano i
+      totali, senza che la lista scorra;
+- [ ] filtro di una colonna in due schede diverse: ognuna tiene il suo; nascondere la colonna lo
+      toglie anche nell'altra scheda;
+- [ ] Questo PC: il filtro di Tipo con i tipi di unità;
+- [ ] dentro uno zip: Data creazione "Senza data"; Dimensione delle cartelle con l'opzione spenta
+      e accesa;
+- [ ] tooltip dell'imbuto ("Filtra per tipo", con "Mostra: JPG · PNG" se filtra);
+- [ ] con la finestra ingrandita: lo strumento dello schermo non faceva arrivare i movimenti del
+      mouse in alto a destra (probabilmente la sua barra), da riprovare a mano.
+
 ## 000000000000000000000000000000000000000000000000000000. Colonne a scelta ed estensioni nascoste (z-f-dev, novembre 2026)
 
 Prima fase delle colonne (filtro e gruppi per colonna verranno dopo). Già provato da Claude in

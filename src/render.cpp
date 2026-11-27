@@ -396,7 +396,7 @@ static void drawListItems(double dt, double now, bool preview, bool cursor) {
         else rrect(listRight + pad, tStart, th, tLen, th * 0.5f, C_SCROLL);
     }
     if (A.view.empty()) {
-        const wchar_t* msg = A.filter.empty() ? L"Cartella vuota" : L"Nessun risultato per il filtro";
+        const wchar_t* msg = !filtering() ? L"Cartella vuota" : L"Nessun risultato per il filtro";
         drawText(iconX, A.listTop + A.rowH * 0.5f, msg, (int)wcslen(msg), C_DIM);
     }
 }
@@ -504,21 +504,41 @@ static void render() {
         A.sortC[A.sortN++] = COL_NAME;
         for (int c : kColOrder) if (c != COL_LINK && colWanted(c, false)) A.sortC[A.sortN++] = c; // Destinazione qui non c'è
         int arrow = colArrow();
-        float x = LX + A.padX, y = headY + textOff;
+        float x = LX + A.padX, y = headY + textOff, xMax = listRight - A.padX;
         for (int i = 0; i < A.sortN; i++) {
             A.sortX[i] = x;
-            x = drawText(x, y, colTitle(A.sortC[i], A.sortC[i] == arrow), C_DIM, listRight - A.padX) + px(ui::GAP_XL);
+            int c = A.sortC[i];
+            bool f = A.colFilter.on(c); // filtrata: in C_ACCENT, con l'imbuto dopo il titolo
+            x = drawText(x, y, colTitle(c, c == arrow), f ? C_ACCENT : C_DIM, xMax);
+            if (f && x + px(ui::GAP_XS) + F.lineH <= xMax) {
+                drawUiIcon(x + px(ui::GAP_XS), headY, (float)F.lineH, A.headH - 1, IC_FILTER, C_ACCENT);
+                x += px(ui::GAP_XS) + F.lineH;
+            }
+            x += px(ui::GAP_XL);
         }
         A.sortX[A.sortN] = x;
     } else {
         int arrow = colArrow();
         float y = headY + textOff;
         drawText(nameX, y, colTitle(COL_NAME, arrow == COL_NAME), C_DIM, A.nameEnd);
+        // Accanto al titolo l'imbuto del filtro sotto il mouse (sopra di lui il fondo dei pulsanti, anche
+        // col menu aperto); una colonna filtrata lo ha sempre, e titolo e imbuto in C_ACCENT
+        bool fltMenu = A.menu.open && A.menu.kind == MENU_FILTER;
+        hoverFadeUpdate(A.colFltFade, A.colFltGlyph, dt);
         for (int c : kColOrder) {
             if (A.colWd[c] <= 0) continue;
             std::wstring t = colTitle(c, arrow == c);
-            if (kCols[c].right) drawTextRight(colStart(c), colEnd(c), y, t.c_str(), (int)t.size(), C_DIM);
-            else drawText(colStart(c), y, t, C_DIM, colEnd(c));
+            bool glyph = colGlyphShown(c), f = A.colFilter.on(c);
+            HeadParts h = colHeadParts(c, t, glyph);
+            uint32_t tc = f ? C_ACCENT : C_DIM;
+            if (kCols[c].right) drawTextRight(h.textX, h.textEnd, y, t.c_str(), (int)t.size(), tc);
+            else drawText(h.textX, y, t, tc, h.textEnd);
+            if (!glyph) continue;
+            Box gb = colGlyphBox(c);
+            float ha = fltMenu && A.menu.target == c ? 1.0f : hoverAlpha(A.colFltFade, c);
+            if (ha > 0) rrect(gb.x, gb.y, gb.w, gb.h, px(ui::R_S), fadeA(C_HOVER, ha));
+            uint32_t gc = f ? C_ACCENT : ha > 0 ? C_TEXT : C_DIM;
+            drawUiIcon(h.glyphX, headY, (float)F.lineH, A.headH - 1, IC_FILTER, gc);
         }
         // Bordo tra due colonne: si vede solo sotto il mouse (C_LINE) o mentre lo si trascina (C_SEL_EDGE)
         int b = A.colDrag >= 0 ? A.colDrag : A.colHover;
@@ -644,6 +664,7 @@ static void render() {
             rows[nr].val[95] = 0; nr++;
             if (A.refreshCount) row(L"ultima ricarica (da notifica a schermo)", L"%.1f ms%s", A.refreshLatency, L"");
             if (A.ourMenuMs > 0) row(L"menu contestuale: apertura", L"%.3f ms%s", A.ourMenuMs, L"");
+            if (A.colFltMenuMs > 0) row(L"menu del filtro di una colonna: apertura, con i conteggi", L"%.2f ms%s", A.colFltMenuMs, L"");
             if (A.dropRegisterMs > 0) row(L"trascinamento: registrazione (OLE)", L"%.1f ms%s", A.dropRegisterMs, L"");
             if (A.dropMs > 0) row(L"trascinamento: rilascio e operazione (thread)", L"%.1f ms%s", A.dropMs, L"");
             if (A.dropUiMax > 0) row(L"trascinamento: chiamata più lenta (UI)", L"%.2f ms%s", A.dropUiMax, L"");

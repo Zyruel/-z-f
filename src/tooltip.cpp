@@ -10,7 +10,8 @@ enum TipKind { TIP_NONE, TIP_ROW, TIP_SIDE, TIP_TAB, TIP_TABPLUS, TIP_TABCLOSE, 
                TIP_CHROME, TIP_FILTER, TIP_GOTO, TIP_FAVDEL, // cestino di un preferito (sidebar.cpp)
                TIP_LINK,  // destinazione di un collegamento nella colonna Destinazione (links.cpp)
                TIP_VIEW,   // vista e zoom nella barra di stato
-               TIP_OPTIONS }; // scorciatoia troncata nel pannello delle opzioni (options.cpp)
+               TIP_OPTIONS, // scorciatoia troncata nel pannello delle opzioni (options.cpp)
+               TIP_COLFILTER }; // imbuto del filtro di una colonna nell'intestazione (columns.cpp)
 
 struct TipInfo {           // risultato del thread
     uint64_t gen = 0;
@@ -350,6 +351,15 @@ static bool tipBuild() {
         tipRow(L"", L"Tasto destro: le colonne da mostrare");
         break;
     }
+    case TIP_COLFILTER: { // imbuto del filtro di una colonna
+        if (!colFilterable(T.index)) return false;
+        T.title = kCols[T.index].filterBy;
+        if (A.colFilter.on(T.index)) {
+            tipRow(L"Mostra", colFilterText(A.colFilter, T.index));
+            tipRow(L"Togli il filtro", L"\x201CTutti\x201D nel menu \x00B7 " + shortcutsOf(M_FILTER_CLEAR) + L" (tutte le colonne)");
+        }
+        break;
+    }
     case TIP_PATH: {
         int id = T.index;
         if (id == CRUMB_ELL) { T.title = L"Livelli superiori"; break; }
@@ -362,7 +372,7 @@ static bool tipBuild() {
         }
         T.title = A.cur && !A.cur->path.empty() ? A.cur->path : L"Questo PC";
         tipRow(L"Modifica", shortcutsOf(M_EDIT_PATH));
-        if (!A.filter.empty()) tipRow(L"Togli il filtro", shortcutsOf(M_FILTER_CLEAR));
+        if (filtering()) tipRow(L"Togli il filtro", shortcutsOf(M_FILTER_CLEAR));
         break;
     }
     case TIP_GOTO:
@@ -481,10 +491,18 @@ static void tipOnTimer() {
 }
 
 // Dimensioni delle cartelle aggiornate (dirsize.cpp): tooltip e colonna
+static bool g_sizeRefilter = false; // timer 18 armato: la vista si rifiltra coi totali arrivati
 static void onDirSize() {
     InterlockedExchange(&DS.posted, 0);
     dirSizeRefill(); // il thread del conto può aspettare il pezzo successivo della coda
     if (T.visible && T.kind == TIP_ROW) tipBuild();
+    // Filtro per Dimensione: una cartella appena contata può entrare o uscire dalla vista. Al più una
+    // volta ogni WATCH_BATCH, come le ricariche: i totali arrivano anche a centinaia al secondo
+    // (il timer non si riarma finché non scatta: arrivando di continuo, i totali lo rimanderebbero sempre)
+    if (A.colFilter.on(COL_SIZE) && A.cur && colNeedsTotals(A.cur) && !g_sizeRefilter) {
+        g_sizeRefilter = true;
+        SetTimer(A.hwnd, 18, ui::WATCH_BATCH, nullptr);
+    }
     A.dirty = true;
 }
 
@@ -531,6 +549,7 @@ static void tipTarget(int x, int y, int& kind, int& index, bool& preview) {
     if (x < A.listX || x >= itemsRight()) return;
     if (y >= A.sideTop && y < A.listTop) {
         if (colBorderAt(x, y) >= 0 || A.colDrag >= 0) return; // sul bordo il clic non ordina: niente "Ordina per…"
+        if (int fc = colGlyphAt(x, y); fc >= 0) { kind = TIP_COLFILTER; index = fc; return; }
         kind = TIP_HEADER; index = colAt(x);
         return;
     }

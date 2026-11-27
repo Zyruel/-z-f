@@ -286,7 +286,48 @@ doppione.
     (`colonna_tipo`, `colonna_data`, `colonna_creazione`, `colonna_dimensione`,
     `colonna_attributi`, `colonna_destinazione` in `impostazioni.txt`, px a scala 100%);
   - clic su un'intestazione: le date e Dimensione partono dal più recente e dal più grande, le
-    altre dalla A (Tipo: le estensioni in ordine alfabetico, poi il nome).
+    altre dalla A (Tipo: le estensioni in ordine alfabetico, poi il nome);
+  - **filtro per colonna** (Tipo, Data modifica, Data creazione, Dimensione, Attributi; non Nome,
+    che ha il filtro della barra di stato, né Destinazione): con il mouse sopra l'intestazione della
+    colonna compare accanto al titolo l'**imbuto** (Filter, `C_DIM`; lo stesso del campo del filtro,
+    scelta di Zyruel al posto di una ˅), a `GAP_XS` dal testo: a destra
+    del titolo, a sinistra in Dimensione, allineata a destra, così il titolo non si sposta mai.
+    Sopra l'imbuto il fondo `C_HOVER`, arrotondato `R_S`, e l'imbuto in `C_TEXT`, come i pulsanti a
+    icona; il fondo resta finché il suo menu è aperto. Il clic sull'imbuto apre sotto
+    l'intestazione, allineato a lui, il **menu del filtro**; il clic sul resto del titolo ordina come
+    sempre. Tooltip
+    "Filtra per tipo" (data di modifica, data di creazione, dimensione, attributi), con i valori
+    scelti se la colonna filtra;
+  - **menu del filtro**: prima "Tutti", poi i valori presenti tra le voci, ognuno col numero di voci
+    a destra (al posto della scorciatoia, `C_DIM`) e la spunta se è scelto; "Tutti" ha la spunta
+    quando la colonna non filtra. Il numero conta le voci che passano gli altri filtri (per nome e
+    delle altre colonne), non quello della colonna stessa: così non cambia mentre si spunta. Il
+    clic su un valore lo aggiunge o lo toglie e **il menu resta aperto** (voci a spunta, sotto
+    "Menu contestuale"); la lista cambia subito. Si vedono le voci che hanno almeno uno dei valori
+    scelti; togliere l'ultimo, o il clic su "Tutti", toglie il filtro della colonna. Un valore
+    scelto che non c'è più (dopo una ricarica) resta nel menu con 0, per poterlo togliere. Niente
+    separatori, così un elenco lungo scorre. I valori, nell'ordine del menu:
+    - **Tipo**: "Cartelle", "Senza estensione", poi le estensioni in maiuscolo come nella colonna,
+      dalla A; in Questo PC i tipi di unità;
+    - **date**: "Data futura", "Oggi", "Ieri", "Questa settimana" (da lunedì), "Settimana scorsa",
+      "Questo mese", "Mese scorso", "Quest'anno", poi un valore per anno, dal più recente; "Senza
+      data" (creazione dentro uno zip). Ogni voce va nel primo che le corrisponde, in ora locale;
+    - **Dimensione**: "Vuoti", "Fino a 16 KB", "Fino a 1 MB", "Fino a 128 MB", "Fino a 1 GB",
+      "Fino a 4 GB", "Oltre 4 GB". Le cartelle stanno nella fascia del loro totale se la dimensione
+      delle cartelle è accesa e il totale è già contato (la lista si aggiorna quando arriva),
+      altrimenti in "Cartelle", prima delle fasce;
+    - **Attributi**: un valore per attributo, nell'ordine delle lettere ("Sola lettura (R)",
+      "Nascosto (H)", "Sistema (S)", "Archivio (A)", "Compresso (C)", "Crittografato (E)"), poi
+      "Nessun attributo"; una voce con più attributi sta in ognuno;
+  - **colonna filtrata**: l'imbuto e il titolo, tutti e due in `C_ACCENT` e l'imbuto sempre
+    visibile, anche senza il mouse (il colore del filtro, come la sottolineatura del campo). Con più
+    colonne filtrate valgono tutte insieme, e insieme al filtro per nome. In Elenco e Icone
+    l'etichetta di una colonna filtrata è in `C_ACCENT` con l'imbuto dopo il titolo; il menu si
+    apre solo in Dettagli. Nascondere una colonna (menu delle colonne) ne toglie il filtro: un
+    filtro che non si vede non resta. I filtri delle colonne sono della scheda: restano con le
+    ricariche, l'ordinamento e il cambio di vista, e si tolgono cambiando cartella, come il filtro
+    per nome. Esc toglie prima il filtro per nome, poi quelli delle colonne (§8). Con un filtro di
+    colonna e nessun risultato la lista dice "Nessun risultato per il filtro".
 - **Viste e zoom** (Ctrl+rotellina · controllo della vista nella barra di stato · Ctrl+Shift+2 per
   Dettagli, 3 per Elenco, 4/5/6 per le icone piccole, medie, grandi · menu dello sfondo → "Mostra come
   icone"/"Mostra come dettagli", `thumbs.cpp`): un solo livello di zoom per cartella sceglie la
@@ -632,6 +673,11 @@ doppione.
     Anche la procedura per aggiungere un percorso di rete è quella di Windows, in una finestra a
     sé come in Explorer; quando la si chiude la barra laterale si rilegge e il percorso nuovo
     compare sotto Questo PC. I nomi delle due voci sono quelli di Windows;
+  - **voci a spunta che non chiudono** (`MenuItem::keep`, il menu del filtro di una colonna): il
+    clic, Invio o Spazio cambiano la spunta della voce e il menu resta aperto, con la voce ancora
+    attiva, per sceglierne altre; lo chiudono Esc, un altro tasto o il clic fuori. Il doppio clic
+    sulla voce conta come due clic. Si usano solo dove si sceglie più di un valore insieme; le scelte
+    singole (vista, posizione dell'anteprima, colonne da mostrare) chiudono il menu come sempre;
   - **annulla e ripeti:** la voce dice cosa annulla ("Annulla spostamento", "Annulla nuova
     cartella"); senza niente da annullare è "Annulla", disattivata. Nel menu dello sfondo stanno
     subito dopo Incolla, come in Explorer: "Annulla …" sempre, "Ripeti …" solo quando c'è.
@@ -755,6 +801,7 @@ doppione.
 | trascina da un altro punto della lista (anche dal nome di una voce non selezionata) | rettangolo di selezione; Ctrl alterna, Shift aggiunge |
 | trascina un bordo nell'intestazione | larghezza della colonna; doppio clic: adatta al contenuto |
 | tasto destro sull'intestazione | il menu delle colonne: quali si vedono |
+| clic sull'imbuto accanto al titolo di una colonna | il menu del filtro della colonna, con i valori presenti |
 | trascina il bordo della barra laterale o dell'anteprima | larghezza del pannello (altezza dell'anteprima in basso); doppio clic: predefinita |
 | clic su ˅ accanto a ◨ | posizione dell'anteprima: a destra o in basso |
 | trascina un preferito | lo sposta tra gli altri preferiti (solo l'ordine); Esc annulla |
@@ -772,12 +819,15 @@ doppione.
   (`K(M_..., KC | KS, 'N')`): la tabella lo esegue (con lo stesso codice della voce di menu) e ne
   scrive il nome ("Ctrl+Shift+N"). Vale solo con esattamente quei modificatori (Ctrl+Shift+W non
   chiude la scheda). In `onKey` restano scritti a mano solo i tasti che dipendono dal contesto.
+  Eccezione scelta con Zyruel: il menu del filtro di una colonna si apre solo col mouse (l'imbuto
+  nell'intestazione); da tastiera Esc toglie i filtri.
 - **Si seguono le convenzioni di Windows e dei browser:** Ctrl+C/X/V, F2, Canc, Alt+frecce,
   Ctrl+T/W/Tab, Ctrl+L, F5, Alt+P (il riquadro di anteprima di Explorer), Ctrl+Z e Ctrl+Y
   (anche Ctrl+Shift+Z) per annullare e ripetere le operazioni sui file. Dentro una casella di
   testo Ctrl+Z non tocca i file.
 - **Esc toglie un livello alla volta:** rettangolo, bordo o preferito trascinato (si torna a prima), conferma del cestino → menu →
-  modifica in corso → filtro → selezione → (nell'anteprima) la tastiera torna alla lista. Nei pannelli
+  modifica in corso → filtro per nome → filtri delle colonne → selezione → (nell'anteprima) la
+  tastiera torna alla lista. Nei pannelli
   con una ricerca (opzioni, "Vai a"): prima svuota la ricerca, poi chiude.
 - **Digitare filtra subito:** nessun campo da attivare prima. Filtra la lista che ha la tastiera:
   la lista principale o l'anteprima di una cartella, ognuna col suo campo.

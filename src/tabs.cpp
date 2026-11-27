@@ -15,6 +15,7 @@ static void tabSwap(TabState& t) {
     std::swap(A.scrollY, t.scrollY);
     std::swap(A.scrollTarget, t.scrollTarget);
     A.filter.swap(t.filter);
+    std::swap(A.colFilter, t.colFilter);
     A.back.swap(t.back);
     A.fwd.swap(t.fwd);
     std::swap(A.sortCol, t.sortCol);
@@ -158,7 +159,7 @@ static void openFromOutside(const std::wstring& path, const std::wstring& select
         const Listing* l = i == A.tab ? A.cur : t.cur;
         if (l && samePath(l->path, path)) {
             tabActivate(i);
-            if (!A.filter.empty() && !select.empty()) { A.filter.clear(); rebuildView(true); }
+            if ((!A.filter.empty() || A.colFilter.any()) && !select.empty()) { A.filter.clear(); A.colFilter.clear(); rebuildView(true); }
             selectByName(select);
             return;
         }

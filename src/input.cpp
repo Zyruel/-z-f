@@ -124,8 +124,9 @@ static void onKey(WPARAM vk, bool alt) {
         if (!A.filter.empty() && (g_inPane || !kp)) { A.filter.pop_back(); rebuildView(true); A.dirty = true; }
         else goUp();
         break;
-    case VK_ESCAPE: // prima toglie il filtro, poi la selezione (resta solo il cursore)
+    case VK_ESCAPE: // prima toglie il filtro per nome, poi quelli delle colonne, poi la selezione (resta solo il cursore)
         if (!A.filter.empty()) { A.filter.clear(); rebuildView(true); }
+        else if (A.colFilter.any()) { A.colFilter.clear(); rebuildView(true); }
         else if (g_inPane && selCount(nullptr) <= 1) PV.keys = false; // nell'anteprima, poi la tastiera torna alla lista
         else { selOnly(A.sel); }
         A.dirty = true;
@@ -452,6 +453,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (wp == 3) { KillTimer(hwnd, 3); A.changePending = false; requestRefresh(); }
         if (wp == 4) { KillTimer(hwnd, 4); onGpuReady(); }
         if (wp == 13) { KillTimer(hwnd, 13); gpuRecoverStart(); return 0; } // GPU persa: nuovo tentativo
+        if (wp == 18) { KillTimer(hwnd, 18); g_sizeRefilter = false; if (A.colFilter.on(COL_SIZE)) refilterQuiet(); return 0; } // totali di cartelle arrivati, col filtro per Dimensione
         if (wp == 14) { zipOnTimer(); return 0; } // estrazione da uno zip che dura
         if (wp == 15) { updOnTimer(); return 0; } // aggiornamento: un controllo al giorno
         if (wp == 17) { KillTimer(hwnd, 17); g_pvChangePending = false; previewRefresh(); return 0; } // cartella dell'anteprima cambiata: al massimo una rilettura ogni WATCH_BATCH
@@ -545,6 +547,10 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (mqMouseMove(x, y, wp)) return 0;
         int cb = colBorderAt(x, y);
         if (cb != A.colHover) { A.colHover = cb; A.dirty = true; }
+        int fh = cb >= 0 ? -1 : colFilterHeadAt(x, y); // imbuto del filtro: la colonna, poi l'imbuto stesso (che si vede solo lì)
+        if (fh != A.colFltHead) { A.colFltHead = fh; A.dirty = true; }
+        int fg = colGlyphAt(x, y);
+        if (fg != A.colFltGlyph) { A.colFltGlyph = fg; A.dirty = true; }
         if (A.draggingThumb) { listThumbDrag(x, y); return 0; }
         if (ListPane* p = pvPane(); p && p->draggingThumb) { PaneScope ps(p); listThumbDrag(x, y); return 0; }
         int h = itemAt(x, y);
@@ -587,6 +593,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         tipHide();
         chromeSetHover(CH_NONE);
         if (A.colHover >= 0) { A.colHover = -1; A.dirty = true; }
+        if (A.colFltHead >= 0 || A.colFltGlyph >= 0) { A.colFltHead = A.colFltGlyph = -1; A.dirty = true; }
         if (A.favTrashHover >= 0) { A.favTrashHover = -1; A.dirty = true; }
         if (ListPane* p = pvPane(); p && p->hover >= 0) { p->hover = -1; A.dirty = true; }
         if (PV.viewHover) { PV.viewHover = false; A.dirty = true; }
@@ -668,6 +675,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (!pp && y < A.listTop) { // intestazione: bordo → larghezza della colonna; altrove → ordinamento
             int b = colBorderAt(x, y);
             if (b >= 0) { colDragStart(b, x, y); return 0; }
+            if (int fc = colGlyphAt(x, y); fc >= 0) { menuOpenFilter(fc, colGlyphBox(fc).x); return 0; } // imbuto: il filtro della colonna
             int col = colAt(x);
             if (col < 0) return 0; // Elenco e Icone: fuori dalle etichette
             if (col == A.sortCol) A.sortDesc = !A.sortDesc;
@@ -778,6 +786,9 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_LBUTTONDBLCLK: {
         int y = GET_Y_LPARAM(lp), x = GET_X_LPARAM(lp);
         if (gotoDblClk(x, y, (wp & MK_CONTROL) != 0)) return 0;
+        // Un menu rimasto aperto dopo il primo clic (voci a spunta): il secondo conta come un clic, al
+        // rilascio. Senza, finirebbe alla voce della lista che il menu copre
+        if (A.menu.open && menuInside(x, y)) { A.menu.pressed = true; return 0; }
         if (!A.menu.open && nowMs() - g_menuClickAt < GetDoubleClickTime()) return 0; // il primo clic era su una voce di menu
         int chId = chromeHit(x, y);
         bool nav = chId >= CH_BACK && chId <= CH_UP;
