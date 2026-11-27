@@ -785,7 +785,7 @@ static std::wstring zipTempRoot() {
     wchar_t t[MAX_PATH + 1];
     DWORD n = GetTempPathW(MAX_PATH + 1, t);
     if (!n || n > MAX_PATH) return L"";
-    return std::wstring(t, n) + L"z-f";
+    return std::wstring(t, n) + ZF_ID;
 }
 
 // Cancella una cartella e il suo contenuto. Solo per le nostre cartelle temporanee: non segue i

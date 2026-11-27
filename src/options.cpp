@@ -325,7 +325,7 @@ static DWORD WINAPI settingsDirThread(void* p) {
 static void separateWindowsToggle() {
     A.separateWindows = !A.separateWindows;
     settingsSave();
-    for (HWND w = nullptr; (w = FindWindowExW(nullptr, w, L"z-f", nullptr)) != nullptr;)
+    for (HWND w = nullptr; (w = FindWindowExW(nullptr, w, ZF_ID, nullptr)) != nullptr;)
         if (w != A.hwnd) PostMessageW(w, g_msgSeparate, A.separateWindows ? 1 : 0, 0);
 }
 

@@ -35,11 +35,12 @@
 // Si leggono all'avvio sul thread veloce della barra laterale (il thread UI non tocca il disco)
 // e si salvano su un thread a parte, scrivendo un file temporaneo e rinominandolo.
 
+// %APPDATA%\z-f, o %APPDATA%\z-f-dev per la build di prova (ZF_ID)
 static std::wstring zfDataPath(const wchar_t* name) {
     wchar_t buf[MAX_PATH];
     DWORD n = GetEnvironmentVariableW(L"APPDATA", buf, MAX_PATH);
     if (!n || n >= MAX_PATH) return L"";
-    return std::wstring(buf) + L"\\z-f\\" + name;
+    return std::wstring(buf) + L"\\" ZF_ID L"\\" + name;
 }
 
 static std::string toUtf8(const std::wstring& w) {
@@ -59,12 +60,14 @@ static std::wstring fromUtf8(const std::string& s) {
 // Transizione dal vecchio nome: %APPDATA%\zx (fino alla 0.15) diventa %APPDATA%\z-f.
 // Si chiama dal thread d'avvio, prima di leggere preferiti e impostazioni.
 static void migrateLegacyData() {
+#ifndef ZF_DEV // la cartella vecchia è di chi usa [z]f, non della build di prova
     std::wstring nw = zfDataPath(L"");
     if (nw.size() < 4) return;
     nw.pop_back();                                      // ...\z-f
     std::wstring old = nw.substr(0, nw.size() - 3) + L"zx"; // ...\zx
     if (GetFileAttributesW(nw.c_str()) == INVALID_FILE_ATTRIBUTES && GetFileAttributesW(old.c_str()) != INVALID_FILE_ATTRIBUTES)
         MoveFileW(old.c_str(), nw.c_str());
+#endif
 }
 
 // Righe di un file UTF-8 piccolo di %APPDATA%\z-f (senza fine riga e spazi finali). false se non esiste.

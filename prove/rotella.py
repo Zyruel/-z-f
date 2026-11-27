@@ -32,7 +32,7 @@ def cerca(h, _):
     u.GetWindowThreadProcessId(h, ctypes.byref(p))
     nome = ctypes.create_unicode_buffer(16)
     u.GetClassNameW(h, nome, 16)
-    if p.value == pid and nome.value == "z-f":   # la finestra principale, non la vista figlia
+    if p.value == pid and nome.value in ("z-f", "z-f-dev"):   # la finestra principale (z-f-dev nella build di prova), non la vista figlia
         trovate.append(h)
     return True
 

@@ -15,6 +15,13 @@ aggiorna la sua area: una misura nuova sostituisce la vecchia, non le si aggiung
 cartelle, registro, nomi interni di Windows) il nome tecnico è **z-f**: `z-f.exe`,
 `%APPDATA%\z-f`, `z-f-log.txt`; nel codice C++ gli identificatori sono `ZF_...`.
 
+La build di prova (`build.bat dev`, `ZF_DEV`) usa il nome **z-f-dev** (`ZF_ID` in `base.h`) per
+tutto ciò con cui le finestre si riconoscono: classe della finestra, mutex dell'istanza, messaggi
+tra finestre, la finestra per i dialoghi Apri e Salva, `%APPDATA%\z-f-dev` e `%TEMP%\z-f-dev`. Le
+finestre di prova sono così un [z]f a parte: non ricevono le cartelle aperte da fuori, non
+cambiano le opzioni delle finestre vere né ne riscrivono i file. Il registro resta in comune
+(`build\z-f-log.txt` accanto all'exe).
+
 Fino alla 0.15 si chiamava zx: le copie `build\zx-0.N.exe` sono di allora. Al primo avvio
 `migrateLegacyData` (`settings.cpp`) sposta `%APPDATA%\zx` in `%APPDATA%\z-f`; quando si attiva o
 disattiva "[z]f al posto di Explorer", `cleanupLegacyZx` (`integration.cpp`) toglie

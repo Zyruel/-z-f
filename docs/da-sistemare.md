@@ -17,3 +17,9 @@ quel codice, o tutti insieme in un momento tranquillo. Quando una voce è fatta 
   lista in Icone a 20% con circa 220 miniature visibili e anteprima in Icone grandi, tutte piene
   anche scorrendo. A 175% resta da provare (`prove\da-verificare.md`): lì i posti sono 81, ma
   anche le miniature visibili sono circa un terzo.
+
+- [ ] **Dialoghi Apri e Salva con z-f-dev e [z]f aperti insieme** (`filedlg.cpp`). Dal 28/11 la
+  build di prova ha un suo nome (`ZF_ID`), quindi anche la sua "ultima finestra di [z]f" per i
+  dialoghi: se entrambe hanno l'opzione accesa (z-f-dev la ha di base, con le impostazioni
+  predefinite), un dialogo può ricevere due salti verso cartelle diverse. Prima saltavano tutte e
+  due verso la stessa. Da decidere se la build di prova deve partire con `dialoghi=0`.

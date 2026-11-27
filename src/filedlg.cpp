@@ -177,7 +177,7 @@ static DWORD WINAPI fdCheckThread(void* p) {
 // La finestra di [z]f visibile più in alto, tranne skip (FindWindowEx va in ordine di profondità;
 // nessun messaggio agli altri processi)
 static HWND fdTopWindow(HWND skip) {
-    for (HWND w = nullptr; (w = FindWindowExW(nullptr, w, L"z-f", nullptr)) != nullptr;)
+    for (HWND w = nullptr; (w = FindWindowExW(nullptr, w, ZF_ID, nullptr)) != nullptr;)
         if (w != skip && IsWindowVisible(w)) return w;
     return nullptr;
 }
@@ -243,7 +243,7 @@ static void fdRelease() {
 // Dopo il primo frame (main.cpp)
 static void fdStart() {
     if (FD.hook) return;
-    HANDLE m = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(LONG64), L"Local\\z-f-ultima-finestra");
+    HANDLE m = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(LONG64), L"Local\\" ZF_ID L"-ultima-finestra");
     if (m) FD.lastZf = (volatile LONG64*)MapViewOfFile(m, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(LONG64)); // resta aperta fino all'uscita
     if (GetForegroundWindow() == A.hwnd) fdActivated();
     FD.hook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, nullptr, fdOnForeground, 0, 0,

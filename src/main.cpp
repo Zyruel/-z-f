@@ -59,7 +59,7 @@ enum Forward { FWD_NONE, FWD_DONE, FWD_NEW }; // finestra principale, consegnata
 static const LRESULT kForwardNew = 2;         // risposta di onCopyData con finestre_separate
 
 static HWND findMainInstance() {
-    for (HWND w = nullptr; (w = FindWindowExW(nullptr, w, L"z-f", nullptr)) != nullptr;)
+    for (HWND w = nullptr; (w = FindWindowExW(nullptr, w, ZF_ID, nullptr)) != nullptr;)
         if (GetPropW(w, kInstanceProp)) return w;
     return nullptr;
 }
@@ -94,7 +94,7 @@ static Forward forwardToRunning(const std::wstring& path, const std::wstring& se
     // Il mutex resta aperto finché c'è la finestra principale (si chiude nel suo WM_DESTROY,
     // input.cpp): dice "[z]f principale in esecuzione".
     // Serve per i due avvii quasi simultanei: il secondo aspetta che la finestra del primo esista.
-    HANDLE m = CreateMutexW(nullptr, FALSE, L"Local\\z-f-istanza");
+    HANDLE m = CreateMutexW(nullptr, FALSE, L"Local\\" ZF_ID L"-istanza");
     g_instanceMutex = m; // se non si consegna, la principale diventa questa (FWD_NONE)
     if (!m || GetLastError() != ERROR_ALREADY_EXISTS) return FWD_NONE;
     HWND w = nullptr;
@@ -175,9 +175,9 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     // La finestra principale riceve le cartelle aperte da fuori. Quella che si riapre dopo un
     // aggiornamento tiene anche il mutex, così chi avvia [z]f dopo la trova (forwardToRunning)
     A.mainInstance = !newWindow || principal;
-    if (principal) g_instanceMutex = CreateMutexW(nullptr, FALSE, L"Local\\z-f-istanza");
-    g_msgRestart = RegisterWindowMessageW(L"z-f.riavvio");
-    g_msgSeparate = RegisterWindowMessageW(L"z-f.finestre-separate");
+    if (principal) g_instanceMutex = CreateMutexW(nullptr, FALSE, L"Local\\" ZF_ID L"-istanza");
+    g_msgRestart = RegisterWindowMessageW(ZF_ID L".riavvio");
+    g_msgSeparate = RegisterWindowMessageW(ZF_ID L".finestre-separate");
 
     hitchLog("--- avvio", GetCurrentProcessId(), 0);
     LARGE_INTEGER f;
@@ -212,7 +212,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     wc.hIcon = LoadIconW(nullptr, IDI_APPLICATION); // la nostra arriva dopo il primo frame (appIconSet)
     wc.hbrBackground = CreateSolidBrush((COLORREF)(C_BG & 0xFFFFFF)); // finché D3D non è pronto
-    wc.lpszClassName = L"z-f";
+    wc.lpszClassName = ZF_ID;
     RegisterClassExW(&wc);
     WNDCLASSEXW wv = {};
     wv.cbSize = sizeof(wv);
@@ -227,7 +227,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     float sysScale = GetDeviceCaps(sdc, LOGPIXELSX) / 96.0f;
     ReleaseDC(nullptr, sdc);
 
-    A.hwnd = CreateWindowExW(0, L"z-f", L"[z]f", WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT,
+    A.hwnd = CreateWindowExW(0, ZF_ID, L"[z]f", WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT,
                              (int)(ui::WINDOW_W * sysScale), (int)(ui::WINDOW_H * sysScale), nullptr, nullptr, inst, nullptr);
     if (!A.hwnd) return 1;
     SetWindowPos(A.hwnd, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE); // cornice di [z]f

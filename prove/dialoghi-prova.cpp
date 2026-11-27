@@ -154,7 +154,7 @@ static void CALLBACK onForeground(HWINEVENTHOOK, DWORD, HWND h, LONG obj, LONG, 
 
 static DWORD WINAPI ritornoThread(void* p) {
     Ritorno* r = (Ritorno*)p;
-    HWND zf = findTop(r->zfPid, 0, L"z-f"), dlg = nullptr;
+    HWND zf = findTop(r->zfPid, 0, L"z-f-dev"), dlg = nullptr; // la classe della build di prova (ZF_ID)
     for (int i = 0; i < 100 && !(dlg = findTop(0, r->tid, L"#32770")); i++) Sleep(50);
     if (!zf || !dlg) { note(!zf ? L"z-f-dev non trovato" : L"dialogo non trovato", L""); return 0; }
     wchar_t b[64];
