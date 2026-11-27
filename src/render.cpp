@@ -484,6 +484,7 @@ static void render() {
     layout();
     clampScroll();
     previewSync(); // la voce sotto il cursore è cambiata: si chiede l'anteprima (su un thread)
+    hoverFollowList(); // la lista si è spostata sotto il mouse fermo: l'hover la segue
 
     float W = (float)G.w, H = (float)G.h;
     float s = A.scale;

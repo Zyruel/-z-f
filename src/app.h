@@ -22,6 +22,7 @@ enum MenuId { M_OPEN = 1, M_OPENWITH, M_CUT, M_COPY, M_PASTE, M_COPYPATH, M_RENA
               M_BACK, M_FWD, M_UP, M_EDIT_PATH, M_SIDEBAR, M_FILTER_CLEAR, M_GOTO_NEWTAB, M_GOTO_ENTER,
               M_PANE_KEYS,   // Tab: la tastiera tra la lista e l'anteprima di una cartella (preview.cpp)
               M_PREVIEW_SWAP, // Alt+Shift+P: l'anteprima da destra in basso e viceversa
+              M_FONT_STEP, M_FONT_RESET, // Ctrl+/−, Ctrl+0: dimensione del testo (scritti in onKey; l'id serve ai tooltip)
               M_COLUMN,      // menu delle colonne: M_COLUMN + COL_* mostra o nasconde quella colonna (columns.cpp)
               M_COLUMN_END = M_COLUMN + COL_COUNT,
               M_COLFILTER = M_COLUMN_END, // voce del menu del filtro di una colonna (PopupMenu::vals dice quale valore)
@@ -545,7 +546,7 @@ static void fsStart(int op, const std::wstring& a, const std::wstring& b, const 
 static void pasteFiles(const std::wstring& dest = L""); // fileops.cpp: incolla i file degli appunti (vuoto: cartella aperta)
 static bool shellDropInto(HWND hwnd, IDataObject* data, const std::wstring& path, DWORD fx, POINTL pt, HRESULT& hr); // drag.cpp: rilascio alla shell, su un thread
 static const wchar_t* errWhy(DWORD err);          // fileops.cpp: perché un elemento non si è potuto usare, per gli avvisi
-static void deleteSelected();                     // fileops.cpp: selezione nel Cestino
+static void deleteSelected(bool permanent);       // fileops.cpp: selezione nel Cestino (permanent: Shift+Canc, alla shell)
 static void recyclePaths(std::vector<std::wstring> src); // fileops.cpp: questi percorsi nel Cestino
 static bool closeDeferred();                      // fileops.cpp: WM_CLOSE con operazioni sui file in corso
 static void closeIfIdle();                        // fileops.cpp: chiusura rimandata, se non resta niente in corso
@@ -569,6 +570,8 @@ static void drawTooltip();                        // tooltip.cpp
 static void tipHide();                            // tooltip.cpp
 static void drawOptions(double dt);               // options.cpp
 static void drawDrop();                           // drag.cpp
+static void dropRetarget();                       // drag.cpp: la lista sotto un trascinamento è cambiata, senza movimento del mouse
+static void hoverFollowList();                    // input.cpp: hover ricalcolato dal mouse fermo, a ogni frame
 static void drawMarquee(bool preview);            // listmouse.cpp: il rettangolo, se è di questa lista
 static void drawChromeTitle(double dt);           // chrome.cpp
 static void drawChromeToolbar();                  // chrome.cpp
@@ -576,8 +579,8 @@ static void optionsOpen();                        // options.cpp
 static const wchar_t* shortcutFor(int menuId);    // options.cpp: scorciatoia di una voce di menu
 static std::wstring shortcutsOf(int cmd);          // options.cpp: tutte le alternative di un comando (tooltip)
 static bool optionsIsOpen();                         // options.cpp
-static bool optionsTipTarget(int x, int y, int& index); // options.cpp: scorciatoia troncata sotto il mouse
-static bool optionsTipBuild(int index);              // options.cpp: il suo tooltip, col testo intero
+static bool optionsTipTarget(int x, int y, int& index); // options.cpp: scorciatoia troncata o riga con scorciatoia sotto il mouse
+static bool optionsTipBuild(int index);              // options.cpp: il suo tooltip (testo intero, o etichetta e tasti)
 static void drawCrumbs(float x0, float x1, float y, float h, float textY, double dt); // crumbs.cpp
 static void recentVisit(const std::wstring& path);   // goto.cpp: cartella aperta (cartelle recenti)
 static void recentForget(const std::wstring& path);  // goto.cpp: cartella che non esiste più

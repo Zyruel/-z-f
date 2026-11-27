@@ -222,6 +222,12 @@ static void dropUpdate() {
     A.dirty = true;
 }
 
+// Durante il trascinamento il mouse non manda messaggi: se la lista sotto cambia da sola (l'anteprima
+// passa a un'altra cartella), destinazione ed evidenziazione si rifanno subito, non al prossimo movimento
+static void dropRetarget() {
+    if (DD.over) dropUpdate();
+}
+
 static void dropMove(DWORD keys, POINTL p) {
     DD.keys = keys;
     if (keys & MK_RBUTTON) DD.right = true;
@@ -773,8 +779,8 @@ static void dragTick() {
 static void drawDrop() {
     if (!DD.over || DD.effect == DROPEFFECT_NONE) return;
     float t = std::max(1.0f, floorf(A.scale)), r = px(ui::R_S);
-    // Una voce o lo spazio dell'anteprima: lo stesso bordo, con la sua geometria. Se intanto l'anteprima
-    // non mostra più la cartella, fino al prossimo movimento del mouse non c'è dove disegnarlo
+    // Una voce o lo spazio dell'anteprima: lo stesso bordo, con la sua geometria. Se l'anteprima non
+    // mostra più una cartella, finché dropRetarget non ha rifatto la destinazione non c'è dove disegnarlo
     bool inPv = (DD.kind == DT_ROW || DD.kind == DT_LIST) && DD.targetPreview;
     if (inPv && !pvPane()) return;
     PaneScope ps(inPv ? pvPane() : nullptr);

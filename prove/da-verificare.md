@@ -20,6 +20,40 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 000000000000000000000000000000000000000000000000000000000. Piccole correzioni di da-sistemare (z-f-dev, novembre 2026)
+
+Compilate senza avvisi (MSVC); avvio della finestra di prova con il registro pulito. Niente ancora
+provato a schermo (il 27/11 il controllo dello schermo non c'era). La cartella di prova:
+`python -I prove\colonne-prova.py <cartella>` (dal 27/11 i file grandi sono sparsi davvero:
+prima `f.truncate()` li scriveva interi, 31 GB). Da provare:
+- [ ] rotellina col mouse fermo sulla lista, in Dettagli e in Icone, anche con i gruppi: il fondo
+      dell'hover passa alla voce o all'intestazione che arriva sotto il puntatore, anche durante lo
+      scorrimento morbido; lo stesso nell'anteprima di una cartella;
+- [ ] mouse fermo su una voce mentre si scrive un filtro e mentre la cartella si ricarica (un file
+      creato da fuori): l'hover segue; un tooltip aperto o in arrivo si chiude se cambia la voce;
+- [ ] tooltip di un gruppo aperto, mouse fermo: un file creato da fuori nel gruppo porta "Voci" al
+      numero nuovo; uno che fa nascere un gruppo prima di quello chiude il tooltip; coi gruppi per
+      Dimensione mentre si contano le cartelle, il numero segue i totali;
+- [ ] Ctrl+B o ◨ col mouse sulla lista: l'hover è sulla voce che ora sta sotto il mouse;
+- [ ] durante il rettangolo, un trascinamento, un menu aperto, le opzioni e "Vai a": l'hover non
+      cambia da solo (come prima);
+- [ ] "Sposta nel Cestino" dal menu col tasto destro, tenendo Shift premuto al clic: va nel
+      Cestino (Ctrl+Z lo rimette); Shift+Canc chiede ancora l'eliminazione definitiva;
+- [ ] doppio clic fuori dalle opzioni sopra un file: si chiudono e il file non si apre; lo stesso
+      con un menu aperto; la × delle opzioni con un doppio clic;
+- [ ] opzioni aperte e scorse in basso: Shift da solo, ← →, Alt+Shift+P non le riportano in cima;
+      una lettera sì (la ricerca cambia);
+- [ ] tasto destro con le opzioni o "Vai a" aperti, sopra la lista o sopra l'anteprima di una
+      cartella: niente menu, e chiuso il pannello la tastiera è dove era;
+- [ ] trascinando la barra di scorrimento della lista (e dell'anteprima), Alt+Tab: tornando, la
+      lista non segue il mouse senza tasto;
+- [ ] file trascinati da fuori fermi sopra l'anteprima di una cartella mentre la lista cambia
+      voce (una scheda che si apre col trascinamento): bordo ed evidenziazione passano subito alla
+      lista nuova; con l'anteprima che diventa un file, nessun bordo e il rilascio non va nella
+      cartella di prima;
+- [ ] tooltip delle righe Dimensione del testo (Scorciatoia Ctrl+/−, Predefinita Ctrl+0), Barra
+      laterale (Ctrl+B), Anteprima (Alt+P), Posizione dell'anteprima (Alt+Shift+P), anche a 175%.
+
 ## 00000000000000000000000000000000000000000000000000000000. Gruppi (z-f-dev, novembre 2026)
 
 Terza fase delle colonne. Già provato da Claude a 100%, finestra ingrandita, nella cartella di

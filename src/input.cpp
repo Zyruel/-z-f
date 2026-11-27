@@ -62,6 +62,39 @@ static void historyCmd(int id) {
     menuRun(id, c);
 }
 
+// Ciò che sta sotto il mouse nella lista e nell'anteprima di una cartella: voce, intestazione di
+// gruppo, destinazione di un collegamento. true se è cambiato
+static bool listHoverAt(int x, int y) {
+    bool changed = false;
+    int h = itemAt(x, y);
+    if (h != A.hover) { A.hover = h; changed = true; }
+    int gh = groupHeadAt(x, y);
+    if (gh != A.groupHover) { A.groupHover = gh; changed = true; }
+    if (ListPane* p = pvPane()) { // voce dell'anteprima sotto il mouse
+        int ph = -1;
+        if (ListPane* pp = pvPaneAt(x, y)) { PaneScope ps(pp); ph = itemAt(x, y); }
+        if (ph != p->hover) { p->hover = ph; changed = true; }
+    }
+    int lh = linkHit(x, y);
+    if (lh != A.linkHover) { A.linkHover = lh; changed = true; }
+    if (changed) A.dirty = true;
+    return changed;
+}
+
+// A ogni frame, dopo scorrimento e layout: la lista può essersi spostata sotto il mouse fermo
+// (rotellina, filtro, ricarica, un gruppo chiuso, la barra laterale nascosta). Senza, l'hover resta
+// sulla voce di prima, che si allontana dal puntatore, finché il mouse non si muove. Non durante
+// ciò che usa il mouse a modo suo (tasti premuti, trascinamenti, menu e pannelli), dove neanche
+// WM_MOUSEMOVE lo aggiorna
+static void hoverFollowList() {
+    tipGroupFollow(); // anche col mouse fermo sulla stessa intestazione, il gruppo può essere cambiato
+    if (!A.trackingMouse || A.menu.open || OP.open || gotoIsOpen() || DD.over || DD.own || GetCapture()) return;
+    if (GetKeyState(VK_LBUTTON) < 0 || GetKeyState(VK_RBUTTON) < 0) return;
+    POINT c;
+    if (!GetCursorPos(&c) || !ScreenToClient(A.hwnd, &c)) return;
+    if (listHoverAt(c.x, c.y)) tipHide(); // il tooltip in arrivo o aperto era della voce di prima
+}
+
 static void onKey(WPARAM vk, bool alt) {
     bool ctrl = GetKeyState(VK_CONTROL) < 0, shift = GetKeyState(VK_SHIFT) < 0;
     if (vk == VK_ESCAPE && (mqCancel() || colDragEnd(false) || favMouseUp(false, false) || favDisarm())) return; // rettangolo, bordo, preferito trascinato: si torna a prima; cestino: niente conferma
@@ -101,6 +134,7 @@ static void onKey(WPARAM vk, bool alt) {
     if (cmd) {
         CmdCtx c;
         c.target = A.tab; // Ctrl+W: la scheda attiva
+        c.shift = shift;
         menuRun(cmd, c);
         return;
     }
@@ -288,8 +322,12 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             }
         }
         break;
-    case WM_CAPTURECHANGED: // un'altra finestra ha preso il mouse: rettangolo e bordo si fermano dove sono
-        if ((HWND)lp != hwnd) { mqEnd(); colDragEnd(true); favMouseUp(false, false); zipDragCancel(); }
+    case WM_CAPTURECHANGED: // un'altra finestra ha preso il mouse (Alt+Tab): rettangolo, bordo e barra di scorrimento si fermano dove sono
+        if ((HWND)lp != hwnd) {
+            mqEnd(); colDragEnd(true); favMouseUp(false, false); zipDragCancel();
+            A.draggingThumb = false; // senza, lo scorrimento seguirebbe il mouse senza tasto premuto
+            if (ListPane* p = pvPane()) p->draggingThumb = false;
+        }
         break;
     case WM_CONTEXTMENU:
         if (OP.open || gotoIsOpen()) return 0;
@@ -553,18 +591,8 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (fg != A.colFltGlyph) { A.colFltGlyph = fg; A.dirty = true; }
         if (A.draggingThumb) { listThumbDrag(x, y); return 0; }
         if (ListPane* p = pvPane(); p && p->draggingThumb) { PaneScope ps(p); listThumbDrag(x, y); return 0; }
-        int h = itemAt(x, y);
-        if (h != A.hover) { A.hover = h; A.dirty = true; }
-        int gh = groupHeadAt(x, y);
-        if (gh != A.groupHover) { A.groupHover = gh; A.dirty = true; }
-        if (ListPane* p = pvPane()) { // voce dell'anteprima sotto il mouse
-            int ph = -1;
-            if (ListPane* pp = pvPaneAt(x, y)) { PaneScope ps(pp); ph = itemAt(x, y); }
-            if (ph != p->hover) { p->hover = ph; A.dirty = true; }
-        }
+        listHoverAt(x, y);
         if (pvViewAt(x, y) != PV.viewHover) { PV.viewHover = !PV.viewHover; A.dirty = true; }
-        int lh = linkHit(x, y);
-        if (lh != A.linkHover) { A.linkHover = lh; A.dirty = true; }
         bool closeHit, plusHit;
         int t = tabHit(x, y, &closeHit, &plusHit);
         if (t != A.tabHover || closeHit != A.tabCloseHover || plusHit != A.tabPlusHover) {
@@ -618,6 +646,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             int id = A.menu.kind == MENU_CRUMB ? crumbHit(x, y) : -1;
             bool other = (id == CRUMB_ELL || (id >= 0 && (id & 1))) && !(id & 1 && id / 2 == CB.menuFor);
             menuClose();
+            g_menuClickAt = nowMs();
             if (other) crumbClick(x, y);
             return 0;
         }
@@ -752,6 +781,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_RBUTTONDOWN:
         tipHide();
         if (A.menu.open && !menuInside(GET_X_LPARAM(lp), GET_Y_LPARAM(lp))) menuClose(); // poi WM_CONTEXTMENU lo riapre qui
+        else if (OP.open || gotoIsOpen()) {} // sotto il pannello niente menu (WM_CONTEXTMENU) né tastiera che passa alla lista
         else {
             int x = GET_X_LPARAM(lp), y = GET_Y_LPARAM(lp);
             ListPane* pp = pvPaneAt(x, y);

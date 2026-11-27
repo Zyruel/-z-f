@@ -36,16 +36,28 @@ def set_times(path, created, modified, folder=False):
     k32.SetFileTime(h, ctypes.byref(c), None, ctypes.byref(m))
     k32.CloseHandle(h)
 
+k32.SetFilePointerEx.argtypes = [wintypes.HANDLE, ctypes.c_longlong, ctypes.c_void_p, wintypes.DWORD]
+k32.SetEndOfFile.argtypes = [wintypes.HANDLE]
+k32.GetCompressedFileSizeW.argtypes = [wintypes.LPCWSTR, ctypes.POINTER(wintypes.DWORD)]
+
 def sparse(path, size):
-    """File della dimensione data senza occupare spazio (FSCTL_SET_SPARSE)"""
-    with open(path, "wb") as f:
-        pass
-    h = k32.CreateFileW(path, 0xC0000000, 7, None, 3, 0, None)
-    n = wintypes.DWORD()
-    k32.DeviceIoControl(h, 0x900C4, None, 0, None, 0, ctypes.byref(n), None)
-    k32.CloseHandle(h)
-    with open(path, "r+b") as f:
-        f.truncate(size)
+    """File della dimensione data senza occupare spazio (FSCTL_SET_SPARSE). La fine si sposta con
+    SetEndOfFile: f.truncate() di Python su Windows scrive gli zeri anche in un file sparso (27/11:
+    120 file hanno riempito il disco, 31 GB)"""
+    h = k32.CreateFileW(path, 0xC0000000, 7, None, 2, 0, None)  # GENERIC_READ|WRITE, CREATE_ALWAYS
+    if h in (None, wintypes.HANDLE(-1).value):
+        raise OSError(ctypes.get_last_error(), path)
+    try:
+        n = wintypes.DWORD()
+        if not k32.DeviceIoControl(h, 0x900C4, None, 0, None, 0, ctypes.byref(n), None):
+            raise OSError(ctypes.get_last_error(), "FSCTL_SET_SPARSE: " + path)
+        if not k32.SetFilePointerEx(h, size, None, 0) or not k32.SetEndOfFile(h):
+            raise OSError(ctypes.get_last_error(), "SetEndOfFile: " + path)
+    finally:
+        k32.CloseHandle(h)
+    hi = wintypes.DWORD()
+    used = k32.GetCompressedFileSizeW(path, ctypes.byref(hi)) + (hi.value << 32)  # spazio occupato davvero
+    assert used < 1_000_000, f"{path}: occupa {used} byte, non è sparso"
 
 now = datetime.datetime.now()
 today = now.replace(hour=10, minute=0, second=0, microsecond=0)

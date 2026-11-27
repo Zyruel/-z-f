@@ -7,8 +7,9 @@
 // I comandi (MenuId) stanno in app.h, perché anche i tooltip ne mostrano le scorciatoie.
 
 static int g_dropChoice = 0; // voce scelta nel menu del trascinamento col tasto destro (0: nessuna)
-// Quando una voce è stata eseguita col clic: il secondo clic di un doppio clic arriva a menu chiuso e
-// non deve aprire la voce della lista che intanto è sotto il mouse (come GT.closedAt per "Vai a")
+// Quando un clic ha eseguito una voce o chiuso il menu da fuori: il secondo clic di un doppio clic
+// arriva a menu chiuso e non deve aprire la voce della lista che intanto è sotto il mouse (come
+// GT.closedAt per "Vai a" e OP.closedAt per le opzioni)
 static double g_menuClickAt = -1e18;
 
 static void menuClose() {
@@ -415,7 +416,9 @@ static DWORD WINAPI newWindowThread(void* p) {
 // Un comando, da una voce di menu o da un tasto di kShortcuts (onKey). Il contesto dice su cosa
 // agisce: kind e target la voce della barra laterale o la scheda del menu, bg lo sfondo della
 // lista, pt il punto del clic. Da tastiera: la selezione e la scheda attiva.
-struct CmdCtx { int kind = MENU_LIST, target = -1; bool bg = false; POINT pt = { -1, -1 }; };
+// shift: il comando viene da un tasto con Shift (Shift+Canc). Dal menu no, anche se Shift è ancora
+// premuto quando si fa clic: "Sposta nel Cestino" deve andare sempre nel Cestino
+struct CmdCtx { int kind = MENU_LIST, target = -1; bool bg = false, shift = false; POINT pt = { -1, -1 }; };
 
 static void menuRun(int id, const CmdCtx& c) {
     int kind = c.kind, target = c.target;
@@ -511,7 +514,7 @@ static void menuRun(int id, const CmdCtx& c) {
     case M_REDO:      undoRun(true); break;
     case M_COPYPATH:  copyPaths(bg); break;
     case M_RENAME:    beginRename(); break;
-    case M_DELETE:    deleteSelected(); break;
+    case M_DELETE:    deleteSelected(c.shift); break;
     case M_PROPS:     showProperties(bg); break;
     case M_MORE:      showContextMenu(pt, bg); break;
     case M_NEWFOLDER: newFolder(); break;

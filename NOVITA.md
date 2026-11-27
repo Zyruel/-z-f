@@ -53,6 +53,23 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
   barre il nome della vista finisce dove finiscono le colonne. Prima il controllo della vista
   dell'anteprima era largo come "Informazioni" anche per una cartella: tutto quello che lo
   precede era spostato, e a destra restava spazio vuoto.
+- **L'hover segue la lista:** scorrendo con la rotellina, filtrando o quando la cartella si
+  ricarica, il fondo sotto il mouse passa alla voce (o all'intestazione di gruppo) che ora è lì,
+  senza aspettare che il mouse si muova.
+- **Opzioni:** le righe Dimensione del testo, Barra laterale, Anteprima e Posizione dell'anteprima
+  dicono nel tooltip la loro scorciatoia.
+- **Correzioni:**
+  - "Sposta nel Cestino" del menu va sempre nel Cestino: con Shift ancora premuto al clic
+    eliminava definitivamente, come Shift+Canc;
+  - un doppio clic fuori dalle opzioni o da un menu le chiude e basta: il secondo clic apriva il
+    file che c'era sotto;
+  - con le opzioni aperte, Shift o le scorciatoie con Alt non riportano più il pannello in cima;
+  - il tasto destro con le opzioni o "Vai a" aperti non passa più la tastiera alla lista nascosta
+    sotto;
+  - passando ad altra finestra (Alt+Tab) mentre si trascina la barra di scorrimento, la lista non
+    segue più il mouse senza tasto premuto;
+  - trascinando file sopra l'anteprima, quando questa passa a un'altra cartella la destinazione si
+    aggiorna subito, non al movimento successivo del mouse.
 
 ## 1.0.0-beta.8 (novembre 2026)
 

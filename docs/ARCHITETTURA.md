@@ -168,6 +168,15 @@ condivise sono in `app.h`.
 - **Animazioni:** un solo meccanismo, l'avvicinamento esponenziale con una costante di tempo nota
   (`approach`, `ui::TAU_*`), più le durate fisse `ui::DUR_*`; si ridisegna solo finché qualcosa si
   muove. Quali animazioni ci sono e come si spengono: [`DESIGN.md`](DESIGN.md) §5.
+- **Hover col mouse fermo** (`hoverFollowList`, `input.cpp`): a ogni frame, dopo scorrimento e
+  layout, voce, intestazione di gruppo, voce dell'anteprima e destinazione di un collegamento sotto
+  il mouse si rileggono dalla sua posizione (`GetCursorPos`), con lo stesso codice di
+  `WM_MOUSEMOVE` (`listHoverAt`). Se cambiano, il tooltip in arrivo si chiude, perché era della voce
+  di prima. Un tooltip di gruppo aperto si confronta col gruppo che ora sta a quell'indice
+  (`tipGroupFollow`, per valore e non per `Listing`, che una ricarica può rifare allo stesso
+  indirizzo): un altro gruppo lo chiude, lo stesso con altre voci ne rifà il testo. Non con un tasto del mouse premuto, durante un trascinamento o con un menu o un
+  pannello aperti, dove neanche `WM_MOUSEMOVE` lo aggiorna. Misurato (novembre 2026, Ryzen 9 7900):
+  0,5 µs a frame per posizione, tasti e cattura; il resto è il calcolo di un `WM_MOUSEMOVE`.
 - **Icona della finestra:** la classe della finestra registra l'icona generica di Windows;
   `appIconSet` (`chrome.cpp`) carica la nostra dopo il primo frame, come `dropRegister`, con
   `LoadImageW` alla misura grande e piccola del DPI della finestra, e la dà con `WM_SETICON`; di
@@ -199,6 +208,9 @@ condivise sono in `app.h`.
   `CreateWindowEx` ritardavano tutto l'avvio (1,6–2,8 ms, contro 0,0 dell'icona generica).
 - Con la finestra coperta l'attesa del vsync può arrivare a 100 ms: per questo il ciclo aspetta
   vsync e messaggi insieme.
+- L'hover si ricalcola a ogni frame invece che dopo ogni cosa che sposta la lista (rotellina,
+  scorrimento morbido, filtro, ricarica, gruppi, pannelli che si aprono): un punto solo le copre
+  tutte, anche quelle che verranno, e un frame si disegna solo quando qualcosa è cambiato.
 
 **Misurato:**
 
@@ -599,7 +611,8 @@ Mostra la voce sotto il cursore e la segue mentre ci si muove con le frecce.
     `refreshAgain` della lista. Il trascinamento premuto nell'anteprima confronta il percorso della
     cartella, non il `Listing`: una rilettura della stessa cartella non lo ferma. F12 mostra
     l'osservatore ("anteprima: aggiornamento automatico", notifiche e riletture) e l'ultima
-    rilettura, dalla prima notifica al risultato applicato.
+    rilettura, dalla prima notifica al risultato applicato; una notifica a cui `previewRefresh` non
+    dà seguito (cursore già altrove) si dimentica, così la rilettura dopo non si misura da lì.
     *Misurato* (1.0.0-beta.8, cartella locale di 34 file, file creati da fuori uno alla volta):
     ultima rilettura 58–71 ms, di cui 50 il raggruppamento `WATCH_BATCH` e 0,1–0,2 la lettura sul
     thread; il resto è il timer e il frame. Come la ricarica della lista (62 ms nella stessa prova).
@@ -887,7 +900,10 @@ elementi 3,6 ms sul thread (mandarli nel Cestino 98 ms).
   preferiti le cartelle si aggiungono ai preferiti. Stessa unità sposta, altra unità copia; Ctrl
   copia, Shift sposta, Alt crea un collegamento; col tasto destro, al rilascio, il nostro menu.
 - **Mentre il mouse si muove** l'effetto si decide senza disco né shell; il controllo "dentro sé
-  stessa" si rifà solo quando cambia la destinazione.
+  stessa" si rifà solo quando cambia la destinazione. Durante il trascinamento il mouse non manda
+  messaggi: quando l'anteprima passa da sola a un'altra cartella (o la chiude) sotto il mouse fermo,
+  `dropRetarget` rifà subito destinazione ed evidenziazione, invece di lasciarle sulla riga con
+  lo stesso indice fino al movimento successivo.
 - **Al rilascio** i file veri si copiano o spostano su un thread con `foRun` (`fileops.cpp`),
   e l'esito di ogni elemento entra nella cronologia di Ctrl+Z. L'elenco trascinato si legge da
   `DROPFILES` in un passaggio (`hdropPaths`).

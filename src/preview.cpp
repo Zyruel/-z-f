@@ -836,10 +836,12 @@ static void previewOnTimer(UINT_PTR id) {
 // resta finché arriva il nuovo, e la lista tiene selezione e scorrimento (pvPaneSet)
 static void previewRefresh() {
     if (g_inPane) { g_paneAfter.push_back(previewRefresh); return; } // pvRequest misura il pannello con la geometria di App
-    if (!PV.want || !PV.pane.cur) return;
+    // Uscendo senza rilettura la notifica resta senza seguito: la sua ora non deve valere per una
+    // rilettura più tardi (F12 la misurerebbe da lì). Resta solo per refreshAgain, che la serve
+    if (!PV.want || !PV.pane.cur) { A.prevChangeAt = 0; return; }
     // Il cursore è già su un'altra voce (un file grande che si decodifica): rifarne la richiesta la
     // annullerebbe, e con una cartella che cambia di continuo non arriverebbe mai
-    if (PV.stale || PV.item.path != PV.shown.path) return;
+    if (PV.stale || PV.item.path != PV.shown.path) { A.prevChangeAt = 0; return; }
     // Una rilettura in corso non si supera (una cartella lenta da leggere non si aggiornerebbe mai):
     // la prossima parte quando arriva questa, come refreshAgain della lista
     if (PV.refreshGen == PV.gen) { PV.refreshAgain = true; return; }
@@ -886,6 +888,7 @@ static void pvPaneClear() {
     PV.selectAfter.clear();
     PV.renameAfter = false;
     PV.keepFirst = -1;
+    dropRetarget(); // un trascinamento sopra l'anteprima non punta più a una cartella che non si vede
 }
 
 // Una cartella letta (l, dal thread) diventa la lista dell'anteprima. same: è la stessa cartella
@@ -996,6 +999,7 @@ static void onPreviewResult(PvRes* o) {
     if (o->kind == PV_DIR && o->dir && !o->err) { pvPaneSet(o->dir, same, o->more); o->dir = nullptr; }
     else pvPaneClear();
     pvSetResult(o);
+    dropRetarget(); // un trascinamento fermo sopra l'anteprima: la destinazione è nella lista nuova
     PV.stale = false;
     KillTimer(A.hwnd, 12);
     static const wchar_t* kinds[] = { L"", L"testo", L"immagine", L"cartella", L"informazioni" };

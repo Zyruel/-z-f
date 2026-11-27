@@ -10,7 +10,7 @@ enum TipKind { TIP_NONE, TIP_ROW, TIP_SIDE, TIP_TAB, TIP_TABPLUS, TIP_TABCLOSE, 
                TIP_CHROME, TIP_FILTER, TIP_GOTO, TIP_FAVDEL, // cestino di un preferito (sidebar.cpp)
                TIP_LINK,  // destinazione di un collegamento nella colonna Destinazione (links.cpp)
                TIP_VIEW,   // vista e zoom nella barra di stato
-               TIP_OPTIONS, // scorciatoia troncata nel pannello delle opzioni (options.cpp)
+               TIP_OPTIONS, // pannello delle opzioni: scorciatoia troncata, o riga con una scorciatoia (options.cpp)
                TIP_COLFILTER, // imbuto del filtro di una colonna nell'intestazione (columns.cpp)
                TIP_GROUP };   // intestazione di un gruppo nella lista (indice in A.groups)
 
@@ -36,6 +36,8 @@ struct Tooltip {
     TipInfo info;
     std::wstring title;
     std::vector<std::pair<std::wstring, std::wstring>> rows;
+    Group group;                 // TIP_GROUP: il gruppo mostrato (valore, voci, chiuso) e la colonna dei gruppi
+    int groupCol = -1;
 } T;
 
 struct TipReq { HWND hwnd; uint64_t gen; std::wstring path; bool dir; bool drive; };
@@ -358,6 +360,8 @@ static bool tipBuild() {
         T.title = colValueLabel(A.groupCol, g.v);
         tipRow(L"Voci", withThousands((uint64_t)g.total));
         tipRow(L"", g.closed ? L"Clic: apri il gruppo" : L"Clic: chiudi il gruppo");
+        T.group = g; // ciò che mostra, per tipGroupFollow
+        T.groupCol = A.groupCol;
         break;
     }
     case TIP_COLFILTER: { // imbuto del filtro di una colonna
@@ -567,6 +571,25 @@ static void tipTarget(int x, int y, int& kind, int& index, bool& preview) {
     if (int g = groupHeadAt(x, y); g >= 0) { kind = TIP_GROUP; index = g; return; }
     int r = itemAt(x, y);
     if (r >= 0) { kind = TIP_ROW; index = (int)A.view[r]; }
+}
+
+// Un tooltip di gruppo è legato all'indice del gruppo, e i gruppi si rifanno anche col mouse fermo:
+// una ricarica (che può riusare l'indirizzo del Listing, quindi T.owner non basta), i totali delle
+// cartelle che arrivano coi gruppi per Dimensione, un altro raggruppamento. Se a quell'indice ora
+// c'è un altro gruppo si chiude; se è lo stesso con altre voci o chiuso, il testo si rifà. A ogni
+// frame, da hoverFollowList. Solo se si vede: uno in arrivo si costruisce coi gruppi di quel momento
+static void tipGroupFollow() {
+    if (T.kind != TIP_GROUP || !T.visible) return;
+    if (T.index < 0 || T.index >= (int)A.groups.size() || A.groupCol != T.groupCol || !colValueSame(A.groups[T.index].v, T.group.v)) {
+        tipHide();
+        return;
+    }
+    const Group& g = A.groups[T.index];
+    T.owner = A.cur; // lo stesso gruppo, anche in un Listing nuovo
+    if (g.total != T.group.total || g.closed != T.group.closed) {
+        if (!tipBuild()) tipHide();
+        A.dirty = true;
+    }
 }
 
 static void tipMouseMove(int x, int y) {

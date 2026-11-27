@@ -55,7 +55,7 @@ static Shortcut kFiles[] = {
     { { K(M_COPYPATH, KC | KS, 'C') }, L"Copia il percorso" },
     { { K(M_NEWFOLDER, KC | KS, 'N') }, L"Crea una nuova cartella" },
     { { K(M_RENAME, 0, VK_F2) }, L"Rinomina" },
-    { { K(M_DELETE, 0, VK_DELETE), K(M_DELETE, KS, VK_DELETE) }, L"Sposta nel Cestino · elimina definitivamente" }, // Shift lo legge deleteSelected
+    { { K(M_DELETE, 0, VK_DELETE), K(M_DELETE, KS, VK_DELETE) }, L"Sposta nel Cestino · elimina definitivamente" }, // Shift arriva a deleteSelected da CmdCtx::shift
     { { K(M_UNDO, KC, 'Z') }, L"Annulla l'ultima operazione sui file" },
     { { K(M_REDO, KC, 'Y'), K(M_REDO, KC | KS, 'Z') }, L"Ripete l'operazione annullata" },
     { { K(M_PROPS, KA, VK_RETURN) }, L"Apre le proprietà" },
@@ -93,8 +93,8 @@ static Shortcut kView[] = {
     { { { L"Trascina tra i preferiti", 0 } }, L"Aggiunge le cartelle ai preferiti" },
     { { { L"Trascina un preferito", 0 } }, L"Lo sposta tra gli altri (solo l'ordine)" },
     { { { L"Clic su Preferiti", 0 }, { L"sulla freccia di Questo PC", 0 } }, L"Chiude o riapre i preferiti · le unità" },
-    { { { L"Ctrl+/−", 0 } }, L"Cambia la dimensione del testo" },
-    { { { L"Ctrl+0", 0 } }, L"Riporta il testo alla dimensione predefinita" },
+    { { { L"Ctrl+/−", M_FONT_STEP } }, L"Cambia la dimensione del testo" },
+    { { { L"Ctrl+0", M_FONT_RESET } }, L"Riporta il testo alla dimensione predefinita" },
     { { K(M_OPTIONS, KC, VK_OEM_COMMA) }, L"Apre le opzioni" },
     { { { L"F12", 0 } }, L"Mostra statistiche e tempi" },
 };
@@ -206,10 +206,11 @@ enum OptId { OPT_NONE = -1, OPT_CLOSE = 1, OPT_FONT_MINUS, OPT_FONT_PLUS, OPT_FA
              OPT_PREVIEW_POS_PREV, OPT_PREVIEW_POS_NEXT,
              OPT_UNDO_PERSIST, OPT_SHELL_MENU, OPT_DIR_SIZES, OPT_EXT, OPT_DIALOGS, OPT_TIMES,
              OPT_REOPEN, OPT_UPDATES, OPT_BETA, OPT_UPD_ACT, OPT_SEPARATE, OPT_VERSION };
+enum { OPT_TIP_ROW = 1 << 16 }; // OptionsPanel::tips: oltre, una riga con la sua scorciatoia (sotto, una scorciatoia troncata)
 
 struct OptionsPanel {
     bool open = false;
-    double openedAt = 0;
+    double openedAt = 0, closedAt = -1e18; // closedAt: il secondo clic di un doppio clic che le ha chiuse
     TextField search;
     float scroll = 0, maxScroll = 0;
     float x = 0, y = 0, w = 0, h = 0, viewTop = 0, viewBottom = 0;
@@ -218,7 +219,10 @@ struct OptionsPanel {
     int defaultState = 0;              // [z]f al posto di Explorer (letto all'apertura)
     struct Hit { float x, y, w, h; int id; };
     std::vector<Hit> hits;             // aree cliccabili dell'ultimo frame
-    std::vector<Hit> tips;             // scorciatoie troncate dell'ultimo frame (id: gruppo * 256 + voce): il tooltip ha il testo intero
+    std::vector<Hit> tips;             // scorciatoie troncate dell'ultimo frame (id: gruppo * 256 + voce): il tooltip ha il testo intero;
+                                       // righe con una scorciatoia (id: OPT_TIP_ROW + indice in rowTips)
+    struct RowTip { const wchar_t* label; int cmd, cmd2; }; // cmd2: la riga "Predefinita" (Ctrl+0)
+    std::vector<RowTip> rowTips;       // righe dell'ultimo frame con una scorciatoia: etichetta e comandi
     int hover = OPT_NONE;
     HoverFade fade;
     float knobAnim = 0, knobSide = 0, knobDefault = 0, knobPreview = 0, knobUndo = 0, knobMenu = 0, knobDirSizes = 0, knobDialogs = 0, knobTimes = 0; // posizione animata degli interruttori
@@ -289,6 +293,7 @@ static void optionsOpen() {
 static void optionsClose() {
     if (!OP.open) return;
     OP.open = false;
+    OP.closedAt = nowMs();
     A.dirty = true;
 }
 
@@ -373,9 +378,10 @@ static int optionsHit(int x, int y) {
 // --- input: true se l'evento è stato gestito dal pannello ------------------------------
 // again: secondo clic di un doppio clic. Conta come un clic, tranne su versione, aggiornamento e
 // posizione dell'anteprima: aprirebbero la pagina due volte, ripeterebbero l'aggiornamento o
-// rimetterebbero l'anteprima dov'era
+// rimetterebbero l'anteprima dov'era. Se il primo clic le ha chiuse (fuori, ×), il secondo non va
+// a ciò che c'è sotto: aprirebbe il file della lista in quel punto
 static bool optionsMouseDown(int x, int y, bool again = false) {
-    if (!OP.open) return false;
+    if (!OP.open) return again && nowMs() - OP.closedAt < GetDoubleClickTime();
     if (x < OP.x || x >= OP.x + OP.w || y < OP.y || y >= OP.y + OP.h) { optionsClose(); return true; } // clic fuori
     int id = optionsHit(x, y);
     if (again && (id == OPT_VERSION || id == OPT_UPD_ACT || id == OPT_PREVIEW_POS_PREV || id == OPT_PREVIEW_POS_NEXT)) return true;
@@ -409,9 +415,10 @@ static bool optionsKey(WPARAM vk, bool ctrl, bool shift) {
         OP.scroll = std::max(0.0f, std::min(OP.maxScroll, OP.scroll + (vk == VK_NEXT ? page : -page)));
     } else if (ctrl && vk == VK_OEM_COMMA) {
         optionsClose();
-    } else {
+    } else { // in cima solo se la ricerca cambia: Shift da solo, ← → o Alt+Shift+P non spostano il pannello
+        std::wstring before = OP.search.text;
         OP.search.key(A.hwnd, vk, ctrl, shift);
-        OP.scroll = 0;
+        if (OP.search.text != before) OP.scroll = 0;
     }
     A.dirty = true;
     return true;
@@ -435,6 +442,15 @@ static bool optionsTipTarget(int x, int y, int& index) {
 }
 
 static bool optionsTipBuild(int index) {
+    if (index >= OPT_TIP_ROW) { // una riga con una scorciatoia: l'etichetta e i suoi tasti (DESIGN §8, Tooltip)
+        size_t r = (size_t)(index - OPT_TIP_ROW);
+        if (!OP.open || r >= OP.rowTips.size()) return false;
+        const OptionsPanel::RowTip& t = OP.rowTips[r];
+        T.title = t.label;
+        tipRow(L"Scorciatoia", shortcutsOf(t.cmd));
+        if (t.cmd2) tipRow(L"Predefinita", shortcutsOf(t.cmd2));
+        return true;
+    }
     int g = index / 256, i = index % 256;
     if (!OP.open || g < 0 || g >= (int)(sizeof(kShortcuts) / sizeof(kShortcuts[0])) || i >= kShortcuts[g].n) return false;
     const Shortcut& s = kShortcuts[g].items[i];
@@ -465,6 +481,7 @@ static void drawOptions(double dt) {
     float k = e.k;
     OP.hits.clear();
     OP.tips.clear();
+    OP.rowTips.clear();
     hoverFadeUpdate(OP.fade, OP.hover, dt);
     auto fixed = [](int id) { return id == OPT_CLOSE || id == OPT_FOLDER || id == OPT_UPD_ACT || id == OPT_VERSION; }; // titolo e piede non scorrono
     // Solo la parte dentro l'area visibile: cliccabile, e col fondo sotto il mouse (il pannello non
@@ -556,6 +573,12 @@ static void drawOptions(double dt) {
     auto label = [&](const wchar_t* t) {
         if (visible(cy, rowH)) drawText(inL, cy + textOff, t, (int)wcslen(t), fadeA(C_TEXT, k), right - px(ui::OPT_LABEL_RESERVE));
     };
+    // Una riga che ha anche una scorciatoia (cmd, da kShortcuts): il tooltip la dice (DESIGN §8, Tooltip)
+    auto keysTip = [&](const wchar_t* t, int cmd, int cmd2) {
+        if (!cmd || !visible(cy, rowH)) return;
+        OP.tips.push_back({ rowL, cy, right - rowL, rowH, OPT_TIP_ROW + (int)OP.rowTips.size() });
+        OP.rowTips.push_back({ t, cmd, cmd2 });
+    };
     auto button = [&](float bx, float by, float bw, const wchar_t* t, int id) {
         if (!visible(by, rowH)) return;
         hov(bx, by + px(ui::GAP_XS), bw, rowH - px(ui::GAP_S), id);
@@ -566,7 +589,8 @@ static void drawOptions(double dt) {
     // niente informazioni troncate) e interruttore a destra. Tutta la riga è cliccabile e prende il
     // fondo sotto il mouse. hintCol: C_ACCENT quando la spiegazione avvisa di uno stato a metà.
     std::vector<std::pair<int, int>> hl; // righe della spiegazione: inizio, fine
-    auto opt = [&](const wchar_t* t, const wchar_t* hint, bool on, float& anim, int id, uint32_t hintCol = C_DIM) {
+    auto opt = [&](const wchar_t* t, const wchar_t* hint, bool on, float& anim, int id, uint32_t hintCol = C_DIM, int cmd = 0) {
+        keysTip(t, cmd, 0);
         hl.clear();
         int hn = hint ? (int)wcslen(hint) : 0;
         for (int s = 0; s < hn;) {
@@ -598,7 +622,8 @@ static void drawOptions(double dt) {
     // Selettore tra alcuni valori: "−  13 px  +", "‹  Segoe UI  ›". Su un fondo da casella
     // (C_INPUT), così si vede che il valore si cambia; i pulsanti hanno il loro fondo sotto il mouse
     auto pickRow = [&](const wchar_t* t, const std::wstring& val, float vw, const wchar_t* prev, const wchar_t* next,
-                       int prevId, int nextId) {
+                       int prevId, int nextId, int cmd = 0, int cmd2 = 0) {
+        keysTip(t, cmd, cmd2);
         label(t);
         float bw = rowH, bx = inR - bw * 2 - vw;
         if (visible(cy, rowH)) rrect(bx, cy + px(ui::GAP_XS), bw * 2 + vw, rowH - px(ui::GAP_S), px(ui::R_S), fadeA(C_INPUT, k));
@@ -610,8 +635,8 @@ static void drawOptions(double dt) {
         button(bx + bw + vw, cy, bw, next, nextId);
         cy += rowH;
     };
-    auto namePick = [&](const wchar_t* t, const std::wstring& val, int prevId, int nextId) { // tra nomi: caratteri, posizioni
-        pickRow(t, val, px(ui::OPT_FACE_W), L"\x2039", L"\x203A", prevId, nextId);
+    auto namePick = [&](const wchar_t* t, const std::wstring& val, int prevId, int nextId, int cmd = 0) { // tra nomi: caratteri, posizioni
+        pickRow(t, val, px(ui::OPT_FACE_W), L"\x2039", L"\x203A", prevId, nextId, cmd);
     };
 
     // Con la ricerca piena solo le scorciatoie: la casella sta nel loro titolo, così casella e
@@ -622,15 +647,15 @@ static void drawOptions(double dt) {
         wchar_t b[16];
         _snwprintf(b, 15, L"%d px", F.px);
         b[15] = 0;
-        pickRow(L"Dimensione del testo", b, px(ui::OPT_VALUE_W), L"\x2212", L"+", OPT_FONT_MINUS, OPT_FONT_PLUS);
+        pickRow(L"Dimensione del testo", b, px(ui::OPT_VALUE_W), L"\x2212", L"+", OPT_FONT_MINUS, OPT_FONT_PLUS, M_FONT_STEP, M_FONT_RESET);
         namePick(L"Carattere", F.face, OPT_FACE_PREV, OPT_FACE_NEXT);
         opt(L"Animazioni", nullptr, A.animations, OP.knobAnim, OPT_ANIM);
         cy += px(ui::GAP_M);
 
         section(L"Finestra");
-        opt(L"Barra laterale", nullptr, A.sideVisible, OP.knobSide, OPT_SIDEBAR);
-        opt(L"Anteprima", nullptr, A.prevOpen, OP.knobPreview, OPT_PREVIEW);
-        namePick(L"Posizione dell'anteprima", A.prevBottom ? L"In basso" : L"A destra", OPT_PREVIEW_POS_PREV, OPT_PREVIEW_POS_NEXT);
+        opt(L"Barra laterale", nullptr, A.sideVisible, OP.knobSide, OPT_SIDEBAR, C_DIM, M_SIDEBAR);
+        opt(L"Anteprima", nullptr, A.prevOpen, OP.knobPreview, OPT_PREVIEW, C_DIM, M_PREVIEW);
+        namePick(L"Posizione dell'anteprima", A.prevBottom ? L"In basso" : L"A destra", OPT_PREVIEW_POS_PREV, OPT_PREVIEW_POS_NEXT, M_PREVIEW_SWAP);
         namePick(L"Carattere dell'anteprima", FM.face, OPT_MONO_PREV, OPT_MONO_NEXT);
         cy += px(ui::GAP_M);
 

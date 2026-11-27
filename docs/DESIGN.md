@@ -165,7 +165,7 @@ Valgono per righe, voci della barra laterale, schede e voci di menu.
 | Stato | Aspetto |
 |---|---|
 | normale | nessun fondo |
-| sotto il mouse | `C_HOVER`, in dissolvenza; nei pannelli sovrapposti (fondo `C_MENU`) `C_HOVER_PANEL` |
+| sotto il mouse | `C_HOVER`, in dissolvenza; nei pannelli sovrapposti (fondo `C_MENU`) `C_HOVER_PANEL`. Nella lista e nell'anteprima segue anche il contenuto che si sposta sotto il mouse fermo (rotellina, filtro, ricarica) |
 | selezionato | `C_SEL`; sotto il mouse `C_SEL_HOVER`; il testo secondario (date, dimensioni) in `C_DIM_SEL` |
 | corrente (cartella aperta, scheda attiva) | `C_SEL` nella barra laterale; per le schede fondo `C_BAR` e barra `C_ACCENT` in alto |
 | cursore da tastiera | pillola verticale `PILL_W` a sinistra in `C_SEL_EDGE` (metà dell'altezza della riga), più un contorno 1 px arrotondato se l'elemento non è selezionato |
@@ -744,6 +744,9 @@ doppione.
   - scrivendo, la ricerca mostra solo le scorciatoie (casella e risultati in cima), con le lettere
     trovate in `C_ACCENT` (`drawTextMarked`, come in "Vai a"); una scorciatoia troncata ha il
     testo intero nel tooltip, un'alternativa per riga;
+  - una riga di un'opzione che ha anche una scorciatoia (Dimensione del testo, Barra laterale,
+    Anteprima, Posizione dell'anteprima) la dice nel tooltip: l'etichetta come titolo e la riga
+    "Scorciatoia" (per la dimensione del testo anche "Predefinita", Ctrl+0), come in §8;
   - sezioni: Aspetto (dimensione del testo, carattere, animazioni), Finestra (barra laterale,
     anteprima, sua posizione, carattere dell'anteprima), Integrazione con Windows ("[z]f al posto
     di Explorer", "Una finestra per ogni cartella aperta da fuori", menu completo, dialoghi), File
