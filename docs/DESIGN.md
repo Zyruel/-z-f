@@ -224,11 +224,23 @@ doppione.
   - righe alte una riga: icona a `PAD_X`, poi nome, data, dimensione;
   - lo sfondo di hover e selezione è arrotondato `R_S`, con un margine di `GAP_S` ai lati;
   - virtualizzata: si disegnano solo le righe visibili;
-  - colonne: Nome prende lo spazio che avanza, Data e Dimensione sono allineate a destra e larghe
-    quanto scelto dall'utente (predefinite `DATE_W` 150 e `SIZE_W` 100, minimo `COL_MIN` 48). Il
-    nome tiene sempre almeno `COL_NAME_MIN` (160) dall'inizio della lista: se la finestra si
-    stringe cedono prima Destinazione (se c'è), poi Data e poi Dimensione, fino al minimo. Il testo
-    che non ci sta finisce in "…";
+  - colonne, da sinistra: Nome, Destinazione, Tipo, Data modifica, Data creazione, Dimensione,
+    Attributi (l'ordine è fisso; quali si vedono lo dice il menu delle colonne, sotto). Nome prende
+    lo spazio che avanza, le altre stanno a destra, larghe quanto scelto dall'utente (predefinite
+    `TYPE_W` 110, `DATE_W` 150 per le due date, `SIZE_W` 100, `ATTR_W` 80, minimo `COL_MIN` 48).
+    Dimensione è allineata a destra, le altre a sinistra; i testi sono in `C_DIM` (`C_DIM_SEL` sulla
+    selezione). Il nome tiene sempre almeno `COL_NAME_MIN` (160) dall'inizio della lista: se la
+    finestra si stringe cedono, una dopo l'altra fino al minimo, Destinazione, Attributi, Data
+    creazione, Tipo, Data modifica e Dimensione. Il testo che non ci sta finisce in "…";
+  - **Tipo**: l'estensione in maiuscolo ("JPG"), "Cartella" per le cartelle, vuota per i file
+    senza estensione (".gitignore" non ne ha). In Questo PC il tipo di unità ("Disco locale"): lì le
+    colonne sono solo Nome e Tipo;
+  - **Data creazione** come Data modifica; **Attributi** come lettere, nell'ordine R (sola
+    lettura), H (nascosto), S (sistema), A (archivio), C (compresso), E (crittografato);
+  - **estensioni nascoste** (opzione "Estensioni dei file nei nomi", accesa di solito): spenta, il
+    nome dei file finisce prima dell'ultimo punto in Dettagli, Elenco e Icone. Restano interi
+    tooltip, titolo dell'anteprima e rinomina (che seleziona già il nome senza estensione), e il
+    filtro cerca anche nell'estensione;
   - **colonna Destinazione** (`lnk.cpp`, `links.cpp`): tra Nome e Data, solo nelle cartelle con
     almeno un collegamento (.lnk), larga `LINK_W` (300) o quanto scelto (`colonna_destinazione`),
     ma mai più larga di Nome (`LINK_MAX`, metà dello spazio tra l'inizio della lista e Data): con
@@ -252,23 +264,29 @@ doppione.
     volta nell'ordine della vista; ordinando per Dimensione le cartelle usano il totale già noto.
     Nel tooltip la riga "Dimensione" ("2,9 GB  (3.128.245.592 byte) · 17.812 file"; mentre
     conta "almeno 1,2 GB…"; "accesso negato").
-- **Intestazione colonne:** testo `C_DIM`, freccia ↑/↓ sulla colonna di ordinamento. Clic per
-  ordinare, di nuovo per invertire.
-  - **bordi tra le colonne** (Nome|Data e Data|Dimensione; con i collegamenti Nome|Destinazione e
-    Destinazione|Data), a metà dello spazio tra i testi; si
+- **Intestazione colonne:** testo `C_DIM`, freccia ↑/↓ sulla colonna di ordinamento (su Nome se
+  quella colonna non si vede). Clic per ordinare, di nuovo per invertire.
+  - **menu delle colonne** (tasto destro sull'intestazione, in ogni vista): Destinazione, Tipo,
+    Data modifica, Data creazione, Dimensione, Attributi, con la spunta su quelle che si vedono;
+    il clic ne mostra o nasconde una. Nome non c'è: si vede sempre. Le colonne scelte valgono per
+    tutte le cartelle e le schede (`colonne` in `impostazioni.txt`; predefinite Destinazione, Tipo,
+    Data modifica, Dimensione); Destinazione compare comunque solo nelle cartelle con collegamenti.
+    L'anteprima di una cartella in basso ha le stesse colonne (senza Destinazione), a destra solo
+    Dimensione;
+  - **bordi tra le colonne** (a sinistra di ogni colonna dopo Nome), a metà dello spazio tra i testi; si
     afferrano solo qui, in una fascia di `COL_GRIP` (4) per lato. Sopra la fascia: cursore ↔ di
     Windows e una linea verticale 1 px `C_LINE`, che diventa `C_SEL_EDGE` mentre la si trascina.
     Un clic sulla fascia non ordina;
-  - ogni bordo comanda la colonna alla sua destra e segue il mouse (trascinando Data|Dimensione
-    Data si sposta intera); allargando Data o Dimensione, lo spazio lo cede Destinazione, fino al
-    suo minimo. Esc durante il trascinamento rimette la larghezza di prima;
+  - ogni bordo comanda la colonna alla sua destra e segue il mouse (le colonne alla sua sinistra si
+    spostano intere); allargando una colonna, lo spazio lo cede Destinazione, fino al suo minimo.
+    Esc durante il trascinamento rimette la larghezza di prima;
   - doppio clic sul bordo: la colonna si adatta al testo più largo tra intestazione (con la
     freccia) e voci della vista;
   - le larghezze valgono per tutte le cartelle e le schede e si salvano al rilascio
-    (`colonna_data`, `colonna_dimensione`, `colonna_destinazione` in `impostazioni.txt`, px a
-    scala 100%);
-  - clic su un'intestazione: Data e Dimensione partono dal più recente e dal più grande, Nome e
-    Destinazione dalla A.
+    (`colonna_tipo`, `colonna_data`, `colonna_creazione`, `colonna_dimensione`,
+    `colonna_attributi`, `colonna_destinazione` in `impostazioni.txt`, px a scala 100%);
+  - clic su un'intestazione: le date e Dimensione partono dal più recente e dal più grande, le
+    altre dalla A (Tipo: le estensioni in ordine alfabetico, poi il nome).
 - **Viste e zoom** (Ctrl+rotellina · controllo della vista nella barra di stato · Ctrl+Shift+2 per
   Dettagli, 3 per Elenco, 4/5/6 per le icone piccole, medie, grandi · menu dello sfondo → "Mostra come
   icone"/"Mostra come dettagli", `thumbs.cpp`): un solo livello di zoom per cartella sceglie la
@@ -301,8 +319,9 @@ doppione.
   - stati come le righe (sezione 6): hover e selezione arrotondati `R_S` su tutta la voce, con un
     margine di `GAP_XS`; cursore con la pillola `PILL_W` a sinistra della voce più il contorno se
     non è selezionata; nascosti col nome in `C_FAINT` e l'immagine al 43%;
-  - **intestazione**: resta, allineata a quella dell'anteprima, con "Nome · Data modifica ·
-    Dimensione" a sinistra, a `GAP_XL` l'uno dall'altro, in `C_DIM` con la freccia sull'ordinamento.
+  - **intestazione**: resta, allineata a quella dell'anteprima, con Nome e le colonne che si
+    vedono in Dettagli (senza Destinazione; "Nome · Tipo · Data modifica · Dimensione") a sinistra,
+    a `GAP_XL` l'uno dall'altro, in `C_DIM` con la freccia sull'ordinamento.
     Clic ordina, di nuovo inverte. Nessun bordo da trascinare;
   - **tastiera**: ← → una voce, ↑ ↓ una riga (dalla prima o dall'ultima riga non si esce), PagSu
     PagGiù una schermata, Home Fine; Shift e Ctrl come nell'elenco;
@@ -735,6 +754,7 @@ doppione.
 | trascina da icona o nome di una voce selezionata | sposta sulla stessa unità, altrimenti copia; Ctrl copia, Shift sposta, Alt collega |
 | trascina da un altro punto della lista (anche dal nome di una voce non selezionata) | rettangolo di selezione; Ctrl alterna, Shift aggiunge |
 | trascina un bordo nell'intestazione | larghezza della colonna; doppio clic: adatta al contenuto |
+| tasto destro sull'intestazione | il menu delle colonne: quali si vedono |
 | trascina il bordo della barra laterale o dell'anteprima | larghezza del pannello (altezza dell'anteprima in basso); doppio clic: predefinita |
 | clic su ˅ accanto a ◨ | posizione dell'anteprima: a destra o in basso |
 | trascina un preferito | lo sposta tra gli altri preferiti (solo l'ordine); Esc annulla |

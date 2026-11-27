@@ -39,6 +39,7 @@
 #include <deque>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <memory>        // shared_ptr: archivi zip letti, condivisi tra i thread (zip.cpp)
 #include <functional>    // lavori della lista principale rimandati alla fine di un PaneScope (app.h)
 #include <algorithm>

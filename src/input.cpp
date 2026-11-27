@@ -671,7 +671,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             int col = colAt(x);
             if (col < 0) return 0; // Elenco e Icone: fuori dalle etichette
             if (col == A.sortCol) A.sortDesc = !A.sortDesc;
-            else { A.sortCol = col; A.sortDesc = col == COL_DATE || col == COL_SIZE; } // nomi e percorsi dalla A
+            else { A.sortCol = col; A.sortDesc = kCols[col].desc; } // date e dimensioni dal più recente e dal più grande, il resto dalla A
             resort();
             A.dirty = true;
             return 0;

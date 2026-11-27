@@ -344,11 +344,10 @@ static bool tipBuild() {
     case TIP_TABCLOSE: T.title = L"Chiudi scheda"; tipRow(L"Scorciatoia", shortcutsOf(M_TAB_CLOSE)); break;
     case TIP_FAVDEL: T.title = L"Togli dai preferiti"; tipRow(L"", L"Clic, poi un altro clic per confermare"); break;
     case TIP_HEADER: {
-        static const wchar_t* names[] = { L"Ordina per nome", L"Ordina per data di modifica", L"Ordina per dimensione",
-                                          L"Ordina per destinazione" };
-        if (T.index < 0 || T.index > COL_LINK) return false;
-        T.title = names[T.index];
+        if (T.index < 0 || T.index >= COL_COUNT) return false;
+        T.title = kCols[T.index].sortBy;
         if (A.sortCol == T.index) tipRow(L"", A.sortDesc ? L"Ora: decrescente. Clic: crescente" : L"Ora: crescente. Clic: decrescente");
+        tipRow(L"", L"Tasto destro: le colonne da mostrare");
         break;
     }
     case TIP_PATH: {

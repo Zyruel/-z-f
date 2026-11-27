@@ -10,6 +10,20 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 
 ## 1.0.0-beta.9 (in corso)
 
+- **Colonne a scelta:** col tasto destro sull'intestazione si scelgono le colonne da mostrare tra
+  Destinazione, Tipo, Data modifica, Data creazione, Dimensione e Attributi (Nome c'è sempre); la
+  scelta vale per tutte le cartelle. Colonne nuove:
+  - **Tipo:** l'estensione in maiuscolo ("JPG"), "Cartella" per le cartelle; si ordina per
+    estensione, poi per nome. In Questo PC è il tipo di unità, come prima (lì le colonne sono solo
+    Nome e Tipo: Dimensione era vuota);
+  - **Data creazione** e **Attributi** (R H S A C E), dalla lettura della cartella: nessun costo in
+    più per aprirla.
+  Con la finestra stretta cedono prima le colonne meno usate; in Elenco e Icone l'intestazione
+  ordina per le stesse colonne.
+- **Estensioni nascoste**, con l'opzione "Estensioni dei file nei nomi" (sezione File): i nomi dei
+  file nella lista finiscono prima dell'ultimo punto; tooltip, anteprima e rinomina mostrano il nome
+  intero.
+
 - **Barre in fondo allineate:** con l'anteprima in basso, la barretta, i contatori e il controllo
   della vista della barra di stato stanno sopra quelli della banda dell'anteprima, e nelle due
   barre il nome della vista finisce dove finiscono le colonne. Prima il controllo della vista

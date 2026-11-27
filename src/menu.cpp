@@ -164,6 +164,24 @@ static void menuOpenPreview(float right, float top) {
     if (m.x + m.w > right) m.x = std::max(px(ui::GAP_XS), floorf(right - m.w));
 }
 
+// Tasto destro sull'intestazione: le colonne, nell'ordine dello schermo, con la spunta su quelle
+// scelte. Nome non c'è: si vede sempre. In Questo PC Tipo (il tipo di unità) c'è sempre (colWanted):
+// lì è spuntato e spento, perché toglierlo non cambierebbe niente; le altre valgono per le cartelle
+static void menuOpenHeader(float cx, float cy) {
+    double t0 = nowMs();
+    PopupMenu& m = A.menu;
+    m.items.clear();
+    m.kind = MENU_HEADER;
+    m.target = -1;
+    bool drives = A.cur && A.cur->isDrives;
+    for (int c : kColOrder) {
+        bool fixed = drives && c == COL_TYPE;
+        menuAdd(kCols[c].title, M_COLUMN + c, !fixed);
+        if (fixed || (A.colOn >> c & 1)) m.items.back().icon = 3;
+    }
+    menuPlace(cx, cy, false, t0);
+}
+
 // cx, cy: coordinate client; screenPt: per il menu della shell; fromKeyboard: evidenzia la prima voce
 static void menuOpen(float cx, float cy, POINT screenPt, bool background, bool fromKeyboard) {
     double t0 = nowMs();
@@ -323,6 +341,13 @@ static void menuRun(int id, const CmdCtx& c) {
     POINT pt = c.pt;
     const SideItem* si = kind == MENU_SIDE ? sideItem(target) : nullptr;
     std::wstring sidePath = si ? si->path : L"";
+    if (id >= M_COLUMN && id < M_COLUMN_END) { // menu delle colonne: mostra o nasconde, per tutte le cartelle
+        A.colOn ^= 1u << (id - M_COLUMN);
+        layout();
+        settingsSave();
+        A.dirty = true;
+        return;
+    }
     switch (id) {
     case M_NEWTAB: {
         std::wstring f = kind == MENU_SIDE ? sidePath : selectedFolder();
@@ -478,6 +503,10 @@ static void onContextMenu(POINT pt) {
         int si = sideHit(c.x, c.y);
         if (si == -2) si = (int)A.favs.size(); // la freccia è sulla riga di Questo PC: il suo menu
         if (si >= 0) { menuOpenSide((float)c.x, (float)c.y, si); return; }
+        if (c.y >= A.sideTop && c.y < A.listTop && c.x >= A.listX && c.x < A.listR) { // intestazione della lista
+            if (A.colDrag < 0) menuOpenHeader((float)c.x, (float)c.y);
+            return;
+        }
     }
     if (!A.cur) return;
     bool keyboard = pt.x == -1 && pt.y == -1;

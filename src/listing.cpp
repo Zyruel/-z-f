@@ -6,8 +6,10 @@ struct Entry {
     uint32_t keyOff;  // chiave di ordinamento in Listing::keys
     uint32_t keyLen;
     uint32_t attr;
+    uint16_t extOff; // inizio dell'estensione nel nome (dopo l'ultimo punto), 0 = nessuna; sta nel padding prima di size
     uint64_t size;  // per le unità: tipo di unità (GetDriveTypeW)
     uint64_t mtime; // FILETIME come uint64
+    uint64_t ctime; // creazione, FILETIME come uint64 (0: non nota, come dentro uno zip)
 };
 
 // Destinazione di un collegamento (.lnk), letta su un thread (links.cpp). path vuoto: nessun
@@ -35,7 +37,16 @@ struct Listing {
     const wchar_t* lowerName(const Entry& x) const { return lower.data() + x.nameOff; }
 };
 
-enum { COL_NAME = 0, COL_DATE = 1, COL_SIZE = 2, COL_LINK = 3 };
+// Colonne della lista, anche come campo di ordinamento. I numeri non sono l'ordine sullo schermo
+// (kColOrder, columns.cpp): i primi quattro sono quelli di prima delle colonne nuove.
+enum { COL_NAME = 0, COL_DATE = 1, COL_SIZE = 2, COL_LINK = 3, COL_TYPE = 4, COL_CTIME = 5, COL_ATTR = 6, COL_COUNT = 7 };
+
+// Estensione: dopo l'ultimo punto, se non è il primo carattere (".gitignore" non ne ha) né l'ultimo
+static inline uint16_t extOffOf(const wchar_t* name, uint32_t len) {
+    for (uint32_t i = len; i-- > 1;)
+        if (name[i] == L'.') return i + 1 < len && i + 1 <= 0xFFFF ? (uint16_t)(i + 1) : 0;
+    return 0;
+}
 
 static void dirSizeFill(Listing* l); // dirsize.cpp: per ordinare per dimensione, le cartelle col totale noto
 static void linksFind(Listing* l);   // links.cpp: voci .lnk, con le destinazioni già lette
@@ -165,6 +176,24 @@ static void buildLower(Listing* l) {
     }
 }
 
+// Per Tipo: l'estensione in minuscolo (i nomi minuscoli ci sono già); senza estensione prima
+static inline int extCmp(const Listing* l, const Entry& x, const Entry& y) {
+    const wchar_t* a = x.extOff ? l->lowerName(x) + x.extOff : L"";
+    const wchar_t* b = y.extOff ? l->lowerName(y) + y.extOff : L"";
+    return wcscmp(a, b);
+}
+
+// Attributi come li mostra la colonna (columns.cpp): l'ordine delle lettere, R H S A C E
+static constexpr DWORD kAttrBits[] = { FILE_ATTRIBUTE_READONLY, FILE_ATTRIBUTE_HIDDEN, FILE_ATTRIBUTE_SYSTEM,
+                                       FILE_ATTRIBUTE_ARCHIVE, FILE_ATTRIBUTE_COMPRESSED, FILE_ATTRIBUTE_ENCRYPTED };
+static constexpr wchar_t kAttrLetters[] = L"RHSACE";
+static inline int attrText(uint32_t a, wchar_t* buf) { // buf: almeno 7 caratteri
+    int n = 0;
+    for (int i = 0; i < 6; i++) if (a & kAttrBits[i]) buf[n++] = kAttrLetters[i];
+    buf[n] = 0;
+    return n;
+}
+
 static void sortListing(const Listing* l, std::vector<uint32_t>& o, int col, bool desc) {
     o.resize(l->e.size());
     for (uint32_t i = 0; i < (uint32_t)o.size(); i++) o[i] = i;
@@ -184,8 +213,17 @@ static void sortListing(const Listing* l, std::vector<uint32_t>& o, int col, boo
         if (dx != dy) return dx; // cartelle sempre prima
         int c = 0;
         if (col == COL_DATE) c = x.mtime < y.mtime ? -1 : (x.mtime > y.mtime ? 1 : 0);
-        else if (col == COL_SIZE) c = x.size < y.size ? -1 : (x.size > y.size ? 1 : 0); // cartelle: totale noto o 0
-        else if (col == COL_LINK) {
+        else if (col == COL_CTIME) c = x.ctime < y.ctime ? -1 : (x.ctime > y.ctime ? 1 : 0);
+        else if (col == COL_SIZE) { if (!l->isDrives) c = x.size < y.size ? -1 : (x.size > y.size ? 1 : 0); } // cartelle: totale noto o 0
+        else if (col == COL_TYPE) {
+            if (l->isDrives) c = x.size < y.size ? -1 : (x.size > y.size ? 1 : 0); // il tipo di unità
+            else if (!dx) c = extCmp(l, x, y);
+        } else if (col == COL_ATTR) {
+            wchar_t p[8], q[8]; // come si leggono le lettere: "A" prima di "HA", e senza attributi prima
+            attrText(x.attr, p);
+            attrText(y.attr, q);
+            c = wcscmp(p, q);
+        } else if (col == COL_LINK) {
             const std::wstring *p = tg[a], *q = tg[b];
             if (!p != !q) return p != nullptr; // senza destinazione in fondo, in tutti e due i versi
             if (p) c = _wcsicmp(p->c_str(), q->c_str());
@@ -210,16 +248,20 @@ static void zipList(Listing* l, size_t alen);                 // zip.cpp
 
 struct ListRequest { HWND hwnd; uint64_t gen; std::wstring path; int sortCol; bool sortDesc; bool refresh; };
 
-static void addEntry(Listing* l, const wchar_t* name, uint32_t len, uint32_t attr, uint64_t size, uint64_t mtime) {
+static void addEntry(Listing* l, const wchar_t* name, uint32_t len, uint32_t attr, uint64_t size, uint64_t mtime,
+                     uint64_t ctime = 0) {
     Entry x;
     x.nameLen = len;
     x.nameOff = (uint32_t)l->names.size();
     x.keyOff = x.keyLen = 0;
-    x.attr = attr; x.size = size; x.mtime = mtime;
+    x.attr = attr; x.size = size; x.mtime = mtime; x.ctime = ctime;
+    x.extOff = (attr & FILE_ATTRIBUTE_DIRECTORY) ? 0 : extOffOf(name, len);
     l->names.insert(l->names.end(), name, name + len);
     l->names.push_back(0);
     l->e.push_back(x);
 }
+
+static inline uint64_t fileTime64(const FILETIME& t) { return ((uint64_t)t.dwHighDateTime << 32) | t.dwLowDateTime; }
 
 static inline bool isDots(const wchar_t* n, uint32_t len) {
     return (len == 1 && n[0] == L'.') || (len == 2 && n[0] == L'.' && n[1] == L'.');
@@ -241,8 +283,7 @@ static void enumFindFirst(Listing* l, const std::wstring& lp) {
         uint32_t len = (uint32_t)wcslen(fd.cFileName);
         if (isDots(fd.cFileName, len)) continue;
         uint64_t size = ((uint64_t)fd.nFileSizeHigh << 32) | fd.nFileSizeLow;
-        uint64_t mt = ((uint64_t)fd.ftLastWriteTime.dwHighDateTime << 32) | fd.ftLastWriteTime.dwLowDateTime;
-        addEntry(l, fd.cFileName, len, fd.dwFileAttributes, size, mt);
+        addEntry(l, fd.cFileName, len, fd.dwFileAttributes, size, fileTime64(fd.ftLastWriteTime), fileTime64(fd.ftCreationTime));
     } while (FindNextFileW(h, &fd));
     FindClose(h);
 }

@@ -127,6 +127,8 @@ Come si compila e si prova, passo per passo: `/prova` (skill in `.claude/skills/
     l'unica animazione continua, solo dove l'utente guarda (DESIGN.md §5);
   - le barre in fondo, della lista e dell'anteprima: `drawBarBand`, `drawBarCounts`,
     `drawBarView`/`barViewW`, `drawBarFilter` (`render.cpp`), disegnate da destra;
+  - le colonne di Dettagli (`columns.cpp`): `kCols`, `kColOrder`, `colWanted`, `colStart`/
+    `colEnd`, `colText`, `colTitle`; il nome come si mostra, con le estensioni nascoste: `shownLen`;
   - le voci di una lista, la principale e (nel suo `PaneScope`) l'anteprima di una cartella:
     `drawListItems`, `layoutItems` (`ListPane`, `paneSwap` in `app.h`);
   - le schede da salvare o riaprire: `tabsSerialize`, `tabsRestore` (`tabs.cpp`);
@@ -168,8 +170,20 @@ Come si compila e si prova, passo per passo: `/prova` (skill in `.claude/skills/
 
 ## Prossimi passi (concordati, in quest'ordine)
 
-Nessuno in sospeso dopo la 1.0.0-beta.6: le idee non ancora decise sono in `docs/idee.md`, e quando
-Zyruel ne sceglie una si scrive qui. Cosa c'è in ogni versione è in `NOVITA.md`. Il monitor di
+**Colonne (1.0.0-beta.9), in tre fasi.** Fatta la 1: colonne a scelta (Tipo, Data creazione,
+Attributi, menu col tasto destro sull'intestazione, `columns.cpp`) ed estensioni nascoste.
+Restano, in quest'ordine:
+2. **filtro per colonna:** un "˅" sotto il mouse accanto al titolo di Tipo, date, Dimensione e
+   Attributi apre un menu con i valori presenti, il conteggio e le spunte (il clic non chiude il
+   menu); valori da una funzione sola (`colBucket`), riusata dai gruppi: estensioni; Oggi, Ieri,
+   Questa settimana… poi gli anni; fasce di dimensione; attributi. Stato per scheda, si azzera
+   cambiando cartella come il filtro per nome; Esc toglie prima quello, poi questi;
+3. **gruppi:** "Raggruppa per…" nel menu delle colonne, in tutte le viste, gruppi richiudibili
+   con un clic sull'intestazione del gruppo, ricordati per cartella in `viste.txt`. `A.view`
+   resta di sole voci: una tabella dei gruppi cambia la geometria (`itemRect`, `itemAt`,
+   `contentLen`, tastiera per linee, rettangolo).
+
+Le altre idee non ancora decise sono in `docs/idee.md`, e quando Zyruel ne sceglie una si scrive qui. Cosa c'è in ogni versione è in `NOVITA.md`. Il monitor di
 Zyruel è a 175%.
 
 **Tre elenchi da tenere aggiornati** (si scrive lì appena viene fuori qualcosa, non a memoria):

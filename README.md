@@ -27,7 +27,10 @@ bit (provato su Windows 11).
   sottocartelle. Dal percorso (clic, Ctrl+L) parte dalla cartella aperta: si scrive il percorso
   con le sottocartelle suggerite.
 - **Lista:** filtro mentre scrivi, ordinamento naturale, selezione multipla e col rettangolo,
-  colonne ridimensionabili, tooltip con le informazioni di file, cartelle e unità.
+  tooltip con le informazioni di file, cartelle e unità.
+- **Colonne** a scelta (tasto destro sull'intestazione): Tipo (l'estensione), Data modifica, Data
+  creazione, Dimensione, Attributi; ridimensionabili e adattabili al contenuto. Le estensioni nei
+  nomi si possono nascondere.
 - **Anteprima** (Alt+P) di immagini, testo e cartelle, a destra o in basso (˅ accanto a ◨, Alt+Shift+P);
   una cartella nell'anteprima è una seconda lista, con la sua vista e il suo filtro, su cui si
   seleziona, si copia, si trascina e si rinomina.
@@ -136,6 +139,7 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Trascina il bordo di un pannello · doppio clic | Cambia la larghezza di barra laterale o anteprima (l'altezza, in basso) · torna alla predefinita |
 | Clic su ˅ accanto a ◨ | Mette l'anteprima a destra o in basso |
 | Clic sull'intestazione | Ordina per colonna (di nuovo: al contrario) |
+| Tasto destro sull'intestazione | Sceglie le colonne da mostrare |
 | Trascina il bordo di una colonna · doppio clic | Cambia la larghezza della colonna · la adatta al contenuto |
 | Ctrl+D | Aggiunge o toglie dai preferiti |
 | Trascina tra i preferiti | Aggiunge le cartelle ai preferiti |

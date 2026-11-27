@@ -204,7 +204,7 @@ static std::wstring shortcutsOf(int cmd) {
 enum OptId { OPT_NONE = -1, OPT_CLOSE = 1, OPT_FONT_MINUS, OPT_FONT_PLUS, OPT_FACE_PREV, OPT_FACE_NEXT,
              OPT_ANIM, OPT_SIDEBAR, OPT_DEFAULT, OPT_FOLDER, OPT_PREVIEW, OPT_MONO_PREV, OPT_MONO_NEXT,
              OPT_PREVIEW_POS_PREV, OPT_PREVIEW_POS_NEXT,
-             OPT_UNDO_PERSIST, OPT_SHELL_MENU, OPT_DIR_SIZES, OPT_DIALOGS, OPT_TIMES,
+             OPT_UNDO_PERSIST, OPT_SHELL_MENU, OPT_DIR_SIZES, OPT_EXT, OPT_DIALOGS, OPT_TIMES,
              OPT_REOPEN, OPT_UPDATES, OPT_BETA, OPT_UPD_ACT, OPT_SEPARATE, OPT_VERSION };
 
 struct OptionsPanel {
@@ -222,7 +222,7 @@ struct OptionsPanel {
     int hover = OPT_NONE;
     HoverFade fade;
     float knobAnim = 0, knobSide = 0, knobDefault = 0, knobPreview = 0, knobUndo = 0, knobMenu = 0, knobDirSizes = 0, knobDialogs = 0, knobTimes = 0; // posizione animata degli interruttori
-    float knobReopen = 0, knobUpdates = 0, knobBeta = 0, knobSeparate = 0;
+    float knobReopen = 0, knobUpdates = 0, knobBeta = 0, knobSeparate = 0, knobExt = 0;
 } OP;
 
 static const wchar_t* kFaceChoices[] = { L"Segoe UI", L"Segoe UI Variable Text", L"Calibri", L"Tahoma", L"Verdana", nullptr };
@@ -271,6 +271,7 @@ static void optionsOpen() {
     OP.knobUndo = A.undoPersist ? 1.0f : 0.0f;
     OP.knobMenu = A.shellMenu ? 1.0f : 0.0f;
     OP.knobDirSizes = A.dirSizes ? 1.0f : 0.0f;
+    OP.knobExt = A.showExt ? 1.0f : 0.0f;
     OP.knobDialogs = A.dialogJump ? 1.0f : 0.0f;
     OP.knobTimes = A.timesBar ? 1.0f : 0.0f;
     OP.knobReopen = A.reopenTabs ? 1.0f : 0.0f;
@@ -340,6 +341,7 @@ static void optionsExec(int id) {
     case OPT_UNDO_PERSIST: undoPersistToggle(); break;
     case OPT_SHELL_MENU: A.shellMenu = !A.shellMenu; settingsSave(); break;
     case OPT_DIR_SIZES:  A.dirSizes = !A.dirSizes; settingsSave(); dirSizeQueueCurrent(); break;
+    case OPT_EXT:        A.showExt = !A.showExt; settingsSave(); break;
     case OPT_DIALOGS:    A.dialogJump = !A.dialogJump; settingsSave(); break;
     case OPT_TIMES:      A.timesBar = !A.timesBar; settingsSave(); break;
     case OPT_REOPEN:     A.reopenTabs = !A.reopenTabs; settingsSave(); break;
@@ -657,6 +659,9 @@ static void drawOptions(double dt) {
         opt(L"Dimensione delle cartelle nella colonna",
             L"Contata in background, a priorità bassa; unità di rete e ottiche solo nel tooltip e nell'anteprima",
             A.dirSizes, OP.knobDirSizes, OPT_DIR_SIZES);
+        opt(L"Estensioni dei file nei nomi",
+            L"Spente, l'estensione resta nella colonna Tipo, nel tooltip e nella rinomina",
+            A.showExt, OP.knobExt, OPT_EXT);
         cy += px(ui::GAP_M);
 
         section(L"Avvio e aggiornamenti");

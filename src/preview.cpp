@@ -595,8 +595,7 @@ static void pvDir(const PvReq& r, PvRes& o) {
             if ((int)l->e.size() >= kPvDirMax ||
                 ((l->e.size() & 255) == 255 && (nowMs() - t0 > kPvDirMs || pvCancelled(r)))) { o.more = true; break; }
             uint64_t size = ((uint64_t)fd.nFileSizeHigh << 32) | fd.nFileSizeLow;
-            uint64_t mt = ((uint64_t)fd.ftLastWriteTime.dwHighDateTime << 32) | fd.ftLastWriteTime.dwLowDateTime;
-            addEntry(l, fd.cFileName, len, fd.dwFileAttributes, size, mt);
+            addEntry(l, fd.cFileName, len, fd.dwFileAttributes, size, fileTime64(fd.ftLastWriteTime), fileTime64(fd.ftCreationTime));
             if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) dirs++; else files++;
         } while (FindNextFileW(h, &fd));
         FindClose(h);
@@ -1143,8 +1142,8 @@ static float pvBar(const PvGeom& g, uint32_t icon, const wchar_t* name, bool dat
 
 // Geometria della lista dell'anteprima: dal bordo con la lista principale al bordo della finestra,
 // sotto l'intestazione (a destra le righe sono allineate a quelle della lista), fino alla banda in
-// fondo. In basso il pannello è largo come la lista: in Dettagli c'è anche Data (la Destinazione
-// no: i collegamenti dell'anteprima non si leggono)
+// fondo. A destra, stretto, in Dettagli ha solo Dimensione; in basso è largo come la lista e ha le
+// colonne scelte (colWanted), tranne Destinazione: i collegamenti dell'anteprima non si leggono
 static void pvPaneLayout() {
     PvGeom g = pvGeom();
     float x0 = g.x0 - A.padX, x1 = g.x1 + A.padX, top = g.top + A.headH, bottom = g.footY;

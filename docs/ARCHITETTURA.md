@@ -58,6 +58,7 @@ condivise sono in `app.h`.
 | `zip.cpp` | archivi zip in sola lettura: directory centrale (zip64), albero delle cartelle in memoria, inflate e CRC nostri, estrazione su un thread |
 | `lnk.cpp` | lettore dei collegamenti di Windows (.lnk), senza la shell; percorsi di rete di Windows |
 | `app.h` / `app.cpp` | stato; layout, selezione, filtro, navigazione, ricariche |
+| `columns.cpp` | colonne della lista: ordine, titoli, testo delle celle, quali si vedono, estensioni nascoste |
 | `dirsize.cpp` | dimensione totale delle cartelle su un thread (urgenti per il tooltip, coda di sfondo per la colonna), cache |
 | `links.cpp` | colonna Destinazione dei collegamenti: destinazioni lette su un thread, cache, clic ("Apri percorso file") |
 | `watch.cpp` | aggiornamento in tempo reale (`ReadDirectoryChangesW`), compresi spostamento ed eliminazione della cartella aperta; la cartella dell'anteprima (`previewWatch`) |
@@ -261,9 +262,22 @@ condivise sono in `app.h`.
 - **Selezione col rettangolo** (`listmouse.cpp`): ogni movimento ricalcola la selezione dalla
   copia fatta al clic (memset/memcpy più le righe toccate). Comportamento: `DESIGN.md`,
   "Rettangolo di selezione".
+- **Colonne** (`columns.cpp`): una tabella (`kCols`, per `COL_*`) dice titolo, chiave in
+  `impostazioni.txt`, allineamento e verso del primo ordinamento; `kColOrder` l'ordine sullo
+  schermo, `kColYield` quello in cui cedono con la finestra stretta. Layout, intestazione, celle,
+  bordi, tooltip e menu delle colonne girano su queste tabelle: una colonna nuova è una riga lì più
+  il suo testo in `colText`. La geometria è un array per colonna (`colX`, `colWd`, 0 = nascosta),
+  scambiato con l'anteprima in `paneSwap`. Lo spazio tra due testi sta nella colonna di sinistra,
+  tranne dopo una allineata a destra (Dimensione), dove sta in quella di destra (`colStart`,
+  `colEnd`). Tipo, Data creazione e Attributi vengono dalla lettura: `FindFirstFileExW` dà già la
+  creazione, e l'inizio dell'estensione (`Entry::extOff`) si trova sul thread di lettura, nello
+  spazio di allineamento della voce; la data di creazione porta la voce da 40 a 48 byte.
+  Le estensioni nascoste accorciano solo il testo disegnato (`shownLen`): nomi, filtro e percorsi
+  restano interi.
 - **Colonne ridimensionabili** (`listmouse.cpp`): il doppio clic su un bordo adatta la colonna
-  senza formattare ogni voce, perché le date hanno tutte la stessa forma e per le dimensioni basta
-  il valore più grande di ogni unità. Le larghezze valgono per tutte le cartelle e si salvano al
+  senza formattare ogni voce, perché le date hanno tutte la stessa forma, per le dimensioni basta
+  il valore più grande di ogni unità, e Tipo e Attributi si misurano una volta per estensione e
+  per combinazione di lettere. Le larghezze valgono per tutte le cartelle e si salvano al
   rilascio in `impostazioni.txt`. Dallo stesso codice passano i bordi della barra laterale e
   dell'anteprima.
 - **Aggiornamento in tempo reale** (`watch.cpp`): un thread osserva la cartella con
@@ -284,6 +298,9 @@ condivise sono in `app.h`.
 **Misurato:**
 
 - filtro 0,4 ms su 30.000 nomi; ordinamento di 30.000 nomi 4,3 ms (MSVC);
+- con le colonne nuove (WinSxS, 30.734 voci, tutte le colonne visibili): lettura 19,2 ms, chiavi
+  8,9 ms, ordinamento per Attributi 5,7 ms e per Data creazione 5,3 ms; preparazione del frame
+  0,49 ms (peggiore 0,64); adattamento di Tipo al contenuto 0,22 ms;
 - rettangolo al massimo 0,01 ms a movimento con 30.734 voci (WinSxS); adattamento di una colonna
   0,11 ms sulle stesse voci;
 - aggiornamento in tempo reale: circa 54 ms dalla notifica allo schermo; con 1000 file spostati in
@@ -1103,7 +1120,9 @@ sul thread; con il server spento l'errore arriva dopo 2 s, sempre sul thread.
   temporaneo poi rinominato: un file non resta mai a metà.
 - **Le impostazioni** di `impostazioni.txt`, modificabili anche a mano: `dimensione`, `carattere`,
   `barra_laterale`, `barra_laterale_larghezza`, `barra_tempi`, `animazioni`, `preferiti_aperti`,
-  `unita_aperte`, `colonna_data`, `colonna_dimensione`, `colonna_destinazione`, `anteprima`,
+  `unita_aperte`, `colonne` (quelle mostrate), `colonna_<chiave>` per ogni colonna (`colonna_tipo`,
+  `colonna_data`, `colonna_creazione`, `colonna_dimensione`, `colonna_attributi`,
+  `colonna_destinazione`), `estensioni`, `anteprima`,
   `anteprima_larghezza`, `anteprima_posizione` (`destra` o `basso`), `anteprima_altezza`,
   `anteprima_vista`, `carattere_anteprima`, `annulla_dopo_riavvio`, `menu_completo`,
   `dimensione_cartelle`, `dialoghi`, `riapri_schede`, `finestre_separate`, `aggiornamenti`,

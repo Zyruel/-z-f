@@ -1,23 +1,22 @@
 // [z]f — logica della vista: layout, selezione, filtro, navigazione, ricariche, formattazione.
 
-// Spazio per le colonne dopo il nome (Destinazione, Data, Dimensione): tutto tranne il minimo del nome
+// Spazio per le colonne dopo il nome: tutto tranne il minimo del nome
 static float colRoom() { return A.listR - A.sbW - A.padX - A.listX - px(ui::COL_NAME_MIN); }
 
-// Colonna Destinazione: in Dettagli, nelle cartelle con almeno un collegamento (links.cpp)
-static bool linkColumn() { return A.zoom == ZOOM_DETAILS && A.cur && !A.cur->lnk.empty(); }
-
-// Larghezza massima di Destinazione con Data in dateX: mai più larga di Nome. Senza questo
-// limite, con la finestra stretta Nome restava al suo minimo e lo spazio in più andava tutto a
-// Destinazione; così le due colonne crescono e calano insieme.
-static float linkMax(float dateX) { return floorf((dateX - A.listX) * ui::LINK_MAX); }
+// Larghezza massima di Destinazione con la colonna dopo in nextX: mai più larga di Nome. Senza
+// questo limite, con la finestra stretta Nome restava al suo minimo e lo spazio in più andava tutto
+// a Destinazione; così le due colonne crescono e calano insieme.
+static float linkMax(float nextX) { return floorf((nextX - A.listX) * ui::LINK_MAX); }
 
 // Larghezza dell'anteprima che la lista lascia libera con le colonne al minimo. L'anteprima tiene
 // la larghezza scelta e le colonne si adattano allo spazio che resta: se l'anteprima prendesse
 // solo quello che avanza dalle colonne alla larghezza scelta, ogni colonna stretta col mouse la
 // allargherebbe, e allargare una colonna sarebbe impossibile (ci si scontra con l'anteprima).
+// Si contano le colonne di Dettagli anche nelle altre viste: cambiando vista l'anteprima non salta.
 static float previewRoom() {
-    float cols = px(ui::COL_MIN) * (linkColumn() ? 3 : 2);
-    return floorf((float)G.w - A.listX - px(ui::COL_NAME_MIN) - cols - A.padX - A.sbW);
+    int n = 0;
+    for (int c : kColOrder) n += colWanted(c, false);
+    return floorf((float)G.w - A.listX - px(ui::COL_NAME_MIN) - px(ui::COL_MIN) * n - A.padX - A.sbW);
 }
 
 // In basso: l'altezza che lascia alla lista l'intestazione, PREVIEW_LIST_ROWS righe e le barre in fondo
@@ -68,23 +67,35 @@ static LayoutKeep layoutKeep() { return { cursorInView(A.scrollY, false), A.perL
 
 // Geometria delle voci dentro listX…listR, da listTop per listH, nella vista di A.zoom: colonne e
 // celle. La lista principale (layout) e l'anteprima di una cartella (preview.cpp, nel suo
-// PaneScope), che in Dettagli non ha Destinazione e, a destra, nemmeno Data (noDate).
+// PaneScope), che in Dettagli non ha Destinazione e, a destra, solo Dimensione (noDate).
 static void layoutItems(bool noDate, const LayoutKeep& k) {
-    // Colonne: Nome prende quello che avanza, Destinazione (se c'è), Data e Dimensione sono
-    // allineate a destra. Se la finestra è stretta si stringono prima Destinazione, poi Data e poi
-    // Dimensione, fino al minimo (senza salvare); Destinazione inoltre non supera Nome (linkMax).
-    A.dateW = noDate ? 0 : px(A.colDate);
-    A.sizeW = px(A.colSize);
-    A.linkW = !noDate && linkColumn() ? px(A.colLink) : 0;
-    float right = A.listR - A.sbW - A.padX, room = colRoom(), mn = px(ui::COL_MIN);
-    if (A.linkW > 0 && A.linkW + A.dateW + A.sizeW > room) A.linkW = std::max(mn, room - A.dateW - A.sizeW);
-    if (A.dateW > 0 && A.linkW + A.dateW + A.sizeW > room) A.dateW = std::max(mn, room - A.sizeW - A.linkW);
-    if (A.linkW + A.dateW + A.sizeW > room) A.sizeW = std::max(mn, room - A.dateW - A.linkW);
-    A.sizeX = right - A.sizeW;
-    A.dateX = A.sizeX - A.dateW;
-    if (A.linkW > 0) A.linkW = std::max(mn, std::min(A.linkW, linkMax(A.dateX)));
-    A.linkX = A.dateX - A.linkW;
-    A.nameEnd = A.linkX - A.padX; // senza Destinazione linkX è dateX
+    // Colonne, solo in Dettagli: Nome prende quello che avanza, le altre stanno a destra nell'ordine
+    // di kColOrder. Se la finestra è stretta cedono nell'ordine di kColYield, ognuna fino al minimo
+    // (senza salvare); Destinazione inoltre non supera Nome (linkMax).
+    float right = A.listR - A.sbW - A.padX, room = colRoom(), mn = px(ui::COL_MIN), total = 0;
+    for (int c = 0; c < COL_COUNT; c++) {
+        A.colWd[c] = A.zoom == ZOOM_DETAILS && c != COL_NAME && colWanted(c, noDate) ? px(A.colW[c]) : 0;
+        total += A.colWd[c];
+    }
+    for (int c : kColYield)
+        if (A.colWd[c] > 0 && total > room) {
+            float w = std::max(mn, A.colWd[c] - (total - room));
+            total -= A.colWd[c] - w;
+            A.colWd[c] = w;
+        }
+    // Da destra: ogni colonna comincia dove finisce quella prima (una nascosta, larga 0, comincia
+    // dove comincia la successiva)
+    float x = right;
+    for (int i = COL_COUNT - 2; i >= 0; i--) {
+        x -= A.colWd[kColOrder[i]];
+        A.colX[kColOrder[i]] = x;
+    }
+    if (A.colWd[COL_LINK] > 0) { // Destinazione è la prima da sinistra: si stringe verso destra
+        float next = A.colX[COL_LINK] + A.colWd[COL_LINK];
+        A.colWd[COL_LINK] = std::max(mn, std::min(A.colWd[COL_LINK], linkMax(next)));
+        A.colX[COL_LINK] = next - A.colWd[COL_LINK];
+    }
+    A.nameEnd = A.colX[kColOrder[0]] - A.padX;
     // Voci: in Dettagli una colonna di righe. In Icone il riquadro della miniatura a GAP_M dai
     // bordi, sotto il nome su GRID_NAME_LINES righe; le voci di una riga si dividono la larghezza.
     // In Elenco colonne larghe LIST_COL_W di righe alte una riga, quante ne stanno sopra la barra di
@@ -178,21 +189,18 @@ static void layout() {
     layoutItems(false, keep);
 }
 
-// Bordo b tra due colonne: 0 a sinistra di Data, 1 a sinistra di Dimensione, 2 a sinistra di
-// Destinazione (se c'è); a metà dello spazio tra il testo di una colonna e quello della successiva.
-// Ogni bordo comanda la colonna alla sua destra: colChosen è il valore scelto (impostazioni.txt),
-// colShown la larghezza mostrata adesso.
-static float colBorderX(int b) { return (b == 0 ? A.dateX : b == 1 ? A.sizeX : A.linkX) - floorf(A.padX * 0.5f); }
+// Bordo b tra due colonne: quello a sinistra della colonna b (COL_*), a metà dello spazio tra il
+// testo della colonna prima e il suo. Ogni bordo comanda la colonna alla sua destra: colChosen è
+// il valore scelto (impostazioni.txt), colShown la larghezza mostrata adesso.
+static float colBorderX(int b) { return A.colX[b] + (colAfterRight(b) ? 1 : -1) * floorf(A.padX * 0.5f); }
 // Oltre ai bordi delle colonne si trascinano con lo stesso gesto quelli dei pannelli (barra
 // laterale, anteprima): cursore ↔, Esc torna a prima, si salva al rilascio (listmouse.cpp).
-enum { EDGE_SIDE = 3, EDGE_PREVIEW = 4 };
+enum { EDGE_SIDE = COL_COUNT, EDGE_PREVIEW };
 static float& colChosen(int b) {
-    return b == 0 ? A.colDate : b == 1 ? A.colSize : b == 2 ? A.colLink : b == EDGE_SIDE ? A.sideWidth
-         : A.prevBottom ? A.prevHeight : A.prevWidth;
+    return b < COL_COUNT ? A.colW[b] : b == EDGE_SIDE ? A.sideWidth : A.prevBottom ? A.prevHeight : A.prevWidth;
 }
 static float colShown(int b) {
-    return b == 0 ? A.dateW : b == 1 ? A.sizeW : b == 2 ? A.linkW : b == EDGE_SIDE ? A.sideW
-         : A.prevBottom ? A.prevH : A.prevW;
+    return b < COL_COUNT ? A.colWd[b] : b == EDGE_SIDE ? A.sideW : A.prevBottom ? A.prevH : A.prevW;
 }
 // Bordo di un pannello sotto il mouse: EDGE_SIDE, EDGE_PREVIEW o -1. Barra laterale per tutta
 // l'altezza: COL_GRIP per lato (la lista ha GAP_S di margine). Anteprima per tutto il suo lato:
@@ -215,18 +223,24 @@ static bool edgeVertical(int b) { return b == EDGE_PREVIEW && A.prevBottom; }
 static int colBorderAt(int x, int y) {
     if (A.zoom != ZOOM_DETAILS) return -1; // in Elenco e Icone l'intestazione ha solo le etichette per ordinare
     if (y < A.sideTop || y >= A.listTop || x < A.listX || x >= A.listR - A.sbW) return -1;
-    for (int b = A.linkW > 0 ? 2 : 1; b >= 0; b--)
-        if (fabsf(x - colBorderX(b)) <= px(ui::COL_GRIP)) return b;
+    for (int i = COL_COUNT - 2; i >= 0; i--) {
+        int c = kColOrder[i];
+        if (A.colWd[c] > 0 && fabsf(x - colBorderX(c)) <= px(ui::COL_GRIP)) return c;
+    }
     return -1;
 }
 // Colonna dell'intestazione sotto x; in Elenco e Icone l'etichetta (sortX, dal disegno), -1 fuori
 static int colAt(int x) {
     if (A.zoom != ZOOM_DETAILS) {
-        for (int c = 0; c < 3; c++)
-            if (x >= A.sortX[c] - px(ui::GAP_S) && x < A.sortX[c + 1] - px(ui::GAP_XL) + px(ui::GAP_S)) return c;
+        for (int i = 0; i < A.sortN; i++)
+            if (x >= A.sortX[i] - px(ui::GAP_S) && x < A.sortX[i + 1] - px(ui::GAP_XL) + px(ui::GAP_S)) return A.sortC[i];
         return -1;
     }
-    return x >= colBorderX(1) ? COL_SIZE : x >= colBorderX(0) ? COL_DATE : A.linkW > 0 && x >= colBorderX(2) ? COL_LINK : COL_NAME;
+    for (int i = COL_COUNT - 2; i >= 0; i--) {
+        int c = kColOrder[i];
+        if (A.colWd[c] > 0 && x >= colBorderX(c)) return c;
+    }
+    return COL_NAME;
 }
 
 // --- animazioni ---------------------------------------------------------------------------

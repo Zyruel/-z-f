@@ -20,6 +20,21 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 000000000000000000000000000000000000000000000000000000. Colonne a scelta ed estensioni nascoste (z-f-dev, novembre 2026)
+
+Prima fase delle colonne (filtro e gruppi per colonna verranno dopo). Già provato da Claude in
+z-f-dev, in una cartella di prova con file finti: colonna Tipo (estensioni, "Cartella", senza
+estensione e ".gitignore" vuote), Data creazione, Attributi ("RA", "HA"); menu col tasto destro
+sull'intestazione; ordinamento per Tipo; estensioni spente (cartelle e ".gitignore" restano
+intere, F2 mostra il nome intero); Icone con le etichette delle colonne; Questo PC (Nome e Tipo);
+anteprima a destra con le colonne al minimo; doppio clic sul bordo di Tipo; WinSxS. Restano:
+- [ ] a 175%, tutte le colonne visibili: niente titoli tagliati con le larghezze predefinite;
+- [ ] una cartella con collegamenti: Destinazione tolta e rimessa dal menu, clic sul percorso;
+- [ ] trascinare i bordi di Attributi e di Dimensione con Attributi visibile (lo spazio tra i due
+  testi resta, Esc rimette la larghezza);
+- [ ] dentro uno zip: Data creazione vuota, Tipo e Attributi;
+- [ ] riavvio: colonne scelte, larghezze ed estensioni rilette da `impostazioni.txt`.
+
 ## 00000000000000000000000000000000000000000000000000000. Correzioni della revisione prima della 1.0.0-beta.8 (z-f-dev, novembre 2026)
 
 Revisione e controllo del ramo prima del rilascio (27/11). Da provare in z-f-dev, in una cartella

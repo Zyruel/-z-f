@@ -21,7 +21,9 @@ enum MenuId { M_OPEN = 1, M_OPENWITH, M_CUT, M_COPY, M_PASTE, M_COPYPATH, M_RENA
               // Comandi senza voce di menu: legano i loro tasti in kShortcuts ai tooltip
               M_BACK, M_FWD, M_UP, M_EDIT_PATH, M_SIDEBAR, M_FILTER_CLEAR, M_GOTO_NEWTAB, M_GOTO_ENTER,
               M_PANE_KEYS,   // Tab: la tastiera tra la lista e l'anteprima di una cartella (preview.cpp)
-              M_PREVIEW_SWAP }; // Alt+Shift+P: l'anteprima da destra in basso e viceversa
+              M_PREVIEW_SWAP, // Alt+Shift+P: l'anteprima da destra in basso e viceversa
+              M_COLUMN,      // menu delle colonne: M_COLUMN + COL_* mostra o nasconde quella colonna (columns.cpp)
+              M_COLUMN_END = M_COLUMN + COL_COUNT };
 
 // "Questo PC" per la shell: è una cartella virtuale, la si raggiunge col suo CLSID
 static const wchar_t kThisPc[] = L"::{20D04FE0-3AEA-1069-A2D8-08002B30309D}";
@@ -30,7 +32,7 @@ static const wchar_t kThisPc[] = L"::{20D04FE0-3AEA-1069-A2D8-08002B30309D}";
 // id 0 = separatore. icon: 0 nessuna, 1 cartella, 2 unità (path in PopupMenu::paths), 3 segno di
 // spunta (la scelta attuale). dim: elemento nascosto
 struct MenuItem { const wchar_t* label; const wchar_t* keys; int id; bool enabled; int icon = 0; bool dim = false; };
-enum { MENU_LIST, MENU_SIDE, MENU_TAB, MENU_CRUMB, MENU_DROP, MENU_VIEW, MENU_PREVIEW_POS }; // POS: la posizione dell'anteprima, da non confondere con PopupMenu::preview (un menu aperto nell'anteprima)
+enum { MENU_LIST, MENU_SIDE, MENU_TAB, MENU_CRUMB, MENU_DROP, MENU_VIEW, MENU_PREVIEW_POS, MENU_HEADER }; // HEADER: le colonne, dall'intestazione; POS: la posizione dell'anteprima, da non confondere con PopupMenu::preview (un menu aperto nell'anteprima)
 struct PopupMenu {
     bool open = false, background = false, pressed = false;
     float x = 0, y = 0, w = 0, h = 0, ih = 0, sepH = 0, pad = 0, vpad = 0;
@@ -127,10 +129,12 @@ struct ListPane {
     HoverFade fltFade;
     // Geometria (layoutItems; iconX e nameX da drawListItems)
     float listX = 0, listR = 0, listTop = 0, listH = 0;
-    float dateW = 0, sizeW = 0, linkW = 0, dateX = 0, sizeX = 0, linkX = 0, nameEnd = 0, iconX = 0, nameX = 0;
+    float colX[COL_COUNT] = {}, colWd[COL_COUNT] = {};
+    float nameEnd = 0, iconX = 0, nameX = 0;
     int perLine = 1;
     float cellX = 0, cellW = 0, cellH = 0, thumbPx = 0;
-    float sortX[4] = {};
+    float sortX[COL_COUNT + 1] = {};
+    int sortC[COL_COUNT] = {}, sortN = 0;
 };
 
 // Livelli di zoom della lista (Ctrl+rotellina): Dettagli 0%, Elenco 10%, poi Icone da 20% a 100%
@@ -252,9 +256,12 @@ struct App {
     bool sideFastDone = false;        // prima lettura veloce (file e lettere delle unità) arrivata
     bool sideStarted = false;         // il thread della barra parte solo dopo il primo frame
 
-    // Colonne: larghezze scelte (px a scala 100%, in impostazioni.txt) e bordo afferrato
-    float colDate = ui::DATE_W, colSize = ui::SIZE_W, colLink = ui::LINK_W;
-    int colHover = -1, colDrag = -1;  // bordo sotto il mouse / trascinato (0 = …|Data, 1 = Data|Dimensione, 2 = Nome|Destinazione; EDGE_SIDE, EDGE_PREVIEW: bordi dei pannelli)
+    // Colonne (columns.cpp): larghezze scelte per COL_* (px a scala 100%, in impostazioni.txt; Nome
+    // non ne ha), quelle da mostrare (un bit per COL_*), le estensioni nei nomi, e bordo afferrato
+    float colW[COL_COUNT] = { 0, ui::DATE_W, ui::SIZE_W, ui::LINK_W, ui::TYPE_W, ui::DATE_W, ui::ATTR_W };
+    uint32_t colOn = 1u << COL_LINK | 1u << COL_TYPE | 1u << COL_DATE | 1u << COL_SIZE;
+    bool showExt = true;
+    int colHover = -1, colDrag = -1;  // bordo sotto il mouse / trascinato: la colonna alla sua destra (COL_*), o EDGE_SIDE, EDGE_PREVIEW (bordi dei pannelli)
     // Destinazione dei collegamenti (links.cpp): sotto il mouse (indice di vista), premuta col tasto
     // sinistro (vale al rilascio, se non è partito il rettangolo), ultimo clic (il doppio clic che
     // segue non apre la voce che intanto è arrivata sotto il mouse)
@@ -321,12 +328,12 @@ struct App {
     uint64_t zipBytes = 0;
 
     // Layout (pixel, aggiornato a ogni frame)
-    float topH, headH, rowH, statusH, listTop, listH, sbW, padX, dateW, sizeW;
+    float topH, headH, rowH, statusH, listTop, listH, sbW, padX;
     float timesH = 0;                 // barra dei tempi (0 se spenta)
     float footH = 0;                  // sotto la lista: barra dei tempi più barra di stato
     float footY = 0;                  // fondo della barra di stato: la finestra, o l'anteprima in basso
-    float dateX = 0, sizeX = 0;       // inizio delle colonne Data e Dimensione
-    float linkX = 0, linkW = 0;       // colonna Destinazione (linkW 0: non c'è, e linkX = dateX)
+    // Colonne dopo Nome (layoutItems): inizio e larghezza mostrata per COL_*; colWd 0: non si vede
+    float colX[COL_COUNT] = {}, colWd[COL_COUNT] = {};
     float nameEnd = 0;                // fine del testo del nome (prima della colonna successiva)
     float iconX = 0, nameX = 0;       // icona e nome nelle righe (da render, che conosce le icone)
     float tabH, tabY, pathY, listX, sideW, sideTop, sideItemH;
@@ -335,7 +342,10 @@ struct App {
     // voci), colonne di perLine voci in Elenco, che scorre in orizzontale
     int perLine = 1;
     float cellX = 0, cellW = 0, cellH = 0, thumbPx = 0;
-    float sortX[4] = {};              // Elenco e Icone: etichette di ordinamento nell'intestazione (inizi e fine)
+    // Elenco e Icone: etichette di ordinamento nell'intestazione, sortN, con la loro colonna (sortC)
+    // e il loro inizio (sortX; sortX[sortN] è la fine dell'ultima)
+    float sortX[COL_COUNT + 1] = {};
+    int sortC[COL_COUNT] = {}, sortN = 0;
     float btnW, capW, navW, tabStripX, tabStripW; // barra del titolo e riga del percorso
     float navMenuW = 0;                           // ˅ della posizione dell'anteprima, accanto a ◨
     float fltX = 0, fltW = 0, fltClearW = 0;      // campo del filtro, a sinistra nella barra di stato
@@ -400,12 +410,7 @@ static void paneSwap(ListPane& p) {
     std::swap(A.listR, p.listR);
     std::swap(A.listTop, p.listTop);
     std::swap(A.listH, p.listH);
-    std::swap(A.dateW, p.dateW);
-    std::swap(A.sizeW, p.sizeW);
-    std::swap(A.linkW, p.linkW);
-    std::swap(A.dateX, p.dateX);
-    std::swap(A.sizeX, p.sizeX);
-    std::swap(A.linkX, p.linkX);
+    for (int i = 0; i < COL_COUNT; i++) { std::swap(A.colX[i], p.colX[i]); std::swap(A.colWd[i], p.colWd[i]); }
     std::swap(A.nameEnd, p.nameEnd);
     std::swap(A.iconX, p.iconX);
     std::swap(A.nameX, p.nameX);
@@ -414,7 +419,9 @@ static void paneSwap(ListPane& p) {
     std::swap(A.cellW, p.cellW);
     std::swap(A.cellH, p.cellH);
     std::swap(A.thumbPx, p.thumbPx);
-    for (int i = 0; i < 4; i++) std::swap(A.sortX[i], p.sortX[i]);
+    for (int i = 0; i <= COL_COUNT; i++) std::swap(A.sortX[i], p.sortX[i]);
+    for (int i = 0; i < COL_COUNT; i++) std::swap(A.sortC[i], p.sortC[i]);
+    std::swap(A.sortN, p.sortN);
 }
 
 // Dentro un PaneScope App è l'anteprima: layout, navigazione, schede e disegno non devono girare
@@ -465,6 +472,8 @@ static HANDLE g_instanceMutex = nullptr;
 static UINT g_msgSeparate = 0;
 
 // Funzioni usate prima della loro definizione (l'ordine dei moduli è in z-f.cpp)
+static int fmtDate(uint64_t ft64, wchar_t* buf);   // app.cpp
+static const wchar_t* driveKind(UINT t);           // app.cpp: tipo di unità con le parole di Windows
 static void startWatch(const std::wstring& path); // watch.cpp
 static void requestRefresh();                     // watch.cpp
 static void folderGone(std::wstring p);           // watch.cpp
