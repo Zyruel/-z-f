@@ -802,6 +802,13 @@ static void decimalComma(wchar_t* s, int n) {
         if (s[k] == L'.' && iswdigit(s[k - 1]) && iswdigit(s[k + 1])) s[k] = L',';
 }
 
+// Punto delle migliaia (212.388): tooltip, piede dell'anteprima, suggerimento del filtro
+static std::wstring withThousands(uint64_t v) {
+    std::wstring s = std::to_wstring(v);
+    for (int i = (int)s.size() - 3; i > 0; i -= 3) s.insert((size_t)i, 1, L'.');
+    return s;
+}
+
 static int fmtSize(uint64_t b, wchar_t* buf) {
     if (b < 1024) return _snwprintf(buf, 31, L"%llu B", (unsigned long long)b);
     const wchar_t* u[] = { L"KB", L"MB", L"GB", L"TB" };

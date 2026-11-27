@@ -366,7 +366,7 @@ static void onSideLoaded(SideLoad* L) {
         if (!A.favsReady && L->fileFound && favAdopt(L->favs)) favSave();
         if (A.drives.empty()) A.drives.swap(L->drives);
         recentLoaded(L->recents);
-        undoLoaded(L->undo); // dopo le impostazioni: vale solo con "Annulla dopo il riavvio"
+        undoLoaded(L->undo); // dopo le impostazioni: vale solo con "Annullamento anche dopo il riavvio"
         viewsLoaded(L->views);
         A.dirty = true;
         delete L;
@@ -653,7 +653,7 @@ static void drawSidebar(double dt) {
 
     auto section = [&](const wchar_t* t, bool hot, bool open) {
         if (y + sideSectionH() > top && y < bottom) {
-            drawText(x0 + pad, y + secOff, t, (int)wcslen(t), hot ? C_TEXT : C_FAINT, w - pad - A.rowH);
+            drawText(x0 + pad, y + secOff, t, (int)wcslen(t), hot ? C_TEXT : C_DIM, w - pad - A.rowH);
             drawUiIcon(x0 + w - pad - F.lineH, y + px(ui::GAP_XS), (float)F.lineH, sideSectionH(),
                        open ? IC_CHEVRON_DOWN : IC_CHEVRON_RIGHT, hot ? C_DIM : C_FAINT);
         }
@@ -689,7 +689,7 @@ static void drawSidebar(double dt) {
             wchar_t b[32];
             int n = fmtSize(it.free, b);
             float fw = (float)textWidth(b, n);
-            drawText(right - fw, y + textOff - px(ui::GAP_XS), b, n, C_FAINT);
+            drawText(right - fw, y + textOff - px(ui::GAP_XS), b, n, cur ? C_DIM_SEL : C_DIM);
             right -= fw + px(ui::GAP_M);
             float bw = x0 + w - pad - tx, bh = std::max(1.0f, px(ui::EDGE)), by = y + A.sideItemH - bh - px(ui::GAP_XS);
             double used = 1.0 - (double)it.free / (double)it.total;
@@ -715,7 +715,10 @@ static void drawSidebar(double dt) {
             }
         }
         float lift = it.total ? px(ui::GAP_XS) : 0; // spazio per la barra d'uso
-        drawText(tx, y + textOff - lift, it.label, cur ? C_TEXT : C_DIM, right);
+        // Unità: il nome finisce con " (C:)" (vedi sopra), che resta anche quando il nome non ci sta
+        const std::wstring& lb = it.label;
+        bool letter = it.drive && lb.size() > 5 && lb.compare(lb.size() - 2, 2, L":)") == 0;
+        drawTextKeepTail(tx, y + textOff - lift, lb, letter ? 5 : 0, cur ? C_TEXT : C_DIM, right);
         y += A.sideItemH;
     };
 
@@ -724,7 +727,7 @@ static void drawSidebar(double dt) {
         // Rientrati sotto il titolo come le unità sotto Questo PC: un livello dell'albero
         for (int i = 0; i < (int)A.favs.size(); i++) item(A.favs[i], i, px(ui::SIDE_INDENT));
         if (A.favs.empty()) { // la scorciatoia da kShortcuts, come nei menu
-            if (y < bottom) drawText(x0 + pad + px(ui::SIDE_INDENT), y + textOff, std::wstring(shortcutFor(M_FAV_TOGGLE)) + L" aggiunge", C_FAINT, w - pad);
+            if (y < bottom) drawText(x0 + pad + px(ui::SIDE_INDENT), y + textOff, std::wstring(shortcutFor(M_FAV_TOGGLE)) + L" aggiunge", C_DIM, w - pad);
             y += A.sideItemH;
         }
     }

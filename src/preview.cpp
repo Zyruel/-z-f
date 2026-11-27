@@ -1184,7 +1184,7 @@ static void pvBarData(const PvGeom& g, float right, const std::wstring& t) {
 }
 
 static void pvNote(const PvGeom& g, const wchar_t* t) {
-    drawText(g.x0, g.bodyTop, t, (int)wcslen(t), C_FAINT, g.x1);
+    drawText(g.x0, g.bodyTop, t, (int)wcslen(t), C_DIM, g.x1);
 }
 
 static void drawPvText(const PvGeom& g) {
@@ -1281,7 +1281,7 @@ static void drawPvDir(const PvGeom& g, double dt, double now) {
     }
     right = drawBarCounts(right, g.footY, dirs, files, o.more);
     PaneScope ps(&PV.pane);
-    drawBarFilter(right, g.footY, dt);
+    drawBarFilter(right, g.footY, dt, o.more);
 }
 
 static void drawPvInfo(const PvGeom& g) {
@@ -1304,13 +1304,13 @@ static void drawPvInfo(const PvGeom& g) {
         else if (o.err == ERROR_ACCESS_DENIED) infoRow(rows, L"", L"Accesso negato");
         else if (o.err) infoRow(rows, L"", L"Impossibile leggere il file (codice " + std::to_wstring(o.err) + L")");
     }
-    // Come nel tooltip: etichette in C_DIM, valori in C_TEXT, note in C_FAINT
+    // Come nel tooltip: etichette e note in C_DIM, valori in C_TEXT
     float lh = (float)F.lineH + px(ui::LINE_GAP), labW = 0;
     for (auto& r : rows) labW = std::max(labW, (float)textWidth(r.first.c_str(), (int)r.first.size()));
     float vx = g.x0 + labW + px(ui::TIP_COL_GAP);
     for (auto& r : rows) {
         if (y + F.lineH > g.bodyBot) break;
-        if (r.first.empty()) drawText(g.x0, y, r.second, C_FAINT, g.x1);
+        if (r.first.empty()) drawText(g.x0, y, r.second, C_DIM, g.x1);
         else { drawText(g.x0, y, r.first, C_DIM); drawText(vx, y, r.second, C_TEXT, g.x1); }
         y += lh;
     }

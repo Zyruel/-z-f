@@ -330,8 +330,38 @@ static float drawText(float x, float y, const wchar_t* s, int n, uint32_t col, f
     return drawTextMarked(x, y, s, n, col, maxX, nullptr, 0);
 }
 
+// Testo su più righe (spiegazioni delle opzioni): fine della riga che comincia in start e sta in
+// maxW. A capo dopo l'ultimo spazio che ci sta, altrimenti dove finisce lo spazio. Gli spazi
+// all'inizio della riga dopo li salta chi chiama.
+static int textLineEnd(const wchar_t* s, int n, int start, float maxW) {
+    float w = 0;
+    int brk = -1;
+    for (int i = start; i < n;) {
+        int j = i;
+        uint32_t cp = decodeUtf16(s, n, j);
+        float a = (float)glyphGet(cp).adv;
+        if (w + a > maxW && i > start) return brk > start ? brk : i;
+        w += a;
+        if (cp == L' ') brk = j;
+        i = j;
+    }
+    return n;
+}
+
 static float drawText(float x, float y, const std::wstring& s, uint32_t col, float maxX = 1e9f) {
     return drawText(x, y, s.c_str(), (int)s.size(), col, maxX);
+}
+
+// Come drawText, ma se non ci sta il "…" va prima degli ultimi tail caratteri, che restano: la
+// parte che distingue le voci ("Disco lo… (C:)"). Se non c'è posto nemmeno per quella, "…" alla fine.
+static float drawTextKeepTail(float x, float y, const std::wstring& s, int tail, uint32_t col, float maxX) {
+    int n = (int)s.size();
+    if (tail <= 0 || tail >= n || floorf(x) + textWidth(s.c_str(), n) <= maxX) return drawText(x, y, s, col, maxX);
+    float tw = (float)textWidth(s.c_str() + n - tail, tail);
+    float headMax = maxX - tw;
+    if (headMax - floorf(x) < glyphGet(0x2026).adv) return drawText(x, y, s, col, maxX);
+    float ex = drawText(x, y, s.c_str(), n - tail, col, headMax);
+    return drawText(ex, y, s.c_str() + n - tail, tail, col);
 }
 
 // Testo col carattere dell'anteprima, fino a maxX (le righe arrivano già spezzate: niente "…")

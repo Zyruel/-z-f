@@ -42,12 +42,12 @@ bit (provato su Windows 11).
 - **Menu** essenziale e immediato; il menu completo di Windows con Shift+clic destro, o sempre con
   l'opzione "Menu completo di Windows col tasto destro".
 - **Dialoghi Apri e Salva** degli altri programmi: entrano nella cartella aperta in [z]f.
-- **Al posto di Explorer**, con l'opzione "Usa [z]f al posto di Explorer": le cartelle aperte da
+- **Al posto di Explorer**, con l'opzione "[z]f al posto di Explorer": le cartelle aperte da
   Windows, gli zip e Win+E aprono [z]f. Scrive solo nelle impostazioni dell'utente e si annulla con lo
   stesso interruttore.
 - **Una finestra sola:** aprire una cartella con [z]f già aperto aggiunge una scheda (o, con
   l'opzione "Una finestra per ogni cartella aperta da fuori", apre una finestra nuova). Con
-  l'opzione "Riapri le schede all'avvio" si riparte dalle schede che c'erano alla chiusura.
+  l'opzione "Schede riaperte all'avvio" si riparte dalle schede che c'erano alla chiusura.
 - **Si aggiorna da solo:** una volta al giorno guarda se c'è una versione nuova, la scarica, ne
   controlla la firma e la installa per il prossimo avvio. Un pallino su ⚙ lo segnala, e in fondo
   alle opzioni "Aggiorna" riavvia subito [z]f con le stesse schede. Si spegne nelle opzioni.
@@ -62,14 +62,14 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Tasto | Azione |
 |---|---|
 | Invio · doppio clic | Apre la cartella o il file |
-| Alt+↑ · Backspace | Cartella superiore (Backspace: se non c'è un filtro) |
-| Alt+← · tasto Indietro del mouse o della tastiera · gesto Indietro del touchpad | Indietro |
-| Alt+→ · tasto Avanti del mouse o della tastiera · gesto Avanti del touchpad | Avanti |
-| Clic su un segmento del percorso | Va a quella cartella |
-| Clic su › nel percorso | Sottocartelle |
+| Alt+↑ · Backspace | Va alla cartella superiore (Backspace: se non c'è un filtro) |
+| Alt+← · tasto Indietro del mouse o della tastiera · gesto Indietro del touchpad | Va indietro |
+| Alt+→ · tasto Avanti del mouse o della tastiera · gesto Avanti del touchpad | Va avanti |
+| Clic su un segmento del percorso | Va alla cartella di quel segmento |
+| Clic su › nel percorso | Mostra le sottocartelle di quel segmento |
 | Clic sulla destinazione di un collegamento · clic centrale | Apre il percorso del file (in una nuova scheda) |
-| Ctrl+L · F4 · clic sul percorso vuoto | Vai a dalla cartella aperta: scrive il percorso |
-| Ctrl+P · Ctrl+G | Vai a: cartelle recenti, preferiti, sottocartelle |
+| Ctrl+L · F4 · clic sul percorso vuoto | Apre Vai a col percorso della cartella aperta, da modificare |
+| Ctrl+P · Ctrl+G | Apre Vai a: cartelle recenti, preferiti, sottocartelle |
 | Ctrl+Invio · clic centrale | Vai a: apre in una nuova scheda |
 | Tab | Vai a: entra nella cartella e mostra le sottocartelle |
 | F5 · tasto Aggiorna della tastiera | Ricarica |
@@ -82,11 +82,11 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Shift+frecce | Estende la selezione |
 | Ctrl+frecce | Muove solo il cursore |
 | Ctrl+Spazio | Seleziona o deseleziona la voce del cursore |
-| Ctrl+clic · Shift+clic · Ctrl+Shift+clic | Alterna · intervallo · aggiunge l'intervallo |
+| Ctrl+clic · Shift+clic · Ctrl+Shift+clic | Alterna la voce · seleziona l'intervallo · aggiunge l'intervallo |
 | Trascina nella lista · con Ctrl · con Shift | Seleziona col rettangolo · alterna · aggiunge |
 | Clic sotto le righe | Toglie la selezione |
 | Ctrl+A | Seleziona tutto ciò che è visibile |
-| Lettere | Filtro sui nomi |
+| Lettere | Filtra i nomi mentre si scrive |
 | Backspace | Toglie l'ultima lettera del filtro |
 | Esc | Toglie il filtro, poi la selezione (nell'anteprima, poi torna alla lista) |
 
@@ -96,15 +96,15 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 |---|---|
 | Ctrl+C · Ctrl+X | Copia · taglia |
 | Ctrl+V | Incolla i file; un percorso ci va, un testo filtra |
-| Ctrl+Shift+C | Copia percorso |
-| Ctrl+Shift+N | Nuova cartella |
+| Ctrl+Shift+C | Copia il percorso |
+| Ctrl+Shift+N | Crea una nuova cartella |
 | F2 | Rinomina |
-| Canc · Shift+Canc | Cestino · elimina definitivamente |
+| Canc · Shift+Canc | Sposta nel Cestino · elimina definitivamente |
 | Ctrl+Z | Annulla l'ultima operazione sui file |
 | Ctrl+Y · Ctrl+Shift+Z | Ripete l'operazione annullata |
-| Alt+Invio | Proprietà |
-| Tasto destro · Menu | Menu contestuale |
-| Shift+tasto destro · Shift+F10 | Menu completo della shell (o di [z]f, con l'opzione) |
+| Alt+Invio | Apre le proprietà |
+| Tasto destro · Menu | Apre il menu contestuale |
+| Shift+tasto destro · Shift+F10 | Apre il menu completo della shell (o quello di [z]f, con l'opzione) |
 | Trascina una voce selezionata | Sposta sulla stessa unità, altrimenti copia |
 | Ctrl+trascina · Shift+trascina · Alt+trascina | Copia · sposta · crea collegamento |
 | Trascina col tasto destro | Chiede se copiare, spostare o collegare |
@@ -113,11 +113,11 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 
 | Tasto | Azione |
 |---|---|
-| Ctrl+T | Nuova scheda |
-| Ctrl+N | Nuova finestra sulla stessa cartella |
+| Ctrl+T | Apre una nuova scheda |
+| Ctrl+N | Apre una nuova finestra sulla stessa cartella |
 | Ctrl+W · clic centrale sulla scheda | Chiude la scheda |
-| Ctrl+Tab · Ctrl+Shift+Tab | Scheda successiva · precedente |
-| Ctrl+1…8 · Ctrl+9 | Scheda n · ultima scheda |
+| Ctrl+Tab · Ctrl+Shift+Tab | Passa alla scheda successiva · precedente |
+| Ctrl+1…8 · Ctrl+9 | Passa alla scheda n · all'ultima |
 | Clic centrale · Ctrl+clic su un preferito | Apre in una nuova scheda in background |
 | Trascina su una scheda | La apre dopo un momento |
 
@@ -127,23 +127,23 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 |---|---|
 | Ctrl+B | Mostra o nasconde la barra laterale |
 | Alt+P | Mostra o nasconde l'anteprima |
-| Tab · clic nel pannello | La tastiera alla lista o all'anteprima di una cartella |
+| Tab · clic nel pannello | Passa la tastiera alla lista o all'anteprima di una cartella |
 | Doppio clic nell'anteprima | Apre il file; una cartella in una nuova scheda in background |
-| Ctrl+Shift+2 · Ctrl+Shift+3 | Dettagli · Elenco |
-| Ctrl+Shift+4 · Ctrl+Shift+5 · Ctrl+Shift+6 | Icone piccole · medie · grandi (zoom 40 · 70 · 100%) |
-| Ctrl+rotellina | Zoom della lista: Dettagli, Elenco, Icone da 20 a 100% (sull'anteprima: la sua vista) |
-| Trascina il bordo di un pannello · doppio clic | Larghezza di barra laterale o anteprima (altezza, in basso) · predefinita |
-| Clic su ˅ accanto a ◨ | Anteprima a destra o in basso |
+| Ctrl+Shift+2 · Ctrl+Shift+3 | Passa alla vista Dettagli · Elenco |
+| Ctrl+Shift+4 · Ctrl+Shift+5 · Ctrl+Shift+6 | Passa alle icone piccole · medie · grandi (zoom 40 · 70 · 100%) |
+| Ctrl+rotellina | Cambia lo zoom della lista: Dettagli, Elenco, Icone da 20 a 100% (sull'anteprima: la sua vista) |
+| Trascina il bordo di un pannello · doppio clic | Cambia la larghezza di barra laterale o anteprima (l'altezza, in basso) · torna alla predefinita |
+| Clic su ˅ accanto a ◨ | Mette l'anteprima a destra o in basso |
 | Clic sull'intestazione | Ordina per colonna (di nuovo: al contrario) |
-| Trascina il bordo di una colonna · doppio clic | Larghezza della colonna · adatta al contenuto |
+| Trascina il bordo di una colonna · doppio clic | Cambia la larghezza della colonna · la adatta al contenuto |
 | Ctrl+D | Aggiunge o toglie dai preferiti |
 | Trascina tra i preferiti | Aggiunge le cartelle ai preferiti |
 | Trascina un preferito | Lo sposta tra gli altri (solo l'ordine) |
 | Clic su Preferiti · sulla freccia di Questo PC | Chiude o riapre i preferiti · le unità |
-| Ctrl+/− | Dimensione del testo |
-| Ctrl+0 | Dimensione del testo predefinita |
-| Ctrl+, | Opzioni |
-| F12 | Statistiche e tempi |
+| Ctrl+/− | Cambia la dimensione del testo |
+| Ctrl+0 | Riporta il testo alla dimensione predefinita |
+| Ctrl+, | Apre le opzioni |
+| F12 | Mostra statistiche e tempi |
 
 ## Compilare
 

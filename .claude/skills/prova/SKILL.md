@@ -130,7 +130,7 @@ può (con il controllo dello schermo); altrimenti gli si chiede uno screenshot. 
     schermo né tastiera**;
   - non si interferisce con le sue finestre di [z]f: per le prove si usa z-f-dev in una finestra
     separata.
-- **Non scrivere nel registro** al posto di Zyruel: l'interruttore "Usa [z]f al posto di
+- **Non scrivere nel registro** al posto di Zyruel: l'interruttore "[z]f al posto di
   Explorer" lo usa lui (anche questo lo ferma `.claude/hooks/regole.sh`).
 - **Il permesso (`request_access`):** prima si avvia la finestra di prova (`prove\dev.bat`), poi
   si chiede, in una sola richiesta, `["z-f-dev.exe", "File Explorer"]`:

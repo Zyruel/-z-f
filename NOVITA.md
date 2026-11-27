@@ -8,6 +8,41 @@ erano `0.N`. Ogni rilascio, dalla 1.0.0-beta.2, ha un tag `v<versione>` e una
 versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 [`ARCHITETTURA.md`](docs/ARCHITETTURA.md).
 
+## 1.0.0-beta.8 (in corso)
+
+- **Pannello delle opzioni più leggibile:**
+  - scrivendo, la ricerca mostra solo le scorciatoie trovate, in cima al pannello e con le
+    lettere trovate evidenziate (prima i risultati restavano in fondo, fuori vista);
+  - una barra di scorrimento dice che il pannello continua sotto;
+  - le spiegazioni vanno a capo invece di essere tagliate; una scorciatoia troppo lunga per la
+    riga ha il testo intero nel tooltip;
+  - il passaggio del mouse si vede, su tutta la riga che si clicca; i selettori (dimensione del
+    testo, caratteri, posizione dell'anteprima) hanno un fondo da casella;
+  - spiegazioni, titoli delle sezioni e versione in un grigio più leggibile; "[z]f al posto di
+    Explorer" attivo a metà (con un altro eseguibile, o senza gli zip) lo dice in azzurro;
+  - sezioni nuove: "Aspetto" (testo, carattere, animazioni) e "Finestra" (barra laterale e
+    anteprima); la barra dei tempi in fondo, in "Diagnostica", dopo le scorciatoie;
+  - le opzioni si chiamano con il nome di ciò che accendono: "[z]f al posto di Explorer" (era
+    "Usa [z]f…"), "Annullamento anche dopo il riavvio" (era "Annulla dopo il riavvio"), "Schede
+    riaperte all'avvio" (era "Riapri le schede…"), "Versioni beta" (era "Ricevi anche le beta");
+  - le descrizioni delle scorciatoie cominciano tutte con un verbo ("Va indietro", "Apre le
+    proprietà", "Mostra le sottocartelle di quel segmento").
+- **"Sposta nel Cestino"** nel menu al posto di "Elimina": lo stesso nome della scorciatoia
+  (Canc · Shift+Canc, "Sposta nel Cestino · elimina definitivamente").
+- Le note dei tooltip e dell'anteprima ("Clic centrale: nuova scheda", "Accesso negato") sono
+  nello stesso grigio delle etichette, più leggibile; così anche "Cartella vuota", "Nessun
+  risultato per il filtro", le note di "Vai a", il titolo "Preferiti", lo spazio libero delle
+  unità, "Ctrl+D aggiunge", il piede di F12 e la barra dei tempi.
+- **Date e dimensioni di una voce selezionata** in un grigio più chiaro, che si legge sul blu
+  della selezione (anche la scorciatoia della voce attiva di un menu e la cartella della voce
+  attiva di "Vai a").
+- **Il nome di un'unità non perde la lettera:** nella barra laterale stretta "Disco locale (C:)"
+  diventa "Disco l… (C:)" invece di "Disco local…".
+- **Il suggerimento del filtro** ha il punto delle migliaia e il singolare
+  per un elemento ("Filtra 1 elemento…", "Filtra 12.345 elementi…"); in una cartella vuota non
+  c'è; nell'anteprima di una cartella letta in parte ha il "+" ("Filtra 5.000+ elementi…"), come i
+  contatori, che ora hanno anche loro il punto delle migliaia.
+
 ## 1.0.0-beta.7 (novembre 2026)
 
 - **L'anteprima di una cartella è una seconda lista.** Non si scende nelle sue sottocartelle, ma

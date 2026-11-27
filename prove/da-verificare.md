@@ -20,6 +20,47 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 000000000000000000000000000000000000000000000000000. Pannello delle opzioni dalla revisione di design (z-f-dev, novembre 2026)
+
+Fase 1 della revisione di design del 27/11. Provato da Claude in z-f-dev a 100% (2560×1440),
+finestra ingrandita, in una cartella di prova con file finti:
+- [x] a pannello aperto la barra di scorrimento a destra; scorrendo con la rotellina fino in fondo
+  la barra scende, titolo e piede restano fermi e nessuna riga a metà va sopra di loro;
+- [x] "Una finestra per ogni cartella…": la spiegazione va su due righe ("…meno di 1 MB");
+- [x] "Usa [z]f al posto di Explorer" con [z]f registrato da un altro eseguibile (z-f.exe di
+  Zyruel): interruttore spento, spiegazione in azzurro;
+- [x] mouse su una riga con interruttore: fondo visibile su tutta la riga, spiegazione compresa;
+  su ‹ › e − + il fondo del pulsante, dentro il selettore su fondo casella;
+- [x] scrivendo "cestino": solo Scorciatoie, casella e risultato in cima, "Cestino" in azzurro;
+  "tasto": sei risultati con "tasto" in azzurro; Esc svuota e torna in cima alle opzioni;
+- [x] mouse su "Indietro" (riga troncata): tooltip con il titolo e un'alternativa per riga;
+- [ ] **a 175%** (il monitor di Zyruel): le stesse cose, in particolare le spiegazioni a capo e i
+  tooltip delle scorciatoie troncate (a 175% se ne troncano di più);
+- [ ] clic sulla spiegazione di un'opzione (non sull'etichetta): cambia l'interruttore.
+
+Fase 2 (testi), provata da Claude in z-f-dev a 100%, finestra piccola:
+- [x] sezioni Aspetto (testo, carattere, animazioni), Finestra (barra laterale, anteprima, sua
+  posizione e carattere), Integrazione con Windows, File, Avvio e aggiornamenti, Scorciatoie e in
+  fondo Diagnostica con "Barra dei tempi";
+- [x] etichette nuove ("[z]f al posto di Explorer", "Annullamento anche dopo il riavvio", "Schede
+  riaperte all'avvio", "Versioni beta") e descrizioni delle scorciatoie con il verbo;
+- [x] scrivendo "cestino": solo "Sposta nel Cestino · elimina definitivamente", niente
+  Diagnostica; menu di un file: "Sposta nel Cestino" con Canc;
+- [ ] a 175%: con le descrizioni più lunghe se ne troncano di più (tooltip col testo intero).
+
+Fase 3 (finestra), provata da Claude in z-f-dev a 100%, finestra piccola, in una cartella di prova
+con una cartella vuota, una con un file e una con 6000 file:
+- [x] barra laterale alla larghezza predefinita: "Disco l… (C:)" con lo spazio libero accanto;
+- [x] "Cartella vuota" (anteprima), "Nessun risultato per il filtro" (lista), "Nessuna cartella"
+  ("Vai a"), titolo "Preferiti", spazio libero delle unità, "F12 chiude" e la barra dei tempi
+  (accesa e rispenta dalle opzioni) in `C_DIM`;
+- [x] filtro: "Filtra 1 elemento…" (anteprima con un file), nessun suggerimento in una cartella
+  vuota, "Filtra 5.000+ elementi…" e contatori "5.000+" nell'anteprima della cartella da 6000;
+- [x] riga selezionata (anche sotto il mouse): data e dimensione in `C_DIM_SEL`; lo stesso per la
+  scorciatoia della voce attiva del menu e la cartella della voce attiva di "Vai a";
+- [ ] "Ctrl+D aggiunge" con i preferiti vuoti (non provato: si sarebbero dovuti togliere);
+- [ ] a 175%: le stesse cose, e quante lettere del nome di un'unità restano prima di "… (C:)".
+
 ## 00000000000000000000000000000000000000000000000000. Correzioni del controllo prima della 1.0.0-beta.7 (z-f-dev, novembre 2026)
 
 Otto correzioni dal `/controllo cambiati` prima del rilascio. Provato da Claude in z-f-dev a 175%,
@@ -724,7 +765,7 @@ aggiornamenti spenti, tre preferiti, due griglie); finestra ridotta a icona, chi
 - [x] Registro: solo le voci normali dell'avvio. MSVC: zero avvisi.
 
 Da provare a mano:
-- [ ] `annulla.txt`: con "Annulla dopo il riavvio" accesa nel file, accenderla di nuovo nelle
+- [ ] `annulla.txt`: con "Annullamento anche dopo il riavvio" accesa nel file, accenderla di nuovo nelle
       opzioni nei primi istanti di un avvio lento non deve cancellare la cronologia (non provato:
       serve un disco lento vero o la build di prova).
 - [ ] Su un avvio a freddo vero (PC appena acceso, antivirus), Ctrl+rotellina appena compare la
@@ -831,7 +872,7 @@ diversamente funzioni già esistenti. winhttp.dll e bcrypt.dll si caricano solo 
 Restano a Zyruel:
 - [ ] **La spunta:** con GitHub vero, dopo la pubblicazione della 1.0.0-beta.3, un clic sulla
       versione nel menu ≡ mostra l'anello e poi la spunta ("[z]f … è l'ultima versione").
-- [ ] **Riapri le schede all'avvio:** accendila, apri tre schede, chiudi [z]f e riaprilo (senza
+- [ ] **Schede riaperte all'avvio:** accendila, apri tre schede, chiudi [z]f e riaprilo (senza
       cartella, per esempio dal menu Start): tornano le tre schede, con quella attiva di prima.
       Poi riaprilo su una cartella (doppio clic sul desktop): le schede di prima più quella.
 - [ ] **Spegnimento:** con l'opzione accesa e [z]f aperto, riavvia Windows: le schede tornano.
@@ -1330,7 +1371,7 @@ il millesimo di frame che conta, niente cache per ora.
 
 Da provare a mano:
 - [ ] Ctrl+V nella rinomina e in "Vai a" (il testo arriva e "Vai a" cerca);
-- [ ] "Usa [z]f al posto di Explorer" acceso e spento dalle opzioni: l'interruttore si aggiorna
+- [ ] "[z]f al posto di Explorer" acceso e spento dalle opzioni: l'interruttore si aggiorna
       all'avviso, nel registro una riga "al posto di Explorer" con il tempo;
 - [ ] due finestre di [z]f, chiudi quella usata per ultima: un dialogo Apri salta nella cartella
       dell'altra;
@@ -1468,7 +1509,7 @@ Non provati a schermo:
       coda ha un lock suo, separato da quello delle scritture);
 - [ ] **chiavetta inserita e tolta più volte di fila**: la barra laterale si aggiorna con un solo
       thread alla volta;
-- [ ] **"Annulla dopo il riavvio" con un'operazione enorme** (Ctrl+A e sposta migliaia di file):
+- [ ] **"Annullamento anche dopo il riavvio" con un'operazione enorme** (Ctrl+A e sposta migliaia di file):
       F12 "annulla: registrazione" resta sotto pochi ms;
 - [ ] **Incolla in Explorer** di file copiati in [z]f, e Taglia in [z]f + Incolla in Explorer
       (sposta). Ora negli appunti ci sono solo `CF_HDROP` e l'effetto, non più l'oggetto della
@@ -1639,7 +1680,7 @@ scratchpad con file finti. Ha funzionato:
 - **nuova cartella** (Ctrl+Shift+N) rinominata in Foto → un solo Ctrl+Z ("Annullata la creazione di Foto");
 - **trascinamento** (sposta in una cartella) → "Spostato in Foto" → Ctrl+Z;
 - menu ≡ ("Annulla nuova cartella Ctrl+Z", "Ripeti spostamento Ctrl+Y") e menu dello sfondo
-  ("Annulla …" dopo Incolla); F12; opzione "Annulla dopo il riavvio": accesa, z-f-dev chiuso e
+  ("Annulla …" dopo Incolla); F12; opzione "Annullamento anche dopo il riavvio": accesa, z-f-dev chiuso e
   riaperto, Ctrl+Z ha annullato la rinomina fatta prima;
 - log: nessuna voce dovuta alle operazioni sui file.
 

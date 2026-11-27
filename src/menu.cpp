@@ -194,7 +194,7 @@ static void menuOpen(float cx, float cy, POINT screenPt, bool background, bool f
         menuSep();
         if (!drives) {
             menuAdd(L"Rinomina", M_RENAME, single && !zip);
-            menuAdd(L"Elimina", M_DELETE, !zip);
+            menuAdd(L"Sposta nel Cestino", M_DELETE, !zip);
             menuSep();
         } else if (single && A.cur->e[sel[0]].size == DRIVE_REMOTE) { // per le unità size è il tipo
             menuAdd(L"Disconnetti", M_NET_DISCONNECT);

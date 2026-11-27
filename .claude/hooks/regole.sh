@@ -122,7 +122,7 @@ chk "${A}get-process${N}z-f[^;]*[|][^;]*(stop-process|[.]kill|closemainwindow)" 
 chk "${A}(pkill|killall)${N}z-f" "$m"
 chk "${A}wmic${N}z-f${N}(terminate|delete)" "$m"
 
-# Registro: l'interruttore "Usa [z]f al posto di Explorer" lo usa Zyruel, non Claude
+# Registro: l'interruttore "[z]f al posto di Explorer" lo usa Zyruel, non Claude
 m="scrive nel registro di Windows. Non si scrive nel registro al posto di Zyruel (CLAUDE.md, \"Compilare e provare\"): glielo si chiede."
 chk "${A}reg([.]exe)?[[:space:]]+(add|delete|import|copy|restore|load|unload)([[:space:]]|$)" "$m"
 chk "${A}(set|new|remove|rename|clear)-item(property)?${N}(hk(cu|lm|cr|u|cc)|registry::)" "$m"

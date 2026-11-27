@@ -490,6 +490,9 @@ static void drawChromeToolbar();                  // chrome.cpp
 static void optionsOpen();                        // options.cpp
 static const wchar_t* shortcutFor(int menuId);    // options.cpp: scorciatoia di una voce di menu
 static std::wstring shortcutsOf(int cmd);          // options.cpp: tutte le alternative di un comando (tooltip)
+static bool optionsIsOpen();                         // options.cpp
+static bool optionsTipTarget(int x, int y, int& index); // options.cpp: scorciatoia troncata sotto il mouse
+static bool optionsTipBuild(int index);              // options.cpp: il suo tooltip, col testo intero
 static void drawCrumbs(float x0, float x1, float y, float h, float textY, double dt); // crumbs.cpp
 static void recentVisit(const std::wstring& path);   // goto.cpp: cartella aperta (cartelle recenti)
 static void recentForget(const std::wstring& path);  // goto.cpp: cartella che non esiste più

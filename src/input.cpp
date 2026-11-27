@@ -544,7 +544,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (A.colDrag >= 0) { colDragMove(x, y); return 0; }
         if (favMouseMove(x, y)) return 0;
         if (gotoMouseMove(x, y)) { tipMouseMove(x, y); return 0; }
-        if (optionsMouseMove(x, y)) return 0;
+        if (optionsMouseMove(x, y)) { tipMouseMove(x, y); return 0; }
         if (dragCheck(x, y, wp)) return 0;
         if (mqMouseMove(x, y, wp)) return 0;
         int cb = colBorderAt(x, y);

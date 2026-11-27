@@ -44,9 +44,7 @@ quel codice, o tutti insieme in un momento tranquillo. Quando una voce è fatta 
 
   Testi: "La finestra è troppo stretta per l'anteprima" anche in basso (`previewToggle`, dovrebbe
   dire troppo bassa); Tab con l'anteprima nascosta per mancanza di spazio dice "chiusa"; "Nell'anteprima
-  si incollano solo file…" è un rifiuto ma esce come informazione; "Filtra 12345 elementi…" senza
-  punto delle migliaia (`withThousands`) e "5000" senza "+" per una cartella letta in parte; il
-  tooltip del filtro dell'anteprima scrive "(clic qui, Tab)" a mano invece di
+  si incollano solo file…" è un rifiuto ma esce come informazione; il tooltip del filtro dell'anteprima scrive "(clic qui, Tab)" a mano invece di
   `shortcutsOf(M_PANE_KEYS)`. Da decidere: i comandi della posizione dell'anteprima senza tasto
   (DESIGN §8 dice "ogni comando ha una scorciatoia", ma anche Apri con non ne ha).
 

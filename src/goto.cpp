@@ -869,7 +869,7 @@ static void drawGoto() {
         float tx = drawPanelItem(GT.x, GT.w, y, ih, pad, i == GT.hot, row.icon, row.iconPath, row.dim, iconW, k);
         // Il nome prende quello che gli serve, fino a GOTO_NAME_MAX dello spazio se c'è il percorso
         float nameMax = row.sub.empty() ? right : tx + floorf((right - tx) * ui::GOTO_NAME_MAX);
-        uint32_t lc = row.dim ? C_FAINT : C_TEXT, sc = row.dim ? C_FAINT : C_DIM;
+        uint32_t lc = row.dim ? C_FAINT : C_TEXT, sc = row.dim ? C_FAINT : i == GT.hot ? C_DIM_SEL : C_DIM;
         float ex = drawTextMarked(tx, y + textOff, row.label.c_str(), (int)row.label.size(), fadeA(lc, k), nameMax,
                                   row.markL.data(), fadeA(C_ACCENT, k));
         if (!row.sub.empty() && ex + gap < right)
@@ -877,7 +877,7 @@ static void drawGoto() {
                            row.markS.data(), fadeA(C_ACCENT, k));
     }
     if (const wchar_t* note = gotoNote())
-        drawText(GT.x + pad, y + textOff, note, (int)wcslen(note), fadeA(C_FAINT, k), right);
+        drawText(GT.x + pad, y + textOff, note, (int)wcslen(note), fadeA(C_DIM, k), right);
     drawPanelScroll(GT.x + GT.w, GT.listY - dy, GT.visible * ih, GT.first, GT.visible, n, k);
 }
 

@@ -81,7 +81,7 @@ Come si compila e si prova, passo per passo: `/prova` (skill in `.claude/skills/
   tocca schermo né tastiera; non si interferisce con le sue finestre di [z]f (le prove in z-f-dev,
   in una finestra separata con `prove\dev.bat`; le finestre di prova si chiudono per PID, mai per
   nome); le prove col mouse nella lista in una cartella di prova con file finti.
-- **Non scrivere nel registro** al posto di Zyruel: l'interruttore "Usa [z]f al posto di Explorer"
+- **Non scrivere nel registro** al posto di Zyruel: l'interruttore "[z]f al posto di Explorer"
   lo usa lui. Questa regola e la chiusura per nome le ferma `.claude/hooks/regole.sh`.
 - **Dopo ogni prova:** controllare `build\z-f-log.txt` (le voci normali dell'avvio sono in `/prova`).
 

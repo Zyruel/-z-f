@@ -17,7 +17,7 @@ cartelle, registro, nomi interni di Windows) il nome tecnico è **z-f**: `z-f.ex
 
 Fino alla 0.15 si chiamava zx: le copie `build\zx-0.N.exe` sono di allora. Al primo avvio
 `migrateLegacyData` (`settings.cpp`) sposta `%APPDATA%\zx` in `%APPDATA%\z-f`; quando si attiva o
-disattiva "Usa [z]f al posto di Explorer", `cleanupLegacyZx` (`integration.cpp`) toglie
+disattiva "[z]f al posto di Explorer", `cleanupLegacyZx` (`integration.cpp`) toglie
 l'integrazione del vecchio zx rimettendo i valori originali.
 
 ## Regole comuni del codice
@@ -134,7 +134,7 @@ condivise sono in `app.h`.
   chiuderlo scrive i file in coda (`saveFlush`, con dentro `schede.txt`): la principale nuova può
   partire subito, e senza questo leggerebbe i file di prima. La finestra non c'è più e nessuno
   aspetta (eccezione scritta in DESIGN §10). Misurato: 0,2–0,8 ms ("chiusura: file salvati" nel
-  registro, a ogni chiusura della principale); con "Riapri le schede" la principale chiusa e
+  registro, a ogni chiusura della principale); con "Schede riaperte all'avvio" la principale chiusa e
   riaperta subito (39 ms dopo) ritrova le sue tre schede. L'attesa di una
   principale non ancora creata è a tempo (`FWD_WAIT`, `FWD_POLL`): a giri di `Sleep(10)` durava
   4,7 s invece di 3, perché ogni `Sleep` dura un passo del timer di Windows (15,6 ms).
@@ -699,7 +699,7 @@ thread, ognuna rifà la ricerca) si misura a parte con `prove\vai-a-misura.cpp`.
 **Come funziona.**
 
 - **Menu nostro** (`menu.cpp`), disegnato come il resto dell'interfaccia, con le voci essenziali:
-  - sui file: Apri, Apri con, Taglia, Copia, Copia percorso, Rinomina, Elimina, Proprietà;
+  - sui file: Apri, Apri con, Taglia, Copia, Copia percorso, Rinomina, Sposta nel Cestino, Proprietà;
   - sullo sfondo: Incolla, Annulla (e Ripeti, quando c'è), Nuova cartella (che parte già in rinomina), Aggiorna, Copia
     percorso, Apri terminale qui, Proprietà;
   - in "Questo PC": "Connetti unità di rete…" e "Aggiungi percorso di rete…" sullo sfondo,
@@ -1067,7 +1067,7 @@ nessuna conferma del nome, nome proposto intatto.
 - Senza login GitHub dà 60 richieste l'ora per indirizzo: ne serve una al giorno.
 - La firma, oltre all'impronta, fa sì che chi entrasse nell'account GitHub non possa distribuire un
   exe che [z]f accetta.
-- Lo scambio non cambia il percorso, quindi "Usa [z]f al posto di Explorer" e i collegamenti
+- Lo scambio non cambia il percorso, quindi "[z]f al posto di Explorer" e i collegamenti
   continuano a funzionare.
 - Su un exe in rete lo scambio lo farebbe la rete, a metà.
 
@@ -1096,6 +1096,15 @@ sul thread; con il server spento l'errore arriva dopo 2 s, sempre sul thread.
   aggiornamenti, l'elenco delle scorciatoie con ricerca. In fondo ha la versione, che apre la sua
   Release su GitHub (`kUpdThisRelease`, `updOpenPage` su un thread), e un collegamento alla
   cartella delle impostazioni.
+  Il pannello si dispone a ogni frame mentre si disegna (`drawOptions`): le aree cliccabili
+  (`OP.hits`) e le scorciatoie troncate per il tooltip (`OP.tips`, lette da `optionsTipTarget`)
+  sono quelle dell'ultimo frame, e l'altezza del contenuto (per lo scorrimento e la barra) si sa
+  alla fine. Le spiegazioni vanno a capo con `textLineEnd` (`text.cpp`), a ogni frame: sono una
+  decina di righe. Il renderer non ritaglia, quindi si disegnano solo righe intere e i fondi sotto
+  il mouse si tagliano a mano tra titolo e piede. Con la ricerca piena si disegnano solo le
+  scorciatoie, così i risultati sono in cima senza calcolare dove cade la loro sezione.
+  Misurato: frame con il pannello aperto 0,07–0,08 ms (barra dei tempi, z-f-dev, 2560×1440 a
+  100%), anche con tutte le scorciatoie in vista.
 - **Lettura all'avvio:** impostazioni, preferiti, viste, recenti, annulla e schede li legge
   `sideFastThread`, e il primo frame lo aspetta al massimo 100 ms.
 - **Mai sovrascritti prima della lettura:** nessuno di questi file si scrive prima che sia stato

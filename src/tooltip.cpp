@@ -9,7 +9,8 @@
 enum TipKind { TIP_NONE, TIP_ROW, TIP_SIDE, TIP_TAB, TIP_TABPLUS, TIP_TABCLOSE, TIP_HEADER, TIP_STATS, TIP_PATH, TIP_DRIVES,
                TIP_CHROME, TIP_FILTER, TIP_GOTO, TIP_FAVDEL, // cestino di un preferito (sidebar.cpp)
                TIP_LINK,  // destinazione di un collegamento nella colonna Destinazione (links.cpp)
-               TIP_VIEW }; // vista e zoom nella barra di stato
+               TIP_VIEW,   // vista e zoom nella barra di stato
+               TIP_OPTIONS }; // scorciatoia troncata nel pannello delle opzioni (options.cpp)
 
 struct TipInfo {           // risultato del thread
     uint64_t gen = 0;
@@ -169,12 +170,6 @@ static DWORD WINAPI tipThread(void* p) {
 }
 
 // --- contenuto ---------------------------------------------------------------------------
-static std::wstring withThousands(uint64_t v) {
-    std::wstring s = std::to_wstring(v);
-    for (int i = (int)s.size() - 3; i > 0; i -= 3) s.insert((size_t)i, 1, L'.');
-    return s;
-}
-
 static std::wstring relTime(uint64_t ft) {
     FILETIME nf;
     GetSystemTimeAsFileTime(&nf);
@@ -374,6 +369,9 @@ static bool tipBuild() {
     case TIP_GOTO:
         if (!gotoTipBuild(T.index)) return false;
         break;
+    case TIP_OPTIONS:
+        if (!optionsTipBuild(T.index)) return false;
+        break;
     case TIP_DRIVES:
         T.title = (T.index == -3 ? A.favOpen : A.drvOpen) ? L"Comprimi" : L"Espandi";
         tipRow(L"", T.index == -3 ? L"Preferiti" : L"Unità di Questo PC");
@@ -503,6 +501,7 @@ static void tipTarget(int x, int y, int& kind, int& index, bool& preview) {
     kind = TIP_NONE; index = -1;
     preview = false;
     if (gotoIsOpen()) { if (gotoTipTarget(x, y, index)) kind = TIP_GOTO; return; } // sopra il resto
+    if (optionsIsOpen()) { if (optionsTipTarget(x, y, index)) kind = TIP_OPTIONS; return; } // copre la finestra
     bool closeHit, plusHit;
     int t = tabHit(x, y, &closeHit, &plusHit);
     if (plusHit) { kind = TIP_TABPLUS; return; }
@@ -601,7 +600,7 @@ static void drawTooltip() {
     for (auto& r : T.rows) {
         float vx = x + pad + (labW > 0 && !r.first.empty() ? labW + gap : 0);
         if (!r.first.empty()) drawText(x + pad, ty, r.first, fadeA(C_DIM, k));
-        drawText(r.first.empty() ? x + pad : vx, ty, r.second, fadeA(r.first.empty() ? C_FAINT : C_TEXT, k), x + w - pad);
+        drawText(r.first.empty() ? x + pad : vx, ty, r.second, fadeA(r.first.empty() ? C_DIM : C_TEXT, k), x + w - pad);
         ty += lh;
     }
 }

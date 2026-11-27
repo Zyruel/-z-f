@@ -157,7 +157,7 @@ static void undoTrim(std::vector<UndoOp>& st) {
 }
 
 // Registra un'operazione appena fatta. Costa lo spostamento dei vettori: microsecondi. Con l'opzione
-// "Annulla dopo il riavvio" anche la preparazione di annulla.txt, al massimo UNDO_FILE_MAX byte (F12).
+// "Annullamento anche dopo il riavvio" anche la preparazione di annulla.txt, al massimo UNDO_FILE_MAX byte (F12).
 static void undoPush(UndoOp&& op) {
     if (op.items.empty()) return;
     double t0 = nowMs();
@@ -193,7 +193,7 @@ static const wchar_t* undoLabel(bool redo) {
 static bool undoCan(bool redo) { return !(redo ? UH.redo : UH.undo).empty(); }
 static void undoCounts(int& undo, int& redo) { undo = (int)UH.undo.size(); redo = (int)UH.redo.size(); }
 
-// --- annulla.txt (solo con l'opzione "Annulla dopo il riavvio") ------------------------------
+// --- annulla.txt (solo con l'opzione "Annullamento anche dopo il riavvio")------------------------------
 // Righe: "u<TAB>cosa" o "r<TAB>cosa" apre un'operazione (da annullare / da ripetere, dalla più
 // vecchia); "i<TAB>tipo<TAB>flag<TAB>dimensione<TAB>data<TAB>a<TAB>b" è un suo elemento.
 // I nomi dei file non possono contenere tabulazioni.
@@ -272,7 +272,7 @@ static void undoLoaded(const std::vector<std::wstring>& lines) {
     else undoSave(); // le operazioni di prima non sono ancora nel file
 }
 
-// Opzione "Annulla dopo il riavvio": spenta, il file si svuota
+// Opzione "Annullamento anche dopo il riavvio": spenta, il file si svuota
 static void undoPersistToggle() {
     A.undoPersist = !A.undoPersist;
     settingsSave();
@@ -709,7 +709,7 @@ static void pasteFiles(const std::wstring& dest) {
     if (!fileJobStart(j)) delete j;
 }
 
-// Canc, Elimina: nel Cestino. Shift+Canc resta alla shell: è definitivo e lo chiede lei.
+// Canc, "Sposta nel Cestino" del menu: nel Cestino. Shift+Canc resta alla shell: è definitivo e lo chiede lei.
 static void deleteSelected() {
     if (!A.cur || zipReadOnly()) return;
     if (A.cur->isDrives || GetKeyState(VK_SHIFT) < 0 || !oleReady()) { shellVerb("delete"); return; }
