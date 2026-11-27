@@ -537,15 +537,21 @@ static void listReload(Listing* l, std::wstring& selectAfter, bool& renameAfter)
     if (!selectAfter.empty()) {
         std::wstring want = selectAfter;
         CharLowerBuffW(&want[0], (DWORD)want.size());
+        bool found = false;
         for (int i = 0; i < (int)A.view.size(); i++)
             if (want == l->lowerName(l->e[A.view[i]])) {
                 A.sel = i;
                 selOnly(i);
                 ensureVisible();
-                selectAfter.clear();
+                found = true;
                 if (renameAfter) { renameAfter = false; beginRename(); }
                 break;
             }
+        // C'è ma il filtro la nasconde: non la si aspetta più. Altrimenti, tolto il filtro, una
+        // rilettura molto più tardi la selezionerebbe (e aprirebbe la rinomina) senza motivo
+        if (!found)
+            for (size_t i = 0; i < l->e.size() && !found; i++) found = want == l->lowerName(l->e[i]);
+        if (found) { selectAfter.clear(); renameAfter = false; }
     }
 }
 

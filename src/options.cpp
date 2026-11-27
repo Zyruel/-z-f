@@ -465,8 +465,8 @@ static void drawOptions(double dt) {
     OP.tips.clear();
     hoverFadeUpdate(OP.fade, OP.hover, dt);
     auto fixed = [](int id) { return id == OPT_CLOSE || id == OPT_FOLDER || id == OPT_UPD_ACT || id == OPT_VERSION; }; // titolo e piede non scorrono
-    // Solo la parte dentro l'area visibile: cliccabile, e col fondo sotto il mouse (il renderer non
-    // ritaglia, il fondo di una riga a metà finirebbe sopra titolo o piede)
+    // Solo la parte dentro l'area visibile: cliccabile, e col fondo sotto il mouse (il pannello non
+    // usa il ritaglio, clipBegin: il fondo di una riga a metà finirebbe sopra titolo o piede)
     auto clip = [&](float& y0, float& y1, int id) {
         if (fixed(id)) return;
         y0 = std::max(y0, OP.viewTop);
@@ -545,7 +545,7 @@ static void drawOptions(double dt) {
     // bordi (inL, inR), come il testo nelle voci di un menu
     float rowL = x + pad, inL = rowL + px(ui::GAP_M), inR = right - px(ui::GAP_M);
     float lh = (float)F.lineH + px(ui::LINE_GAP); // interlinea delle spiegazioni su più righe
-    // Solo righe intere: una riga a metà finirebbe sopra titolo o piede (il renderer non ritaglia)
+    // Solo righe intere: una riga a metà finirebbe sopra titolo o piede (senza ritaglio)
     auto visible = [&](float yy, float hh) { return yy >= OP.viewTop && yy + hh <= OP.viewBottom; };
     auto section = [&](const wchar_t* t) {
         if (visible(cy, rowH)) drawText(rowL, cy + textOff + px(ui::GAP_XS), t, (int)wcslen(t), fadeA(C_DIM, k));

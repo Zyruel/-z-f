@@ -41,7 +41,8 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 - **Il suggerimento del filtro** ha il punto delle migliaia e il singolare
   per un elemento ("Filtra 1 elemento…", "Filtra 12.345 elementi…"); in una cartella vuota non
   c'è; nell'anteprima di una cartella letta in parte ha il "+" ("Filtra 5.000+ elementi…"), come i
-  contatori, che ora hanno anche loro il punto delle migliaia.
+  contatori, che ora hanno anche loro il punto delle migliaia, come il numero delle voci
+  selezionate ("12.345 selezionati").
 - **Alt+Shift+P** sposta l'anteprima da destra in basso e viceversa; il menu ˅ e il suo tooltip
   mostrano la scorciatoia.
 - **Correzioni nell'anteprima di una cartella:**

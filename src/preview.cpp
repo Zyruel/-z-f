@@ -891,8 +891,9 @@ static void pvPaneClear() {
 
 // Una cartella letta (l, dal thread) diventa la lista dell'anteprima. same: è la stessa cartella
 // riletta (un'operazione, un cambiamento da fuori): restano selezione per nome, cursore, scorrimento,
-// filtro e tastiera, con lo stesso codice della ricarica della lista principale (listReload)
-static void pvPaneSet(Listing* l, bool same) {
+// filtro e tastiera, con lo stesso codice della ricarica della lista principale (listReload).
+// partial: lettura fermata prima del fondo (PvRes::more)
+static void pvPaneSet(Listing* l, bool same, bool partial) {
     ListPane& p = PV.pane;
     previewWatch(l); // cambiamenti da fuori o dalle operazioni: si rilegge (stessa cartella: niente di nuovo)
     p.hover = p.linkHover = -1;
@@ -901,11 +902,15 @@ static void pvPaneSet(Listing* l, bool same) {
     if (same && p.cur) { // la geometria dell'ultimo frame resta: serve a tenere in vista il cursore
         PaneScope ps(&PV.pane);
         listReload(l, PV.selectAfter, PV.renameAfter);
+        // La voce nuova o rinominata può stare oltre il punto dove la lettura si è fermata: non la si
+        // aspetta, una rilettura molto più tardi la selezionerebbe (e aprirebbe la rinomina) senza motivo
+        if (partial) { PV.selectAfter.clear(); PV.renameAfter = false; }
         return;
     }
     delete p.cur;
     p.cur = l;
     p.order.swap(l->order);
+    std::vector<uint32_t>().swap(l->order); // come la lista (listReload): non resta l'ordine della cartella di prima
     p.filter.clear(); // il filtro è della cartella mostrata
     p.view = p.order;
     p.counts.dirty = true; // l può stare all'indirizzo del Listing di prima
@@ -988,7 +993,7 @@ static void onPreviewResult(PvRes* o) {
     if (!same) PV.top = PV.topSub = 0; // stessa voce (un log che cresce): si resta dove si era
     PV.shown = PV.item;
     // Una cartella: il suo Listing passa alla lista dell'anteprima (PvRes resta per contatori ed errore)
-    if (o->kind == PV_DIR && o->dir && !o->err) { pvPaneSet(o->dir, same); o->dir = nullptr; }
+    if (o->kind == PV_DIR && o->dir && !o->err) { pvPaneSet(o->dir, same, o->more); o->dir = nullptr; }
     else pvPaneClear();
     pvSetResult(o);
     PV.stale = false;

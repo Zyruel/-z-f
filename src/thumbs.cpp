@@ -580,7 +580,7 @@ static void thOthersResync(int ci, const std::vector<std::pair<bool, std::wstrin
     if (!dropped) return;
     for (int k = 0; k < TC_N; k++)
         if (k != ci && TH.c[k].active && TH.c[k].box == TH.c[ci].box) TH.c[k].needSync = true;
-    A.dirty = true; // l'altra lista richiede nel suo prossimo frame
+    A.animActive = true; // l'altra lista richiede nel prossimo frame: A.dirty no, siamo dentro render() che alla fine lo azzera
 }
 
 // La lista ci smette di chiedere miniature (non è più in Icone, l'anteprima non mostra più una

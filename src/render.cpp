@@ -598,7 +598,8 @@ static void render() {
             if (k > 1) {
                 wchar_t sz[32];
                 fmtSize(bytes, sz);
-                int n = _snwprintf(buf, 255, L"%d selezionati%s%s   \x00B7   ", k, bytes ? L"  " : L"", bytes ? sz : L"");
+                int n = _snwprintf(buf, 255, L"%s selezionati%s%s   \x00B7   ", withThousands((uint64_t)k).c_str(),
+                                   bytes ? L"  " : L"", bytes ? sz : L"");
                 float sx = std::max(leftX, rightX - textWidth(buf, n));
                 drawText(sx, y, buf, n, C_ACCENT, rightX);
                 rightX = sx;

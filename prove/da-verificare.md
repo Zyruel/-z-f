@@ -20,6 +20,16 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 00000000000000000000000000000000000000000000000000000. Correzioni della revisione prima della 1.0.0-beta.8 (z-f-dev, novembre 2026)
+
+Revisione e controllo del ramo prima del rilascio (27/11). Da provare in z-f-dev, in una cartella
+di prova con file finti:
+- [ ] anteprima di una cartella con un filtro, F2 su una voce e un nome che il filtro non trova:
+  tolto il filtro, a un cambiamento nella cartella il cursore non salta su quella voce;
+- [ ] lista e anteprima in Icone alla stessa misura, una cartella di .pdf nell'anteprima, poi ↓ su
+  un file: le icone .pdf della lista compaiono senza muovere il mouse;
+- [ ] Ctrl+A in una cartella con più di 1.000 voci: "1.234 selezionati", col punto.
+
 ## 0000000000000000000000000000000000000000000000000000. Punti minori del controllo della 1.0.0-beta.7 (z-f-dev, novembre 2026)
 
 Correttezza, velocità, testi e pulizia attorno all'anteprima di una cartella (`docs/da-sistemare.md`,
@@ -1381,7 +1391,7 @@ Compilato con MSVC senza avvisi, ora anche con `/W4 /Zs` (i 5 di prima corretti)
 **Thread dell'interfaccia:**
 - Ctrl+V (caselle e lista) legge gli appunti su un thread e il testo arriva qualche millisecondo
   dopo. Provato nel filtro e nella casella del percorso;
-- "Usa [z]f al posto di Explorer" scrive il registro e avvisa Explorer su un thread; il tempo va
+- "[z]f al posto di Explorer" scrive il registro e avvisa Explorer su un thread; il tempo va
   sempre nel registro ("al posto di Explorer"). **Non provato** (non si tocca il registro al tuo posto);
 - icone su due thread (per estensione; dal file o dall'unità). **Trovato provando:** i due thread
   insieme facevano fallire la prima `SHGetFileInfo` (F12: "2 fallite", cartelle col segnaposto e

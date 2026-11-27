@@ -556,7 +556,8 @@ Mostra la voce sotto il cursore e la segue mentre ci si muove con le frecce.
   - *Perché un rettangolo:* prima la posizione era scritta in una ventina di punti come
     `x >= A.listR` e `G.h - A.statusH`; ora è in `layout`, e una terza posizione toccherebbe solo lì.
   - *La scelta:* `CH_PREVIEW_POS` (˅ accanto a ◨, `chrome.cpp`) apre `menuOpenPreview`; le
-    voci e il selettore delle opzioni chiamano `previewPlace`, che salva e rifà il layout.
+    voci, il selettore delle opzioni e Alt+Shift+P (`M_PREVIEW_SWAP`, che alterna le due
+    posizioni) chiamano `previewPlace`, che salva e rifà il layout.
   - *Misurato* (F12; RTX 5070 Ti, 2560×1392 a 175%, anteprima in basso in Icone medie scorrendo
     una cartella da 2000 file): frame 0,12 ms (peggiore 0,28), voci dell'anteprima 0,02 ms
     (peggiore 0,07): come a destra.
@@ -1108,18 +1109,21 @@ sul thread; con il server spento l'errore arriva dopo 2 s, sempre sul thread.
   `dimensione_cartelle`, `dialoghi`, `riapri_schede`, `finestre_separate`, `aggiornamenti`,
   `aggiornamenti_beta`, `aggiornamenti_ultimo` (e, solo in lettura, `griglia_dimensione` delle
   versioni fino alla 1.0.0-beta.5). Il pannello delle opzioni (`options.cpp`) le
-  cambia con effetto immediato: dimensione e carattere del testo, animazioni, barra laterale, "Usa
-  [z]f al posto di Explorer", "Menu completo di Windows col tasto destro", "Dialoghi Apri e Salva
-  nella cartella di [z]f", "Dimensione delle cartelle nella colonna", le opzioni di file, avvio e
-  aggiornamenti, l'elenco delle scorciatoie con ricerca. In fondo ha la versione, che apre la sua
+  cambia con effetto immediato, per sezioni: Aspetto (dimensione e carattere del testo,
+  animazioni), Finestra (barra laterale, anteprima, sua posizione e suo carattere), Integrazione
+  con Windows ("[z]f al posto di Explorer", "Menu completo di Windows col tasto destro", "Dialoghi
+  Apri e Salva nella cartella di [z]f"…), File ("Dimensione delle cartelle nella colonna"…), Avvio
+  e aggiornamenti, l'elenco delle scorciatoie con ricerca e, per ultima, Diagnostica (barra dei
+  tempi). In fondo ha la versione, che apre la sua
   Release su GitHub (`kUpdThisRelease`, `updOpenPage` su un thread), e un collegamento alla
   cartella delle impostazioni.
   Il pannello si dispone a ogni frame mentre si disegna (`drawOptions`): le aree cliccabili
   (`OP.hits`) e le scorciatoie troncate per il tooltip (`OP.tips`, lette da `optionsTipTarget`)
   sono quelle dell'ultimo frame, e l'altezza del contenuto (per lo scorrimento e la barra) si sa
   alla fine. Le spiegazioni vanno a capo con `textLineEnd` (`text.cpp`), a ogni frame: sono una
-  decina di righe. Il renderer non ritaglia, quindi si disegnano solo righe intere e i fondi sotto
-  il mouse si tagliano a mano tra titolo e piede. Con la ricerca piena si disegnano solo le
+  decina di righe. Il pannello non usa il ritaglio del renderer (`clipBegin`, che serve alle voci
+  dell'anteprima): si disegnano solo righe intere e i fondi sotto il mouse si tagliano a mano tra
+  titolo e piede. Con la ricerca piena si disegnano solo le
   scorciatoie, così i risultati sono in cima senza calcolare dove cade la loro sezione.
   Misurato: frame con il pannello aperto 0,07–0,08 ms (barra dei tempi, z-f-dev, 2560×1440 a
   100%), anche con tutte le scorciatoie in vista.

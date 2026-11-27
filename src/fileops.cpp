@@ -193,7 +193,7 @@ static const wchar_t* undoLabel(bool redo) {
 static bool undoCan(bool redo) { return !(redo ? UH.redo : UH.undo).empty(); }
 static void undoCounts(int& undo, int& redo) { undo = (int)UH.undo.size(); redo = (int)UH.redo.size(); }
 
-// --- annulla.txt (solo con l'opzione "Annullamento anche dopo il riavvio")------------------------------
+// --- annulla.txt (solo con l'opzione "Annullamento anche dopo il riavvio") ----------------
 // Righe: "u<TAB>cosa" o "r<TAB>cosa" apre un'operazione (da annullare / da ripetere, dalla più
 // vecchia); "i<TAB>tipo<TAB>flag<TAB>dimensione<TAB>data<TAB>a<TAB>b" è un suo elemento.
 // I nomi dei file non possono contenere tabulazioni.
