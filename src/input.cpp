@@ -3,6 +3,8 @@
 // La casella a cui torna un risultato degli appunti, se è ancora aperta
 static TextField* clipField(void* target) {
     if (target == &A.renameField && A.renaming) return &A.renameField;
+    // La rinomina nell'anteprima ha chiesto gli appunti nel suo PaneScope: la casella era nei campi di App
+    if (ListPane* p = pvPane(); target == &A.renameField && p && p->renaming) return &p->renameField;
     if (target == &GT.field && gotoIsOpen()) return &GT.field;
     if (target == &OP.search && OP.open) return &OP.search;
     return nullptr;
@@ -67,6 +69,25 @@ static void onKey(WPARAM vk, bool alt) {
     if (gotoIsOpen() && alt) return; // Alt+frecce non navigano sotto il pannello
     if (gotoKey(vk, ctrl, shift)) return;
     if (optionsKey(vk, ctrl, shift)) return;
+    // Con la tastiera nell'anteprima di una cartella i tasti della lista (frecce, Invio, Canc,
+    // Ctrl+C/X/V, F2, la vista…) agiscono lì, nel suo PaneScope; quelli della finestra (schede,
+    // cronologia, pannelli, Vai a, annulla, F12) restano della lista principale
+    int mods = (ctrl ? KC : 0) | (shift ? KS : 0) | (alt ? KA : 0);
+    int cmd = shortcutCmd((UINT)vk, mods);
+    ListPane* kp = previewHasKeys() ? pvPane() : nullptr;
+    bool window = false;
+    switch (cmd) {
+    case M_BACK: case M_FWD: case M_UP: case M_EDIT_PATH: case M_GOTO: case M_PREVIEW: case M_SIDEBAR: case M_OPTIONS:
+    case M_NEW_WINDOW: case M_TAB_NEW: case M_TAB_CLOSE: case M_FAV_TOGGLE: case M_UNDO: case M_REDO: case M_PANE_KEYS:
+        window = true;
+        break;
+    case 0:
+        // Backspace è della finestra (cartella superiore), tranne quando toglie una lettera al filtro dell'anteprima
+        window = (vk == VK_BACK && !(kp && !kp->filter.empty())) || vk == VK_F12 || (ctrl && (vk == VK_TAB || (vk >= '0' && vk <= '9') || vk == VK_NUMPAD0 ||
+                 vk == VK_OEM_PLUS || vk == VK_ADD || vk == VK_OEM_MINUS || vk == VK_SUBTRACT));
+        break;
+    }
+    PaneScope ps(kp && (!window || kp->renaming) ? kp : nullptr); // mentre si rinomina, tutti i tasti alla casella
     if (A.renaming) {
         if (vk == VK_RETURN) endRename(true);
         else if (vk == VK_ESCAPE) endRename(false);
@@ -77,8 +98,7 @@ static void onKey(WPARAM vk, bool alt) {
     // I tasti che eseguono solo un comando vengono dalla tabella delle scorciatoie (kShortcuts), con
     // esattamente quei modificatori, ed eseguono lo stesso codice della voce di menu; qui sotto
     // restano quelli che dipendono dal contesto
-    int mods = (ctrl ? KC : 0) | (shift ? KS : 0) | (alt ? KA : 0);
-    if (int cmd = shortcutCmd((UINT)vk, mods)) {
+    if (cmd) {
         CmdCtx c;
         c.target = A.tab; // Ctrl+W: la scheda attiva
         menuRun(cmd, c);
@@ -100,12 +120,13 @@ static void onKey(WPARAM vk, bool alt) {
     case VK_NEXT:   moveSel(page); break;
     case VK_HOME:   moveSel(-(int)A.view.size()); break;
     case VK_END:    moveSel((int)A.view.size()); break;
-    case VK_BACK:
-        if (!A.filter.empty()) { A.filter.pop_back(); rebuildView(true); A.dirty = true; }
+    case VK_BACK: // il filtro di chi ha la tastiera (anteprima: nel suo PaneScope); senza, la cartella superiore della lista
+        if (!A.filter.empty() && (g_inPane || !kp)) { A.filter.pop_back(); rebuildView(true); A.dirty = true; }
         else goUp();
         break;
     case VK_ESCAPE: // prima toglie il filtro, poi la selezione (resta solo il cursore)
         if (!A.filter.empty()) { A.filter.clear(); rebuildView(true); }
+        else if (g_inPane && selCount(nullptr) <= 1) PV.keys = false; // nell'anteprima, poi la tastiera torna alla lista
         else { selOnly(A.sel); }
         A.dirty = true;
         break;
@@ -130,6 +151,7 @@ static void onKey(WPARAM vk, bool alt) {
         A.showStats = !A.showStats;
         A.statsOpenedAt = nowMs();
         A.execMax = A.gpuMax = A.prepMax = A.presentMax = 0;
+        A.prevPaneMax = 0;
         A.slowMsgMs = A.waitMax = A.dropUiMax = A.mqMax = A.crumbMax = A.th.texMax = A.th.syncMax = A.th.cellsMax = 0; A.slowMsg = 0; A.slowMsgCount = 0;
         A.dirty = true;
         break;
@@ -154,6 +176,7 @@ static void onChar(wchar_t c) {
     if (GetKeyState(VK_CONTROL) < 0 && GetKeyState(VK_MENU) >= 0) return; // scorciatoie Ctrl
     if (gotoChar(c)) return;
     if (optionsChar(c)) return;
+    PaneScope ps(previewHasKeys() ? pvPane() : nullptr); // con la tastiera nell'anteprima: la rinomina o il filtro lì
     if (A.renaming) A.renameField.insert(std::wstring(1, c));
     else if (A.cur) { A.filter += c; rebuildView(false); }
     A.dirty = true;
@@ -186,9 +209,27 @@ static int wheelSteps(float lines) {
     return n;
 }
 
+// Trascinamento della barra di scorrimento della lista di App (anche l'anteprima, nel suo PaneScope)
+static void listThumbDrag(int x, int y) {
+    float t0, tl;
+    if (thumbRect(t0, tl)) {
+        float t = ((listView() ? x : y) - trackStart() - A.dragOffset) / (trackLen() - tl);
+        A.scrollY = A.scrollTarget = t * maxScroll();
+        clampScroll();
+        A.dirty = true;
+    }
+}
+
+// Un clic altrove conferma la rinomina in corso, nella lista o nell'anteprima
+static void renameCommitAll() {
+    if (A.renaming) endRename(true);
+    if (ListPane* p = pvPane(); p && p->renaming) { PaneScope ps(p); endRename(true); }
+}
+
 // Misura quanto tempo passa in ogni messaggio gestito dalla finestra principale.
 // Esclusi quelli che entrano nei cicli modali di Windows (spostamento, ridimensionamento, menu):
 // lì dentro il tempo è dell'utente, non nostro.
+
 static LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     bool modal = msg == WM_NCLBUTTONDOWN || msg == WM_SYSCOMMAND || msg == WM_NCLBUTTONDBLCLK ||
                  msg == WM_NCRBUTTONDOWN || msg == WM_ENTERSIZEMOVE || msg == WM_ENTERMENULOOP;
@@ -370,6 +411,9 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_APP_DIRMOVED:
         onDirMoved((uint64_t)wp, (wchar_t*)lp);
         return 0;
+    case WM_APP_PVCHANGED:
+        onPreviewDirChanged((uint64_t)wp, (int)lp);
+        return 0;
     case WM_SIZE:
         menuClose();
         if (A.viewWnd) MoveWindow(A.viewWnd, 0, 0, LOWORD(lp), HIWORD(lp), FALSE);
@@ -414,6 +458,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (wp == 13) { KillTimer(hwnd, 13); gpuRecoverStart(); return 0; } // GPU persa: nuovo tentativo
         if (wp == 14) { zipOnTimer(); return 0; } // estrazione da uno zip che dura
         if (wp == 15) { updOnTimer(); return 0; } // aggiornamento: un controllo al giorno
+        if (wp == 17) { KillTimer(hwnd, 17); g_pvChangePending = false; previewRefresh(); return 0; } // cartella dell'anteprima cambiata: al massimo una rilettura ogni WATCH_BATCH
         A.dirty = true;
         return 0;
     case WM_KEYDOWN:
@@ -461,10 +506,12 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         ScreenToClient(hwnd, &c);
         // Ctrl+rotellina, o la rotellina sul controllo della vista: zoom della lista (Dettagli,
         // Elenco, Icone da 20 a 100%), un livello per scatto intero. Il resto della finestra non cambia
-        if ((GET_KEYSTATE_WPARAM(wp) & MK_CONTROL) || viewCtlAt(c.x, c.y)) {
+        // Sopra l'anteprima di una cartella (o sulla sua vista) è la vista dell'anteprima
+        if ((GET_KEYSTATE_WPARAM(wp) & MK_CONTROL) || viewCtlAt(c.x, c.y) || pvViewAt(c.x, c.y)) {
+            bool pv = pvViewAt(c.x, c.y) || (c.x >= A.listR && c.y >= A.sideTop && PV.paneShown);
             A.wheelAcc += GET_WHEEL_DELTA_WPARAM(wp);
-            while (A.wheelAcc >= WHEEL_DELTA) { A.wheelAcc -= WHEEL_DELTA; zoomStep(1); }
-            while (A.wheelAcc <= -WHEEL_DELTA) { A.wheelAcc += WHEEL_DELTA; zoomStep(-1); }
+            while (A.wheelAcc >= WHEEL_DELTA) { A.wheelAcc -= WHEEL_DELTA; pv ? previewZoom(A.prevZoom + 1) : zoomStep(1); }
+            while (A.wheelAcc <= -WHEEL_DELTA) { A.wheelAcc += WHEEL_DELTA; pv ? previewZoom(A.prevZoom - 1) : zoomStep(-1); }
             return 0;
         }
         if (previewWheel(c.x, c.y, lines)) return 0; // sopra l'anteprima: scorre quella
@@ -474,10 +521,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             A.dirty = true;
             return 0;
         }
-        // Icone: una riga di voci a scatto; Elenco: una colonna (scorre in orizzontale)
-        A.scrollTarget -= lines * (gridView() ? A.cellH : listView() ? A.cellW : A.rowH * ui::WHEEL_LINES);
-        clampScroll();
-        A.dirty = true;
+        listWheel(lines);
         return 0;
     }
     case WM_MOUSEMOVE: {
@@ -500,18 +544,16 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (mqMouseMove(x, y, wp)) return 0;
         int cb = colBorderAt(x, y);
         if (cb != A.colHover) { A.colHover = cb; A.dirty = true; }
-        if (A.draggingThumb) {
-            float t0, tl;
-            if (thumbRect(t0, tl)) {
-                float t = ((listView() ? x : y) - trackStart() - A.dragOffset) / (trackLen() - tl);
-                A.scrollY = A.scrollTarget = t * maxScroll();
-                clampScroll();
-                A.dirty = true;
-            }
-            return 0;
-        }
+        if (A.draggingThumb) { listThumbDrag(x, y); return 0; }
+        if (ListPane* p = pvPane(); p && p->draggingThumb) { PaneScope ps(p); listThumbDrag(x, y); return 0; }
         int h = itemAt(x, y);
         if (h != A.hover) { A.hover = h; A.dirty = true; }
+        if (ListPane* p = pvPane()) { // voce dell'anteprima sotto il mouse
+            int ph = -1;
+            if (ListPane* pp = pvPaneAt(x, y)) { PaneScope ps(pp); ph = itemAt(x, y); }
+            if (ph != p->hover) { p->hover = ph; A.dirty = true; }
+        }
+        if (pvViewAt(x, y) != PV.viewHover) { PV.viewHover = !PV.viewHover; A.dirty = true; }
         int lh = linkHit(x, y);
         if (lh != A.linkHover) { A.linkHover = lh; A.dirty = true; }
         bool closeHit, plusHit;
@@ -529,6 +571,11 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         chromeSetHover(chromeHit(x, y));
         bool fc = fltClearAt(x, y);
         if (fc != A.fltClearHover) { A.fltClearHover = fc; A.dirty = true; }
+        if (ListPane* p = pvPane()) { // la × del filtro dell'anteprima
+            bool pfc;
+            { PaneScope ps(p); pfc = fltClearAt(x, y); }
+            if (pfc != p->fltClearHover) { p->fltClearHover = pfc; A.dirty = true; }
+        }
         bool vc = viewCtlAt(x, y);
         if (vc != A.viewHover) { A.viewHover = vc; A.dirty = true; }
         tipMouseMove(x, y);
@@ -540,6 +587,9 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         chromeSetHover(CH_NONE);
         if (A.colHover >= 0) { A.colHover = -1; A.dirty = true; }
         if (A.favTrashHover >= 0) { A.favTrashHover = -1; A.dirty = true; }
+        if (ListPane* p = pvPane(); p && p->hover >= 0) { p->hover = -1; A.dirty = true; }
+        if (PV.viewHover) { PV.viewHover = false; A.dirty = true; }
+        if (ListPane* p = pvPane(); p && p->fltClearHover) { p->fltClearHover = false; A.dirty = true; }
         favDisarm();
         if (A.hover != -1 || A.linkHover != -1 || A.tabHover != -1 || A.tabPlusHover || A.sideHover != -1 || CB.hover != -1 || A.fltClearHover || A.viewHover) {
             A.hover = A.linkHover = A.tabHover = A.sideHover = CB.hover = -1;
@@ -563,17 +613,29 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         SetFocus(hwnd);
         if (gotoMouseDown(x, y, false, (wp & MK_CONTROL) != 0)) return 0;
         if (optionsMouseDown(x, y)) return 0;
-        if (A.renaming) endRename(true);
+        renameCommitAll();
         bool onPath = onPathBar(y);
         int chId = chromeHit(x, y);
         if (chId != CH_NONE) { chromeExec(chId); return 0; } // ⚙, ▯, ← → ↑, ☆, ◨
         if (fltClearAt(x, y)) {
             A.filter.clear(); // × del filtro
             rebuildView(true);
+            PV.keys = false;
             A.dirty = true;
             return 0;
         }
+        if (ListPane* p = pvPane(); p && y >= G.h - A.statusH) { // filtro dell'anteprima: × o clic nel campo
+            PaneScope ps(p);
+            if (fltClearAt(x, y)) { A.filter.clear(); rebuildView(true); }
+            if (A.fltW > 0 && x >= A.fltX && x < A.fltX + A.fltW) {
+                PV.keys = true; // si scrive lì
+                A.dirty = true;
+                return 0;
+            }
+        }
+        if (A.fltW > 0 && y >= G.h - A.statusH && x >= A.fltX && x < A.fltX + A.fltW) PV.keys = false; // campo del filtro della lista
         if (viewCtlAt(x, y)) { menuOpenView(A.viewX + A.viewW, G.h - A.statusH); return 0; } // vista: menu sopra il controllo
+        if (pvViewAt(x, y)) { PaneScope ps(pvPane()); menuOpenView(PV.viewX + PV.viewW, G.h - A.statusH); return 0; } // vista dell'anteprima
         if (y < A.pathY) { // barra delle schede
             bool closeHit, plusHit;
             int t = tabHit(x, y, &closeHit, &plusHit);
@@ -597,9 +659,13 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             }
             return 0;
         }
-        if (x >= A.listR) return 0; // dentro l'anteprima non c'è niente da cliccare
-        if (y >= G.h - A.footH) return 0; // barra dei tempi e di stato: niente da cliccare oltre la × del filtro
-        if (y < A.listTop) { // intestazione: bordo → larghezza della colonna; altrove → ordinamento
+        // Le voci dell'anteprima di una cartella si usano come quelle della lista: lo stesso codice qui
+        // sotto, nel suo PaneScope. Il clic dà la tastiera alla lista o all'anteprima
+        ListPane* pp = pvPaneAt(x, y);
+        if (x >= A.listR && !pp) return 0; // nell'anteprima, fuori dalle voci di una cartella, niente da cliccare
+        PV.keys = pp != nullptr;
+        if (!pp && y >= G.h - A.footH) return 0; // barra dei tempi e di stato: niente da cliccare oltre la × del filtro
+        if (!pp && y < A.listTop) { // intestazione: bordo → larghezza della colonna; altrove → ordinamento
             int b = colBorderAt(x, y);
             if (b >= 0) { colDragStart(b, x); return 0; }
             int col = colAt(x);
@@ -610,6 +676,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             A.dirty = true;
             return 0;
         }
+        PaneScope ps(pp);
         if (scrollbarAt(x, y) || x >= itemsRight()) { // barra di scorrimento: verticale a destra, in Elenco in fondo
             float t0, tl;
             if (scrollbarAt(x, y) && thumbRect(t0, tl)) {
@@ -660,6 +727,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (crumbMiddle(x, y)) return 0;
         if (const SideItem* it = sideItem(sideHit(x, y))) { tabNew(it->path, false); return 0; }
         if (int lh = linkHit(x, y); lh >= 0) { linkOpen(lh, true); return 0; } // destinazione di un collegamento
+        PaneScope ps(pvPaneAt(x, y)); // una cartella dell'anteprima: anche lei in una nuova scheda
         int r = itemAt(x, y);
         if (r >= 0 && A.cur && (A.cur->e[A.view[r]].attr & FILE_ATTRIBUTE_DIRECTORY))
             tabNew(joinPath(A.cur->path, A.cur->name(A.cur->e[A.view[r]])), false);
@@ -668,7 +736,15 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_RBUTTONDOWN:
         tipHide();
         if (A.menu.open && !menuInside(GET_X_LPARAM(lp), GET_Y_LPARAM(lp))) menuClose(); // poi WM_CONTEXTMENU lo riapre qui
-        else dragPressRight(GET_X_LPARAM(lp), GET_Y_LPARAM(lp));
+        else {
+            int x = GET_X_LPARAM(lp), y = GET_Y_LPARAM(lp);
+            ListPane* pp = pvPaneAt(x, y);
+            if (A.menu.open) {} // sopra un menu aperto la tastiera resta dov'è
+            else if (pp) PV.keys = true; // come il clic: la tastiera a chi si è toccato
+            else if (x >= A.listX && x < A.listR && y >= A.listTop && y < A.listTop + A.listH) PV.keys = false;
+            PaneScope ps(pp);
+            dragPressRight(x, y);
+        }
         return 0;
     case WM_RBUTTONUP: // senza trascinamento: DefWindowProc manda WM_CONTEXTMENU
         if (DD.armed) { DD.armed = false; ReleaseCapture(); }
@@ -685,6 +761,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             return 0;
         }
         if (A.draggingThumb) { A.draggingThumb = false; ReleaseCapture(); }
+        if (ListPane* p = pvPane(); p && p->draggingThumb) { p->draggingThumb = false; ReleaseCapture(); }
         if (colDragEnd(true) || favMouseUp(true, (wp & MK_CONTROL) != 0)) return 0;
         {
             // Clic sulla destinazione di un collegamento: premuto e rilasciato lì, senza rettangolo
@@ -715,6 +792,9 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         // Il primo clic ha aperto la destinazione di un collegamento: il secondo non apre la voce
         // che intanto è finita sotto il mouse (o il collegamento stesso, se la cartella è lenta)
         if (nowMs() - A.linkClickAt < GetDoubleClickTime()) { A.linkClickAt = -1e9; return 0; }
+        // Nell'anteprima: un file si apre; una cartella (o uno zip) in una nuova scheda in background
+        // (navigate, dal PaneScope)
+        PaneScope ps(pvPaneAt(x, y));
         if (itemAt(x, y) >= 0 && !(wp & (MK_SHIFT | MK_CONTROL))) { A.sel = itemAt(x, y); openSelected(); }
         return 0;
     }

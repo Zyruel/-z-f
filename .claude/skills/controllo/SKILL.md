@@ -214,7 +214,8 @@ provare solo a mano va anche in `prove\da-verificare.md`.
   `TextField`/`drawField`, `slowPath`/`onlineOnly`/`driveKind`/`uncShareRoot`,
   `clipSetFiles`/`hdropPaths`, `clipSetText`/`clipAskText`, `zipSplit`/`zipInside`/`zipReadMem`/`zipJobStart`,
   `linkRead`/`linkOf`/`linkReveal`, `netPlacesRead`, `parentOf`, `notice`, `drawSpinner`,
-  `drawBarBand`/`drawBarCounts`/`drawBarView` (barre in fondo, lista e anteprima),
+  `drawBarBand`/`drawBarCounts`/`drawBarView`/`drawBarFilter` (barre in fondo, lista e anteprima),
+  `drawListItems`/`layoutItems` con `ListPane` e `PaneScope` (lista e anteprima di una cartella),
   `tabsSerialize`/`tabsRestore`, `updCheck`/`updAction`/`drawUpdateIcon`/`updRestartAll`/
   `restartLaunch`, la cornice (`chrome.cpp`). Anche due funzioni nostre quasi uguali in moduli
   diversi.

@@ -33,13 +33,65 @@ static float viewLen();
 static bool cursorInView(float s, bool whole);
 static void ensureVisible();
 
+// La geometria di prima, presa prima di cambiare i bordi: il cursore che si vedeva resta in vista
+// anche con quella nuova (l'anteprima che si apre stringe Elenco e la colonna del cursore uscirebbe
+// a destra). Se l'utente ha scorso lontano dal cursore la lista non si muove.
+struct LayoutKeep { bool cursor; int perLine; float line, view; };
+static LayoutKeep layoutKeep() { return { cursorInView(A.scrollY, false), A.perLine, lineLen(), viewLen() }; }
+
+// Geometria delle voci dentro listX…listR, da listTop per listH, nella vista di A.zoom: colonne e
+// celle. La lista principale (layout) e l'anteprima di una cartella (preview.cpp, nel suo
+// PaneScope), che in Dettagli ha solo nome e dimensione: niente Data né Destinazione (noDate).
+static void layoutItems(bool noDate, const LayoutKeep& k) {
+    // Colonne: Nome prende quello che avanza, Destinazione (se c'è), Data e Dimensione sono
+    // allineate a destra. Se la finestra è stretta si stringono prima Destinazione, poi Data e poi
+    // Dimensione, fino al minimo (senza salvare); Destinazione inoltre non supera Nome (linkMax).
+    A.dateW = noDate ? 0 : px(A.colDate);
+    A.sizeW = px(A.colSize);
+    A.linkW = !noDate && linkColumn() ? px(A.colLink) : 0;
+    float right = A.listR - A.sbW - A.padX, room = colRoom(), mn = px(ui::COL_MIN);
+    if (A.linkW > 0 && A.linkW + A.dateW + A.sizeW > room) A.linkW = std::max(mn, room - A.dateW - A.sizeW);
+    if (A.dateW > 0 && A.linkW + A.dateW + A.sizeW > room) A.dateW = std::max(mn, room - A.sizeW - A.linkW);
+    if (A.linkW + A.dateW + A.sizeW > room) A.sizeW = std::max(mn, room - A.dateW - A.linkW);
+    A.sizeX = right - A.sizeW;
+    A.dateX = A.sizeX - A.dateW;
+    if (A.linkW > 0) A.linkW = std::max(mn, std::min(A.linkW, linkMax(A.dateX)));
+    A.linkX = A.dateX - A.linkW;
+    A.nameEnd = A.linkX - A.padX; // senza Destinazione linkX è dateX
+    // Voci: in Dettagli una colonna di righe. In Icone il riquadro della miniatura a GAP_M dai
+    // bordi, sotto il nome su GRID_NAME_LINES righe; le voci di una riga si dividono la larghezza.
+    // In Elenco colonne larghe LIST_COL_W di righe alte una riga, quante ne stanno sopra la barra di
+    // scorrimento orizzontale (alta sbW, in fondo alla lista).
+    float lw = itemsRight() - A.listX;
+    if (gridView()) {
+        float m = px(ui::GAP_S), pad = px(ui::GAP_M);
+        A.thumbPx = px(ui::THUMB_PX[A.zoom - ZOOM_ICONS]);
+        A.perLine = std::max(1, (int)((lw - m * 2) / (A.thumbPx + pad * 2)));
+        A.cellW = floorf((lw - m * 2) / A.perLine);
+        A.cellX = A.listX + m;
+        A.cellH = pad * 2 + A.thumbPx + px(ui::GAP_S) + ui::GRID_NAME_LINES * (float)F.lineH +
+                  (ui::GRID_NAME_LINES - 1) * px(ui::LINE_GAP);
+    } else if (listView()) {
+        float m = px(ui::GAP_XS); // più GAP_XS di fondo: le righe cominciano a GAP_S come in Dettagli
+        A.thumbPx = 0;
+        A.cellH = A.rowH;
+        A.perLine = std::max(1, (int)((A.listH - A.sbW) / A.rowH));
+        A.cellW = std::max(1.0f, std::min(px(ui::LIST_COL_W), lw - m * 2));
+        A.cellX = A.listX + m;
+    } else {
+        A.thumbPx = 0;
+        A.perLine = 1;
+        A.cellW = lw;
+        A.cellX = A.listX;
+        A.cellH = A.rowH;
+    }
+    bool changed = A.perLine != k.perLine || lineLen() != k.line || viewLen() != k.view;
+    if (k.cursor && changed && viewLen() > 0 && !cursorInView(A.scrollTarget, true)) ensureVisible();
+}
+
 static void layout() {
-    // Il cursore si vedeva: resta in vista anche con la geometria nuova (l'anteprima che si apre
-    // stringe Elenco e la colonna del cursore uscirebbe a destra). Se l'utente ha scorso lontano
-    // dal cursore la lista non si muove.
-    bool keepCursor = cursorInView(A.scrollY, false);
-    int oldPerLine = A.perLine;
-    float oldLine = lineLen(), oldView = viewLen();
+    if (g_inPane) { g_paneAfter.push_back(layout); return; } // App è l'anteprima (PaneScope): all'uscita
+    LayoutKeep keep = layoutKeep();
     A.rowH = (float)(F.lineH + (int)lroundf(ui::ROW_EXTRA * A.scale)); // non px(): vedi ROW_EXTRA in theme.h
     A.topH = (float)(int)(A.rowH * ui::PATH_BAR);
     A.headH = A.rowH;
@@ -75,50 +127,7 @@ static void layout() {
     A.fltX = A.listX + px(ui::GAP_S);
     A.fltWant = floorf(std::min(px(ui::FILTER_W), (A.listR - A.listX) * ui::FILTER_MAX));
     A.fltW = A.fltWant;
-    // Colonne: Nome prende quello che avanza, Destinazione (se c'è), Data e Dimensione sono
-    // allineate a destra. Se la finestra è stretta si stringono prima Destinazione, poi Data e poi
-    // Dimensione, fino al minimo (senza salvare); Destinazione inoltre non supera Nome (linkMax).
-    A.dateW = px(A.colDate);
-    A.sizeW = px(A.colSize);
-    A.linkW = linkColumn() ? px(A.colLink) : 0;
-    float right = A.listR - A.sbW - A.padX, room = colRoom(), mn = px(ui::COL_MIN);
-    if (A.linkW > 0 && A.linkW + A.dateW + A.sizeW > room) A.linkW = std::max(mn, room - A.dateW - A.sizeW);
-    if (A.linkW + A.dateW + A.sizeW > room) A.dateW = std::max(mn, room - A.sizeW - A.linkW);
-    if (A.linkW + A.dateW + A.sizeW > room) A.sizeW = std::max(mn, room - A.dateW - A.linkW);
-    A.sizeX = right - A.sizeW;
-    A.dateX = A.sizeX - A.dateW;
-    if (A.linkW > 0) A.linkW = std::max(mn, std::min(A.linkW, linkMax(A.dateX)));
-    A.linkX = A.dateX - A.linkW;
-    A.nameEnd = A.linkX - A.padX; // senza Destinazione linkX è dateX
-    // Voci: in Dettagli una colonna di righe. In Icone il riquadro della miniatura a GAP_M dai
-    // bordi, sotto il nome su GRID_NAME_LINES righe; le voci di una riga si dividono la larghezza.
-    // In Elenco colonne larghe LIST_COL_W di righe alte una riga, quante ne stanno sopra la barra di
-    // scorrimento orizzontale (alta sbW, in fondo alla lista).
-    float lw = itemsRight() - A.listX;
-    if (gridView()) {
-        float m = px(ui::GAP_S), pad = px(ui::GAP_M);
-        A.thumbPx = px(ui::THUMB_PX[A.zoom - ZOOM_ICONS]);
-        A.perLine = std::max(1, (int)((lw - m * 2) / (A.thumbPx + pad * 2)));
-        A.cellW = floorf((lw - m * 2) / A.perLine);
-        A.cellX = A.listX + m;
-        A.cellH = pad * 2 + A.thumbPx + px(ui::GAP_S) + ui::GRID_NAME_LINES * (float)F.lineH +
-                  (ui::GRID_NAME_LINES - 1) * px(ui::LINE_GAP);
-    } else if (listView()) {
-        float m = px(ui::GAP_XS); // più GAP_XS di fondo: le righe cominciano a GAP_S come in Dettagli
-        A.thumbPx = 0;
-        A.cellH = A.rowH;
-        A.perLine = std::max(1, (int)((A.listH - A.sbW) / A.rowH));
-        A.cellW = std::max(1.0f, std::min(px(ui::LIST_COL_W), lw - m * 2));
-        A.cellX = A.listX + m;
-    } else {
-        A.thumbPx = 0;
-        A.perLine = 1;
-        A.cellW = lw;
-        A.cellX = A.listX;
-        A.cellH = A.rowH;
-    }
-    bool changed = A.perLine != oldPerLine || lineLen() != oldLine || viewLen() != oldView;
-    if (keepCursor && changed && viewLen() > 0 && !cursorInView(A.scrollTarget, true)) ensureVisible();
+    layoutItems(false, keep);
 }
 
 // Bordo b tra due colonne: 0 a sinistra di Data, 1 a sinistra di Dimensione, 2 a sinistra di
@@ -197,6 +206,14 @@ static void clampScroll() {
     A.scrollTarget = std::min(std::max(A.scrollTarget, 0.0f), maxScroll());
     A.scrollY = std::min(std::max(A.scrollY, 0.0f), maxScroll());
 }
+// Rotellina sulla lista di App (anche l'anteprima nel suo PaneScope), con lo scorrimento morbido.
+// Icone: una riga di voci a scatto; Elenco: una colonna (scorre in orizzontale)
+static void listWheel(float lines) {
+    A.scrollTarget -= lines * (gridView() ? A.cellH : listView() ? A.cellW : A.rowH * ui::WHEEL_LINES);
+    clampScroll();
+    A.dirty = true;
+}
+
 // Di quanto lo scorrimento sposta le voci (pixel interi): in y, in Elenco in x
 static void scrollOffset(float& ox, float& oy) {
     float s = floorf(A.scrollY);
@@ -358,7 +375,22 @@ static void resort() {
     rebuildView(true);
 }
 
+static bool parentOf(std::wstring p, std::wstring& parent, std::wstring& child);
+
 static void navigate(const std::wstring& path, int history, const std::wstring& selectName, bool refresh = false) {
+    if (g_inPane) {
+        // Dall'anteprima di una cartella (PaneScope): la lista principale si muove all'uscita. Aprire
+        // una sua voce (cartella, zip) non scende nell'anteprima e non sposta la lista: la apre in una
+        // nuova scheda in background, come il clic centrale (scelta con Zyruel: per ora niente
+        // navigazione dentro l'anteprima)
+        std::wstring here = A.cur ? A.cur->path : L"", p = path, s = selectName, parent, child;
+        if (s.empty() && !refresh && parentOf(p, parent, child) && !_wcsicmp(parent.c_str(), here.c_str())) {
+            g_paneAfter.push_back([p] { tabNew(p, false); });
+            return;
+        }
+        g_paneAfter.push_back([p, history, s, refresh] { navigate(p, history, s, refresh); });
+        return;
+    }
     ListRequest* r = new ListRequest{ A.hwnd, ++A.gen, path, A.sortCol, A.sortDesc, refresh };
     A.refreshAgain = false; // la lettura che parte ora vede già tutti i cambiamenti arrivati finora
     if (refresh) {
@@ -627,6 +659,8 @@ static void openSelected() {
     const Entry& e = A.cur->e[A.view[A.sel]];
     std::wstring full = joinPath(A.cur->path, A.cur->name(e));
     if (e.attr & FILE_ATTRIBUTE_DIRECTORY) {
+        navigate(full, 1, L"");
+    } else if (g_inPane && zipNameEnd(full, full.size())) { // uno zip nell'anteprima: in una nuova scheda, come una cartella
         navigate(full, 1, L"");
     } else if (A.cur->zipLen) { // un file dentro uno zip: si estrae su un thread, poi si apre (zipout.cpp)
         zipJobStart(ZJ_OPEN, { A.view[A.sel] });

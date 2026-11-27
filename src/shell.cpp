@@ -471,7 +471,7 @@ static void smSend(SmReq* r, const wchar_t* busyText) {
 
 static void showContextMenu(POINT screenPt, bool background) {
     if (!A.cur || zipNoShell()) return;
-    if (A.dirty) render(); // la selezione appena cambiata deve vedersi sotto il menu
+    if (A.dirty && !g_inPane) render(); // la selezione appena cambiata deve vedersi sotto il menu (nell'anteprima: al prossimo frame)
     std::vector<uint32_t> items;
     if (!background) {
         items = selectedEntries();
@@ -566,6 +566,10 @@ static void onShellMenu(SmRes* r) {
     else if (r->buildMs >= 0) { A.menuMs = r->buildMs; A.menuItems = r->items; }
     if (r->verb && FAILED(r->verbErr)) smVerbFailed(r);
     bool here = A.cur && !_wcsicmp(A.cur->path.c_str(), r->folder.c_str());
+    // Un menu aperto nell'anteprima: Aggiorna e Rinomina valgono per la sua lista, se mostra ancora quella cartella
+    ListPane* pv = here ? nullptr : previewPaneFor(r->folder);
+    PaneScope ps(r->cmd == SM_REFRESH || r->cmd == SM_RENAME ? pv : nullptr);
+    if (pv && ps.p) here = true;
     std::vector<std::wstring> paths;
     for (const std::wstring& n : r->names) paths.push_back(joinPath(r->folder, n.c_str()));
     switch (r->cmd) {
@@ -591,6 +595,7 @@ static void onShellMenu(SmRes* r) {
 static void smartPaste() {
     if (!A.cur) return;
     if (clipHasFiles()) { pasteFiles(); return; }
+    if (g_inPane) return; // nell'anteprima solo i file: un testo filtrerebbe (o sposterebbe) la lista principale
     clipAskText(A.hwnd, nullptr); // il testo arriva in smartPasteText
 }
 
@@ -630,6 +635,7 @@ static void beginRename() {
     }
     A.renameField.set(n, 0, stop);
     A.renaming = true;
+    previewKeysFor(g_inPane > 0); // i tasti vanno alla lista che rinomina (anche una rinomina partita da sola, dopo Nuova cartella)
     A.renameEntry = (int)ei;
     selOnly(A.sel);
     ensureVisible();

@@ -8,6 +8,24 @@ erano `0.N`. Ogni rilascio, dalla 1.0.0-beta.2, ha un tag `v<versione>` e una
 versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 [`ARCHITETTURA.md`](docs/ARCHITETTURA.md).
 
+## 1.0.0-beta.7 (in corso)
+
+- **L'anteprima di una cartella è una seconda lista.** Non si scende nelle sue sottocartelle, ma
+  sulle voci si agisce come nella lista: selezione (clic, Ctrl, Shift, rettangolo), tooltip, menu
+  col tasto destro, Copia, Taglia, Incolla, Elimina, Rinomina, Proprietà, trascinamento verso
+  fuori e rilascio sopra (su una sottocartella o nella cartella mostrata).
+- **La vista dell'anteprima si sceglie:** il controllo in fondo a destra del pannello, prima
+  inerte, apre il menu delle viste (Dettagli, Elenco, Icone piccole, medie, grandi, con le
+  miniature); anche Ctrl+rotellina sopra il pannello. Una vista per il pannello, uguale per tutte
+  le cartelle, che si ricorda.
+- **Doppio clic nell'anteprima:** un file si apre; una cartella si apre in una nuova scheda in
+  background, come col clic centrale. Nell'anteprima non si scende e la lista resta dov'è.
+- **Tab** passa la tastiera tra la lista e l'anteprima (anche un clic nel pannello; Esc la
+  riporta alla lista). Il cursore si vede solo dove c'è la tastiera.
+- **Filtro nell'anteprima:** in basso a sinistra del pannello, come nella barra di stato della
+  lista. Con la tastiera nell'anteprima si scrive lì, e filtra solo le sue voci.
+- L'anteprima di una cartella si aggiorna da sola quando la cartella cambia (sulle unità locali).
+
 ## 1.0.0-beta.6 (novembre 2026)
 
 - **L'anteprima ha la sua barra in fondo**, fatta come la barra di stato della lista e alla stessa

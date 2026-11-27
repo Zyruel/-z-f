@@ -27,6 +27,7 @@ struct Gfx {
     ID3D11SamplerState*       samp = nullptr;
     ID3D11BlendState*         blend = nullptr;
     ID3D11RasterizerState*    rs = nullptr;
+    ID3D11RasterizerState*    rsClip = nullptr;   // con il ritaglio: voci dell'anteprima che scorrono (clipBegin)
     ID3D11Query*              doneQuery = nullptr; // per misurare quando il disegno è davvero finito
     ID3D11Query*              tsDisjoint = nullptr; // timestamp GPU: solo il lavoro, senza attese
     ID3D11Query*              tsBegin = nullptr;
@@ -263,6 +264,8 @@ static bool gfxCreateDevice(Gfx& g, bool warp) {
     rd.CullMode = D3D11_CULL_NONE;
     rd.DepthClipEnable = TRUE;
     g.dev->CreateRasterizerState(&rd, &g.rs);
+    rd.ScissorEnable = TRUE;
+    g.dev->CreateRasterizerState(&rd, &g.rsClip);
 
     D3D11_QUERY_DESC qd = { D3D11_QUERY_EVENT, 0 };
     g.dev->CreateQuery(&qd, &g.doneQuery);
@@ -363,7 +366,7 @@ static void gfxCopyRows(Gfx& from, ID3D11Texture2D* src, Gfx& to, ID3D11Texture2
 
 static void gfxRelease(Gfx& g) {
     if (g.ctx) { g.ctx->ClearState(); g.ctx->Flush(); }
-    safeRelease(g.doneQuery); safeRelease(g.tsDisjoint); safeRelease(g.tsBegin); safeRelease(g.tsEnd); safeRelease(g.rs); safeRelease(g.blend); safeRelease(g.samp);
+    safeRelease(g.doneQuery); safeRelease(g.tsDisjoint); safeRelease(g.tsBegin); safeRelease(g.tsEnd); safeRelease(g.rs); safeRelease(g.rsClip); safeRelease(g.blend); safeRelease(g.samp);
     safeRelease(g.atlasSrv); safeRelease(g.atlas); safeRelease(g.iconSrv); safeRelease(g.iconAtlas); safeRelease(g.prevSrv); safeRelease(g.prevTex); safeRelease(g.thumbSrv); safeRelease(g.thumbTex); safeRelease(g.cb); safeRelease(g.ib); safeRelease(g.vb);
     safeRelease(g.il); safeRelease(g.ps); safeRelease(g.vs); safeRelease(g.rtv); safeRelease(g.swap);
     if (g.waitable) { CloseHandle(g.waitable); g.waitable = nullptr; }
@@ -396,6 +399,19 @@ static void flushQuads(bool remap = true) {
     G.mapped = nullptr;
     G.nq = 0;
     if (remap) mapVB();
+}
+
+// Ritaglio: quello che si disegna fino a clipEnd resta dentro il rettangolo. Due draw call in più
+// (quello che c'era prima, poi il ritagliato): si usa solo dove le voci sconfinerebbero
+static void clipBegin(float x0, float y0, float x1, float y1) {
+    flushQuads();
+    D3D11_RECT r = { (LONG)x0, (LONG)y0, (LONG)x1, (LONG)y1 };
+    G.ctx->RSSetScissorRects(1, &r);
+    G.ctx->RSSetState(G.rsClip);
+}
+static void clipEnd() {
+    flushQuads();
+    G.ctx->RSSetState(G.rs);
 }
 
 static inline void quad(float x0, float y0, float x1, float y1, float u0, float v0, float u1, float v1, uint32_t c) {

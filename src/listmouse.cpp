@@ -26,11 +26,16 @@ struct Marquee {
     int x = 0, y = 0;           // ultima posizione del mouse (client, anche fuori dalla finestra)
     int mode = MQ_REPLACE;
     const Listing* cur = nullptr; // cartella su cui è partito: se cambia (ricarica, scheda) si smette
+    bool preview = false;       // partito nell'anteprima: si aggiorna nel suo PaneScope (mqScope)
     std::vector<uint8_t> base;  // selezione prima del clic (per indice di voce)
     int sel = 0, anchor = -1;   // cursore e ancora prima del clic
 } MQ;
 
 static bool boxHit(const Box& b, float x, float y) { return x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h; }
+
+// La lista del rettangolo, per un PaneScope: quella dell'anteprima se è partito lì (nullptr: la
+// principale, o si è già nello scope)
+static ListPane* mqScope() { return MQ.preview ? pvPane() : nullptr; }
 
 // Punto della finestra in coordinate del contenuto (quelle di itemRect)
 static void toContent(float x, float y, float& cx, float& cy) {
@@ -86,6 +91,7 @@ static void mqPress(int x, int y, int r, bool shift, bool ctrl) {
     MQ.sel = A.sel;
     MQ.anchor = A.anchor;
     MQ.cur = A.cur;
+    MQ.preview = g_inPane > 0;
     MQ.armed = true;
     MQ.down = { x, y };
     MQ.x = x; MQ.y = y;
@@ -181,6 +187,8 @@ static void mqStart() {
 static bool mqMouseMove(int x, int y, WPARAM wp) {
     if (!MQ.armed && !MQ.active) return false;
     if (!(wp & MK_LBUTTON)) { mqEnd(); return false; }
+    if (MQ.preview && !mqScope()) { mqEnd(); return false; } // l'anteprima non mostra più una cartella
+    PaneScope ps(mqScope());
     MQ.x = x; MQ.y = y;
     if (!MQ.active) {
         if (abs(x - MQ.down.x) <= GetSystemMetrics(SM_CXDRAG) && abs(y - MQ.down.y) <= GetSystemMetrics(SM_CYDRAG)) return true;
@@ -195,6 +203,8 @@ static bool mqMouseMove(int x, int y, WPARAM wp) {
 // mouse è lontano, più veloce. In Elenco i bordi sono quelli a sinistra e a destra
 static void mqTick() {
     if (!MQ.active) { KillTimer(A.hwnd, 10); return; }
+    if (MQ.preview && !mqScope()) { mqEnd(); return; }
+    PaneScope ps(mqScope());
     bool lst = listView();
     float m = (float)(lst ? MQ.x : MQ.y);
     float edgeLo = (lst ? A.listX : A.listTop) + A.rowH, edgeHi = (lst ? itemsRight() : A.listTop + A.listH) - A.rowH;
@@ -211,6 +221,7 @@ static void mqTick() {
 // Esc: rimette la selezione di prima del clic
 static bool mqCancel() {
     if (!MQ.active) return false;
+    PaneScope ps(mqScope());
     if (A.cur == MQ.cur && A.selFlags.size() == MQ.base.size()) {
         A.selFlags = MQ.base;
         A.sel = MQ.sel;
@@ -220,9 +231,10 @@ static bool mqCancel() {
     return true;
 }
 
-// Contorno 1 px C_SEL_EDGE, fondo C_MARQUEE, angoli squadrati come in Windows; dentro la lista
-static void drawMarquee() {
-    if (!MQ.active) return;
+// Contorno 1 px C_SEL_EDGE, fondo C_MARQUEE, angoli squadrati come in Windows; dentro la lista in
+// cui è partito (preview: si sta disegnando l'anteprima)
+static void drawMarquee(bool preview) {
+    if (!MQ.active || MQ.preview != preview) return;
     float top = A.listTop, bot = A.listTop + A.listH, l0 = A.listX, r0 = itemsRight();
     float ox, oy;
     scrollOffset(ox, oy);

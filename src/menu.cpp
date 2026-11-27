@@ -209,6 +209,9 @@ static void menuOpen(float cx, float cy, POINT screenPt, bool background, bool f
 
 static void menuPlace(float cx, float cy, bool fromKeyboard, double t0) {
     PopupMenu& m = A.menu;
+    // Aperto nel PaneScope dell'anteprima (sue voci, suo sfondo, sua vista): lì si eseguirà
+    m.preview = g_inPane > 0;
+    m.forPath = m.preview && A.cur ? A.cur->path : L""; // il percorso: una rilettura della cartella cambia il Listing
     m.ih = A.rowH;
     m.sepH = px(ui::MENU_SEP);
     m.pad = px(ui::MENU_PAD_X);
@@ -374,6 +377,7 @@ static void menuRun(int id, const CmdCtx& c) {
     case M_UP:        goUp(); break;
     case M_EDIT_PATH: gotoOpenHere(); break;
     case M_SIDEBAR:   sidebarToggle(); break;
+    case M_PANE_KEYS: previewKeysToggle(); break;
     }
     A.dirty = true;
 }
@@ -391,6 +395,13 @@ static void menuExec(int i) {
     menuClose();
     if (c.kind == MENU_CRUMB) { if (!itemPath.empty()) navigate(itemPath, 1, L""); return; }
     if (c.kind == MENU_DROP) { g_dropChoice = id; return; } // lo esegue chi ha aperto il menu (drag.cpp)
+    if (m.preview) { // dell'anteprima: nel suo PaneScope, se mostra ancora quella cartella
+        ListPane* p = previewPaneFor(m.forPath);
+        if (!p) { notice(L"L'anteprima non mostra più quella cartella", false); return; }
+        PaneScope ps(p);
+        menuRun(id, c);
+        return;
+    }
     menuRun(id, c);
 }
 
@@ -423,6 +434,7 @@ static void menuKey(WPARAM vk) {
 // completo di Windows" è il contrario: il tasto destro apre quello della shell, Shift il nostro.
 static void onContextMenu(POINT pt) {
     if (A.renaming) return;
+    if (ListPane* p = pvPane(); p && p->renaming) return; // come nella lista: durante la rinomina niente menu
     if (pt.x != -1 || pt.y != -1) { // schede e barra laterale hanno i loro menu
         POINT c = pt;
         ScreenToClient(A.hwnd, &c);
@@ -436,8 +448,13 @@ static void onContextMenu(POINT pt) {
         if (si >= 0) { menuOpenSide((float)c.x, (float)c.y, si); return; }
     }
     if (!A.cur) return;
-    bool shift = GetKeyState(VK_SHIFT) < 0;
     bool keyboard = pt.x == -1 && pt.y == -1;
+    // L'anteprima di una cartella (sotto il mouse, o con la tastiera): lo stesso menu, nel suo PaneScope
+    ListPane* pp = nullptr;
+    if (keyboard) pp = previewHasKeys() ? pvPane() : nullptr;
+    else { POINT c = pt; ScreenToClient(A.hwnd, &c); pp = pvPaneAt(c.x, c.y); }
+    PaneScope ps(pp);
+    bool shift = GetKeyState(VK_SHIFT) < 0;
     POINT c;
     bool background;
     if (keyboard) {

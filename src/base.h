@@ -40,6 +40,7 @@
 #include <string>
 #include <unordered_map>
 #include <memory>        // shared_ptr: archivi zip letti, condivisi tra i thread (zip.cpp)
+#include <functional>    // lavori della lista principale rimandati alla fine di un PaneScope (app.h)
 #include <algorithm>
 #include <iterator>
 
@@ -173,6 +174,7 @@ static inline uint32_t fadeA(uint32_t c, float a) {
 #define WM_APP_UPDATE     (WM_APP + 26) // controllo o download dell'aggiornamento finito (update.cpp): lParam UpdJob*
 #define WM_APP_UPDCLEAN   (WM_APP + 27) // exe della versione precedente tolto dopo un aggiornamento (update.cpp)
 #define WM_APP_CLIPSET    (WM_APP + 28) // testo scritto negli appunti da un thread, o no (text.cpp): lParam ClipSet*
+#define WM_APP_PVCHANGED  (WM_APP + 29) // cartella dell'anteprima cambiata (watch.cpp): wParam generazione, lParam WATCH_*
 
 template <class T> static void safeRelease(T*& p) { if (p) { p->Release(); p = nullptr; } }
 

@@ -18,7 +18,8 @@ enum MenuId { M_OPEN = 1, M_OPENWITH, M_CUT, M_COPY, M_PASTE, M_COPYPATH, M_RENA
               M_NET_CONNECT, M_NET_DISCONNECT, M_NET_PLACE, // unità e percorsi di rete (sidebar.cpp)
               M_LINK_OPEN,   // collegamento: cartella della destinazione, con la destinazione selezionata (links.cpp)
               // Comandi senza voce di menu: legano i loro tasti in kShortcuts ai tooltip
-              M_BACK, M_FWD, M_UP, M_EDIT_PATH, M_SIDEBAR, M_FILTER_CLEAR, M_GOTO_NEWTAB, M_GOTO_ENTER };
+              M_BACK, M_FWD, M_UP, M_EDIT_PATH, M_SIDEBAR, M_FILTER_CLEAR, M_GOTO_NEWTAB, M_GOTO_ENTER,
+              M_PANE_KEYS }; // Tab: la tastiera tra la lista e l'anteprima di una cartella (preview.cpp)
 
 // "Questo PC" per la shell: è una cartella virtuale, la si raggiunge col suo CLSID
 static const wchar_t kThisPc[] = L"::{20D04FE0-3AEA-1069-A2D8-08002B30309D}";
@@ -36,6 +37,8 @@ struct PopupMenu {
     int kind = 0;        // MENU_LIST, MENU_SIDE, MENU_TAB
     double openedAt = 0; // per la dissolvenza d'apertura
     int target = -1;     // voce della barra laterale o scheda a cui si riferisce
+    bool preview = false; // della lista dell'anteprima (voci, sfondo, vista): si esegue nel suo PaneScope
+    std::wstring forPath;  // …e di questa sua cartella: se intanto è cambiata, non si esegue
     std::vector<MenuItem> items;
     // Menu con voci dinamiche (sottocartelle): le etichette vivono qui (deque: indirizzi stabili)
     std::deque<std::wstring> labels;
@@ -83,6 +86,43 @@ struct SideItem {
 
 // Evidenziazione al passaggio del mouse che sfuma: entra la voce nuova, esce la precedente
 struct HoverFade { int cur = -1, prev = -1; float a = 0, pa = 0; };
+
+// Una lista di voci con la sua geometria. Quella principale vive nei campi di App (il codice della
+// lista non sa di altre liste); l'anteprima di una cartella (preview.cpp) ha la sua, e per
+// disegnarla o agirci la si scambia con quella di App per la durata di un PaneScope: così ogni
+// funzione della lista (voci, selezione, menu, rettangolo, comandi) vale anche nell'anteprima, come
+// le schede con TabState. Fuori da un PaneScope, App è sempre la lista principale.
+struct ListPane {
+    Listing* cur = nullptr;
+    std::vector<uint32_t> order, view;
+    std::vector<uint8_t> selFlags;
+    int sel = 0, anchor = -1, hover = -1;
+    float scrollY = 0, scrollTarget = 0;
+    std::wstring filter;
+    int sortCol = COL_NAME;
+    bool sortDesc = false;
+    int zoom = 0;
+    HoverFade rowFade, linkFade;
+    int linkHover = -1;
+    float cursorX = 0, cursorY = 0;
+    const void* cursorFor = nullptr;
+    float listFade = 1;
+    bool draggingThumb = false;
+    float dragOffset = 0;
+    bool renaming = false;
+    TextField renameField;
+    int renameEntry = -1;
+    // Campo del filtro nella barra in fondo (drawBarFilter): posizione, larghezza, ×
+    float fltX = 0, fltW = 0, fltWant = 0, fltClearW = 0;
+    bool fltClearHover = false;
+    HoverFade fltFade;
+    // Geometria (layoutItems; iconX e nameX da drawListItems)
+    float listX = 0, listR = 0, listTop = 0, listH = 0;
+    float dateW = 0, sizeW = 0, linkW = 0, dateX = 0, sizeX = 0, linkX = 0, nameEnd = 0, iconX = 0, nameX = 0;
+    int perLine = 1;
+    float cellX = 0, cellW = 0, cellH = 0, thumbPx = 0;
+    float sortX[4] = {};
+};
 
 // Livelli di zoom della lista (Ctrl+rotellina): Dettagli 0%, Elenco 10%, poi Icone da 20% a 100%
 // (lato delle miniature in ui::THUMB_PX). Le scorciatoie delle icone portano a 40, 70 e 100%.
@@ -223,9 +263,11 @@ struct App {
     bool prevOpen = false;            // scelto dall'utente (Alt+P), in impostazioni.txt
     float prevWidth = ui::PREVIEW_W;  // larghezza scelta (px a scala 100%, in impostazioni.txt)
     float prevW = 0;                  // larghezza mostrata: 0 se chiuso o se la finestra è troppo stretta
+    int prevZoom = 0;                 // vista delle cartelle nell'anteprima, una per il pannello (anteprima_vista)
     // F12: ultima anteprima (lettura e decodifica sul thread, texture sul thread UI), primo caricamento di WIC
     const wchar_t* prevKind = nullptr;
     double prevReadMs = 0, prevDecodeMs = 0, prevTexMs = 0;
+    double prevPaneMs = 0, prevPaneMax = 0; // F12: disegno della lista dell'anteprima (UI, per frame)
 
     // Vista (thumbs.cpp): un livello di zoom per cartella (viste.txt). 0 Dettagli, 1 Elenco, poi
     // Icone da 20% a 100% (ZOOM_* più sotto)
@@ -300,6 +342,82 @@ struct App {
     double shellObjMs = 0;     // ultimo oggetto per la selezione sul thread UI (Copia, Taglia, trascinamento)
 } A;
 
+// Scambia la lista di App con p (O(1): vettori e stringhe si scambiano, non si copiano)
+static void paneSwap(ListPane& p) {
+    std::swap(A.cur, p.cur);
+    A.order.swap(p.order);
+    A.view.swap(p.view);
+    A.selFlags.swap(p.selFlags);
+    std::swap(A.sel, p.sel);
+    std::swap(A.anchor, p.anchor);
+    std::swap(A.hover, p.hover);
+    std::swap(A.scrollY, p.scrollY);
+    std::swap(A.scrollTarget, p.scrollTarget);
+    A.filter.swap(p.filter);
+    std::swap(A.sortCol, p.sortCol);
+    std::swap(A.sortDesc, p.sortDesc);
+    std::swap(A.zoom, p.zoom);
+    std::swap(A.rowFade, p.rowFade);
+    std::swap(A.linkFade, p.linkFade);
+    std::swap(A.linkHover, p.linkHover);
+    std::swap(A.cursorX, p.cursorX);
+    std::swap(A.cursorY, p.cursorY);
+    std::swap(A.cursorFor, p.cursorFor);
+    std::swap(A.listFade, p.listFade);
+    std::swap(A.draggingThumb, p.draggingThumb);
+    std::swap(A.dragOffset, p.dragOffset);
+    std::swap(A.renaming, p.renaming);
+    std::swap(A.renameField, p.renameField);
+    std::swap(A.renameEntry, p.renameEntry);
+    std::swap(A.fltX, p.fltX);
+    std::swap(A.fltW, p.fltW);
+    std::swap(A.fltWant, p.fltWant);
+    std::swap(A.fltClearW, p.fltClearW);
+    std::swap(A.fltClearHover, p.fltClearHover);
+    std::swap(A.fltFade, p.fltFade);
+    std::swap(A.listX, p.listX);
+    std::swap(A.listR, p.listR);
+    std::swap(A.listTop, p.listTop);
+    std::swap(A.listH, p.listH);
+    std::swap(A.dateW, p.dateW);
+    std::swap(A.sizeW, p.sizeW);
+    std::swap(A.linkW, p.linkW);
+    std::swap(A.dateX, p.dateX);
+    std::swap(A.sizeX, p.sizeX);
+    std::swap(A.linkX, p.linkX);
+    std::swap(A.nameEnd, p.nameEnd);
+    std::swap(A.iconX, p.iconX);
+    std::swap(A.nameX, p.nameX);
+    std::swap(A.perLine, p.perLine);
+    std::swap(A.cellX, p.cellX);
+    std::swap(A.cellW, p.cellW);
+    std::swap(A.cellH, p.cellH);
+    std::swap(A.thumbPx, p.thumbPx);
+    for (int i = 0; i < 4; i++) std::swap(A.sortX[i], p.sortX[i]);
+}
+
+// Dentro un PaneScope App è l'anteprima: layout, navigazione, schede e disegno non devono girare
+// (riguardano la lista principale). navigate, layout, tabActivate e onPreviewResult chiesti da lì
+// vanno in g_paneAfter e si fanno all'uscita, con App di nuovo la lista principale; render rimanda
+// il frame; requestRefresh e F5 rileggono invece l'anteprima (previewRefresh). nullptr: nessuno
+// scambio, per gli scope condizionali.
+static int g_inPane = 0;
+static std::vector<std::function<void()>> g_paneAfter;
+struct PaneScope {
+    ListPane* p;
+    explicit PaneScope(ListPane* pane) : p(pane) { if (p) { paneSwap(*p); g_inPane++; } }
+    ~PaneScope() {
+        if (!p) return;
+        paneSwap(*p);
+        if (--g_inPane || g_paneAfter.empty()) return;
+        std::vector<std::function<void()>> after;
+        after.swap(g_paneAfter);
+        for (auto& f : after) f();
+    }
+    PaneScope(const PaneScope&) = delete;
+    PaneScope& operator=(const PaneScope&) = delete;
+};
+
 // Misura del tema (px a scala 100%) → pixel interi alla scala DPI corrente
 static inline float px(float v) { return floorf(v * A.scale); }
 
@@ -359,7 +477,7 @@ static void drawTooltip();                        // tooltip.cpp
 static void tipHide();                            // tooltip.cpp
 static void drawOptions(double dt);               // options.cpp
 static void drawDrop();                           // drag.cpp
-static void drawMarquee();                        // listmouse.cpp
+static void drawMarquee(bool preview);            // listmouse.cpp: il rettangolo, se è di questa lista
 static void drawChromeTitle(double dt);           // chrome.cpp
 static void drawChromeToolbar();                  // chrome.cpp
 static void optionsOpen();                        // options.cpp
@@ -376,15 +494,26 @@ static void drawGoto();                              // goto.cpp
 static bool gotoTipTarget(int x, int y, int& index); // goto.cpp: voce sotto il mouse, per il tooltip
 static bool gotoTipBuild(int index);                 // goto.cpp: contenuto del tooltip di una voce
 static void previewSync();                           // preview.cpp: chiede l'anteprima se la voce è cambiata
-static void drawPreview();                           // preview.cpp
+static void drawPreview(double dt);                  // preview.cpp
+static void previewRefresh();                        // preview.cpp: rilegge la cartella mostrata (operazioni, F5), tenendo la selezione
+static bool previewHasKeys();                        // preview.cpp: la tastiera è dell'anteprima di una cartella
+static ListPane* previewPaneFor(const std::wstring& folder); // preview.cpp: la lista dell'anteprima, se mostra questa cartella (per un PaneScope)
+static ListPane* pvPane();                           // preview.cpp: la lista dell'anteprima di una cartella (per un PaneScope; nullptr se non c'è o si è già in uno scope)
+static ListPane* pvPaneAt(int x, int y);             // preview.cpp: …se il punto è sopra le sue voci
+static void previewKeysToggle();                     // preview.cpp: Tab
+static void previewKeysFor(bool preview);            // preview.cpp: la tastiera all'anteprima (true) o alla lista
+static bool pvViewAt(int x, int y);                  // preview.cpp: il controllo della vista nella banda dell'anteprima
 static void previewToggle();                         // preview.cpp: Alt+P, pulsante, menu
 static void viewZoom(int zoom);                      // thumbs.cpp: livello di zoom della cartella corrente
 static void zoomStep(int delta);                     // thumbs.cpp: Ctrl+rotellina
 static int viewZoomOf(const std::wstring& path);     // thumbs.cpp: vista ricordata della cartella
+static int viewParse(const std::wstring& v);         // thumbs.cpp: "elenco", "icone 40" → zoom (-1 se non si capisce)
+static std::string viewText(int zoom);               // thumbs.cpp: il contrario ("dettagli", "elenco", "icone 40")
 static void viewsLoaded(const std::vector<std::wstring>& lines); // thumbs.cpp: viste.txt letto all'avvio
 struct Box;
-static void thumbsFrame(int first, int last);         // thumbs.cpp: voci visibili in griglia (e sincronizzazione)
-static void drawThumb(int vi, const Box& box, bool hidden, double now); // thumbs.cpp: miniatura o icona nel riquadro
+static void thumbsFrame(int first, int last, bool preview); // thumbs.cpp: voci visibili in griglia (e sincronizzazione), della lista o dell'anteprima
+static void drawThumb(int vi, const Box& box, bool hidden, double now, bool preview); // thumbs.cpp: miniatura o icona nel riquadro
 static void thumbsDeviceChanged();                   // thumbs.cpp: passaggio WARP → GPU
+static void thumbsPreviewIdle();                     // thumbs.cpp: l'anteprima non mostra una cartella in questo frame
 static float updIconW();                             // update.cpp: spazio dell'icona di stato dell'aggiornamento
 static void drawUpdateIcon(float x, float y, float w, float h, float k); // update.cpp: accanto alla versione

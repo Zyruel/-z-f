@@ -126,7 +126,9 @@ Come si compila e si prova, passo per passo: `/prova` (skill in `.claude/skills/
   - `drawSpinner` (`render.cpp`), l'anello di punti di un lavoro in corso (almeno un giro):
     l'unica animazione continua, solo dove l'utente guarda (DESIGN.md §5);
   - le barre in fondo, della lista e dell'anteprima: `drawBarBand`, `drawBarCounts`,
-    `drawBarView`/`barViewW` (`render.cpp`), disegnate da destra;
+    `drawBarView`/`barViewW`, `drawBarFilter` (`render.cpp`), disegnate da destra;
+  - le voci di una lista, la principale e (nel suo `PaneScope`) l'anteprima di una cartella:
+    `drawListItems`, `layoutItems` (`ListPane`, `paneSwap` in `app.h`);
   - le schede da salvare o riaprire: `tabsSerialize`, `tabsRestore` (`tabs.cpp`);
   - l'aggiornamento (`update.cpp`): `updCheck`, `updAction`, `drawUpdateIcon`, e il riavvio di
     tutte le finestre (`updRestartAll`, `restartLaunch`);

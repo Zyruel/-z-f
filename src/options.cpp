@@ -46,7 +46,7 @@ static Shortcut kSel[] = {
     { { { L"Ctrl+A", 0 } }, L"Seleziona tutto ciò che è visibile" },
     { { { L"Lettere", 0 } }, L"Filtro sui nomi" },
     { { { L"Backspace", 0 } }, L"Toglie l'ultima lettera del filtro" },
-    { { { L"Esc", M_FILTER_CLEAR } }, L"Toglie il filtro, poi la selezione" },
+    { { { L"Esc", M_FILTER_CLEAR } }, L"Toglie il filtro, poi la selezione (nell'anteprima, poi torna alla lista)" },
 };
 static Shortcut kFiles[] = {
     { { K(M_COPY, KC, 'C'), K(M_CUT, KC, 'X') }, L"Copia · taglia" },
@@ -78,10 +78,12 @@ static Shortcut kTabs[] = {
 static Shortcut kView[] = {
     { { K(M_SIDEBAR, KC, 'B') }, L"Mostra o nasconde la barra laterale" },
     { { K(M_PREVIEW, KA, 'P') }, L"Mostra o nasconde l'anteprima" },
+    { { K(M_PANE_KEYS, 0, VK_TAB), { L"clic nel pannello", 0 } }, L"La tastiera alla lista o all'anteprima di una cartella" },
+    { { { L"Doppio clic nell'anteprima", 0 } }, L"Apre il file; una cartella in una nuova scheda in background" },
     { { K(M_ICONS_L, KC | KS, '2'), K(M_ICONS_M, KC | KS, '3'), K(M_ICONS_S, KC | KS, '4') },
       L"Icone grandi · medie · piccole (zoom 100 · 70 · 40%)" },
     { { K(M_VIEW_LIST, KC | KS, '5'), K(M_VIEW_DETAILS, KC | KS, '6') }, L"Elenco · Dettagli" },
-    { { { L"Ctrl+rotellina", 0 } }, L"Zoom della lista: Dettagli, Elenco, Icone da 20 a 100%" },
+    { { { L"Ctrl+rotellina", 0 } }, L"Zoom della lista: Dettagli, Elenco, Icone da 20 a 100% (sull'anteprima: la sua vista)" },
     { { { L"Trascina il bordo di un pannello", 0 }, { L"doppio clic", 0 } }, L"Larghezza di barra laterale o anteprima · predefinita" },
     { { { L"Clic sull'intestazione", 0 } }, L"Ordina per colonna (di nuovo: al contrario)" },
     { { { L"Trascina il bordo di una colonna", 0 }, { L"doppio clic", 0 } }, L"Larghezza della colonna · adatta al contenuto" },
@@ -117,6 +119,7 @@ static std::wstring keyName(UINT vk, int mods) {
     case VK_LEFT:      s += L"←"; break;
     case VK_RIGHT:     s += L"→"; break;
     case VK_OEM_COMMA: s += L","; break;
+    case VK_TAB:       s += L"Tab"; break;
     default:
         if (vk >= VK_F1 && vk <= VK_F24) s += L"F" + std::to_wstring(vk - VK_F1 + 1);
         else if ((vk >= 'A' && vk <= 'Z') || (vk >= '0' && vk <= '9')) s += (wchar_t)vk;

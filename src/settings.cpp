@@ -14,6 +14,7 @@
 //   colonna_destinazione=300  colonna Destinazione, nelle cartelle con collegamenti (.lnk)
 //   anteprima=0            pannello di anteprima (Alt+P)
 //   anteprima_larghezza=360  in pixel a scala 100% (trascinando il bordo; doppio clic: predefinita)
+//   anteprima_vista=dettagli  vista delle cartelle nell'anteprima: dettagli, elenco, icone 40 (come viste.txt)
 //   carattere_anteprima=Cascadia Mono  testo nell'anteprima (se non è installato: Cascadia Mono, Consolas)
 //   annulla_dopo_riavvio=0 1: la cronologia di Ctrl+Z si salva in annulla.txt e si ritrova al riavvio
 //   menu_completo=0        1: il tasto destro apre il menu completo della shell (Shift quello di [z]f)
@@ -168,6 +169,7 @@ static std::string settingsText() {
     d += "colonna_destinazione=" + std::to_string(lroundf(A.colLink)) + "\r\n";
     d += std::string("anteprima=") + (A.prevOpen ? "1" : "0") + "\r\n";
     d += "anteprima_larghezza=" + std::to_string(lroundf(A.prevWidth)) + "\r\n";
+    d += "anteprima_vista=" + viewText(A.prevZoom) + "\r\n";
     d += "carattere_anteprima=" + toUtf8(FM.face) + "\r\n";
     d += std::string("annulla_dopo_riavvio=") + (A.undoPersist ? "1" : "0") + "\r\n";
     d += std::string("menu_completo=") + (A.shellMenu ? "1" : "0") + "\r\n";
@@ -222,6 +224,10 @@ static bool settingsApply(const std::vector<std::wstring>& lines) {
                 (k == L"colonna_data" ? A.colDate : k == L"colonna_dimensione" ? A.colSize : A.colLink) = (float)n;
         }
         else if (k == L"anteprima") A.prevOpen = v != L"0";
+        else if (k == L"anteprima_vista") {
+            int z = viewParse(v);
+            if (z >= 0) A.prevZoom = z;
+        }
         else if (k == L"anteprima_larghezza") {
             int n = _wtoi(v.c_str()); // il massimo lo decide la finestra (layout)
             if (n >= (int)ui::PREVIEW_MIN && n <= 8000) A.prevWidth = (float)n;

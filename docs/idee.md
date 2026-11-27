@@ -23,6 +23,27 @@ preferisce lavorare con tutto in una finestra e con una gestione dei profili, ch
   `tabsSerialize`), e con `thread_local` un thread di lavoro che legge `A` troverebbe una copia
   vuota senza che nessuno se ne accorga. Ristrutturazione grande.
 
+## Anteprima
+
+### Navigazione dentro l'anteprima (novembre 2026, durante la 1.0.0-beta.7)
+
+Ora l'anteprima di una cartella è una seconda lista. Il doppio clic su una sua cartella la apre in
+una nuova scheda in background, perché nell'anteprima non si scende. Zyruel ha pensato di farci
+scendere, lasciando la lista principale dov'è, ma lo ha rimandato: per non aggiungere elementi a
+caso.
+
+- **Cosa servirebbe:**
+  - una barra di navigazione nell'anteprima, al posto del titolo, quando mostra una cartella. Da
+    decidere: se il percorso parte dalla voce sotto il cursore della lista o da Questo PC, se ha i
+    segmenti cliccabili, ← → ↑ e i menu "›";
+  - cosa succede alla discesa quando il cursore della lista si sposta;
+  - Backspace e Alt+↑ con la tastiera nell'anteprima;
+  - `PV.item` diverso dalla voce sotto il cursore (oggi `previewSync` li tiene uguali);
+  - la barra del percorso (`crumbs.cpp`) usabile anche per una seconda riga, oggi legata a `CB`.
+- **Frena:** è un elemento nuovo in un pannello stretto (DESIGN §1: si inventa solo per elementi
+  davvero nuovi), e due percorsi visibili insieme possono confondere su quale cartella agiscono
+  Incolla e Nuova cartella.
+
 ## Archivi
 
 ### Modificare gli zip (novembre 2026, dopo la 0.26)

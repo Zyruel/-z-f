@@ -52,7 +52,7 @@ condivise sono in `app.h`.
 |---|---|
 | `base.h` | include di sistema, misura del tempo, registro dei rallentamenti |
 | `theme.h` | colori, misure e tempi dell'interfaccia con un nome per ognuno (regole d'uso in `DESIGN.md`) |
-| `gfx.cpp` | D3D11: device, swapchain flip-model, shader, batch di quad (rettangoli, glifi, icone in un unico vertex buffer) |
+| `gfx.cpp` | D3D11: device, swapchain flip-model, shader, batch di quad (rettangoli, glifi, icone in un unico vertex buffer), ritaglio (`clipBegin`) |
 | `text.cpp` | glifi rasterizzati con GDI al primo uso in un atlante RGBA (ClearType), disegno del testo, casella di testo, testo negli appunti |
 | `listing.cpp` | lettura delle cartelle su thread di lavoro, chiavi di ordinamento naturale |
 | `zip.cpp` | archivi zip in sola lettura: directory centrale (zip64), albero delle cartelle in memoria, inflate e CRC nostri, estrazione su un thread |
@@ -60,9 +60,9 @@ condivise sono in `app.h`.
 | `app.h` / `app.cpp` | stato; layout, selezione, filtro, navigazione, ricariche |
 | `dirsize.cpp` | dimensione totale delle cartelle su un thread (urgenti per il tooltip, coda di sfondo per la colonna), cache |
 | `links.cpp` | colonna Destinazione dei collegamenti: destinazioni lette su un thread, cache, clic ("Apri percorso file") |
-| `watch.cpp` | aggiornamento in tempo reale (`ReadDirectoryChangesW`), compresi spostamento ed eliminazione della cartella aperta |
+| `watch.cpp` | aggiornamento in tempo reale (`ReadDirectoryChangesW`), compresi spostamento ed eliminazione della cartella aperta; la cartella dell'anteprima (`previewWatch`) |
 | `icons.cpp` | icone della shell su un thread dedicato, atlante BGRA |
-| `render.cpp` | disegno di un frame, pannelli sovrapposti (`drawPanel`) e pannello F12 |
+| `render.cpp` | disegno di un frame, voci di una lista (`drawListItems`, anche per l'anteprima), pannelli sovrapposti (`drawPanel`) e pannello F12 |
 | `shell.cpp` | menu completo della shell e comandi della shell (su un thread loro), appunti, rinomina nella riga |
 | `fileops.cpp` | operazioni sui file su un thread (`IFileOperation` con l'esito di ogni elemento, rinomina, nuova cartella), cronologia per annullare e ripetere |
 | `tabs.cpp` | schede: scambio dello stato, barra delle schede, riapertura all'avvio |
@@ -74,8 +74,8 @@ condivise sono in `app.h`.
 | `chrome.cpp` | cornice della finestra: barra del titolo con le schede, pulsanti (anche quelli della riga del percorso), area non client e menu di sistema (`chromeSysMenu`: `DefWindowProc` non lo apre, perché la barra del titolo per lui è area client), icona della finestra |
 | `crumbs.cpp` | percorso a segmenti cliccabili, menu delle sottocartelle |
 | `tooltip.cpp` | tooltip: contenuto, informazioni lette su un thread (anche per l'anteprima), disegno |
-| `preview.cpp` | pannello di anteprima: immagini (WIC), testo, cartelle, informazioni; lettura e decodifica su un thread |
-| `thumbs.cpp` | vista a icone: miniature (cache di Windows, WIC, shell, icone) su thread, atlante sulla GPU; zoom e vista per cartella (`viste.txt`) |
+| `preview.cpp` | pannello di anteprima: immagini (WIC), testo, cartelle come seconda lista (`ListPane`), informazioni; lettura e decodifica su un thread |
+| `thumbs.cpp` | vista a icone: miniature (cache di Windows, WIC, shell, icone) su thread, atlante sulla GPU, per la lista e l'anteprima (`ThClient`); zoom e vista per cartella (`viste.txt`) |
 | `options.cpp` | pannello delle opzioni, tabella delle scorciatoie (anche per i menu), versione |
 | `goto.cpp` | "Vai a": cartelle recenti (`recenti.txt`), ricerca fuzzy, sottocartelle lette su un thread, pannello |
 | `drag.cpp` | trascinamento dei file: sorgente (oggetto dati della shell), destinazione (IDropTarget), rilascio alla shell su un thread |
@@ -365,6 +365,15 @@ contenuto salterebbe in basso proprio mentre si clicca.
 
 **Come funziona** (`thumbs.cpp`; comportamento visibile in `DESIGN.md`, "Viste e zoom").
 
+- **Due liste:** la lista principale e l'anteprima di una cartella possono essere in Icone
+  insieme. Ognuna è un `ThClient` (cartella, lato del riquadro, voci volute, contatore di
+  generazione in `g_thLatest[]`: una richiesta vale se è di una delle due); mappa, code, thread e
+  atlante sono in comune, e la chiave di una miniatura è percorso più lato (`thKey`), perché le
+  due liste possono avere lati diversi. I posti dell'atlante sono grandi quanto il lato più grande
+  in uso (`slotPx`): solo quando quel massimo cambia si ricomincia da capo. Risultati e potature
+  li fa la chiamata della lista principale, una volta per frame; le code di una lista si
+  riprendono senza toccare quelle dell'altra.
+
 - **Fonti**, in quest'ordine, per miniatura sul thread:
   1. la cache di Windows (`IThumbnailCache`, solo quelle già pronte), creando l'elemento della
      shell dalla cartella già aperta (`IShellFolder`, una volta per thread);
@@ -449,7 +458,52 @@ Mostra la voce sotto il cursore e la segue mentre ci si muove con le frecce.
   testo): codifica riconosciuta (BOM, UTF-16 anche senza BOM, UTF-8 valido, altrimenti ANSI), al
   massimo 256 KB.
 - **Cartelle:** il contenuto ordinato come la lista, al massimo `kPvDirMax` (5000) voci o 300 ms
-  di lettura.
+  di lettura. Il `Listing` letto passa alla **lista dell'anteprima** (`PV.pane`, un `ListPane`),
+  che è una seconda lista vera (sotto).
+- **La lista dell'anteprima: lo stato scambiato.** Tutto il codice della lista (geometria
+  delle voci, disegno, selezione, rettangolo, menu, comandi, trascinamento, rinomina, tastiera)
+  lavora sui campi di `App` (`A.cur`, `A.view`, `A.sel`, la geometria). Come le schede
+  (`TabState`), l'anteprima tiene i suoi in un `ListPane` e li **scambia** con quelli di `App`
+  per la durata di un `PaneScope` (`paneSwap`, O(1): vettori e stringhe si scambiano). Così
+  `drawListItems`, `layoutItems`, `itemAt`, `menuOpen`, `mqPress`, `dragPrepare`, `beginRename`,
+  `onKey`… valgono anche per l'anteprima senza saperlo.
+  - *Regola:* fuori da un `PaneScope` `App` è sempre la lista principale. Quello che riguarda
+    solo lei (`navigate`, `requestRefresh`, `layout`) chiesto da dentro uno scope non si fa lì:
+    `navigate` mette il lavoro in `g_paneAfter`, eseguito all'uscita dallo scope (e aprire una
+    cartella o uno zip dell'anteprima diventa `tabNew` in background: nell'anteprima non si
+    scende); `requestRefresh` e F5 rileggono l'anteprima (`previewRefresh`).
+  - *Gli stati che durano oltre un messaggio* ricordano a chi appartengono e rientrano nello
+    scope quando riprendono: menu (`PopupMenu::preview`, `forPath`: se intanto la cartella è
+    cambiata non si esegue), rettangolo (`MQ.preview`), trascinamento (`DD.preview`, e
+    `DD.targetPreview` per la destinazione), tooltip (`T.preview`), rinomina e nuova cartella
+    (`onFsDone` guarda in quale cartella è successo: `PV.selectAfter`, `PV.renameAfter`), menu
+    della shell (`onShellMenu`, Aggiorna e Rinomina).
+  - *Perché così:* passare la lista come parametro a ogni funzione avrebbe toccato centinaia di
+    righe in una dozzina di moduli, col rischio di rompere la lista; lo scambio riusa ogni riga
+    (principio 4) e il costo è di un paio di scambi per frame.
+  - *Cicli modali:* niente che pompi messaggi gira dentro uno scope. Il trascinamento prepara
+    l'oggetto nello scope (`dragPrepare`) e chiama `SHDoDragDrop` dopo averlo chiuso: nel ciclo
+    arrivano timer, risultati dell'anteprima e la molla delle schede, che devono trovare `App`
+    com'è sempre. Per sicurezza `render`, `layout`, `tabActivate` e `onPreviewResult` dentro uno
+    scope rimandano all'uscita (in una prova di sviluppo il disegno nel ciclo, con lo stato
+    scambiato, cancellava il `Listing` della lista principale).
+  - *Disegno:* `pvPaneLayout` calcola la geometria nello scope (`layoutItems(true, …)`: in
+    Dettagli niente Data né Destinazione), poi `drawListItems` disegna dentro un **ritaglio**
+    (`clipBegin`/`clipEnd` in `gfx.cpp`: uno stato del rasterizzatore con lo scissor, due draw call
+    in più) perché le voci che scorrono, in Elenco anche in orizzontale, non sconfinino.
+  - *Tastiera:* `PV.keys` (clic nel pannello, Tab). `onKey` apre lo scope tranne che per i tasti
+    della finestra (schede, cronologia, pannelli, Vai a, annulla, F12); `onChar` scrive nel filtro
+    di chi ha la tastiera. Il campo del filtro (`fltX`, `fltW`, la ×) è nello stato scambiato, e
+    `drawBarFilter` (`render.cpp`) lo disegna per la lista e, nello scope, per l'anteprima.
+  - *Aggiornamento:* un secondo osservatore (`previewWatch` in `watch.cpp`, messaggio
+    `WM_APP_PVCHANGED`, timer 17 per raggruppare le notifiche) segue la cartella mostrata, solo
+    sulle unità locali e non dentro uno zip; `pvPaneSet` rilegge tenendo selezione per nome,
+    cursore, scorrimento e la rinomina in corso.
+  - *Misurato* (F12, "anteprima: voci di una cartella"; RTX 5070 Ti, 2560×1392 a 175%): lista in
+    Icone medie e anteprima in Icone grandi insieme, frame 0,12 ms (peggiore 0,24 scorrendo
+    l'anteprima mentre arrivano le icone), voci dell'anteprima 0,01 ms. Avvio (`prove\avvio.bat`,
+    4 giri alternati da 5 con la 1.0.0-beta.6, anteprima aperta): contenuto visibile in mediana a
+    78 ms contro 77, prima icona a 105 contro 104, primo fuoco 11 contro 12: invariato.
 - **Tutto il resto** e le unità: l'icona grande della shell (`pvBigIcon`) e le righe del tooltip.
   I file solo online non si leggono.
 - **Thread:** lettura e decodifica su un thread per richiesta, con un contatore di generazione. Un
@@ -1002,7 +1056,7 @@ sul thread; con il server spento l'errore arriva dopo 2 s, sempre sul thread.
 - **Le impostazioni** di `impostazioni.txt`, modificabili anche a mano: `dimensione`, `carattere`,
   `barra_laterale`, `barra_laterale_larghezza`, `barra_tempi`, `animazioni`, `preferiti_aperti`,
   `unita_aperte`, `colonna_data`, `colonna_dimensione`, `colonna_destinazione`, `anteprima`,
-  `anteprima_larghezza`, `carattere_anteprima`, `annulla_dopo_riavvio`, `menu_completo`,
+  `anteprima_larghezza`, `anteprima_vista`, `carattere_anteprima`, `annulla_dopo_riavvio`, `menu_completo`,
   `dimensione_cartelle`, `dialoghi`, `riapri_schede`, `finestre_separate`, `aggiornamenti`,
   `aggiornamenti_beta`, `aggiornamenti_ultimo` (e, solo in lettura, `griglia_dimensione` delle
   versioni fino alla 1.0.0-beta.5). Il pannello delle opzioni (`options.cpp`) le

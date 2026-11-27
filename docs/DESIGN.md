@@ -383,25 +383,61 @@ doppione.
   - **banda in fondo**, sempre, come la barra di stato e con le sue stesse parti (`drawBarBand`,
     `drawBarCounts`, `drawBarView` in `render.cpp`): fondo `C_BAR` alto `statusH`, linea `C_LINE`
     in alto, alla stessa altezza della barra di stato. All'estremo destro il **tipo di contenuto**,
-    disegnato come il controllo della vista ma senza fondo sotto il mouse, perché non si sceglie:
-    "Dettagli" (cartella, con l'icona di Dettagli: le righe sono quelle), "Testo" (Document),
-    "Immagine" (Photo), "Informazioni" (Info: gli altri file e le unità); largo quanto il più
-    largo dei quattro, così i dati prima non si spostano. Prima, dopo la barretta, i **dati** in
+    disegnato come il controllo della vista: per una cartella è la **sua vista** ("Dettagli",
+    "Elenco", "Icone", con le loro icone) e si sceglie come quella della lista (fondo `C_HOVER`
+    sotto il mouse e col menu aperto; clic: lo stesso menu delle viste, con la spunta su quella
+    dell'anteprima; la rotellina sopra cambia lo zoom); per gli altri contenuti non si sceglie
+    (dipende dalla voce) e non ha fondo: "Testo" (Document), "Immagine" (Photo), "Informazioni"
+    (Info: gli altri file e le unità). Largo quanto il più largo dei sei nomi, così i dati prima
+    non si spostano. Prima, dopo la barretta, i **dati** in
     `C_DIM`: per una cartella i contatori di cartelle e file con le icone, come la lista ("+"
     dopo i numeri se la lettura si è fermata prima del fondo); per un testo codifica · righe ·
-    dimensione; per un'immagine larghezza × altezza · dimensione · formato. Informazioni non ha
+    dimensione; per un'immagine larghezza × altezza · dimensione · formato. Una cartella ha a
+    sinistra anche il campo del filtro (sotto). Informazioni non ha
     dati (sono già nelle righe), e senza dati non c'è la barretta. Il totale di una cartella non
     c'è: sta nella colonna Dimensione e nel tooltip;
   - **immagine**: centrata nello spazio, 1:1 (la decodifica la riduce già alla misura), mai
     ingrandita; nessuna cornice, nessuna scacchiera dietro la trasparenza;
   - **testo**: carattere dell'anteprima (sezione 4), `C_TEXT`, a capo sulle parole, interlinea
     `LINE_GAP`; "File vuoto" in `C_FAINT`;
-  - **cartella**: righe alte una riga come la lista (icona, nome, dimensione a destra in `C_DIM`),
-    nascoste in `C_FAINT` con l'icona attenuata; nessun hover né selezione: non si clicca;
+  - **cartella**: è una **seconda lista**, la stessa della finestra (`ListPane` in un
+    `PaneScope`, `drawListItems`), con le righe allineate a quelle della lista sotto
+    l'intestazione. Non si scende nelle sue sottocartelle, ma sulle voci si agisce come nella
+    lista:
+    - **vista** del pannello, una per tutte le cartelle che mostra (`anteprima_vista`): Dettagli
+      (icona, nome, dimensione a destra in `C_DIM`: niente Data né Destinazione, il pannello è
+      stretto), Elenco, Icone con le miniature, come le viste della lista. Si sceglie dal suo
+      controllo nella banda, con Ctrl+rotellina sopra il pannello e, con la tastiera
+      nell'anteprima, con le scorciatoie delle viste;
+    - hover, selezione (clic, Ctrl, Shift, rettangolo), tooltip, menu col tasto destro (delle
+      voci e dello sfondo: Incolla e Nuova cartella valgono per la cartella mostrata),
+      trascinamento verso fuori e rilascio sopra (su una sua sottocartella o nella cartella
+      mostrata), rinomina nella cella: come nella lista;
+    - **doppio clic** (e Invio): un file si apre; una cartella (o uno zip) **in una nuova scheda
+      in background**, come col clic centrale. Nell'anteprima non si scende e la lista non si
+      sposta (scelta con Zyruel: una navigazione dentro l'anteprima vorrebbe una sua barra del
+      percorso, un elemento in più da decidere a parte);
+    - **tastiera**: un clic nel pannello (o Tab) gli dà la tastiera; la riprende la lista con un
+      clic nella lista, con Tab o con Esc (che prima toglie la selezione). Il **cursore** (pillola
+      e contorno) si vede solo nella lista che ha la tastiera; la selezione resta in tutte e due.
+      Con la tastiera nell'anteprima agiscono lì frecce, PagSu/PagGiù, Home/Fine, Invio, Canc,
+      Ctrl+A/C/X/V, F2, F5, Alt+Invio e il menu; restano della finestra schede, cronologia, Vai a,
+      pannelli, annulla e ripeti. Le lettere scrivono nel **filtro dell'anteprima**;
+    - **filtro**: a sinistra nella banda in fondo, lo stesso campo della barra di stato della lista
+      (`drawBarFilter`, stesse misure: largo `FILTER_W`, al massimo `FILTER_MAX` del pannello, mai
+      sopra i contatori, nascosto sotto `FILTER_MIN`), con "Filtra N elementi…", la
+      sottolineatura `C_ACCENT` e la × quando è attivo. È dell'anteprima: si scrive con la tastiera
+      nell'anteprima (un clic nel campo gliela dà), filtra solo le sue voci e i suoi contatori,
+      resta quando la stessa cartella si rilegge e si toglie quando l'anteprima passa a un'altra
+      voce. Esc e Backspace come nella lista;
+    - si rilegge da sola quando la cartella cambia (operazioni fatte lì o da fuori, solo sulle
+      unità locali; in rete con F5), tenendo selezione, cursore e scorrimento;
+    - scorre con la rotellina come la lista (scorrimento morbido) e ha la sua barra di
+      scorrimento; voci ritagliate al corpo del pannello;
   - **altri file, unità**: icona grande della shell (`PREVIEW_ICON`, 96, mai ingrandita) centrata
     in alto, poi le righe del tooltip (etichetta `C_DIM`, valore `C_TEXT`, note `C_FAINT`);
-  - testo e cartella scorrono con la rotellina sopra il pannello (tre righe a scatto, senza
-    animazione, come i menu che scorrono) e mostrano la barra `EDGE` di `drawPanelScroll`;
+  - il testo scorre con la rotellina sopra il pannello (tre righe a scatto, senza animazione,
+    come i menu che scorrono) e mostra la barra `EDGE` di `drawPanelScroll`;
   - **cambio di voce senza animazione**: con le frecce sarebbe solo rumore. Il contenuto
     precedente resta finché arriva il nuovo; se tarda più di `LOADING_AFTER` si vedono il nome e
     "caricamento…" in `C_FAINT`;
@@ -623,7 +659,7 @@ doppione.
 | Gesto | Significato, ovunque |
 |---|---|
 | clic | seleziona o attiva |
-| doppio clic | apre |
+| doppio clic | apre; una cartella nell'anteprima in una nuova scheda in background |
 | clic sulla destinazione di un collegamento | la cartella che la contiene, con la destinazione selezionata |
 | clic centrale | apre in una nuova scheda in background; su una scheda la chiude |
 | Ctrl+clic | nella lista alterna la selezione; su un preferito apre in nuova scheda |
@@ -637,7 +673,7 @@ doppione.
 | cestino a destra di un preferito | primo clic: "Togli?"; secondo clic: lo toglie dai preferiti |
 | trascina col tasto destro | al rilascio, un menu chiede cosa fare |
 | rotellina | scorre l'elemento sotto il mouse, non quello attivo; le frazioni di scatto dei touchpad si sommano (negli elenchi a righe intere) |
-| Ctrl+rotellina | zoom della lista: Dettagli, Elenco, Icone da 20 a 100% (solo la lista; il testo con Ctrl +/−) |
+| Ctrl+rotellina | zoom della lista: Dettagli, Elenco, Icone da 20 a 100% (solo la lista; il testo con Ctrl +/−); sopra l'anteprima di una cartella, la vista dell'anteprima |
 | tasti laterali; tasti Indietro/Avanti della tastiera; gesti del touchpad "Spostamento indietro/avanti" di Windows | indietro / avanti (sopra le opzioni e "Vai a": niente) |
 
 ### Tastiera
@@ -654,9 +690,12 @@ doppione.
   (anche Ctrl+Shift+Z) per annullare e ripetere le operazioni sui file. Dentro una casella di
   testo Ctrl+Z non tocca i file.
 - **Esc toglie un livello alla volta:** rettangolo, bordo o preferito trascinato (si torna a prima), conferma del cestino → menu →
-  modifica in corso → filtro → selezione. Nei pannelli
+  modifica in corso → filtro → selezione → (nell'anteprima) la tastiera torna alla lista. Nei pannelli
   con una ricerca (opzioni, "Vai a"): prima svuota la ricerca, poi chiude.
-- **Digitare filtra subito:** nessun campo da attivare prima.
+- **Digitare filtra subito:** nessun campo da attivare prima. Filtra la lista che ha la tastiera:
+  la lista principale o l'anteprima di una cartella, ognuna col suo campo.
+- **Tab** passa la tastiera tra la lista e l'anteprima di una cartella; la lista che ce l'ha
+  mostra il cursore (Ctrl+Tab resta il cambio di scheda).
 
 ### Tooltip
 - Compaiono dopo `TIP_DELAY` (500 ms) fermi su un elemento; passando a un elemento vicino entro

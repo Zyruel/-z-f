@@ -20,6 +20,61 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 00000000000000000000000000000000000000000000000. Anteprima di una cartella come seconda lista (z-f-dev, novembre 2026)
+
+La cartella nell'anteprima è una lista vera (`ListPane` scambiato con `App` nei `PaneScope`), con
+la sua vista, selezione, menu, trascinamento, tastiera (Tab) e aggiornamento da sola. Compilato
+senza avvisi (MSVC). Provato da Claude in z-f-dev in una cartella con file finti
+(`prove\anteprima-prova.py`): le voci con [x] e quelle con "fatto". Le correzioni del `/controllo`
+venute dopo (atlante che non si rifà passando da un file a una cartella, rilettura con la selezione
+al posto della voce eliminata, osservatore che riparte, Ctrl+V e Backspace con la tastiera
+nell'anteprima, menu dopo una rilettura) sono compilate ma non riprovate a schermo (PC in uso).
+- [x] cursore su una cartella: l'anteprima la mostra come prima in Dettagli (icona, nome,
+  dimensione), righe allineate a quelle della lista; hover sulle voci;
+- [x] controllo della vista in fondo a destra dell'anteprima: fondo sotto il mouse, clic → menu
+  con la spunta sulla vista dell'anteprima; Elenco, Icone piccole/medie/grandi; la rotellina sopra
+  il controllo e Ctrl+rotellina sul pannello (`prove\rotella.py`) cambiano la vista; si ricorda
+  riaprendo (`anteprima_vista`); con testo e immagini il controllo resta inerte (questo da provare);
+- [x] Icone nell'anteprima con le miniature, anche con la lista in Icone a un'altra misura (le
+  due insieme: niente miniature che lampeggiano o spariscono); poi una sola delle due;
+- [ ] a 175%: lista in Icone piccole a tutto schermo con l'anteprima in Icone grandi (atlante con 81
+  posti, `docs/da-sistemare.md`);
+- [x] Elenco nell'anteprima scorrendo in orizzontale (fatto: Elenco con 60 voci, senza scorrimento):
+  le colonne non sconfinano nella lista;
+- [x] clic, Ctrl+clic, Shift+clic, rettangolo (anche con lo scorrimento vicino ai bordi), Esc
+  durante il rettangolo;
+- [x] tasto destro su una voce (fatto: Ctrl+clic, menu della selezione, Copia percorso) e sullo
+  sfondo dell'anteprima: Copia, Taglia, Incolla (nella
+  cartella mostrata), Nuova cartella (rinomina subito nella cella), Rinomina, Elimina, Proprietà,
+  Altre opzioni…; Shift+tasto destro (menu della shell);
+- [x] doppio clic e Invio su un file: si apre; su una sottocartella e su uno zip: nuova scheda in
+  background, la lista e l'anteprima restano dove sono; clic centrale: lo stesso;
+- [x] trascinamento (fatto: anteprima → sua sottocartella, anteprima → lista) dall'anteprima alla
+  barra laterale, fuori da [z]f; dalla lista
+  sull'anteprima (nella cartella mostrata e su una sua sottocartella, col bordo della
+  destinazione); in uno zip mostrato nell'anteprima: divieto;
+- [x] (fatti: Tab, frecce, Fine, Canc, F2, Ctrl+Shift+N, Esc) Tab: la tastiera passa all'anteprima (cursore lì, sparisce dalla lista) e torna; frecce,
+  PagSu/PagGiù, Home/Fine, Ctrl+A, Invio, Canc, Ctrl+C/X/V, F2, F5, Alt+Invio, tasto Menu;
+  Alt+←, Ctrl+T restano della finestra; Esc toglie la selezione, poi riporta la tastiera alla lista;
+- [x] filtro dell'anteprima (fatti da Claude: clic nel campo e lettere, contatori, Backspace, Esc,
+  azzeramento cambiando voce, lettere con la tastiera nella lista che filtrano la lista; restano
+  ×, tooltip, rilettura e finestra stretta): campo a sinistra nella banda, le lettere con la tastiera
+  nell'anteprima filtrano lei (non la lista), contatori del filtro, ×, Esc e Backspace (prima il
+  filtro, poi Backspace va alla cartella superiore della lista), clic nel campo dà la tastiera,
+  tooltip; resta quando la cartella si rilegge e si toglie passando a un'altra voce; con la
+  finestra stretta il campo si accorcia e sparisce;
+- [x] un file creato o cancellato da fuori nella cartella mostrata: l'anteprima si aggiorna da
+  sola, tenendo selezione e scorrimento; una rinomina in corso nell'anteprima resta;
+- [x] tooltip sulle voci dell'anteprima e sul suo controllo della vista;
+- [x] F12: frame 0,12 ms (peggiore 0,24) con lista e anteprima in Icone; contenuto visibile a 50 ms;
+- [x] tempi d'avvio con `prove\avvio.bat` (Claude, 4 giri alternati da 5 con la 1.0.0-beta.6):
+  contenuto in mediana 78 ms contro 77, prima icona 105 contro 104, primo fuoco 11 contro 12;
+  invariato. Nel registro `messaggio lento 0x0010` (circa 50 ms, la chiusura della finestra di
+  prova) con tutte e due le build;
+- [x] registro (`build\z-f-log.txt`) dopo le prove: solo voci normali. Un crash trovato e corretto
+  (`buildLower` mancante in `pvDir`: la rilettura ritrova la selezione per nome) e un guasto del
+  trascinamento dall'anteprima (ciclo modale dentro lo scambio) corretto.
+
 ## 0000000000000000000000000000000000000000000000. Correzioni del controllo prima della 1.0.0-beta.6 (z-f-dev, novembre 2026)
 
 Dal `/controllo cambiati`: doppio clic su ⚙ e sulla versione, Ctrl+rotellina con le opzioni
