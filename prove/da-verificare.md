@@ -46,7 +46,13 @@ ritrovato riaprendo la finestra, gruppi chiusi riaperti; misure su WinSxS (ARCHI
 - [ ] dentro uno zip: gruppi per Tipo e per Data creazione ("Senza data");
 - [ ] anteprima di una cartella raggruppata: nell'anteprima niente gruppi;
 - [ ] Dettagli con un gruppo chiuso e la barra di scorrimento trascinata fino in fondo: l'ultima
-      intestazione si vede intera.
+      intestazione si vede intera;
+- [ ] clic su un'intestazione in una cartella che si ricarica di continuo (Download durante uno
+      scaricamento, o un file scritto in un ciclo da uno script): il gruppo si chiude anche se tra
+      pressione e rilascio arriva una ricarica (corretto: prima il clic si perdeva);
+- [ ] tasto destro sull'intestazione delle colonne, ↓ fino a "Raggruppa per…" e Invio: il menu dei
+      gruppi si apre con "Nessun gruppo" attivo, ↓ e Invio scelgono (corretto: prima nessuna voce
+      attiva); aperto col mouse, nessuna voce attiva come prima.
 
 ## 0000000000000000000000000000000000000000000000000000000. Filtro per colonna (z-f-dev, novembre 2026)
 

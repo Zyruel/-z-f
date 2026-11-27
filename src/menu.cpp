@@ -188,13 +188,15 @@ static void menuOpenHeader(float cx, float cy) {
 
 // "Raggruppa per…": "Nessun gruppo" e le colonne per cui si raggruppa (colGroupable), con la spunta
 // sulla scelta attuale; una scelta sola, quindi il clic chiude il menu. Si apre al posto del menu
-// delle colonne (x, y: il suo angolo in alto a sinistra)
+// delle colonne (x, y: il suo angolo in alto a sinistra). Scelto da tastiera, con la prima voce attiva
+static bool g_menuByKey = false; // la voce che si sta eseguendo è stata scelta da tastiera (menuKey)
 static void menuOpenGroup(float x, float y) {
     double t0 = nowMs();
     PopupMenu& m = A.menu;
     m.items.clear();
     m.kind = MENU_GROUP;
     m.target = -1;
+    m.hot = -1; // quella del menu delle colonne non vale qui
     menuAdd(L"Nessun gruppo", M_GROUP + COL_NAME);
     if (!grouped()) m.items.back().icon = 3;
     for (int c : kColOrder) {
@@ -202,7 +204,7 @@ static void menuOpenGroup(float x, float y) {
         menuAdd(kCols[c].title, M_GROUP + c);
         if (grouped() && A.groupCol == c) m.items.back().icon = 3;
     }
-    menuPlace(x, y, false, t0);
+    menuPlace(x, y, g_menuByKey, t0);
 }
 
 // Menu del filtro di una colonna: le spunte vengono dal filtro (A.colFilter), "Tutti" quando la
@@ -576,7 +578,9 @@ static void menuKey(WPARAM vk) {
         menuEnsureVisible();
         A.dirty = true;
     } else if (vk == VK_RETURN || vk == VK_SPACE) {
+        g_menuByKey = true;
         menuExec(m.hot);
+        g_menuByKey = false;
     } else {
         menuClose(); // Esc o qualsiasi altro tasto
     }

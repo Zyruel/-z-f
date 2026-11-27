@@ -725,8 +725,9 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         A.linkPressFor = A.cur;
         // Intestazione di un gruppo: chiude o apre al rilascio, se non è partito il rettangolo
         // (che da lì parte come dallo spazio vuoto)
-        A.groupPress = r < 0 ? groupHeadAt(x, y) : -1;
-        A.groupPressFor = A.cur;
+        int gp = r < 0 ? groupHeadAt(x, y) : -1;
+        A.groupPressed = gp >= 0;
+        if (gp >= 0) { A.groupPressV = A.groups[gp].v; A.groupPressPath = A.cur->path; A.groupPressCol = A.groupCol; }
         mqPress(x, y, r, shift, ctrl);
         return 0;
     }
@@ -785,10 +786,10 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             bool linkClick = pressed >= 0 && MQ.armed && A.cur == A.linkPressFor &&
                              linkHit(GET_X_LPARAM(lp), GET_Y_LPARAM(lp)) == pressed;
             // Clic sull'intestazione di un gruppo: premuto e rilasciato lì, senza rettangolo
-            int head = A.groupPress;
-            A.groupPress = -1;
-            bool headClick = head >= 0 && MQ.armed && !MQ.preview && A.cur == A.groupPressFor &&
-                             groupHeadAt(GET_X_LPARAM(lp), GET_Y_LPARAM(lp)) == head;
+            int head = A.groupPressed && MQ.armed && !MQ.preview ? groupHeadAt(GET_X_LPARAM(lp), GET_Y_LPARAM(lp)) : -1;
+            bool headClick = head >= 0 && A.cur && A.groupCol == A.groupPressCol && colValueSame(A.groups[head].v, A.groupPressV) &&
+                             !_wcsicmp(A.cur->path.c_str(), A.groupPressPath.c_str());
+            A.groupPressed = false;
             mqEnd(); // il clic è già stato applicato alla pressione
             zipDragCancel();
             dragRelease();

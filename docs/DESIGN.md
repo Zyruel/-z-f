@@ -357,7 +357,8 @@ doppione.
     dalla vista come col filtro: non sono selezionate, Ctrl+A e il rettangolo non le prendono,
     contatori e "Filtra N elementi" non le contano; il numero sull'intestazione resta. La lista non
     scorre (l'intestazione resta sotto il mouse) e il cursore di un gruppo che si chiude passa alla
-    prima voce dei gruppi dopo (all'ultima dei gruppi prima, se dopo sono tutti chiusi). Il clic vale al rilascio, se non è partito il rettangolo. I gruppi
+    prima voce dei gruppi dopo (all'ultima dei gruppi prima, se dopo sono tutti chiusi). Il clic vale al rilascio, se non è partito il rettangolo, anche se
+    intanto la cartella si è ricaricata (vale il gruppo, non la sua posizione). I gruppi
     chiusi sono della scheda: restano con le ricariche, l'ordinamento e il cambio di vista, e si
     riaprono tutti cambiando cartella o raggruppamento (scelta di Zyruel: non si ritrova una
     cartella con voci nascoste da giorni). Tooltip: il nome del gruppo, le voci, "Clic: chiudi il
@@ -366,7 +367,9 @@ doppione.
     spazio vuoto e un rilascio di file vale per la cartella aperta: non è una voce;
   - **tastiera**: il cursore sta solo sulle voci, e le frecce passano da un gruppo all'altro
     saltando le intestazioni (↑ ↓ in Icone, ← → in Elenco: la riga o la colonna accanto, nella
-    stessa posizione o nell'ultima voce se è più corta). Da tastiera i gruppi non si chiudono.
+    stessa posizione o nell'ultima voce se è più corta). Da tastiera i gruppi non si chiudono, come
+    i titoli di sezione della barra laterale (scelta di Zyruel: ← → sono già delle viste, e i tasti
+    senza modificatori scrivono nel filtro).
 - **Viste e zoom** (Ctrl+rotellina · controllo della vista nella barra di stato · Ctrl+Shift+2 per
   Dettagli, 3 per Elenco, 4/5/6 per le icone piccole, medie, grandi · menu dello sfondo → "Mostra come
   icone"/"Mostra come dettagli", `thumbs.cpp`): un solo livello di zoom per cartella sceglie la

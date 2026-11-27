@@ -211,10 +211,15 @@ struct App {
     std::vector<Group> groups;
     std::vector<ColValue> groupClosed;
     double groupMs = 0;               // F12: ultimo raggruppamento (in applyFilter)
-    // Intestazione di un gruppo sotto il mouse e premuta col tasto sinistro (indici in groups): il
-    // clic vale al rilascio, se non è partito il rettangolo (groupToggle)
-    int groupHover = -1, groupPress = -1;
-    const void* groupPressFor = nullptr;
+    // Intestazione di un gruppo sotto il mouse (indice in groups) e premuta col tasto sinistro: il
+    // clic vale al rilascio, se non è partito il rettangolo (groupToggle). La premuta si ricorda col
+    // valore, la cartella e la colonna, non con l'indice e il Listing: una ricarica tra pressione e
+    // rilascio (una cartella che cambia di continuo) rifà i gruppi e A.cur, ma il clic resta valido
+    int groupHover = -1;
+    bool groupPressed = false;
+    ColValue groupPressV;
+    std::wstring groupPressPath;
+    int groupPressCol = -1;
     // Ora dell'ultimo clic su un'intestazione: chiudere un gruppo può far scorrere la lista (in fondo
     // il contenuto si accorcia), e il secondo clic di un doppio clic non deve aprire la voce finita sotto
     double groupClickAt = -1e9;

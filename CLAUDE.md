@@ -180,9 +180,9 @@ Come si compila e si prova, passo per passo: `/prova` (skill in `.claude/skills/
 
 **Colonne (1.0.0-beta.9): fatte tutte e tre le fasi** (colonne a scelta ed estensioni nascoste,
 filtro per colonna, gruppi), da committare quando Zyruel lo chiede. Restano le prove a mano di
-`prove\da-verificare.md` (175%, gruppi per Dimensione mentre si contano le cartelle) e le scelte
-minori dei gruppi da confermare in `docs/da-sistemare.md`. Il prossimo passo si sceglie con
-Zyruel da `docs/idee.md`.
+`prove\da-verificare.md` (175%, gruppi per Dimensione mentre si contano le cartelle); le scelte
+minori dei gruppi sono confermate (27/11). Il prossimo passo si sceglie con Zyruel da
+`docs/idee.md`.
 
 Le altre idee non ancora decise sono in `docs/idee.md`, e quando Zyruel ne sceglie una si scrive qui. Cosa c'è in ogni versione è in `NOVITA.md`. Il monitor di
 Zyruel è a 175%.
