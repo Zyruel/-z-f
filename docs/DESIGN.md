@@ -48,6 +48,7 @@ nome che dice a cosa serve.
 | `C_SHADOW` | ombra dei pannelli sovrapposti |
 | `C_HOVER` | elemento sotto il mouse |
 | `C_HOVER_STRONG` | sotto il mouse, su un controllo piccolo dentro un elemento già evidenziato (la × della scheda, la destinazione di un collegamento) |
+| `C_HOVER_PANEL` | sotto il mouse nei pannelli sovrapposti: su `C_MENU` si vede quanto `C_HOVER` sullo sfondo (1,2:1), mentre `C_HOVER` lì è invisibile (1,04:1) |
 | `C_SEL` | selezionato; elemento corrente (cartella corrente nella barra laterale, voce attiva di un menu) |
 | `C_SEL_HOVER` | selezionato e sotto il mouse |
 | `C_SEL_EDGE` | cursore da tastiera |
@@ -55,8 +56,9 @@ nome che dice a cosa serve.
 | `C_MARQUEE` | fondo del rettangolo di selezione (`C_SEL_EDGE` trasparente) |
 | `C_SCROLL` | barra di scorrimento, barra d'uso delle unità |
 | `C_TEXT` | testo primario |
-| `C_DIM` | testo secondario: date, dimensioni, etichette, scorciatoie |
-| `C_FAINT` | testo terziario, voci disattivate, file nascosti, suggerimenti |
+| `C_DIM` | testo secondario: date, dimensioni, etichette, scorciatoie; ogni testo da leggere che non è primario (spiegazioni, titoli di sezione, note dei tooltip, messaggi) |
+| `C_DIM_SEL` | il testo secondario di `C_DIM` sopra `C_SEL` (voce selezionata, voce attiva di un menu o di "Vai a"): lì `C_DIM` scende a 3,5:1 (2,9 su `C_SEL_HOVER`), questo è 5,4 e 4,4 |
+| `C_FAINT` | voci disattivate, file nascosti, suggerimento a casella vuota ("Cerca…"): ciò che si può non leggere. Contrasto 2,5–3:1, sotto il minimo per il testo: mai per un testo che porta un'informazione |
 | `C_ACCENT` | stato attivo, informazione, filtro, scheda attiva |
 | `C_ERR` | errori, spazio su disco oltre il 90% |
 | `C_FOLDER`, `C_FILE` | segnaposto delle icone |
@@ -107,9 +109,12 @@ arrotonda per difetto, così i bordi cadono su pixel interi.
   l'allineamento. È contenuto del file, non interfaccia; si sceglie nelle opzioni
   (`carattere_anteprima`). Intestazione, banda in fondo e note dell'anteprima restano in
   Segoe UI.
-- **Testo su più righe** (tooltip, testo nell'anteprima): interlinea `LINE_GAP` (3).
+- **Testo su più righe** (tooltip, testo nell'anteprima, spiegazioni delle opzioni): interlinea
+  `LINE_GAP` (3); a capo dopo l'ultimo spazio che ci sta (`textLineEnd`).
 - **ClearType** se Windows lo usa, altrimenti scala di grigi.
-- **Testo troncato** con "…" alla fine. Il testo completo è nel tooltip.
+- **Testo troncato** con "…" alla fine. Il testo completo è nel tooltip. Eccezione: il nome di
+  un'unità perde le lettere prima di " (C:)", che resta ("Disco l… (C:)", `drawTextKeepTail`),
+  perché la lettera è ciò che distingue le unità.
 - **Allineamento:** numeri a destra (dimensioni), tutto il resto a sinistra.
 
 ---
@@ -160,8 +165,8 @@ Valgono per righe, voci della barra laterale, schede e voci di menu.
 | Stato | Aspetto |
 |---|---|
 | normale | nessun fondo |
-| sotto il mouse | `C_HOVER`, in dissolvenza |
-| selezionato | `C_SEL`; sotto il mouse `C_SEL_HOVER` |
+| sotto il mouse | `C_HOVER`, in dissolvenza; nei pannelli sovrapposti (fondo `C_MENU`) `C_HOVER_PANEL` |
+| selezionato | `C_SEL`; sotto il mouse `C_SEL_HOVER`; il testo secondario (date, dimensioni) in `C_DIM_SEL` |
 | corrente (cartella aperta, scheda attiva) | `C_SEL` nella barra laterale; per le schede fondo `C_BAR` e barra `C_ACCENT` in alto |
 | cursore da tastiera | pillola verticale `PILL_W` a sinistra in `C_SEL_EDGE` (metà dell'altezza della riga), più un contorno 1 px arrotondato se l'elemento non è selezionato |
 | disattivato | testo `C_FAINT`, nessun hover |
@@ -311,7 +316,7 @@ doppione.
   viste, tooltip, anteprima) è quello di sempre:
   - colonna Dimensione: le cartelle hanno il totale dall'archivio, in `C_DIM` (non c'è un conteggio
     in corso), se è accesa l'opzione delle dimensioni delle cartelle;
-  - **sola lettura**: nel menu Taglia, Rinomina, Elimina, Incolla e Nuova cartella restano,
+  - **sola lettura**: nel menu Taglia, Rinomina, Sposta nel Cestino, Incolla e Nuova cartella restano,
     disattivate (si applicano, ma qui non si può); Proprietà, Apri con, "Apri terminale qui" e
     "Altre opzioni…" non ci sono (la shell non vede dentro lo zip), e Shift+tasto destro apre il
     nostro menu. Da tastiera l'avviso di errore "L'archivio zip è in sola lettura" o "Non
@@ -352,9 +357,9 @@ doppione.
   - scheda attiva in `C_BAR` con barra `C_ACCENT` in alto; schede inattive in `C_TABBAR`, separate da un trattino `C_LINE`;
   - la × compare solo sulla scheda attiva o sotto il mouse.
 - **Versione e aggiornamento** (`update.cpp`): nel piede delle opzioni, a sinistra, la versione
-  ("[z]f 1.0.0-beta.5") in `C_FAINT`, seguita da un'icona di stato larga quanto il font di icone.
+  ("[z]f 1.0.0-beta.5") in `C_DIM`, seguita da un'icona di stato larga quanto il font di icone.
   La versione è un collegamento alla sua Release su GitHub (novità e download): sotto il mouse il
-  fondo `C_HOVER` arrotondato `R_S`, largo il testo più `GAP_S` per lato, e la manina di Windows
+  fondo `C_HOVER_PANEL` arrotondato `R_S`, largo il testo più `GAP_S` per lato, e la manina di Windows
   (`IDC_HAND`), come la destinazione di un collegamento nella lista. L'icona di stato:
   - non ancora controllato o errore: frecce circolari (`IC_SYNC`) in `C_FAINT`;
   - controllo in corso: l'anello di punti in `C_DIM` (§5), per almeno un giro (`SPIN_PERIOD`):
@@ -394,7 +399,9 @@ doppione.
     è nella barra di stato.
 - **Pannello di anteprima** (Alt+P · ◨, `preview.cpp`): non è un
   pannello sovrapposto ma una parte della finestra, in una di due **posizioni** (˅ accanto a ◨,
-  o "Posizione dell'anteprima ‹ A destra ›" nelle opzioni; `anteprima_posizione`):
+  Alt+Shift+P che le alterna, o "Posizione dell'anteprima ‹ A destra ›" nelle opzioni;
+  `anteprima_posizione`). Nel menu di ˅ la scorciatoia sta sulla voce della posizione non attiva,
+  dove porterebbe:
   - **a destra** (predefinita): a destra della lista, dall'intestazione al fondo della finestra,
     come la barra laterale; lista, barra dei tempi e barra di stato finiscono alla sua sinistra
     (`A.listR`);
@@ -425,7 +432,7 @@ doppione.
   - **immagine**: centrata nello spazio, 1:1 (la decodifica la riduce già alla misura), mai
     ingrandita; nessuna cornice, nessuna scacchiera dietro la trasparenza;
   - **testo**: carattere dell'anteprima (sezione 4), `C_TEXT`, a capo sulle parole, interlinea
-    `LINE_GAP`; "File vuoto" in `C_FAINT`;
+    `LINE_GAP`; "File vuoto" in `C_DIM`;
   - **cartella**: è una **seconda lista**, la stessa della finestra (`ListPane` in un
     `PaneScope`, `drawListItems`), con le righe allineate a quelle della lista sotto
     l'intestazione. Non si scende nelle sue sottocartelle, ma sulle voci si agisce come nella
@@ -466,12 +473,12 @@ doppione.
     - scorre con la rotellina come la lista (scorrimento morbido) e ha la sua barra di
       scorrimento; voci ritagliate al corpo del pannello;
   - **altri file, unità**: icona grande della shell (`PREVIEW_ICON`, 96, mai ingrandita) centrata
-    in alto, poi le righe del tooltip (etichetta `C_DIM`, valore `C_TEXT`, note `C_FAINT`);
+    in alto, poi le righe del tooltip (etichetta `C_DIM`, valore `C_TEXT`, note `C_DIM`);
   - il testo scorre con la rotellina sopra il pannello (tre righe a scatto, senza animazione,
     come i menu che scorrono) e mostra la barra `EDGE` di `drawPanelScroll`;
   - **cambio di voce senza animazione**: con le frecce sarebbe solo rumore. Il contenuto
     precedente resta finché arriva il nuovo; se tarda più di `LOADING_AFTER` si vedono il nome e
-    "caricamento…" in `C_FAINT`;
+    "caricamento…" in `C_DIM` (come "File vuoto" e gli errori);
   - **larghezza**: predefinita `PREVIEW_W` (360), minima `PREVIEW_MIN` (220), al massimo
     `PREVIEW_MAX` (metà) della finestra. Il bordo con la lista si afferra come quelli delle
     colonne (fascia `COL_GRIP` verso il pannello, `GAP_XS` verso la lista per non prendere la
@@ -489,7 +496,7 @@ doppione.
     spazio. Aprendolo senza spazio: avviso. (Scelta con Zyruel: se il pannello cedesse per primo,
     ogni colonna stretta col mouse lo allargherebbe, e allargare una colonna sarebbe impossibile.)
 - **Barra laterale:**
-  - la sezione "Preferiti" ha il titolo in `C_FAINT` e una freccia ˅/› a destra; clic sul titolo: la sezione si chiude o si apre (ricordato);
+  - la sezione "Preferiti" ha il titolo in `C_DIM` (`C_TEXT` sotto il mouse) e una freccia ˅/› a destra; clic sul titolo: la sezione si chiude o si apre (ricordato);
     le voci stanno sotto il titolo rientrate di `SIDE_INDENT`, come le unità sotto Questo PC (lo
     sfondo di hover e selezione resta largo quanto la barra);
   - **preferiti col mouse**: il clic vale al rilascio, così una voce si trascina tra le altre
@@ -500,7 +507,8 @@ doppione.
     l'hover). **Conferma sul posto, niente dialoghi**: il primo clic lo fa diventare `C_ERR` con
     "Togli?" accanto; il secondo toglie la voce (avviso "Tolta dai preferiti"); uscendo dalla voce
     o con Esc la conferma si annulla;
-  - voci con icona e nome; le unità hanno lo spazio libero a destra e la barra d'uso sotto;
+  - voci con icona e nome; le unità hanno lo spazio libero a destra in `C_DIM` e la barra d'uso
+    sotto; un nome che non ci sta perde le lettere prima di " (C:)" (sezione 4);
   - dopo i preferiti, a `GAP_L`, "Questo PC" (icona della shell) come nodo dell'albero, come
     nella navigazione di Explorer, con le unità sotto rientrate di `SIDE_INDENT`. Ha a destra la
     freccia ˅/› dei titoli (`C_FAINT`, `C_DIM` sotto il mouse): clic sulla freccia, il ramo delle
@@ -508,7 +516,7 @@ doppione.
     è aperta; a ramo chiuso porta la pillola `C_SEL_EDGE_PARENT` se la cartella aperta è su
     un'unità. Non riceve file trascinati. Menu (anche col tasto destro sulla freccia): Apri, Apri
     in nuova scheda, Connetti unità di rete…, Aggiungi percorso di rete…, Proprietà;
-  - preferiti vuoti: una riga con la scorciatoia che li aggiunge, in `C_FAINT`;
+  - preferiti vuoti: una riga con la scorciatoia che li aggiunge, in `C_DIM`;
   - unità di rete: il nome della condivisione come in Explorer ("Condivisione (G:)", o quello dato
     dall'utente), non l'etichetta del disco sul server; `\\server\condivisione` nel tooltip
     ("Percorso di rete"). Nel loro menu, prima di Proprietà, "Disconnetti";
@@ -534,7 +542,9 @@ doppione.
     tanto stretta da lasciargli meno di `FILTER_MIN` (2) altezze del campo non si disegna (il filtro si scrive
     lo stesso). Fondo `C_INPUT`; l'imbuto sta nella colonna
     delle icone della lista e il testo in quella dei nomi (`A.iconX`, `A.nameX`); vuoto mostra
-    "Filtra N elementi…" in `C_FAINT`; attivo ha la sottolineatura `C_ACCENT` e la × per
+    "Filtra N elementi…" in `C_FAINT`, con N le voci della vista, il punto delle migliaia, "+" se
+    la cartella è letta in parte (anteprima) e il singolare per una ("Filtra 1 elemento…"); in una
+    cartella vuota niente suggerimento; attivo ha la sottolineatura `C_ACCENT` e la × per
     toglierlo. Si scrive in qualsiasi punto della lista;
   - all'estremo destro, prima del bordo dell'anteprima, il **controllo della vista**: icona della vista (BulletedList, List,
     ViewAll) in `C_FAINT` e nome ("Dettagli", "Elenco", "Icone") in `C_DIM`, largo sempre
@@ -550,7 +560,7 @@ doppione.
   - dopo il filtro, a `GAP_L`, avvisi e "caricamento…", che finiscono in "…" a `GAP_L` dalla
     parte destra.
 - **Barra dei tempi** (opzione "Barra dei tempi", `barra_tempi`, spenta di solito): sopra la barra
-  di stato, alta una riga, stessa larghezza; i tempi misurati in `C_FAINT` da `PAD_X`, con il
+  di stato, alta una riga, stessa larghezza; i tempi misurati in `C_DIM` da `PAD_X`, con il
   tooltip che li spiega. Accesa, la lista si accorcia di una riga; l'anteprima no.
 - **Avvisi** (`notice`): una riga a sinistra nella barra di stato.
   - informazione in `C_ACCENT` per 2,5 s, errore in `C_ERR` per 4 s;
@@ -570,7 +580,7 @@ doppione.
   voci non stanno nella finestra il menu scorre voce per voce (rotellina, frecce, PagSu/PagGiù),
   con una barra di scorrimento `EDGE` a destra.
 - **Menu contestuale:**
-  - pannello `C_MENU`; voci alte una riga, con l'etichetta a sinistra e la scorciatoia a destra in `C_DIM`;
+  - pannello `C_MENU`; voci alte una riga, con l'etichetta a sinistra e la scorciatoia a destra in `C_DIM` (`C_DIM_SEL` sulla voce attiva);
   - separatori `C_LINE`; voce attiva `C_SEL`;
   - le voci che non si applicano a quel tipo di elemento non compaiono (Taglia su un'unità); quelle
     che si applicano ma ora non sono possibili restano, disattivate (Incolla senza file negli appunti);
@@ -603,7 +613,7 @@ doppione.
     cartella"); senza niente da annullare è "Annulla", disattivata. Nel menu dello sfondo stanno
     subito dopo Incolla, come in Explorer: "Annulla …" sempre, "Ripeti …" solo quando c'è.
 - **Tooltip:**
-  - pannello `C_MENU`: titolo in `C_TEXT`, se serve su più righe; poi coppie etichetta (`C_DIM`) / valore (`C_TEXT`); le note senza etichetta in `C_FAINT`;
+  - pannello `C_MENU`: titolo in `C_TEXT`, se serve su più righe; poi coppie etichetta (`C_DIM`) / valore (`C_TEXT`); le note senza etichetta in `C_DIM`;
   - larghezza massima `TIP_MAX_W` (520).
 - **Casella di testo:** fondo `C_INPUT`, selezione `C_SEL_TEXT`, margine interno `FIELD_PAD` (6).
   Una sola implementazione (`TextField`) per rinomina, ricerca delle opzioni, "Vai a" e
@@ -612,20 +622,35 @@ doppione.
   almeno `THUMB_MIN` (24).
 - **Pannello delle opzioni** (⚙ · Ctrl+,): pannello sovrapposto
   centrato, con il resto della finestra attenuato da `C_SHADOW`.
-  - barra del titolo con ×; sezioni col titolo in `C_FAINT`; righe con etichetta a sinistra e
-    controllo a destra, eventuale spiegazione sotto in `C_FAINT`;
-  - sezioni: Aspetto, Integrazione con Windows ("Usa [z]f al posto di Explorer", "Una finestra per
-    ogni cartella aperta da fuori", menu completo, dialoghi), File ("Annulla dopo il riavvio"), Avvio e
-    aggiornamenti ("Riapri le schede all'avvio", "Aggiornamenti automatici" con l'ora
-    dell'ultimo controllo nella spiegazione, "Ricevi anche le beta"), Scorciatoie;
-  - in fondo la versione in `C_FAINT` (collegamento alla sua Release), seguita dall'icona di stato
+  - barra del titolo con ×; sezioni col titolo in `C_DIM`, sul bordo sinistro del fondo delle righe (`GAP_M` prima delle etichette);
+    righe con etichetta a sinistra e controllo a destra, a `GAP_M` dai bordi del fondo della riga;
+    eventuale spiegazione sotto in `C_DIM`, a capo dove non entra (mai troncata). Una spiegazione
+    che avvisa di uno stato a metà ("[z]f al posto di Explorer" attivo con un altro
+    eseguibile o senza gli zip, con l'interruttore spento) è in `C_ACCENT`;
+  - le righe con un interruttore si cliccano tutte (etichetta e spiegazione) e hanno il fondo
+    `C_HOVER_PANEL` sotto il mouse; il contenuto che non entra scorre (rotellina, ↑↓, PagSu
+    PagGiù) con la barra `EDGE` dei pannelli (`drawPanelScroll`);
+  - scrivendo, la ricerca mostra solo le scorciatoie (casella e risultati in cima), con le lettere
+    trovate in `C_ACCENT` (`drawTextMarked`, come in "Vai a"); una scorciatoia troncata ha il
+    testo intero nel tooltip, un'alternativa per riga;
+  - sezioni: Aspetto (dimensione del testo, carattere, animazioni), Finestra (barra laterale,
+    anteprima, sua posizione, carattere dell'anteprima), Integrazione con Windows ("[z]f al posto
+    di Explorer", "Una finestra per ogni cartella aperta da fuori", menu completo, dialoghi), File
+    ("Annullamento anche dopo il riavvio", dimensione delle cartelle), Avvio e aggiornamenti
+    ("Schede riaperte all'avvio", "Aggiornamenti automatici" con l'ora dell'ultimo controllo nella
+    spiegazione, "Versioni beta"), Scorciatoie e, dopo tutto il resto, Diagnostica ("Barra dei
+    tempi"), che serve a chi misura. Scrivendo nella ricerca restano solo le Scorciatoie;
+  - etichette, spiegazioni e descrizioni delle scorciatoie come in §9 (*Opzioni*, *Scorciatoie*);
+  - in fondo la versione in `C_DIM` (collegamento alla sua Release), seguita dall'icona di stato
     dell'aggiornamento (cliccabile, vedi "Versione e aggiornamento");
   - si chiude con Esc (prima svuota la ricerca), con la × o cliccando fuori.
 - **Interruttore:** pillola 32×16 come in Windows 11: spento è un contorno `C_DIM` con il pallino
   `C_DIM`; acceso è pieno `C_ACCENT` con il pallino scuro. Il pallino scorre (τ come l'indicatore
   della scheda). Tutta la riga è cliccabile.
-- **Selettore:** "−  13 px  +" o "‹  Segoe UI  ›": pulsanti quadrati alti una riga, testo
-  `C_DIM`, hover come le voci; il valore al centro in `C_TEXT`.
+- **Selettore:** "−  13 px  +" o "‹  Segoe UI  ›": su un fondo `C_INPUT` arrotondato `R_S`
+  attorno a tutto il selettore, come una casella, così si vede che il valore si cambia; pulsanti
+  quadrati alti una riga, testo `C_DIM`, hover `C_HOVER_PANEL`; il valore al centro in `C_TEXT`.
+  La larghezza non cambia col valore (`OPT_VALUE_W`, `OPT_FACE_W`).
 - **Trascinamento dei file** (`drag.cpp`):
   - la destinazione sotto il mouse prende l'hover del suo elemento (`C_HOVER`, in dissolvenza) e un
     bordo 1 px `C_SEL_EDGE` arrotondato `R_S`; lo spazio vuoto della lista (la cartella aperta) ha
@@ -644,7 +669,7 @@ doppione.
   - col tasto destro, al rilascio, il menu Copia qui / Sposta qui / Crea collegamento qui / Annulla,
     con la voce che farebbe un trascinamento normale già evidenziata.
 - **Pannello F12:** diagnostica, stile dei pannelli sovrapposti, largo `STATS_W` (440); compare
-  come il menu.
+  come il menu. In fondo "F12 chiude" in `C_DIM`.
 - **"Vai a"** (Ctrl+P · Ctrl+G · clic sul percorso vuoto, `goto.cpp`): pannello sovrapposto (`drawPanel`,
   `R_M`, compare come il menu) centrato in orizzontale, appena sotto la riga del percorso, largo
   al massimo `GOTO_W` (600). Il resto della finestra non si attenua: è un'azione rapida, come un menu.
@@ -653,12 +678,13 @@ doppione.
   - sotto, le voci come quelle di un menu di elenco (`drawPanelItem`): alte una riga, icona della
     cartella o dell'unità, voce attiva `C_SEL`; al massimo `GOTO_ROWS` (12) visibili, poi si scorre
     con la barra `EDGE` (`drawPanelScroll`). Il pannello è alto quanto le voci;
-  - ogni voce: il nome in `C_TEXT`, poi a `GAP_M` la cartella che lo contiene in `C_DIM` (il
+  - ogni voce: il nome in `C_TEXT`, poi a `GAP_M` la cartella che lo contiene in `C_DIM` (`C_DIM_SEL` sulla voce attiva; il
     percorso intero se il nome mostrato non è quello della cartella, come "Documenti"). Il nome
     prende al massimo `GOTO_NAME_MAX` (60%) dello spazio. Nascoste in `C_FAINT`;
   - **lettere trovate in `C_ACCENT`** (il colore del filtro), nel nome o nel percorso
-    (`drawTextMarked`). È l'unico posto dove una parte di un testo cambia colore;
-  - senza voci una riga in `C_FAINT`: "Nessuna cartella", "caricamento…" (dopo `LOADING_AFTER`),
+    (`drawTextMarked`). Solo le lettere trovate da una ricerca (qui e nelle scorciatoie delle
+    opzioni) cambiano colore dentro un testo;
+  - senza voci una riga in `C_DIM`: "Nessuna cartella", "caricamento…" (dopo `LOADING_AFTER`),
     "Impossibile leggere la cartella";
   - campo vuoto: le cartelle recenti, dalla più usata e recente;
   - **dal percorso** (clic sullo spazio vuoto della barra del percorso, Ctrl+L, F4): si apre con
@@ -757,8 +783,13 @@ doppione.
 - **Avvisi:** participio, cosa è successo: "Percorso copiato", "Tolta dai preferiti".
 - **Errori:** cosa non va e su cosa, senza scuse né codici in evidenza. Il codice va tra
   parentesi alla fine, se c'è.
-- **Scorciatoie:** `Ctrl+Shift+C` (tasti col "+", nessuno spazio); più alternative separate da
-  " · ".
+- **Scorciatoie:** `Ctrl+Shift+C` (tasti col "+", nessuno spazio; i modificatori nell'ordine di
+  Windows, Ctrl, Alt, Shift: `Alt+Shift+P`); più alternative separate da " · ". La descrizione comincia con un verbo al presente ("Va indietro", "Apre le proprietà"),
+  e dice abbastanza anche letta da sola ("Va alla cartella di quel segmento", non "Va a quella
+  cartella").
+- **Opzioni:** l'etichetta è il nome di ciò che l'interruttore accende ("Versioni beta",
+  "Annullamento anche dopo il riavvio", non "Ricevi anche le beta"); la spiegazione è
+  impersonale ("quando si torna", non "quando ci torni") e senza nomi di file interni.
 - **Separatore tra valori** su una riga (tooltip, piede dell'anteprima, versione): lo stesso " · ",
   con uno spazio per parte ("25/11/2026 14:18 · 3 min fa", "UTF-8 · 120 righe · 4 KB"). La barra
   di stato ha la sua spaziatura, perché lì separa zone e non valori.

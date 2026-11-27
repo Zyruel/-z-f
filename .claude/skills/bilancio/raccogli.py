@@ -1,7 +1,7 @@
 """Raccoglie i dati del ciclo di lavoro fra due rilasci di [z]f, per /bilancio.
 
 Uso, da Bash nella cartella del progetto:
-    python -I .claude/skills/bilancio/raccogli.py <versione> [<versione precedente>]
+    python -I -X utf8 .claude/skills/bilancio/raccogli.py <versione> [<versione precedente>]
 
 Legge in sola lettura le trascrizioni delle sessioni di Claude Code (~/.claude/projects) e la
 storia di git, e scrive build/bilanci/<versione>-dati.md. Il file e' privato (build/ e' escluso
@@ -23,6 +23,7 @@ import sys
 MAX_MSG = 400        # caratteri tenuti di ogni messaggio di Zyruel
 TOP = 25             # righe delle classifiche
 SEQ_MIN, SEQ_MAX = 3, 5
+OLTRE = 400_000      # contesto oltre il quale un giro costa caro (bilancio della 1.0.0-beta.7)
 
 
 def git(*args):
@@ -279,6 +280,14 @@ class Sessione:
         self.decisioni = collections.Counter()
         self.build = collections.Counter()
         self.costo = None
+        # Token: dalla 1.0.0-beta.7 le trascrizioni non hanno piu' il costo (cost-state), ma ogni
+        # risposta ha il suo usage. Una risposta e' scritta su piu' righe con lo stesso id e lo
+        # stesso usage: si conta una volta.
+        self.tok = collections.Counter()
+        self.sub_tok = collections.Counter()
+        self.picco = 0              # contesto piu' grande di un giro
+        self.oltre = 0              # giri con un contesto oltre OLTRE
+        self.ids = set()
         self.sub = 0                # subagenti con record nella finestra
         self.sub_strumenti = 0
         self.sub_errori = 0
@@ -318,7 +327,21 @@ def esamina(path, s, lo, hi, regole, sub=False):
             m = messaggio_umano(o)
             if m:
                 s.messaggi.append((w, m))
-        content = (o.get("message") or {}).get("content")
+        msg = o.get("message") or {}
+        u = msg.get("usage")
+        if t == "assistant" and isinstance(u, dict) and msg.get("id") not in s.ids:
+            s.ids.add(msg.get("id"))
+            letti = u.get("cache_read_input_tokens") or 0
+            scritti = (u.get("input_tokens") or 0) + (u.get("cache_creation_input_tokens") or 0)
+            tk = s.sub_tok if sub else s.tok
+            tk["letti"] += letti
+            tk["scritti"] += scritti
+            tk["uscita"] += u.get("output_tokens") or 0
+            tk["giri"] += 1
+            if not sub:
+                s.picco = max(s.picco, letti + scritti)
+                s.oltre += letti + scritti > OLTRE
+        content = msg.get("content")
         if not isinstance(content, list):
             continue
         for b in content:
@@ -407,6 +430,10 @@ def tabella(intestazione, righe):
     return out
 
 
+def mega(n):
+    return "%.1f M" % (n / 1e6) if n >= 1e6 else "%dk" % (n // 1000)
+
+
 def ora(w):
     return w.astimezone().strftime("%d/%m %H:%M") if w else "-"
 
@@ -432,8 +459,19 @@ def scrivi(v, prec, lo, hi, fino, ss, regole):
          tot(lambda s: sum(s.errori.values())), tot(lambda s: s.sub_errori)))
     a("- Blocchi di regole.sh: %d; permessi negati: %d; interruzioni: %d"
       % (tot(lambda s: s.blocchi), tot(lambda s: s.negati), tot(lambda s: s.interruzioni)))
-    a("- Costo dichiarato dalle sessioni: %.2f $ (per le sessioni riprese è il costo intero, anche "
-      "di prima del ciclo)" % costo)
+    tk, stk = collections.Counter(), collections.Counter()
+    for s in ss:
+        tk.update(s.tok)
+        stk.update(s.sub_tok)
+    a("- Token: %s letti dalla cache, %s scritti, %s in uscita, in %d giri (subagenti: %s letti, %s in "
+      "uscita, %d giri); giri con un contesto oltre %dk: %d"
+      % (mega(tk["letti"]), mega(tk["scritti"]), mega(tk["uscita"]), tk["giri"], mega(stk["letti"]),
+         mega(stk["uscita"]), stk["giri"], OLTRE // 1000, tot(lambda s: s.oltre)))
+    if costo:
+        a("- Costo dichiarato dalle sessioni: %.2f $ (per le sessioni riprese è il costo intero, anche "
+          "di prima del ciclo)" % costo)
+    else:
+        a("- Costo: non registrato nelle trascrizioni (si confrontano i token)")
     a("- Git (%s): %d commit; %s" % (rng, len(commit), stat or "nessuna differenza"))
     a("")
 
@@ -445,11 +483,16 @@ def scrivi(v, prec, lo, hi, fino, ss, regole):
     for s in ss:
         righe.append([s.sid[:8], pulito(corto(s.titolo or "(senza titolo)", 50)), ora(s.inizio), ora(s.fine),
                       len(s.messaggi), sum(s.strumenti.values()), sum(s.errori.values()), s.sub,
-                      ("%.2f" % s.costo if s.costo else "-") + (" *" if s.prima else ""),
-                      ", ".join("%s %d" % kv for kv in s.skill.most_common()) or "-"])
-    L += tabella(["id", "titolo", "inizio", "fine", "msg", "strum.", "errori", "sub", "costo $", "skill"], righe)
+                      mega(s.tok["letti"]) + (" *" if s.prima else ""), mega(s.tok["uscita"]),
+                      "%dk" % (s.picco // 1000), s.oltre, mega(s.sub_tok["letti"]) if s.sub_tok else "-"]
+                     + (["%.2f" % s.costo if s.costo else "-"] if costo else [])
+                     + [", ".join("%s %d" % kv for kv in s.skill.most_common()) or "-"])
+    L += tabella(["id", "titolo", "inizio", "fine", "msg", "strum.", "errori", "sub", "letti", "uscita",
+                  "picco", ">%dk" % (OLTRE // 1000), "letti sub"] + (["costo $"] if costo else []) + ["skill"], righe)
     a("")
-    a("`*` sessione ripresa da prima del ciclo: il costo comprende anche il lavoro di prima.")
+    a("`letti`: token letti dalla cache (il contesto riletto a ogni giro, la voce che pesa di più); "
+      "`picco`: il contesto più grande; `>%dk`: i giri oltre quella misura. `*` sessione ripresa da "
+      "prima del ciclo: i numeri sono solo quelli nella finestra." % (OLTRE // 1000))
     a("")
 
     a("## Skill, comandi e subagenti")

@@ -56,9 +56,16 @@ gh auth status
   quindi si elencano a Zyruel (`git log --oneline origin/dev..dev`).
 - `NOVITA.md` ha la sezione "Prossima versione" e non è vuota; dice tutto ciò che è cambiato da
   `v<precedente>` (`git log --oneline v<precedente>..dev`).
+- **Revisione della correttezza:** se dall'ultima revisione del ramo ci sono commit di codice
+  (`git log --oneline origin/main..dev -- src/`), `/code-review` (skill `code-review`, livello
+  predefinito, senza `--fix`) sul ramo rispetto a `origin/main`. `/controllo` guarda le regole,
+  la revisione gli errori (nella 1.0.0-beta.7 ne ha trovati 7 che il controllo non cerca); due cicli
+  di fila Zyruel l'ha chiesta a mano. Se Zyruel l'ha già fatta dopo l'ultimo commit di codice, la si
+  salta e lo si dice.
 - **`/controllo cambiati`** (skill `controllo`) sui file diversi da `origin/main`: passato, oppure
   i punti segnalati sono stati accettati da Zyruel (o corretti, con un commit a parte). Prima di un
-  rilascio Zyruel può chiedere `/controllo tutto`.
+  rilascio Zyruel può chiedere `/controllo tutto`. I risultati della revisione e del controllo si
+  presentano insieme, numerati, così Zyruel sceglie in una volta cosa correggere.
 - Le prove a mano ancora aperte in `prove\da-verificare.md` per questa versione si ricordano a
   Zyruel: decide lui se pubblicare lo stesso.
 
@@ -196,6 +203,18 @@ Note (in un file fuori dal repository): la sezione di `NOVITA.md` della versione
 scarica; se cambia qualcosa per l'installazione lo si dice (la 1.0.0-beta.3 spiegava di
 rinominare l'exe in `z-f.exe` e che il `.sig` non serve scaricarlo). Si mostrano a Zyruel prima
 di pubblicare.
+
+La sezione si estrae con le righe a capo unite (GitHub mostra ogni a capo; le righe che
+continuano un punto in `NOVITA.md` cominciano con due spazi), in `build/note-$V.md`:
+
+```
+awk -v v="$V" 'index($0, "## " v " ") == 1 {f=1; next} /^## / {if (f) exit} f' NOVITA.md |
+  awk '/^  / && n {sub(/^ +/, ""); o[n] = o[n] " " $0; next} /[^[:space:]]/ {sub(/[[:space:]]+$/, ""); o[++n] = $0} END {for (i = 1; i <= n; i++) print o[i]}' \
+  > "build/note-$V.md"
+```
+
+Provato sulla 1.0.0-beta.7: uguale alle note pubblicate. Un'aggiunta per l'installazione si
+scrive con Edit.
 
 ```
 gh release create "v$V" "build/z-f-$V.exe" "build/z-f-$V.exe.sig" \

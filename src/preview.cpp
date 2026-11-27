@@ -551,6 +551,7 @@ static void pvDir(const PvReq& r, PvRes& o) {
     double t0 = nowMs();
     Listing* l = new Listing;
     l->path = r.path;
+    l->gen = r.gen; // come la lista: un Listing nuovo allo stesso indirizzo non sembra lo stesso (le miniature, c.remote)
     o.dir = l;
     o.kind = PV_DIR;
     size_t alen = 0;
@@ -705,19 +706,22 @@ struct Preview {
     float viewX = 0, viewW = 0; // controllo della vista nella banda (solo per una cartella)
     bool viewHover = false;
     HoverFade viewFade;
-    // Cartelle tra le voci filtrate (contatori della banda), per questa lista e questo filtro;
-    // cntFor torna nullptr a ogni Listing nuovo (pvPaneSet, pvPaneClear)
-    const Listing* cntFor = nullptr;
-    std::wstring cntFilter;
-    int cntDirs = 0;
 } PV;
+
+// Perché l'anteprima aperta non si vede: la finestra non le lascia spazio, a destra o in basso
+static const wchar_t* previewNoRoom() {
+    return A.prevBottom ? L"La finestra è troppo bassa per l'anteprima in basso" : L"La finestra è troppo stretta per l'anteprima";
+}
 
 // Tab: la tastiera passa tra la lista e l'anteprima di una cartella. Nell'anteprima il cursore
 // compare dov'era (la prima voce, la prima volta)
 static void previewKeysToggle() {
     if (PV.keys) { PV.keys = false; A.dirty = true; return; }
     ListPane* p = PV.paneShown && !g_inPane && PV.pane.cur ? &PV.pane : nullptr;
-    if (!p) { notice(A.prevW > 0 ? L"L'anteprima non mostra una cartella" : L"L'anteprima è chiusa", false); return; }
+    if (!p) {
+        notice(A.prevW > 0 ? L"L'anteprima non mostra una cartella" : A.prevOpen ? previewNoRoom() : L"L'anteprima è chiusa", false);
+        return;
+    }
     PV.keys = true;
     PaneScope ps(p);
     if (!A.view.empty()) ensureVisible();
@@ -727,6 +731,8 @@ static void previewKeysToggle() {
 
 // La lista dell'anteprima, da usare in un PaneScope: c'è una cartella e non si è già dentro uno scope
 static ListPane* pvPane() { return !g_inPane && PV.pane.cur ? &PV.pane : nullptr; }
+// L'altra lista è in PV.pane: fuori da uno scope l'anteprima, dentro (una voce dell'anteprima) la principale
+static bool listsBusy() { return A.renaming || A.draggingThumb || PV.pane.renaming || PV.pane.draggingThumb; }
 static bool previewHasKeys() { return PV.keys && !g_inPane && PV.pane.cur && A.prevW > 0; }
 static void previewKeysFor(bool preview) {
     if (PV.keys != preview) A.dirty = true;
@@ -838,6 +844,8 @@ static void previewRefresh() {
     // Una rilettura in corso non si supera (una cartella lenta da leggere non si aggiornerebbe mai):
     // la prossima parte quando arriva questa, come refreshAgain della lista
     if (PV.refreshGen == PV.gen) { PV.refreshAgain = true; return; }
+    A.prevRefreshStart = A.prevChangeAt > 0 ? A.prevChangeAt : nowMs(); // F12: dalla notifica, o da adesso (F5, operazioni)
+    A.prevChangeAt = 0;
     pvRequest(true);
     PV.refreshGen = PV.gen;
 }
@@ -862,12 +870,19 @@ static void previewZoom(int zoom) {
     A.cursorFor = nullptr; // il cursore salta, non scivola da una forma all'altra
 }
 
+// La barra della lista dell'anteprima non si trascina più (la lista cambia o sparisce): il mouse,
+// catturato alla pressione, torna libero
+static void pvThumbDragStop() {
+    if (PV.pane.draggingThumb && GetCapture() == A.hwnd) ReleaseCapture();
+    PV.pane.draggingThumb = false;
+}
+
 // La cartella non è più mostrata: via la sua lista (e la tastiera torna alla lista principale)
 static void pvPaneClear() {
-    previewWatch(L"");
+    previewWatch(nullptr);
+    pvThumbDragStop();
     delete PV.pane.cur;
     PV.pane = ListPane();
-    PV.cntFor = nullptr;
     PV.keys = false;
     PV.selectAfter.clear();
     PV.renameAfter = false;
@@ -875,70 +890,41 @@ static void pvPaneClear() {
 }
 
 // Una cartella letta (l, dal thread) diventa la lista dell'anteprima. same: è la stessa cartella
-// riletta (un'operazione, un cambiamento da fuori): restano selezione per nome, cursore, scorrimento
-// e tastiera, come nella ricarica della lista principale
-static void pvPaneSet(Listing* l, bool same) {
+// riletta (un'operazione, un cambiamento da fuori): restano selezione per nome, cursore, scorrimento,
+// filtro e tastiera, con lo stesso codice della ricarica della lista principale (listReload).
+// partial: lettura fermata prima del fondo (PvRes::more)
+static void pvPaneSet(Listing* l, bool same, bool partial) {
     ListPane& p = PV.pane;
-    same = same && p.cur;
-    std::unordered_map<std::wstring, bool> selNames;
-    std::wstring curName, renName, anchorName;
-    int oldSel = p.sel;
-    bool hadSel = false;
-    if (same) {
-        if (p.anchor >= 0 && p.anchor < (int)p.cur->e.size()) anchorName = p.cur->lowerName(p.cur->e[(size_t)p.anchor]);
-        for (uint32_t ei : p.view)
-            if (ei < p.selFlags.size() && p.selFlags[ei]) { selNames[p.cur->lowerName(p.cur->e[ei])] = true; hadSel = true; }
-        if (p.sel >= 0 && p.sel < (int)p.view.size()) curName = p.cur->lowerName(p.cur->e[p.view[(size_t)p.sel]]);
-        if (p.renaming && p.renameEntry >= 0) renName = p.cur->lowerName(p.cur->e[(size_t)p.renameEntry]);
-    }
-    // La geometria (dell'ultimo frame) resta: serve a tenere in vista il cursore
-    delete p.cur;
-    p.cur = l;
-    PV.cntFor = nullptr; // contatori da rifare (l può stare all'indirizzo di quello di prima)
-    previewWatch(l->path); // cambiamenti da fuori o dalle operazioni: si rilegge (stessa cartella: niente di nuovo)
-    p.order = l->order;
-    p.view = p.order;
-    p.selFlags.assign(l->e.size(), 0);
-    p.sel = 0;
-    p.anchor = p.hover = p.linkHover = -1;
+    previewWatch(l); // cambiamenti da fuori o dalle operazioni: si rilegge (stessa cartella: niente di nuovo)
+    p.hover = p.linkHover = -1;
     p.rowFade = HoverFade();
-    if (!same) p.draggingThumb = false; // stessa cartella riletta: chi trascina la barra continua
-    p.renaming = false;
     p.zoom = A.prevZoom;
-    std::wstring want = PV.selectAfter;
-    bool rename = PV.renameAfter;
-    PV.selectAfter.clear();
-    PV.renameAfter = false;
-    if (!same) {
-        p.scrollY = p.scrollTarget = 0;
-        p.cursorFor = nullptr;
-        p.filter.clear(); // il filtro è della cartella mostrata
-        PV.keys = false;
-        PV.keepFirst = -1;
+    if (same && p.cur) { // la geometria dell'ultimo frame resta: serve a tenere in vista il cursore
+        PaneScope ps(&PV.pane);
+        listReload(l, PV.selectAfter, PV.renameAfter);
+        // La voce nuova o rinominata può stare oltre il punto dove la lettura si è fermata: non la si
+        // aspetta, una rilettura molto più tardi la selezionerebbe (e aprirebbe la rinomina) senza motivo
+        if (partial) { PV.selectAfter.clear(); PV.renameAfter = false; }
         return;
     }
-    if (!p.filter.empty()) { PaneScope ps(&PV.pane); applyFilter(); } // la stessa cartella riletta: il filtro resta
-    if (!want.empty()) CharLowerBuffW(&want[0], (DWORD)want.size());
-    p.sel = std::max(0, std::min(oldSel, (int)p.view.size() - 1)); // la voce del cursore non c'è più: resta lì
-    int found = -1, kept = 0; // la voce nuova o rinominata; voci ancora selezionate
-    for (int i = 0; i < (int)p.view.size(); i++) {
-        uint32_t ei = p.view[(size_t)i];
-        const wchar_t* n = l->lowerName(l->e[ei]);
-        if (selNames.count(n)) { p.selFlags[ei] = 1; kept++; }
-        if (curName == n) p.sel = i;
-        if (!want.empty() && want == n) found = i;
-        if (!anchorName.empty() && anchorName == n) p.anchor = (int)ei;
-        if (!renName.empty() && renName == n) { p.renaming = true; p.renameEntry = (int)ei; } // il nome che si sta scrivendo resta
-    }
-    PaneScope ps(&PV.pane);
-    if (found >= 0) { // il cursore sulla voce nuova o rinominata, sola selezionata (se la lettura l'ha presa)
-        A.sel = found;
-        selOnly(A.sel);
-        ensureVisible();
-        if (rename) beginRename();
-    } else if (hadSel && !kept && !A.view.empty()) {
-        selOnly(A.sel); // come la lista: sparita la selezione (Canc), è selezionata la voce che ne prende il posto
-    }
+    delete p.cur;
+    p.cur = l;
+    p.order.swap(l->order);
+    std::vector<uint32_t>().swap(l->order); // come la lista (listReload): non resta l'ordine della cartella di prima
+    p.filter.clear(); // il filtro è della cartella mostrata
+    p.view = p.order;
+    p.counts.dirty = true; // l può stare all'indirizzo del Listing di prima
+    p.selFlags.assign(l->e.size(), 0);
+    p.sel = 0;
+    p.anchor = -1;
+    p.renaming = false;
+    pvThumbDragStop();
+    p.scrollY = p.scrollTarget = 0;
+    p.cursorFor = nullptr;
+    PV.keys = false;
+    PV.keepFirst = -1;
+    PV.selectAfter.clear();
+    PV.renameAfter = false;
 }
 
 // Niente da mostrare (cartella vuota, pannello chiuso): le richieste in corso diventano superate
@@ -1007,7 +993,7 @@ static void onPreviewResult(PvRes* o) {
     if (!same) PV.top = PV.topSub = 0; // stessa voce (un log che cresce): si resta dove si era
     PV.shown = PV.item;
     // Una cartella: il suo Listing passa alla lista dell'anteprima (PvRes resta per contatori ed errore)
-    if (o->kind == PV_DIR && o->dir && !o->err) { pvPaneSet(o->dir, same); o->dir = nullptr; }
+    if (o->kind == PV_DIR && o->dir && !o->err) { pvPaneSet(o->dir, same, o->more); o->dir = nullptr; }
     else pvPaneClear();
     pvSetResult(o);
     PV.stale = false;
@@ -1016,7 +1002,10 @@ static void onPreviewResult(PvRes* o) {
     A.prevKind = kinds[o->kind];
     A.prevReadMs = o->readMs;
     A.prevDecodeMs = o->decodeMs;
-
+    if (o->gen == PV.refreshGen) { // una rilettura, con selezione e scorrimento rimessi (pvPaneSet)
+        A.prevRefreshCount++;
+        A.prevRefreshLatency = nowMs() - A.prevRefreshStart;
+    }
     A.dirty = true;
     pvPump();
     PV.refreshGen = 0;
@@ -1032,7 +1021,7 @@ static void previewToggle() {
     }
     settingsSave();
     layout();
-    if (A.prevOpen && !A.prevW) notice(L"La finestra è troppo stretta per l'anteprima", true);
+    if (A.prevOpen && !A.prevW) notice(previewNoRoom(), true);
     A.hover = -1;
     A.dirty = true;
 }
@@ -1044,8 +1033,7 @@ static void previewPlace(bool bottom) {
     A.prevBottom = bottom;
     settingsSave();
     layout();
-    if (A.prevOpen && !A.prevW) notice(bottom ? L"La finestra è troppo bassa per l'anteprima in basso"
-                                              : L"La finestra è troppo stretta per l'anteprima", true);
+    if (A.prevOpen && !A.prevW) notice(previewNoRoom(), true);
     A.hover = -1;
     A.dirty = true;
 }
@@ -1168,9 +1156,7 @@ static void pvPaneLayout() {
     A.listR = x1;
     A.listTop = top;
     A.listH = std::max(0.0f, bottom - top);
-    // Filtro nella banda in fondo, come nella barra di stato della lista (lo stringe drawBarFilter)
-    A.fltX = A.listX + px(ui::GAP_S);
-    A.fltWant = floorf(std::min(px(ui::FILTER_W), (A.listR - A.listX) * ui::FILTER_MAX));
+    fltLayout(); // nella banda in fondo, come nella barra di stato della lista
     layoutItems(!A.prevBottom, k);
     if (PV.keepFirst >= 0) { scrollToItem(PV.keepFirst); PV.keepFirst = -1; }
     clampScroll();
@@ -1184,7 +1170,7 @@ static void pvBarData(const PvGeom& g, float right, const std::wstring& t) {
 }
 
 static void pvNote(const PvGeom& g, const wchar_t* t) {
-    drawText(g.x0, g.bodyTop, t, (int)wcslen(t), C_FAINT, g.x1);
+    drawText(g.x0, g.bodyTop, t, (int)wcslen(t), C_DIM, g.x1);
 }
 
 static void drawPvText(const PvGeom& g) {
@@ -1267,21 +1253,11 @@ static void drawPvDir(const PvGeom& g, double dt, double now) {
     int z = A.prevZoom;
     float right = pvBar(g, viewIcon(z), viewName(z), !o.err, !o.err);
     if (o.err || !PV.pane.cur) return;
-    const ListPane& p = PV.pane;
-    int dirs = o.info.dirs, files = o.info.files;
-    if (!p.filter.empty()) { // contate solo quando cambiano cartella o filtro, non a ogni frame
-        if (PV.cntFor != p.cur || PV.cntFilter != p.filter) {
-            PV.cntFor = p.cur;
-            PV.cntFilter = p.filter;
-            PV.cntDirs = 0;
-            for (uint32_t ei : p.view) if (p.cur->e[ei].attr & FILE_ATTRIBUTE_DIRECTORY) PV.cntDirs++;
-        }
-        dirs = PV.cntDirs;
-        files = (int)p.view.size() - dirs;
-    }
-    right = drawBarCounts(right, g.footY, dirs, files, o.more);
     PaneScope ps(&PV.pane);
-    drawBarFilter(right, g.footY, dt);
+    int dirs = o.info.dirs, files = o.info.files; // senza filtro quelli della lettura (di uno zip, tutti)
+    if (!A.filter.empty()) { dirs = viewDirs(); files = (int)A.view.size() - dirs; }
+    right = drawBarCounts(right, g.footY, dirs, files, o.more);
+    drawBarFilter(right, g.footY, dt, o.more);
 }
 
 static void drawPvInfo(const PvGeom& g) {
@@ -1304,13 +1280,13 @@ static void drawPvInfo(const PvGeom& g) {
         else if (o.err == ERROR_ACCESS_DENIED) infoRow(rows, L"", L"Accesso negato");
         else if (o.err) infoRow(rows, L"", L"Impossibile leggere il file (codice " + std::to_wstring(o.err) + L")");
     }
-    // Come nel tooltip: etichette in C_DIM, valori in C_TEXT, note in C_FAINT
+    // Come nel tooltip: etichette e note in C_DIM, valori in C_TEXT
     float lh = (float)F.lineH + px(ui::LINE_GAP), labW = 0;
     for (auto& r : rows) labW = std::max(labW, (float)textWidth(r.first.c_str(), (int)r.first.size()));
     float vx = g.x0 + labW + px(ui::TIP_COL_GAP);
     for (auto& r : rows) {
         if (y + F.lineH > g.bodyBot) break;
-        if (r.first.empty()) drawText(g.x0, y, r.second, C_FAINT, g.x1);
+        if (r.first.empty()) drawText(g.x0, y, r.second, C_DIM, g.x1);
         else { drawText(g.x0, y, r.first, C_DIM); drawText(vx, y, r.second, C_TEXT, g.x1); }
         y += lh;
     }

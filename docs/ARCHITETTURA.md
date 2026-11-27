@@ -17,7 +17,7 @@ cartelle, registro, nomi interni di Windows) il nome tecnico è **z-f**: `z-f.ex
 
 Fino alla 0.15 si chiamava zx: le copie `build\zx-0.N.exe` sono di allora. Al primo avvio
 `migrateLegacyData` (`settings.cpp`) sposta `%APPDATA%\zx` in `%APPDATA%\z-f`; quando si attiva o
-disattiva "Usa [z]f al posto di Explorer", `cleanupLegacyZx` (`integration.cpp`) toglie
+disattiva "[z]f al posto di Explorer", `cleanupLegacyZx` (`integration.cpp`) toglie
 l'integrazione del vecchio zx rimettendo i valori originali.
 
 ## Regole comuni del codice
@@ -134,7 +134,7 @@ condivise sono in `app.h`.
   chiuderlo scrive i file in coda (`saveFlush`, con dentro `schede.txt`): la principale nuova può
   partire subito, e senza questo leggerebbe i file di prima. La finestra non c'è più e nessuno
   aspetta (eccezione scritta in DESIGN §10). Misurato: 0,2–0,8 ms ("chiusura: file salvati" nel
-  registro, a ogni chiusura della principale); con "Riapri le schede" la principale chiusa e
+  registro, a ogni chiusura della principale); con "Schede riaperte all'avvio" la principale chiusa e
   riaperta subito (39 ms dopo) ritrova le sue tre schede. L'attesa di una
   principale non ancora creata è a tempo (`FWD_WAIT`, `FWD_POLL`): a giri di `Sleep(10)` durava
   4,7 s invece di 3, perché ogni `Sleep` dura un passo del timer di Windows (15,6 ms).
@@ -375,7 +375,10 @@ contenuto salterebbe in basso proprio mentre si clicca.
   altrimenti, con la lista al 20% e l'anteprima al 100%, scorrendo tra cartelle e file l'atlante
   si rifaceva a ogni passo e le miniature della lista rientravano in dissolvenza. Risultati e potature
   li fa la chiamata della lista principale, una volta per frame; le code di una lista si
-  riprendono senza toccare quelle dell'altra.
+  riprendono senza toccare quelle dell'altra. Una voce in comune (stessa chiave: le icone per
+  tipo, a pari lato) la chiede una lista sola: se quella la riprende senza volerla più, o smette
+  di chiedere (esce da Icone, l'anteprima non mostra più una cartella: `thClientStop`), l'altra si
+  risincronizza (`thOthersResync`), altrimenti la voce resterebbe vuota finché non si scorre.
 
 - **Fonti**, in quest'ordine, per miniatura sul thread:
   1. la cache di Windows (`IThumbnailCache`, solo quelle già pronte), creando l'elemento della
@@ -429,7 +432,11 @@ contenuto salterebbe in basso proprio mentre si clicca.
   dalla cache, in 103 ms; dopo che l'atlante è stato liberato, meno di 1 ms l'una;
 - frame scorrendo veloce mentre arrivano le foto 0,19 ms (peggiore 0,76); WinSxS (30.734 voci) in
   griglia piccola 0,32 ms (peggiore 0,91), di cui risultati e richieste al massimo 0,04 e disegno
-  delle voci 0,23.
+  delle voci 0,23;
+- `drawThumb` ricostruisce chiave e percorso di ogni cella a ogni frame: misurato nella
+  1.0.0-beta.8 (F12, "griglia: disegno delle voci"; RTX 5070 Ti, 2560×1392 a 175%, WinSxS in
+  Icone a finestra intera scorrendo) 0,24 ms con tutte le voci, peggiore 0,59; frame 0,39
+  (peggiore 0,90). Non pesa: resta così.
 
 ## Tooltip e anteprima
 
@@ -477,7 +484,7 @@ Mostra la voce sotto il cursore e la segue mentre ci si muove con le frecce.
     scende); `requestRefresh` e F5 rileggono l'anteprima (`previewRefresh`).
   - *Gli stati che durano oltre un messaggio* ricordano a chi appartengono e rientrano nello
     scope quando riprendono: menu (`PopupMenu::preview`, `forPath`: se intanto la cartella è
-    cambiata non si esegue), rettangolo (`MQ.preview`), trascinamento (`DD.preview`, e
+    cambiata non si esegue, tranne il menu della vista, che è del pannello), rettangolo (`MQ.preview`), trascinamento (`DD.preview`, e
     `DD.targetPreview` per la destinazione), tooltip (`T.preview`), rinomina e nuova cartella
     (`onFsDone` guarda in quale cartella è successo: `PV.selectAfter`, `PV.renameAfter`), menu
     della shell (`onShellMenu`, Aggiorna e Rinomina).
@@ -497,19 +504,30 @@ Mostra la voce sotto il cursore e la segue mentre ci si muove con le frecce.
     in più) perché le voci che scorrono, in Elenco anche in orizzontale, non sconfinino.
   - *Tastiera:* `PV.keys` (clic nel pannello, Tab). `onKey` apre lo scope tranne che per i tasti
     della finestra (schede, cronologia, pannelli, Vai a, annulla, F12); `onChar` scrive nel filtro
-    di chi ha la tastiera. Il campo del filtro (`fltX`, `fltW`, la ×) è nello stato scambiato, e
-    `drawBarFilter` (`render.cpp`) lo disegna per la lista e, nello scope, per l'anteprima.
+    di chi ha la tastiera. Il campo del filtro (`fltX`, `fltW`, la ×, `fltLayout`, `fltFieldAt`),
+    la sua misura per F12 (`filterMs`) e i contatori della barra (`ViewCounts`, `viewDirs`) sono
+    nello stato scambiato, e `drawBarFilter` (`render.cpp`) lo disegna per la lista e, nello
+    scope, per l'anteprima.
   - *Aggiornamento:* un secondo osservatore (`previewWatch` in `watch.cpp`, messaggio
     `WM_APP_PVCHANGED`, timer 17 per raggruppare le notifiche) segue la cartella mostrata, solo
-    sulle unità locali e non dentro uno zip; in rete si rilegge dopo le operazioni di [z]f
+    sulle unità locali e non dentro uno zip (lo dice `zipLen` del `Listing`, non il nome: una vera
+    cartella "Backup.zip" si osserva); in rete si rilegge dopo le operazioni di [z]f
     (`onFileJob`, anche annulla e ripeti, `onFsDone`) e dopo i comandi della shell e i rilasci
-    passati a lei (`onShellMenu` con `SmRes::invoked`, `onShellDrop`). `pvPaneSet` rilegge
-    tenendo selezione per nome, cursore, scorrimento e la rinomina in corso. `previewRefresh` non
+    passati a lei (`onShellMenu` con `SmRes::invoked`, `onShellDrop`). Un osservatore perso
+    (`WATCH_LOST`) non riparte da solo, come quello della lista: su un file system che lo perde
+    subito rileggerebbe ogni `WATCH_BATCH`; riparte con F5 o con un'altra cartella. `pvPaneSet`
+    rilegge con lo stesso codice della ricarica della lista (`listReload`, nel suo PaneScope):
+    selezione per nome, cursore, scorrimento, filtro e la rinomina in corso. `previewRefresh` non
     supera una richiesta in corso: se il cursore è già su un'altra voce non fa niente (rifare la
     richiesta di un'immagine grande la annullerebbe a ogni notifica), e se una rilettura è ancora in
     corso la prossima parte quando arriva (`PV.refreshGen`, `PV.refreshAgain`), come
     `refreshAgain` della lista. Il trascinamento premuto nell'anteprima confronta il percorso della
-    cartella, non il `Listing`: una rilettura della stessa cartella non lo ferma.
+    cartella, non il `Listing`: una rilettura della stessa cartella non lo ferma. F12 mostra
+    l'osservatore ("anteprima: aggiornamento automatico", notifiche e riletture) e l'ultima
+    rilettura, dalla prima notifica al risultato applicato.
+    *Misurato* (1.0.0-beta.8, cartella locale di 34 file, file creati da fuori uno alla volta):
+    ultima rilettura 58–71 ms, di cui 50 il raggruppamento `WATCH_BATCH` e 0,1–0,2 la lettura sul
+    thread; il resto è il timer e il frame. Come la ricarica della lista (62 ms nella stessa prova).
   - *Misurato* (F12, "anteprima: voci di una cartella"; RTX 5070 Ti, 2560×1392 a 175%): lista in
     Icone medie e anteprima in Icone grandi insieme, frame 0,12 ms (peggiore 0,24 scorrendo
     l'anteprima mentre arrivano le icone), voci dell'anteprima 0,01 ms. Avvio (`prove\avvio.bat`,
@@ -538,7 +556,8 @@ Mostra la voce sotto il cursore e la segue mentre ci si muove con le frecce.
   - *Perché un rettangolo:* prima la posizione era scritta in una ventina di punti come
     `x >= A.listR` e `G.h - A.statusH`; ora è in `layout`, e una terza posizione toccherebbe solo lì.
   - *La scelta:* `CH_PREVIEW_POS` (˅ accanto a ◨, `chrome.cpp`) apre `menuOpenPreview`; le
-    voci e il selettore delle opzioni chiamano `previewPlace`, che salva e rifà il layout.
+    voci, il selettore delle opzioni e Alt+Shift+P (`M_PREVIEW_SWAP`, che alterna le due
+    posizioni) chiamano `previewPlace`, che salva e rifà il layout.
   - *Misurato* (F12; RTX 5070 Ti, 2560×1392 a 175%, anteprima in basso in Icone medie scorrendo
     una cartella da 2000 file): frame 0,12 ms (peggiore 0,28), voci dell'anteprima 0,02 ms
     (peggiore 0,07): come a destra.
@@ -699,7 +718,7 @@ thread, ognuna rifà la ricerca) si misura a parte con `prove\vai-a-misura.cpp`.
 **Come funziona.**
 
 - **Menu nostro** (`menu.cpp`), disegnato come il resto dell'interfaccia, con le voci essenziali:
-  - sui file: Apri, Apri con, Taglia, Copia, Copia percorso, Rinomina, Elimina, Proprietà;
+  - sui file: Apri, Apri con, Taglia, Copia, Copia percorso, Rinomina, Sposta nel Cestino, Proprietà;
   - sullo sfondo: Incolla, Annulla (e Ripeti, quando c'è), Nuova cartella (che parte già in rinomina), Aggiorna, Copia
     percorso, Apri terminale qui, Proprietà;
   - in "Questo PC": "Connetti unità di rete…" e "Aggiungi percorso di rete…" sullo sfondo,
@@ -1067,7 +1086,7 @@ nessuna conferma del nome, nome proposto intatto.
 - Senza login GitHub dà 60 richieste l'ora per indirizzo: ne serve una al giorno.
 - La firma, oltre all'impronta, fa sì che chi entrasse nell'account GitHub non possa distribuire un
   exe che [z]f accetta.
-- Lo scambio non cambia il percorso, quindi "Usa [z]f al posto di Explorer" e i collegamenti
+- Lo scambio non cambia il percorso, quindi "[z]f al posto di Explorer" e i collegamenti
   continuano a funzionare.
 - Su un exe in rete lo scambio lo farebbe la rete, a metà.
 
@@ -1090,12 +1109,24 @@ sul thread; con il server spento l'errore arriva dopo 2 s, sempre sul thread.
   `dimensione_cartelle`, `dialoghi`, `riapri_schede`, `finestre_separate`, `aggiornamenti`,
   `aggiornamenti_beta`, `aggiornamenti_ultimo` (e, solo in lettura, `griglia_dimensione` delle
   versioni fino alla 1.0.0-beta.5). Il pannello delle opzioni (`options.cpp`) le
-  cambia con effetto immediato: dimensione e carattere del testo, animazioni, barra laterale, "Usa
-  [z]f al posto di Explorer", "Menu completo di Windows col tasto destro", "Dialoghi Apri e Salva
-  nella cartella di [z]f", "Dimensione delle cartelle nella colonna", le opzioni di file, avvio e
-  aggiornamenti, l'elenco delle scorciatoie con ricerca. In fondo ha la versione, che apre la sua
+  cambia con effetto immediato, per sezioni: Aspetto (dimensione e carattere del testo,
+  animazioni), Finestra (barra laterale, anteprima, sua posizione e suo carattere), Integrazione
+  con Windows ("[z]f al posto di Explorer", "Menu completo di Windows col tasto destro", "Dialoghi
+  Apri e Salva nella cartella di [z]f"…), File ("Dimensione delle cartelle nella colonna"…), Avvio
+  e aggiornamenti, l'elenco delle scorciatoie con ricerca e, per ultima, Diagnostica (barra dei
+  tempi). In fondo ha la versione, che apre la sua
   Release su GitHub (`kUpdThisRelease`, `updOpenPage` su un thread), e un collegamento alla
   cartella delle impostazioni.
+  Il pannello si dispone a ogni frame mentre si disegna (`drawOptions`): le aree cliccabili
+  (`OP.hits`) e le scorciatoie troncate per il tooltip (`OP.tips`, lette da `optionsTipTarget`)
+  sono quelle dell'ultimo frame, e l'altezza del contenuto (per lo scorrimento e la barra) si sa
+  alla fine. Le spiegazioni vanno a capo con `textLineEnd` (`text.cpp`), a ogni frame: sono una
+  decina di righe. Il pannello non usa il ritaglio del renderer (`clipBegin`, che serve alle voci
+  dell'anteprima): si disegnano solo righe intere e i fondi sotto il mouse si tagliano a mano tra
+  titolo e piede. Con la ricerca piena si disegnano solo le
+  scorciatoie, così i risultati sono in cima senza calcolare dove cade la loro sezione.
+  Misurato: frame con il pannello aperto 0,07–0,08 ms (barra dei tempi, z-f-dev, 2560×1440 a
+  100%), anche con tutte le scorciatoie in vista.
 - **Lettura all'avvio:** impostazioni, preferiti, viste, recenti, annulla e schede li legge
   `sideFastThread`, e il primo frame lo aspetta al massimo 100 ms.
 - **Mai sovrascritti prima della lettura:** nessuno di questi file si scrive prima che sia stato

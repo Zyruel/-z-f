@@ -18,6 +18,7 @@ static const uint32_t C_SHADOW     = rgba(0, 0, 0, 90);      // ombra dei pannel
 // Stati
 static const uint32_t C_HOVER      = rgba(0x29, 0x2b, 0x2f); // sotto il mouse
 static const uint32_t C_HOVER_STRONG = rgba(0x3a, 0x3d, 0x42); // sotto il mouse, su un controllo piccolo (×)
+static const uint32_t C_HOVER_PANEL = rgba(0x33, 0x35, 0x39); // sotto il mouse nei pannelli sovrapposti: su C_MENU si vede quanto C_HOVER su C_BG (1,2:1)
 static const uint32_t C_SEL        = rgba(0x1c, 0x3d, 0x5a); // selezionato / corrente
 static const uint32_t C_SEL_HOVER  = rgba(0x23, 0x4a, 0x6b); // selezionato e sotto il mouse
 static const uint32_t C_SEL_EDGE   = rgba(0x3a, 0x8e, 0xd0); // cursore da tastiera
@@ -27,6 +28,7 @@ static const uint32_t C_SCROLL     = rgba(0x4a, 0x4d, 0x52); // barra di scorrim
 // Testo: la gerarchia si fa con il colore, non con dimensione o grassetto
 static const uint32_t C_TEXT       = rgba(0xdc, 0xdc, 0xdc); // primario
 static const uint32_t C_DIM        = rgba(0x8c, 0x8f, 0x94); // secondario (date, etichette, scorciatoie)
+static const uint32_t C_DIM_SEL    = rgba(0xb0, 0xb3, 0xb8); // secondario su una voce selezionata: C_DIM lì è 3,5:1 (2,9 sotto il mouse), questo 5,4 e 4,4
 static const uint32_t C_FAINT      = rgba(0x62, 0x65, 0x6a); // terziario, disattivato, file nascosti
 static const uint32_t C_ACCENT     = rgba(0x4a, 0xa3, 0xff); // attivo, informazione, filtro
 static const uint32_t C_ERR        = rgba(0xff, 0x6b, 0x6b); // errore, spazio quasi esaurito

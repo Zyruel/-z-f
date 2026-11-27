@@ -81,7 +81,7 @@ Come si compila e si prova, passo per passo: `/prova` (skill in `.claude/skills/
   tocca schermo né tastiera; non si interferisce con le sue finestre di [z]f (le prove in z-f-dev,
   in una finestra separata con `prove\dev.bat`; le finestre di prova si chiudono per PID, mai per
   nome); le prove col mouse nella lista in una cartella di prova con file finti.
-- **Non scrivere nel registro** al posto di Zyruel: l'interruttore "Usa [z]f al posto di Explorer"
+- **Non scrivere nel registro** al posto di Zyruel: l'interruttore "[z]f al posto di Explorer"
   lo usa lui. Questa regola e la chiusura per nome le ferma `.claude/hooks/regole.sh`.
 - **Dopo ogni prova:** controllare `build\z-f-log.txt` (le voci normali dell'avvio sono in `/prova`).
 
@@ -152,7 +152,10 @@ Come si compila e si prova, passo per passo: `/prova` (skill in `.claude/skills/
 - **Modifiche ai file con lo strumento Edit**, anche quando sono tante nello stesso file. Gli
   script (Python, `sed -i`) solo per un cambio meccanico uguale su molti file: nella 1.0.0-beta.6
   gli script di sostituzione hanno dato 6 errori (heredoc non chiuso, testo non trovato, codifica
-  della console), Edit 2.
+  della console), Edit 2. Nella 1.0.0-beta.7 la regola è stata ignorata 34 volte in una sessione
+  (con i backslash dei `.md` rovinati): ora `.claude/hooks/regole.sh` ferma il Python in linea
+  (`python -c`, `python - <<`) che scrive file di `src/` o `.md`; un cambio meccanico su molti
+  file si fa con uno script in un file dello scratchpad, con un `assert` per ogni sostituzione.
 
 ## Debiti tecnici noti (da sistemare quando si tocca quel codice)
 
@@ -177,6 +180,16 @@ Zyruel è a 175%.
 
 Prima di cominciare una funzione: rileggere `docs/DESIGN.md` e la parte di `docs/ARCHITETTURA.md` che la
 riguarda.
+
+**Una funzione grande in più sessioni.** Con un piano di 3 o più fasi, dopo ogni fase compilata
+senza avvisi si propone una sessione nuova (contesto "fresh", nella stessa cartella, senza
+worktree) con il percorso del piano, le fasi fatte e i file toccati: il lavoro non committato resta
+nella cartella. Le prove a schermo di una funzione finita si possono passare allo stesso modo, con
+la sua sezione di `prove\da-verificare.md` come brief. Nella 1.0.0-beta.7 una funzione in 4 fasi
+fatta tutta in una sessione ha portato il contesto da 80k a 711k token: metà del costo del ciclo.
+Una domanda di Zyruel sul modo di lavorare (sessioni, fasi, ordine) ha sempre una risposta scritta
+prima di ripresentare il piano.
+
 Dopo:
 - misurare e controllare il log (`/prova`);
 - aggiornare `docs/ARCHITETTURA.md` (funzione, misure, tabella dei moduli), `NOVITA.md` (sezione della
@@ -185,4 +198,6 @@ Dopo:
 - zero avvisi con MSVC;
 - `/controllo` (skill in `.claude/skills/controllo`) sui file cambiati: le regole di questo file e
   di `docs/DESIGN.md`, controllate sul codice, con un resoconto e senza correzioni automatiche
-  (prima di un rilascio, o quando serve, `/controllo tutto`).
+  (prima di un rilascio, o quando serve, `/controllo tutto`). Si fa sul codice che va nel commit:
+  se dopo il controllo si cambia ancora codice (una richiesta in più di Zyruel), si ricontrollano
+  i file toccati dopo, prima del commit.

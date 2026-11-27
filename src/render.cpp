@@ -36,7 +36,8 @@ static float drawPanelItem(float x, float w, float y, float ih, float pad, bool 
     return tx + iconW;
 }
 
-// Barra di scorrimento di un elenco che scorre voce per voce (menu, "Vai a"), al bordo destro right
+// Barra di scorrimento di un pannello sovrapposto, al bordo destro right. first, visible, n: in
+// voci per un elenco che scorre voce per voce (menu, "Vai a"), in pixel per le opzioni
 static void drawPanelScroll(float right, float trackY, float trackH, int first, int visible, int n, float k) {
     if (visible >= n) return;
     float th = std::max(px(ui::THUMB_MIN), trackH * visible / (float)n);
@@ -129,7 +130,7 @@ static void drawMenu() {
         uint32_t tc = !it.enabled ? C_FAINT : it.dim ? C_FAINT : C_TEXT;
         float textEnd = kn ? keysX - px(ui::GAP_M) : m.x + m.w - m.pad;
         drawText(tx, y + textOff, it.label, (int)wcslen(it.label), fadeA(tc, k), textEnd);
-        if (kn) drawText(keysX, y + textOff, it.keys, kn, fadeA(it.enabled ? C_DIM : C_FAINT, k));
+        if (kn) drawText(keysX, y + textOff, it.keys, kn, fadeA(!it.enabled ? C_FAINT : i == m.hot ? C_DIM_SEL : C_DIM, k));
         y += m.ih;
     }
     drawPanelScroll(m.x + m.w, my + m.vpad, m.visible * m.ih, m.first, m.visible, (int)m.items.size(), k);
@@ -189,8 +190,9 @@ static float drawBarView(float right, float y0, float w, uint32_t icon, const wc
 // Contatori di cartelle e file con le loro icone; more: la lettura si è fermata prima del fondo
 // (anteprima di una cartella enorme), i numeri sono un minimo e hanno un "+"
 static float drawBarCounts(float right, float y0, int dirs, int files, bool more) {
-    wchar_t nd[16], nf[16];
-    int dn = _snwprintf(nd, 15, more ? L"%d+" : L"%d", dirs), fn = _snwprintf(nf, 15, more ? L"%d+" : L"%d", files);
+    wchar_t nd[24], nf[24];
+    int dn = _snwprintf(nd, 23, L"%s%s", withThousands((uint64_t)dirs).c_str(), more ? L"+" : L"");
+    int fn = _snwprintf(nf, 23, L"%s%s", withThousands((uint64_t)files).c_str(), more ? L"+" : L"");
     float iw = (float)F.lineH, ig = px(ui::GAP_S), y = y0 + floorf((A.statusH - F.lineH) * 0.5f);
     float x = right - (iw + ig + textWidth(nd, dn) + px(ui::GAP_L) + iw + ig + textWidth(nf, fn));
     float left = x;
@@ -199,6 +201,18 @@ static float drawBarCounts(float right, float y0, int dirs, int files, bool more
     drawUiIcon(x, y0, iw, A.statusH, IC_PAGE, C_FAINT);
     drawText(x + iw + ig, y, nf, fn, C_DIM);
     return left;
+}
+
+// Cartelle tra le voci della vista della lista di App (anche l'anteprima, nel suo PaneScope), per i
+// contatori: contate solo quando cambiano (ViewCounts), non a ogni frame
+static int viewDirs() {
+    ViewCounts& c = A.counts;
+    if (c.forList != A.cur || c.n != A.view.size() || c.dirty) {
+        c.dirs = 0;
+        for (uint32_t ei : A.view) if (A.cur->e[ei].attr & FILE_ATTRIBUTE_DIRECTORY) c.dirs++;
+        c.forList = A.cur; c.n = A.view.size(); c.dirty = false;
+    }
+    return c.dirs;
 }
 
 // Fondo di una voce (finestra): selezione e hover arrotondati R_S, come le liste di Windows 11
@@ -234,7 +248,8 @@ static void drawRowIcon(const Entry& e, float x, float y, double now) {
 
 // Voci della lista di App (virtualizzate: solo quelle visibili), cursore, rettangolo e barra di
 // scorrimento: la lista principale e, nel suo PaneScope, l'anteprima di una cartella (preview:
-// niente Data, niente copertura a destra in Elenco, il ritaglio lo fa chi chiama). cursor: si
+// niente copertura a destra in Elenco, il ritaglio lo fa chi chiama; le colonne le decide
+// pvPaneLayout, a destra senza Data). cursor: si
 // disegna il cursore (solo nella lista che ha la tastiera).
 static void drawListItems(double dt, double now, bool preview, bool cursor) {
     float s = A.scale;
@@ -311,6 +326,7 @@ static void drawListItems(double dt, double now, bool preview, bool cursor) {
             drawItemBg(i, bpX, y, bpW, A.rowH);
             drawRowIcon(e, iconX, y + floorf((A.rowH - iconS) * 0.5f), now);
             bool hidden = (e.attr & FILE_ATTRIBUTE_HIDDEN) != 0;
+            uint32_t dimC = isSel(A.view[i]) ? C_DIM_SEL : C_DIM; // sul blu della selezione C_DIM non si legge
             if (A.renaming && (int)A.view[i] == A.renameEntry)
                 drawField(A.renameField, nameX - px(ui::FIELD_PAD), y + 1, A.nameEnd + A.padX - nameX, A.rowH - 2, s);
             else
@@ -325,25 +341,25 @@ static void drawListItems(double dt, double now, bool preview, bool cursor) {
                         float w = std::min((float)textWidth(t->path.c_str(), n), dateX - A.padX - A.linkX);
                         rrect(A.linkX - lp, y + m, w + lp * 2, A.rowH - m * 2, bpR, fadeA(C_HOVER_STRONG, la));
                     }
-                    drawText(A.linkX, y + textOff, t->path.c_str(), n, C_DIM, dateX - A.padX);
+                    drawText(A.linkX, y + textOff, t->path.c_str(), n, dimC, dateX - A.padX);
                 }
             if (A.cur->isDrives) {
-                { const wchar_t* k = driveKind((UINT)e.size); drawText(dateX, y + textOff, k, (int)wcslen(k), C_DIM, dateEnd); }
+                { const wchar_t* k = driveKind((UINT)e.size); drawText(dateX, y + textOff, k, (int)wcslen(k), dimC, dateEnd); }
             } else {
                 int n;
                 if (A.dateW > 0) { // l'anteprima a destra non ha la colonna Data
                     n = fmtDate(e.mtime, buf);
-                    drawText(dateX, y + textOff, buf, n, C_DIM, dateEnd);
+                    drawText(dateX, y + textOff, buf, n, dimC, dateEnd);
                 }
                 if (!dir || (A.cur->zipLen && A.dirSizes)) { // zip: le cartelle hanno già il totale (zip.cpp)
                     n = fmtSize(e.size, buf);
-                    drawTextRight(sizeX, sizeRight, y + textOff, buf, n, C_DIM);
+                    drawTextRight(sizeX, sizeRight, y + textOff, buf, n, dimC);
                 } else if (A.dirSizes) { // totale contato in background (dirsize.cpp); mentre conta, attenuato
                     DirSize d;
                     bool computing = false;
                     if (dirSizeGet(joinPath(A.cur->path, A.cur->name(e)), d, computing) && (d.files || !d.denied)) { // illeggibile: niente
                         n = fmtSize(d.bytes, buf);
-                        drawTextRight(sizeX, sizeRight, y + textOff, buf, n, computing ? C_FAINT : C_DIM);
+                        drawTextRight(sizeX, sizeRight, y + textOff, buf, n, computing ? C_FAINT : dimC);
                     }
                 }
             }
@@ -388,15 +404,15 @@ static void drawListItems(double dt, double now, bool preview, bool cursor) {
     }
     if (A.view.empty()) {
         const wchar_t* msg = A.filter.empty() ? L"Cartella vuota" : L"Nessun risultato per il filtro";
-        drawText(iconX, A.listTop + A.rowH * 0.5f, msg, (int)wcslen(msg), C_FAINT);
+        drawText(iconX, A.listTop + A.rowH * 0.5f, msg, (int)wcslen(msg), C_DIM);
     }
 }
 
 // Campo del filtro della lista di App (anche l'anteprima, nel suo PaneScope) nella barra in fondo
 // a partire da fltX, alto la barra in y0: sempre visibile (si scrive ovunque nella lista, qui si
 // vede), largo quanto vuole il layout ma mai oltre right (i contatori, a GAP_L); troppo stretto per
-// servire, non si disegna
-static void drawBarFilter(float right, float y0, double dt) {
+// servire, non si disegna. more: cartella letta in parte (anteprima), il numero è un minimo
+static void drawBarFilter(float right, float y0, double dt, bool more) {
     wchar_t buf[64];
     float y = y0 + floorf((A.rowH - F.lineH) * 0.5f);
     float fy = y0 + px(ui::GAP_XS), fh = A.statusH - px(ui::GAP_XS) * 2, fx = A.fltX;
@@ -418,8 +434,10 @@ static void drawBarFilter(float right, float y0, double dt) {
         float ha = hoverAlpha(A.fltFade, 0);
         if (ha > 0) rrect(fx + A.fltW - fh, fy, fh, fh, px(ui::R_S), fadeA(C_HOVER_STRONG, ha));
         drawUiIcon(fx + A.fltW - fh, fy, fh, fh, IC_CLOSE, A.fltClearHover ? C_TEXT : C_DIM);
-    } else if (A.cur) {
-        int n = _snwprintf(buf, 63, L"Filtra %zu elementi\x2026", A.cur->e.size());
+    } else if (A.cur && !A.view.empty()) { // senza filtro la vista è ciò che si vede; vuota, niente da filtrare
+        size_t v = A.view.size();
+        int n = _snwprintf(buf, 63, L"Filtra %s%s %s\x2026", withThousands(v).c_str(), more ? L"+" : L"",
+                           v == 1 && !more ? L"elemento" : L"elementi");
         drawText(tx, y, buf, n, C_FAINT, fx + A.fltW - px(ui::GAP_S));
     }
 }
@@ -545,7 +563,7 @@ static void render() {
                 L"lettura %.2f ms · chiavi %.2f · ordinamento %.2f · filtro %.2f · frame %.2f · avvio %.0f ms · F12",
                 A.cur->enumMs, A.cur->keyMs, A.sortMs, A.filterMs, A.frameMs, A.startupMs);
             decimalComma(t, n);
-            drawText(bx0 + A.padX, ty0 + textOff, t, n, C_FAINT, bx1 - A.padX);
+            drawText(bx0 + A.padX, ty0 + textOff, t, n, C_DIM, bx1 - A.padX);
         }
     }
     {
@@ -569,17 +587,10 @@ static void render() {
             rightX = drawBarView(rightX, sy0, w, viewIcon(A.zoom), viewName(A.zoom), ha, true);
         }
         if (A.cur) {
-            static const void* cFor = nullptr;
-            static size_t cN = (size_t)-1;
-            static int cDirs = 0;
-            if (cFor != (const void*)A.cur || cN != A.view.size() || A.countsDirty) {
-                cDirs = 0;
-                for (uint32_t ei : A.view) if (A.cur->e[ei].attr & FILE_ATTRIBUTE_DIRECTORY) cDirs++;
-                cFor = A.cur; cN = A.view.size(); A.countsDirty = false;
-            }
-            rightX = drawBarCounts(rightX, sy0, cDirs, (int)A.view.size() - cDirs, false);
+            int dirs = viewDirs();
+            rightX = drawBarCounts(rightX, sy0, dirs, (int)A.view.size() - dirs, false);
         }
-        drawBarFilter(rightX, sy0, dt);
+        drawBarFilter(rightX, sy0, dt, false);
         float leftX = fx + A.fltW + px(ui::GAP_L);
         if (A.cur) {
             uint64_t bytes = 0;
@@ -587,7 +598,8 @@ static void render() {
             if (k > 1) {
                 wchar_t sz[32];
                 fmtSize(bytes, sz);
-                int n = _snwprintf(buf, 255, L"%d selezionati%s%s   \x00B7   ", k, bytes ? L"  " : L"", bytes ? sz : L"");
+                int n = _snwprintf(buf, 255, L"%s selezionati%s%s   \x00B7   ", withThousands((uint64_t)k).c_str(),
+                                   bytes ? L"  " : L"", bytes ? sz : L"");
                 float sx = std::max(leftX, rightX - textWidth(buf, n));
                 drawText(sx, y, buf, n, C_ACCENT, rightX);
                 rightX = sx;
@@ -706,6 +718,13 @@ static void render() {
                 row(L"anteprima: decodifica (thread)", L"%.1f ms%s", A.prevDecodeMs, L"");
                 row(L"anteprima: texture (thread UI)", L"%.2f ms%s", A.prevTexMs, L"");
                 if (A.prevPaneMax > 0) row2(L"anteprima: voci di una cartella (UI, per frame)", A.prevPaneMs, A.prevPaneMax);
+                if (previewWatching() || A.prevNotifyCount || A.prevRefreshCount) { // come l'aggiornamento della lista
+                    rows[nr].label = L"anteprima: aggiornamento automatico"; rows[nr].head = false;
+                    _snwprintf(rows[nr].val, 95, L"%s · %d notifiche · %d riletture", previewWatching() ? L"attivo" : L"non attivo",
+                               A.prevNotifyCount, A.prevRefreshCount);
+                    rows[nr].val[95] = 0; nr++;
+                    if (A.prevRefreshCount) row(L"anteprima: ultima rilettura (da notifica a schermo)", L"%.1f ms%s", A.prevRefreshLatency, L"");
+                }
             }
             if (g_wicFirstMs > 0) row(L"primo caricamento di WIC", L"%.1f ms%s", (double)g_wicFirstMs, L" (thread: anteprima o miniature)");
             if (A.th.threads) { // griglia: fonti delle miniature, texture, memoria, prima schermata
@@ -809,7 +828,7 @@ static void render() {
             drawText(vx - vw, yy, rows[i].val, vn, fadeA(C_TEXT, k));
         }
         const wchar_t* foot = L"F12 chiude";
-        drawText(lx, yy, foot, (int)wcslen(foot), fadeA(C_FAINT, k));
+        drawText(lx, yy, foot, (int)wcslen(foot), fadeA(C_DIM, k));
     }
 
     drawDrop(); // destinazione del trascinamento, sopra liste e barre

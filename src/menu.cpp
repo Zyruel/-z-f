@@ -125,16 +125,16 @@ static void menuAddView() {
 // (le icone solo se lo zoom è uno dei tre delle scorciatoie). Si apre sopra il controllo, allineato
 // al suo bordo destro (cx): le voci vanno dalla più grande alla più piccola, così Dettagli, la più
 // usata, è la più vicina al controllo
+static const struct { const wchar_t* label; int id, zoom; } kViews[] = {
+    { L"Icone grandi", M_ICONS_L, ZOOM_LARGE }, { L"Icone medie", M_ICONS_M, ZOOM_MEDIUM }, { L"Icone piccole", M_ICONS_S, ZOOM_SMALL },
+    { L"Elenco", M_VIEW_LIST, ZOOM_LIST }, { L"Dettagli", M_VIEW_DETAILS, ZOOM_DETAILS },
+};
 static void menuOpenView(float cx, float cy) {
     double t0 = nowMs();
     PopupMenu& m = A.menu;
     m.items.clear();
     m.kind = MENU_VIEW;
     m.target = -1;
-    static const struct { const wchar_t* label; int id, zoom; } kViews[] = {
-        { L"Icone grandi", M_ICONS_L, ZOOM_LARGE }, { L"Icone medie", M_ICONS_M, ZOOM_MEDIUM }, { L"Icone piccole", M_ICONS_S, ZOOM_SMALL },
-        { L"Elenco", M_VIEW_LIST, ZOOM_LIST }, { L"Dettagli", M_VIEW_DETAILS, ZOOM_DETAILS },
-    };
     for (const auto& v : kViews) {
         menuAdd(v.label, v.id);
         if (v.zoom == A.zoom) m.items.back().icon = 3;
@@ -152,11 +152,13 @@ static void menuOpenPreview(float right, float top) {
     double t0 = nowMs();
     PopupMenu& m = A.menu;
     m.items.clear();
-    m.kind = MENU_PREVIEW;
+    m.kind = MENU_PREVIEW_POS;
     m.target = -1;
-    menuAdd(L"A destra", M_PREVIEW_RIGHT);
+    // Alt+Shift+P alterna le due posizioni: la scorciatoia sta sulla voce dove porterebbe
+    const wchar_t* swap = shortcutFor(M_PREVIEW_SWAP);
+    menuAdd(L"A destra", M_PREVIEW_RIGHT, true, A.prevBottom ? swap : L"");
     if (!A.prevBottom) m.items.back().icon = 3;
-    menuAdd(L"In basso", M_PREVIEW_BOTTOM);
+    menuAdd(L"In basso", M_PREVIEW_BOTTOM, true, A.prevBottom ? L"" : swap);
     if (A.prevBottom) m.items.back().icon = 3;
     menuPlace(right, top, false, t0);
     if (m.x + m.w > right) m.x = std::max(px(ui::GAP_XS), floorf(right - m.w));
@@ -194,7 +196,7 @@ static void menuOpen(float cx, float cy, POINT screenPt, bool background, bool f
         menuSep();
         if (!drives) {
             menuAdd(L"Rinomina", M_RENAME, single && !zip);
-            menuAdd(L"Elimina", M_DELETE, !zip);
+            menuAdd(L"Sposta nel Cestino", M_DELETE, !zip);
             menuSep();
         } else if (single && A.cur->e[sel[0]].size == DRIVE_REMOTE) { // per le unità size è il tipo
             menuAdd(L"Disconnetti", M_NET_DISCONNECT);
@@ -355,6 +357,7 @@ static void menuRun(int id, const CmdCtx& c) {
     case M_PREVIEW:     previewToggle(); break;
     case M_PREVIEW_RIGHT:  previewPlace(false); break;
     case M_PREVIEW_BOTTOM: previewPlace(true); break;
+    case M_PREVIEW_SWAP:   previewPlace(!A.prevBottom); break;
     case M_ICONS_S:      viewZoom(ZOOM_SMALL); break;
     case M_ICONS_M:       viewZoom(ZOOM_MEDIUM); break;
     case M_ICONS_L:       viewZoom(ZOOM_LARGE); break;
@@ -422,6 +425,10 @@ static void menuExec(int i) {
     if (c.kind == MENU_DROP) { g_dropChoice = id; return; } // lo esegue chi ha aperto il menu (drag.cpp)
     if (m.preview) { // dell'anteprima: nel suo PaneScope, se mostra ancora quella cartella
         ListPane* p = previewPaneFor(m.forPath);
+        if (!p && c.kind == MENU_VIEW) { // la vista è del pannello, non della cartella: vale anche se è cambiata
+            for (const auto& v : kViews) if (v.id == id) previewZoom(v.zoom);
+            return;
+        }
         if (!p) { notice(L"L'anteprima non mostra più quella cartella", false); return; }
         PaneScope ps(p);
         menuRun(id, c);

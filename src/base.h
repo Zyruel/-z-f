@@ -143,7 +143,7 @@ static inline uint32_t fadeA(uint32_t c, float a) {
 
 
 // Messaggi interni (thread di lavoro → finestra)
-#define ZF_VERSION L"1.0.0-beta.7" // versione (SemVer) mostrata in fondo alle opzioni
+#define ZF_VERSION L"1.0.0-beta.8" // versione (SemVer) mostrata in fondo alle opzioni
 #include "risorse.h" // ID delle risorse (ZF_ICON), in comune con src\z-f.rc
 
 #define WM_APP_LISTING (WM_APP + 1)
@@ -164,7 +164,7 @@ static inline uint32_t fadeA(uint32_t c, float a) {
 #define WM_APP_NET        (WM_APP + 16)
 #define WM_APP_DIRSIZE    (WM_APP + 17)
 #define WM_APP_OPENTAB    (WM_APP + 18) // lParam: new std::wstring, cartella da aprire in una scheda
-#define WM_APP_DEFAULT    (WM_APP + 19) // "Usa [z]f al posto di Explorer" scritto: wParam acceso, lParam riuscito
+#define WM_APP_DEFAULT    (WM_APP + 19) // "[z]f al posto di Explorer" scritto: wParam acceso, lParam riuscito
 #define WM_APP_CLIPTEXT   (WM_APP + 20) // testo degli appunti letto da un thread: lParam ClipText*
 #define WM_APP_SHELLMENU  (WM_APP + 21) // menu completo della shell chiuso (shell.cpp): lParam SmRes*
 #define WM_APP_ZIP        (WM_APP + 22) // estrazione da uno zip finita (zip.cpp): lParam ZipJob*

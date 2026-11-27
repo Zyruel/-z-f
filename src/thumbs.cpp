@@ -567,6 +567,34 @@ static int thPoolFor(const ThumbReq& r, bool perFile) {
     return r.src == SRC_SHELL ? POOL_SHELL : remote ? POOL_NET : r.src == SRC_WIC ? POOL_WIC : POOL_FAST;
 }
 
+// Una voce ripresa alla lista ci e non più voluta da lei può servire all'altra, che non l'aveva chiesta
+// perché era già in coda: solo allora l'altra si risincronizza (sempre, le due liste si
+// risincronizzerebbero a vicenda a ogni frame). Le chiavi hanno il lato: in comune solo a pari lato
+static void thOthersResync(int ci, const std::vector<std::pair<bool, std::wstring>>& taken) {
+    bool dropped = false;
+    for (const auto& k : taken) {
+        auto& m = k.first ? TH.icons : TH.map;
+        auto it = m.find(k.second);
+        if (it != m.end() && it->second.state == THS_NEW && !it->second.queued) { dropped = true; break; }
+    }
+    if (!dropped) return;
+    for (int k = 0; k < TC_N; k++)
+        if (k != ci && TH.c[k].active && TH.c[k].box == TH.c[ci].box) TH.c[k].needSync = true;
+    A.animActive = true; // l'altra lista richiede nel prossimo frame: A.dirty no, siamo dentro render() che alla fine lo azzera
+}
+
+// La lista ci smette di chiedere miniature (non è più in Icone, l'anteprima non mostra più una
+// cartella): le sue richieste in coda tornano indietro, e quelle in comune le richiede l'altra lista
+// (le icone per tipo, come .pdf, altrimenti restano vuote finché non si scorre)
+static void thClientStop(int ci) {
+    ThClient& c = TH.c[ci];
+    std::vector<std::pair<bool, std::wstring>> taken;
+    thQueuesTakeBack(ci, &taken);
+    thOthersResync(ci, taken);
+    c.active = false;
+    c.first = c.last = -1;
+}
+
 // Richieste per le voci volute, in ordine: visibili, una schermata avanti nella direzione dello
 // scorrimento, una dall'altra parte
 // (della lista ci, che è quella in A: la principale o l'anteprima nel suo PaneScope)
@@ -611,18 +639,7 @@ static void thSync(int ci, int first, int last) {
             }
         }
     thPush(add);
-    // Una voce ripresa e non più voluta da questa lista può servire all'altra, che non l'aveva chiesta
-    // perché era già in coda: solo allora l'altra si risincronizza (sempre, le due liste si
-    // risincronizzerebbero a vicenda a ogni frame). Le chiavi hanno il lato: in comune solo a pari lato
-    bool dropped = false;
-    for (const auto& k : taken) {
-        auto& m = k.first ? TH.icons : TH.map;
-        auto it = m.find(k.second);
-        if (it != m.end() && it->second.state == THS_NEW && !it->second.queued) { dropped = true; break; }
-    }
-    if (dropped)
-        for (int k = 0; k < TC_N; k++)
-            if (k != ci && TH.c[k].active && TH.c[k].box == c.box) TH.c[k].needSync = true;
+    thOthersResync(ci, taken);
 }
 
 // Risultati arrivati dai thread: pronti, o si prova la fonte successiva, o l'icona. Il passo
@@ -782,7 +799,7 @@ static void thumbsFrame(int first, int last, bool preview) {
         TH.frameUpMs = 0;
     }
     if (!gridView() || !A.cur) {
-        if (c.active) { thQueuesTakeBack(ci); c.active = false; c.first = c.last = -1; }
+        if (c.active) thClientStop(ci);
         if (preview) return;
         if (TH.c[TC_PREVIEW].active) { // solo l'anteprima è in Icone: i suoi risultati e le potature
             thApply();
@@ -862,9 +879,7 @@ static void thumbsFrame(int first, int last, bool preview) {
 static void thumbsPreviewIdle() {
     ThClient& c = TH.c[TC_PREVIEW];
     if (!c.active) return;
-    thQueuesTakeBack(TC_PREVIEW);
-    c.active = false;
-    c.first = c.last = -1;
+    thClientStop(TC_PREVIEW);
     c.forList = nullptr; // un Listing nuovo allo stesso indirizzo non deve sembrare la stessa cartella
 }
 

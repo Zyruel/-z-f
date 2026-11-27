@@ -2,6 +2,7 @@
 # Uso:  python prove\anteprima-prova.py <cartella>
 # Il JPEG ruotato (EXIF), lo scatto e la WebP servono Pillow; senza, si saltano.
 import os, struct, zlib, random, sys
+sys.stdout.reconfigure(encoding="utf-8")   # la console di Windows non è UTF-8, e -I ignora PYTHONUTF8
 
 root = sys.argv[1]
 os.makedirs(root, exist_ok=True)

@@ -4,6 +4,7 @@
 #   scala 1 (predefinita) = circa 3.000 file; 3 = circa 9.000.
 # Serve Pillow (pip install pillow).
 import os, sys, random
+sys.stdout.reconfigure(encoding="utf-8")   # la console di Windows non è UTF-8, e -I ignora PYTHONUTF8
 from PIL import Image, ImageDraw
 
 root = sys.argv[1]

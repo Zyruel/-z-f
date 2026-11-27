@@ -13,6 +13,7 @@
 # build\z-f.exe in uso: l'exe viene sostituito.
 # Un server minimo e non http.server: su questo PC quello di Python mandava 3 KB al secondo.
 import hashlib, json, os, re, socket, sys, threading
+sys.stdout.reconfigure(encoding="utf-8")   # la console di Windows non è UTF-8, e -I ignora PYTHONUTF8
 
 root = sys.argv[1]
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 8766

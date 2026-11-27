@@ -5,6 +5,48 @@ servirebbe, cosa la frena rispetto ai principi di `CLAUDE.md`. Quando un'idea di
 sposta in "Prossimi passi" di `CLAUDE.md` e si toglie da qui. Le piccole correzioni sono in
 `da-sistemare.md`, le prove a mano in `prove\da-verificare.md`.
 
+## Interfaccia
+
+Le tre idee che seguono vengono dalla revisione di design del 27/11 (dopo la 1.0.0-beta.7); le
+correzioni piccole della stessa revisione sono in `da-sistemare.md`.
+
+### Il pannello delle opzioni dalla tastiera (novembre 2026)
+
+Nel pannello funzionano solo Esc, ↑↓, PagSu/PagGiù e la ricerca (`optionsKey`): un interruttore o
+un selettore si cambia solo col mouse, mentre il resto di [z]f si usa tutto da tastiera.
+
+- **Cosa servirebbe:** un controllo attivo (indice nell'elenco `OP.hits`, senza titolo e piede),
+  Tab / Shift+Tab per spostarlo, Spazio o Invio per cambiarlo, ← → sui selettori, un contorno
+  `C_SEL_EDGE` sul controllo attivo (lo stesso colore del cursore della lista), e lo scorrimento
+  che lo tiene in vista. Le lettere restano alla ricerca.
+- **Frena:** oggi ogni tasto che non è di navigazione va alla ricerca: Spazio e Tab andrebbero
+  tolti alla casella. Poco codice, ma un comportamento nuovo da scrivere in DESIGN §8.
+
+### Colonne vicine al nome nelle finestre larghe (novembre 2026)
+
+A finestra ingrandita su uno schermo da 2560 px, i nomi stanno a sinistra e Data modifica e
+Dimensione all'estremo destro: fra "esempio.cpp" e "22 B" ci sono circa 2.000 px vuoti, e si
+segue la riga con l'occhio per capire quale data è di quale file. La riga sotto il mouse aiuta, ma
+una voce alla volta.
+
+- **Cosa servirebbe:** la colonna Nome larga quanto il nome più lungo visibile, con un massimo, e
+  le altre colonne subito dopo (lo spazio in più a destra resta vuoto); oppure una fascia
+  leggerissima a righe alterne, solo oltre una certa larghezza.
+- **Frena:** la colonna Nome che cambia larghezza da una cartella all'altra fa saltare le colonne
+  a ogni cambio; misurare il nome più lungo costa `textWidth` su tutte le voci (da misurare con
+  le cartelle grandi). Le righe alterne sono decorazione, che DESIGN §1.5 chiede di evitare.
+
+### Cartella vuota e filtro senza risultati: cosa fare (novembre 2026)
+
+"Cartella vuota" e "Nessun risultato per il filtro" dicono bene lo stato, in `C_FAINT` in alto a
+sinistra (`render.cpp`). Potrebbero dire anche cosa si può fare: "Nessun risultato per «zzq» · Esc
+toglie il filtro", "Cartella vuota · Ctrl+Shift+N per una nuova cartella".
+
+- **Cosa servirebbe:** solo i testi, con le scorciatoie prese da `shortcutsOf` (non scritte a
+  mano).
+- **Frena:** DESIGN §1.5 ("poco testo"): chi usa [z]f ogni giorno lo sa già, e il testo in più si
+  vede in ogni cartella vuota. È una scelta di Zyruel.
+
 ## Finestre
 
 ### Tutte le finestre in un solo processo, con i profili (novembre 2026, dopo la 1.0.0-beta.5)

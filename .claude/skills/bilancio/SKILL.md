@@ -37,11 +37,12 @@ Regole che valgono per tutta la procedura:
 Da Bash, nella cartella del progetto:
 
 ```
-python -I .claude/skills/bilancio/raccogli.py <versione> [<versione precedente>]
+python -I -X utf8 .claude/skills/bilancio/raccogli.py <versione> [<versione precedente>]
 ```
 
 Scrive `build/bilanci/<versione>-dati.md`: riepilogo, sessioni (messaggi, strumenti, errori,
-subagenti, costo, skill), skill e subagenti, strumenti, errori per categoria, decisioni sui
+subagenti, token letti e in uscita, picco del contesto, giri oltre 400k, skill; il costo solo se
+le trascrizioni lo registrano, cosa che dalla 1.0.0-beta.7 non fanno più), skill e subagenti, strumenti, errori per categoria, decisioni sui
 permessi, comandi di shell più usati (con quante volte erano già permessi), sequenze ripetute,
 compilazioni, commit e file toccati più volte, e i messaggi di Zyruel.
 
@@ -95,9 +96,10 @@ Per ogni area si risponde alle domande con le prove; un'area senza niente da dir
     `.claude/settings.json`.
   - Errori ripetuti che un controllo prima del comando eviterebbe → un blocco in `regole.sh`,
     con il messaggio che dice cosa fare.
-- **Costi:**
+- **Costi** (in token: i letti dalla cache sono la voce che pesa; per riferimento, la 1.0.0-beta.6
+  ha letto 239 M token, subagenti compresi, per 84,91 $):
   - Quali sessioni sono costate di più e perché (contesto lungo, tentativi ripetuti, subagenti,
-    screenshot)?
+    screenshot)? Un picco oltre 400k o molti giri oltre quella misura dicono un contesto lungo.
   - Cosa le avrebbe accorciate?
 - **Il bilancio precedente:**
   - Le proposte applicate hanno funzionato (gli errori che dovevano sparire sono spariti)?

@@ -9,7 +9,8 @@
 enum TipKind { TIP_NONE, TIP_ROW, TIP_SIDE, TIP_TAB, TIP_TABPLUS, TIP_TABCLOSE, TIP_HEADER, TIP_STATS, TIP_PATH, TIP_DRIVES,
                TIP_CHROME, TIP_FILTER, TIP_GOTO, TIP_FAVDEL, // cestino di un preferito (sidebar.cpp)
                TIP_LINK,  // destinazione di un collegamento nella colonna Destinazione (links.cpp)
-               TIP_VIEW }; // vista e zoom nella barra di stato
+               TIP_VIEW,   // vista e zoom nella barra di stato
+               TIP_OPTIONS }; // scorciatoia troncata nel pannello delle opzioni (options.cpp)
 
 struct TipInfo {           // risultato del thread
     uint64_t gen = 0;
@@ -169,12 +170,6 @@ static DWORD WINAPI tipThread(void* p) {
 }
 
 // --- contenuto ---------------------------------------------------------------------------
-static std::wstring withThousands(uint64_t v) {
-    std::wstring s = std::to_wstring(v);
-    for (int i = (int)s.size() - 3; i > 0; i -= 3) s.insert((size_t)i, 1, L'.');
-    return s;
-}
-
 static std::wstring relTime(uint64_t ft) {
     FILETIME nf;
     GetSystemTimeAsFileTime(&nf);
@@ -374,6 +369,9 @@ static bool tipBuild() {
     case TIP_GOTO:
         if (!gotoTipBuild(T.index)) return false;
         break;
+    case TIP_OPTIONS:
+        if (!optionsTipBuild(T.index)) return false;
+        break;
     case TIP_DRIVES:
         T.title = (T.index == -3 ? A.favOpen : A.drvOpen) ? L"Comprimi" : L"Espandi";
         tipRow(L"", T.index == -3 ? L"Preferiti" : L"Unità di Questo PC");
@@ -405,12 +403,13 @@ static bool tipBuild() {
             T.title = A.prevOpen ? L"Nascondi l'anteprima" : L"Mostra l'anteprima";
             tipRow(L"Scorciatoia", shortcutFor(M_PREVIEW));
             tipRow(L"Posizione", A.prevBottom ? L"in basso" : L"a destra");
-            if (A.prevOpen && !A.prevW) tipRow(L"", A.prevBottom ? L"La finestra è troppo bassa per mostrarla" : L"La finestra è troppo stretta per mostrarla");
+            if (A.prevOpen && !A.prevW) tipRow(L"", previewNoRoom());
             break;
         case CH_PREVIEW_POS:
             T.title = L"Posizione dell'anteprima";
             tipRow(L"Adesso", A.prevBottom ? L"in basso" : L"a destra");
             tipRow(L"", L"Clic per scegliere: a destra o in basso");
+            tipRow(L"Scorciatoia", shortcutFor(M_PREVIEW_SWAP));
             break;
         default: return false;
         }
@@ -428,8 +427,10 @@ static bool tipBuild() {
         break;
     case TIP_FILTER:
         T.title = A.filter.empty() ? L"Filtro" : L"Filtro: " + A.filter;
-        if (g_inPane) tipRow(L"", L"Con la tastiera nell'anteprima (clic qui, Tab) scrivi per filtrare i nomi"); // nel suo PaneScope (tipBuild)
-        else tipRow(L"", L"Scrivi in qualsiasi punto della lista per filtrare i nomi");
+        if (g_inPane) { // nel suo PaneScope (tipBuild)
+            tipRow(L"", L"Con la tastiera nell'anteprima scrivi per filtrare i nomi");
+            tipRow(L"Tastiera qui", shortcutsOf(M_PANE_KEYS));
+        } else tipRow(L"", L"Scrivi in qualsiasi punto della lista per filtrare i nomi");
         tipRow(L"Togli il filtro", shortcutsOf(M_FILTER_CLEAR) + L" \x00B7 \x00D7");
         break;
     case TIP_STATS:
@@ -450,8 +451,7 @@ static bool tipBuild() {
 static void tipShow() {
     KillTimer(A.hwnd, 6);
     T.waiting = false;
-    ListPane* pv = pvPane(); // anche la lista dell'anteprima: niente tooltip sopra la sua rinomina o la sua barra trascinata
-    if (A.menu.open || A.renaming || A.draggingThumb || (pv && (pv->renaming || pv->draggingThumb)) || !tipBuild()) { tipHide(); return; }
+    if (A.menu.open || listsBusy() || !tipBuild()) { tipHide(); return; } // niente tooltip sopra una rinomina o una barra trascinata
     if (!T.visible) T.shownAt = nowMs();
     T.visible = true;
     A.dirty = true;
@@ -503,16 +503,16 @@ static void tipTarget(int x, int y, int& kind, int& index, bool& preview) {
     kind = TIP_NONE; index = -1;
     preview = false;
     if (gotoIsOpen()) { if (gotoTipTarget(x, y, index)) kind = TIP_GOTO; return; } // sopra il resto
+    if (optionsIsOpen()) { if (optionsTipTarget(x, y, index)) kind = TIP_OPTIONS; return; } // copre la finestra
     bool closeHit, plusHit;
     int t = tabHit(x, y, &closeHit, &plusHit);
     if (plusHit) { kind = TIP_TABPLUS; return; }
     int chId = chromeHit(x, y);
     if (chId != CH_NONE && chId != CH_MIN && chId != CH_MAX && chId != CH_CLOSE) { kind = TIP_CHROME; index = chId; return; }
-    if (inBar(y) && x >= A.fltX && x < A.fltX + A.fltW) { kind = TIP_FILTER; return; }
-    if (ListPane* p = pvPane(); p && inPreview(x, y) && y >= G.h - A.statusH && x >= p->fltX && x < p->fltX + p->fltW) { // quello dell'anteprima
-        kind = TIP_FILTER;
-        preview = true;
-        return;
+    if (fltFieldAt(x, y)) { kind = TIP_FILTER; return; }
+    if (ListPane* p = pvPane(); p && inPreview(x, y)) { // quello dell'anteprima
+        PaneScope ps(p);
+        if (fltFieldAt(x, y)) { kind = TIP_FILTER; preview = true; return; }
     }
     if (viewCtlAt(x, y)) { kind = TIP_VIEW; return; }
     if (pvViewAt(x, y)) { kind = TIP_VIEW; index = 1; return; }
@@ -601,7 +601,7 @@ static void drawTooltip() {
     for (auto& r : T.rows) {
         float vx = x + pad + (labW > 0 && !r.first.empty() ? labW + gap : 0);
         if (!r.first.empty()) drawText(x + pad, ty, r.first, fadeA(C_DIM, k));
-        drawText(r.first.empty() ? x + pad : vx, ty, r.second, fadeA(r.first.empty() ? C_FAINT : C_TEXT, k), x + w - pad);
+        drawText(r.first.empty() ? x + pad : vx, ty, r.second, fadeA(r.first.empty() ? C_DIM : C_TEXT, k), x + w - pad);
         ty += lh;
     }
 }
