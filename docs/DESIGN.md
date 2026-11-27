@@ -421,8 +421,10 @@ doppione.
     sotto il mouse e col menu aperto; clic: lo stesso menu delle viste, con la spunta su quella
     dell'anteprima; la rotellina sopra cambia lo zoom); per gli altri contenuti non si sceglie
     (dipende dalla voce) e non ha fondo: "Testo" (Document), "Immagine" (Photo), "Informazioni"
-    (Info: gli altri file e le unità). Largo quanto il più largo dei sei nomi, così i dati prima
-    non si spostano. Prima, dopo la barretta, i **dati** in
+    (Info: gli altri file e le unità). Largo quanto il nome di vista più largo, come il controllo
+    della vista della lista (`barViewW`): per una cartella i contatori non si spostano cambiando
+    vista e con l'anteprima in basso sono sotto quelli della barra di stato. Un nome più largo
+    ("Immagine", "Informazioni") allarga solo il suo blocco. Prima, dopo la barretta, i **dati** in
     `C_DIM`: per una cartella i contatori di cartelle e file con le icone, come la lista ("+"
     dopo i numeri se la lettura si è fermata prima del fondo); per un testo codifica · righe ·
     dimensione; per un'immagine larghezza × altezza · dimensione · formato. Una cartella ha a
@@ -548,7 +550,9 @@ doppione.
     toglierlo. Si scrive in qualsiasi punto della lista;
   - all'estremo destro, prima del bordo dell'anteprima, il **controllo della vista**: icona della vista (BulletedList, List,
     ViewAll) in `C_FAINT` e nome ("Dettagli", "Elenco", "Icone") in `C_DIM`, largo sempre
-    quanto il nome più largo, così cambiando vista non si sposta niente. Sotto il mouse, e finché
+    quanto il nome di vista più largo (`barViewW`, come nella banda dell'anteprima): cambiando
+    vista non si sposta niente, il nome finisce dove finiscono le colonne e con l'anteprima in
+    basso le parti delle due barre stanno una sopra l'altra. Sotto il mouse, e finché
     il suo menu è aperto, fondo `C_HOVER` arrotondato `R_S` come i pulsanti della riga del
     percorso. Clic: menu delle viste, sopra il controllo e allineato al suo bordo destro (Icone
     grandi, medie, piccole, Elenco, Dettagli con le scorciatoie: dalla più grande alla più

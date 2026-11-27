@@ -1132,9 +1132,7 @@ static bool pvViewAt(int x, int y) {
 // come quella (choose: fondo sotto il mouse e col menu aperto), per gli altri contenuti dipende
 // dalla voce e non ha fondo. Prima i dati, se ci sono (data). Restituisce il bordo destro libero.
 static float pvBar(const PvGeom& g, uint32_t icon, const wchar_t* name, bool data, bool choose = false) {
-    static const wchar_t* const kNames[] = { viewName(ZOOM_DETAILS), viewName(ZOOM_LIST), viewName(ZOOM_ICONS),
-                                             L"Testo", L"Immagine", L"Informazioni" };
-    float w = barViewW(kNames, 6), right = g.x1 + px(ui::GAP_S), ha = 0;
+    float w = barViewW(name), right = g.x1 + px(ui::GAP_S), ha = 0;
     if (choose) {
         PV.viewX = right - w;
         PV.viewW = w;

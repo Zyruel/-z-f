@@ -8,6 +8,14 @@ erano `0.N`. Ogni rilascio, dalla 1.0.0-beta.2, ha un tag `v<versione>` e una
 versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 [`ARCHITETTURA.md`](docs/ARCHITETTURA.md).
 
+## 1.0.0-beta.9 (in corso)
+
+- **Barre in fondo allineate:** con l'anteprima in basso, la barretta, i contatori e il controllo
+  della vista della barra di stato stanno sopra quelli della banda dell'anteprima, e nelle due
+  barre il nome della vista finisce dove finiscono le colonne. Prima il controllo della vista
+  dell'anteprima era largo come "Informazioni" anche per una cartella: tutto quello che lo
+  precede era spostato, e a destra restava spazio vuoto.
+
 ## 1.0.0-beta.8 (novembre 2026)
 
 - **Pannello delle opzioni più leggibile:**

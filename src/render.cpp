@@ -165,11 +165,15 @@ static void drawBarBand(float x0, float x1, float y, float h) {
     rect(x0, y, x1 - x0, 1, C_LINE);
 }
 
-// Larghezza del blocco della vista: quanto il nome più largo tra quelli possibili, perché cambiando
-// vista quello che sta prima non si sposti
-static float barViewW(const wchar_t* const* names, int n) {
-    float tw = 0;
-    for (int i = 0; i < n; i++) tw = std::max(tw, (float)textWidth(names[i], (int)wcslen(names[i])));
+// Larghezza del blocco della vista: quanto il nome di vista più largo, nella lista e nell'anteprima
+// di una cartella. Così cambiando vista i contatori prima non si spostano, e con l'anteprima in
+// basso le parti delle due barre stanno una sopra l'altra; il nome finisce dove finiscono le
+// colonne. Un tipo di contenuto più largo (name: "Informazioni") allarga solo il suo blocco: lì non
+// ci sono contatori da allineare
+static float barViewW(const wchar_t* name) {
+    static const wchar_t* const kNames[] = { viewName(ZOOM_DETAILS), viewName(ZOOM_LIST), viewName(ZOOM_ICONS) };
+    float tw = (float)textWidth(name, (int)wcslen(name));
+    for (const wchar_t* s : kNames) tw = std::max(tw, (float)textWidth(s, (int)wcslen(s)));
     float pad = px(ui::GAP_S);
     return pad + (float)F.lineH + px(ui::GAP_S) + tw + pad;
 }
@@ -577,10 +581,9 @@ static void render() {
         float rightX = bx1 - A.padX + px(ui::GAP_S); // il fondo del controllo della vista sporge di GAP_S
         {
             // Vista: si clicca (menu delle viste) e ci si gira la rotellina (zoom). Sotto il mouse, e col
-            // suo menu aperto, ha il fondo dei pulsanti della barra del percorso. Largo sempre quanto il
-            // nome più largo: cambiando vista i contatori accanto non si spostano
-            static const wchar_t* const kNames[] = { viewName(ZOOM_DETAILS), viewName(ZOOM_LIST), viewName(ZOOM_ICONS) };
-            float w = barViewW(kNames, 3);
+            // suo menu aperto, ha il fondo dei pulsanti della barra del percorso. Largo come nella
+            // banda dell'anteprima (barViewW)
+            float w = barViewW(viewName(A.zoom));
             A.viewX = rightX - w; A.viewW = w;
             hoverFadeUpdate(A.viewFade, A.viewHover ? 0 : -1, dt);
             float ha = A.menu.open && A.menu.kind == MENU_VIEW && !A.menu.preview ? 1.0f : hoverAlpha(A.viewFade, 0);
