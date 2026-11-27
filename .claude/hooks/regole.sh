@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Hook PreToolUse di Claude Code per Bash e PowerShell (.claude/settings.json): ferma prima che
+# Hook PreToolUse di Claude Code per Bash, PowerShell e due strumenti del controllo dello schermo
+# (request_access, open_application; .claude/settings.json): ferma prima che
 # partano i comandi che infrangono le regole di CLAUDE.md. Uscita 2 = comando bloccato, e il motivo
 # arriva a Claude su stderr. Le regole sono scritte lì; qui solo il controllo, perché a memoria
 # venivano dimenticate (finestre chiuse per nome: 20 volte nelle sessioni della 1.0.0-beta.4).
@@ -46,22 +47,57 @@ if [ "$1" = "--prova" ]; then
 0|grep -n \"taskkill /IM\" CLAUDE.md
 0|cmd //c '.\\build.bat dev'
 CASI
+    # Controllo dello schermo: JSON intero (atteso|strumento|input)
+    while IFS='|' read -r atteso t i; do
+        printf '{"session_id":"x","cwd":"C:\\\\x\\\\[z]f","tool_name":"%s","tool_input":%s}' "$t" "$i" | bash "$0" 2>/dev/null
+        r=$?
+        if [ "$r" = "$atteso" ]; then ok=$((ok+1)); else ko=$((ko+1)); echo "SBAGLIATO ($r invece di $atteso): $t $i"; fi
+    done <<'CASI'
+2|mcp__computer-use__request_access|{"apps":["z-f-dev"],"reason":"prova"}
+2|mcp__computer-use__request_access|{"apps":["[z]f - C:\\Users\\utente"],"reason":"prova"}
+2|mcp__computer-use__request_access|{"apps":["File Explorer","Z-f-dev"],"reason":"prova"}
+2|mcp__computer-use__open_application|{"app":"z-f-dev.exe"}
+2|mcp__computer-use__open_application|{"app":"Z-f-dev"}
+0|mcp__computer-use__request_access|{"apps":["z-f-dev.exe","File Explorer"],"reason":"z-f-dev e [z]f"}
+0|mcp__computer-use__request_access|{"apps":["C:\\Users\\utente\\[z]f\\build\\z-f-dev.exe"],"reason":"prova"}
+0|mcp__computer-use__request_access|{"apps":["dialoghi-prova.exe"],"reason":"z-f-dev"}
+0|mcp__computer-use__open_application|{"app":"Rundll32"}
+CASI
     echo "prove: $ok giuste, $ko sbagliate"
     [ "$ko" = 0 ]; exit
 fi
 
 in=$(cat)
-# Solo il comando, ancora con gli escape del JSON (\" e \\): il resto del JSON contiene percorsi
-# della sessione che hanno "z-f" nel nome
-cmd=$(printf '%s' "$in" | sed -nE 's/.*"command"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)".*/\1/p')
-[ -z "$cmd" ] && exit 0
 shopt -s nocasematch
 
 blocca() {
     printf 'Bloccato da .claude/hooks/regole.sh: %s\n' "$1" >&2
-    printf '(Se il testo bloccato era solo una stringa, in un grep o in un messaggio, riformulalo.)\n' >&2
+    [ -n "$cmd" ] && printf '(Se il testo bloccato era solo una stringa, in un grep o in un messaggio, riformulalo.)\n' >&2
     exit 2
 }
+
+# Controllo dello schermo (/prova, sezione 4): i nomi che lo strumento non riconosce e la finestra
+# di prova in più. Sbagliati anche nelle sessioni che non caricano /prova (1.0.0-beta.6).
+tool=$(printf '%s' "$in" | sed -nE 's/.*"tool_name"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/p')
+zf='(z-f|\[z\]f)'
+case $tool in
+mcp__computer-use__request_access)
+    apps=$(printf '%s' "$in" | sed -nE 's/.*"apps"[[:space:]]*:[[:space:]]*\[(("([^"\\]|\\.)*"[[:space:],]*)*)\].*/\1/p')
+    while read -r a; do
+        a=${a#\"}; a=${a%\"}
+        [[ $a =~ $zf && ! $a =~ \.exe$ ]] && blocca "\"$a\" non è un nome che lo strumento riconosce. Per la finestra di prova si chiede [\"z-f-dev.exe\", \"File Explorer\"] dopo averla avviata con prove\\dev.bat (/prova, sezione 4)."
+    done < <(printf '%s' "$apps" | grep -oE '"([^"\\]|\\.)*"')
+    exit 0 ;;
+mcp__computer-use__open_application)
+    app=$(printf '%s' "$in" | sed -nE 's/.*"app"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)".*/\1/p')
+    [[ $app =~ $zf ]] && blocca "open_application su [z]f avvia un'altra finestra di prova. Per portare davanti z-f-dev si clicca la sua barra del titolo; se davanti c'è il desktop serve \"File Explorer\" in request_access (/prova, sezione 4)."
+    exit 0 ;;
+esac
+
+# Solo il comando, ancora con gli escape del JSON (\" e \\): il resto del JSON contiene percorsi
+# della sessione che hanno "z-f" nel nome
+cmd=$(printf '%s' "$in" | sed -nE 's/.*"command"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)".*/\1/p')
+[ -z "$cmd" ] && exit 0
 chk() { [[ $cmd =~ $1 ]] && blocca "$2"; }
 
 Q="\"'"                              # virgolette doppie e semplici

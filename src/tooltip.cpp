@@ -25,6 +25,7 @@ struct TipInfo {           // risultato del thread
 struct Tooltip {
     int kind = TIP_NONE, index = -1;
     const void* owner = nullptr; // la cartella a cui si riferisce l'indice di riga
+    bool preview = false;        // la riga è dell'anteprima di una cartella: si legge nel suo PaneScope
     bool visible = false, waiting = false;
     double shownAt = 0, hiddenAt = -1e9;
     int mx = 0, my = 0;
@@ -44,6 +45,7 @@ static void tipHide() {
     T.visible = T.waiting = false;
     T.kind = TIP_NONE;
     T.index = -1;
+    T.preview = false;
 }
 
 // --- lettura delle informazioni (thread) --------------------------------------------------
@@ -292,6 +294,9 @@ static void fileRows(InfoRows& rows, const std::wstring& path, uint32_t attr, ui
 static bool tipBuild() {
     T.title.clear();
     T.rows.clear();
+    // Nello scope dell'anteprima (tipOnTimer ci è già dentro: pvPane() lì è nullptr)
+    PaneScope ps(T.preview ? pvPane() : nullptr);
+    if (T.preview && !ps.p && !g_inPane) return false; // l'anteprima non mostra più quella cartella
     switch (T.kind) {
     case TIP_ROW: {
         if (T.owner != (const void*)A.cur || !A.cur || T.index < 0 || T.index >= (int)A.cur->e.size()) return false;
@@ -399,19 +404,32 @@ static bool tipBuild() {
         case CH_PREVIEW:
             T.title = A.prevOpen ? L"Nascondi l'anteprima" : L"Mostra l'anteprima";
             tipRow(L"Scorciatoia", shortcutFor(M_PREVIEW));
-            if (A.prevOpen && !A.prevW) tipRow(L"", L"La finestra è troppo stretta per mostrarla");
+            tipRow(L"Posizione", A.prevBottom ? L"in basso" : L"a destra");
+            if (A.prevOpen && !A.prevW) tipRow(L"", A.prevBottom ? L"La finestra è troppo bassa per mostrarla" : L"La finestra è troppo stretta per mostrarla");
+            break;
+        case CH_PREVIEW_POS:
+            T.title = L"Posizione dell'anteprima";
+            tipRow(L"Adesso", A.prevBottom ? L"in basso" : L"a destra");
+            tipRow(L"", L"Clic per scegliere: a destra o in basso");
             break;
         default: return false;
         }
         break;
     case TIP_VIEW:
+        if (T.index == 1) { // quella dell'anteprima: una per tutte le cartelle che mostra
+            T.title = std::wstring(L"Vista dell'anteprima: ") + viewName(A.prevZoom);
+            tipRow(L"", L"Clic per scegliere la vista delle cartelle nell'anteprima");
+            tipRow(L"Zoom", L"Ctrl+rotellina sull'anteprima, o la rotellina qui");
+            break;
+        }
         T.title = std::wstring(L"Vista: ") + viewName(A.zoom);
         tipRow(L"", L"Clic per scegliere la vista");
         tipRow(L"Zoom", L"Ctrl+rotellina sulla lista, o la rotellina qui");
         break;
     case TIP_FILTER:
         T.title = A.filter.empty() ? L"Filtro" : L"Filtro: " + A.filter;
-        tipRow(L"", L"Scrivi in qualsiasi punto della lista per filtrare i nomi");
+        if (g_inPane) tipRow(L"", L"Con la tastiera nell'anteprima (clic qui, Tab) scrivi per filtrare i nomi"); // nel suo PaneScope (tipBuild)
+        else tipRow(L"", L"Scrivi in qualsiasi punto della lista per filtrare i nomi");
         tipRow(L"Togli il filtro", shortcutsOf(M_FILTER_CLEAR) + L" \x00B7 \x00D7");
         break;
     case TIP_STATS:
@@ -432,7 +450,8 @@ static bool tipBuild() {
 static void tipShow() {
     KillTimer(A.hwnd, 6);
     T.waiting = false;
-    if (A.menu.open || A.renaming || A.draggingThumb || !tipBuild()) { tipHide(); return; }
+    ListPane* pv = pvPane(); // anche la lista dell'anteprima: niente tooltip sopra la sua rinomina o la sua barra trascinata
+    if (A.menu.open || A.renaming || A.draggingThumb || (pv && (pv->renaming || pv->draggingThumb)) || !tipBuild()) { tipHide(); return; }
     if (!T.visible) T.shownAt = nowMs();
     T.visible = true;
     A.dirty = true;
@@ -442,6 +461,7 @@ static void tipShow() {
 static void tipOnTimer() {
     KillTimer(A.hwnd, 5);
     if (T.kind == TIP_NONE) return;
+    PaneScope ps(T.preview ? pvPane() : nullptr);
     if (T.kind == TIP_ROW && A.cur && !A.cur->isDrives && T.owner == (const void*)A.cur &&
         T.index >= 0 && T.index < (int)A.cur->e.size()) {
         const Entry& e = A.cur->e[T.index];
@@ -478,24 +498,37 @@ static void onTipInfo(TipInfo* inf) {
     delete inf;
 }
 
-// Elemento sotto il mouse: (tipo, indice)
-static void tipTarget(int x, int y, int& kind, int& index) {
+// Elemento sotto il mouse: (tipo, indice); preview: una voce dell'anteprima di una cartella
+static void tipTarget(int x, int y, int& kind, int& index, bool& preview) {
     kind = TIP_NONE; index = -1;
+    preview = false;
     if (gotoIsOpen()) { if (gotoTipTarget(x, y, index)) kind = TIP_GOTO; return; } // sopra il resto
     bool closeHit, plusHit;
     int t = tabHit(x, y, &closeHit, &plusHit);
     if (plusHit) { kind = TIP_TABPLUS; return; }
     int chId = chromeHit(x, y);
     if (chId != CH_NONE && chId != CH_MIN && chId != CH_MAX && chId != CH_CLOSE) { kind = TIP_CHROME; index = chId; return; }
-    if (y >= G.h - A.statusH && x >= A.fltX && x < A.fltX + A.fltW) { kind = TIP_FILTER; return; }
+    if (inBar(y) && x >= A.fltX && x < A.fltX + A.fltW) { kind = TIP_FILTER; return; }
+    if (ListPane* p = pvPane(); p && inPreview(x, y) && y >= G.h - A.statusH && x >= p->fltX && x < p->fltX + p->fltW) { // quello dell'anteprima
+        kind = TIP_FILTER;
+        preview = true;
+        return;
+    }
     if (viewCtlAt(x, y)) { kind = TIP_VIEW; return; }
-    if (A.timesH > 0 && x >= A.sideW && x < A.listR && y >= G.h - A.footH && y < G.h - A.statusH) { kind = TIP_STATS; return; }
+    if (pvViewAt(x, y)) { kind = TIP_VIEW; index = 1; return; }
+    if (A.timesH > 0 && inListFoot(x, y) && y < A.footY - A.statusH) { kind = TIP_STATS; return; }
     if (t >= 0) { kind = closeHit ? TIP_TABCLOSE : TIP_TAB; index = t; return; }
     if (int ft = favTrashAt(x, y); ft >= 0) { kind = TIP_FAVDEL; index = ft; return; }
     int si = sideHit(x, y);
     if (si >= 0) { kind = TIP_SIDE; index = si; return; }
     if (si == -2 || si == -3) { kind = TIP_DRIVES; index = si; return; }
     if (y >= A.pathY && y < A.pathY + A.topH) { kind = TIP_PATH; index = crumbHit(x, y); return; }
+    if (ListPane* pp = pvPaneAt(x, y)) { // anteprima di una cartella: le sue voci, come quelle della lista
+        PaneScope ps(pp);
+        int r = itemAt(x, y);
+        if (r >= 0) { kind = TIP_ROW; index = (int)A.view[r]; preview = true; }
+        return;
+    }
     if (x < A.listX || x >= itemsRight()) return;
     if (y >= A.sideTop && y < A.listTop) {
         if (colBorderAt(x, y) >= 0 || A.colDrag >= 0) return; // sul bordo il clic non ordina: niente "Ordina per…"
@@ -509,14 +542,15 @@ static void tipTarget(int x, int y, int& kind, int& index) {
 
 static void tipMouseMove(int x, int y) {
     int kind, index;
-    tipTarget(x, y, kind, index);
+    bool preview;
+    tipTarget(x, y, kind, index, preview);
     if (A.menu.open) kind = TIP_NONE;
-    const void* owner = kind == TIP_ROW || kind == TIP_LINK ? (const void*)A.cur : nullptr;
+    const void* owner = kind == TIP_ROW || kind == TIP_LINK ? (preview ? (const void*)pvPane()->cur : (const void*)A.cur) : nullptr;
     if (kind == T.kind && index == T.index && owner == T.owner) return;
     bool wasVisible = T.visible;
     tipHide();
     if (kind == TIP_NONE) return;
-    T.kind = kind; T.index = index; T.owner = owner;
+    T.kind = kind; T.index = index; T.owner = owner; T.preview = preview;
     T.mx = x; T.my = y;
     // Appena chiuso un tooltip, il successivo compare quasi subito (scorrendo tra elementi vicini)
     bool quick = wasVisible || nowMs() - T.hiddenAt < ui::TIP_NEAR_WINDOW;

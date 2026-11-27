@@ -51,6 +51,13 @@ può (con il controllo dello schermo); altrimenti gli si chiede uno screenshot. 
   Get-FileHash): per copiare e verificare gli exe si usa Bash (`cp`, `sha1sum`). Dalla shell Bash
   i backslash nei testi passati a script (heredoc, sed) possono dimezzarsi o diventare caratteri
   di controllo: per scrivere percorsi nei file .md si usa lo strumento Edit.
+- **Fine riga: non si controllano né si rimettono.** Nel repository i file sono LF e
+  `core.autocrlf=true` li converte in un senso e nell'altro; nella copia di lavoro CRLF e LF
+  convivono (22 e 18 file in `src\` alla 1.0.0-beta.6) e git non vede differenze, MSVC nemmeno.
+  Un `sed -i` che porta un file a LF va bene così (nella 1.0.0-beta.6 tre sessioni hanno
+  "ripristinato i CRLF" e cinque li hanno controllati, senza nessun effetto). Eccezioni:
+  `.githooks/*` e `.claude/hooks/*` sono sempre LF (`.gitattributes`); i `.bat` si cambiano con
+  Edit, perché cmd con i fine riga LF può sbagliare le etichette.
 
 ## 2. Una finestra di prova separata
 
@@ -72,12 +79,17 @@ può (con il controllo dello schermo); altrimenti gli si chiede uno screenshot. 
 
 - `istanza.bat`: istanza unica e `/select`;
 - `memoria.ps1 -Ids <pid>[,<pid>…]`: working set, memoria privata, memoria GPU, thread e handle
-  di ogni PID (da Bash: `powershell -NoProfile -File 'prove\memoria.ps1' -Ids <pid>`);
+  di ogni PID (da Bash: `powershell -NoProfile -File prove/memoria.ps1 -Ids <pid>,<pid>`);
 - `avvio.bat [volte] [exe]`: tempi di avvio con `--prova-avvio` (nel registro "prova avvio:
   contenuto", "primo fuoco", "icone", cioè la prima icona vera al posto dei segnaposto, e "icona
   fin.", l'icona della finestra con la misura grande nel codice; la finestra si chiude dopo la
   prima icona; predefiniti 10 volte e `build\z-f-dev.exe`). Ogni
   avvio porta una finestra in primo piano: **solo a PC libero**;
+- `rotella.py <pid> <scatti> [ctrl|semplice] [x y]`: rotellina e Ctrl+rotellina mandate alla
+  finestra di quel PID (`WM_MOUSEWHEEL`, senza toccare mouse e tastiera), nel punto x y della
+  finestra o al centro. Lo strumento dello schermo non tiene Ctrl con la rotellina: lo zoom
+  della lista si prova da qui (`python -I prove/rotella.py <pid> 1`), poi si guarda con uno
+  screenshot;
 - `predefinito.bat`: [z]f al posto di Explorer (apre cartelle come un altro programma e simula
   Win+E); `ripristina-explorer.bat` è l'emergenza che rimette Explorer;
 - `hw.bat`, `warp.bat`, `ibrido.bat`: GPU (WinSxS con `--gpu=hw`, `--gpu=warp`, ibrido);
@@ -117,13 +129,26 @@ può (con il controllo dello schermo); altrimenti gli si chiede uno screenshot. 
 - **Non scrivere nel registro** al posto di Zyruel: l'interruttore "Usa [z]f al posto di
   Explorer" lo usa lui (anche questo lo ferma `.claude/hooks/regole.sh`).
 - **Il permesso (`request_access`):** prima si avvia la finestra di prova (`prove\dev.bat`), poi
-  si chiede `"z-f-dev.exe"` o il percorso completo dell'exe. `"z-f-dev"` e `"[z]f"` non sono
-  riconosciuti, e nemmeno l'exe se non è in esecuzione (39 richieste fallite nelle sessioni della
-  1.0.0-beta.4). Lo stesso per i programmi di prova (`"dialoghi-prova.exe"`, avviato prima).
+  si chiede, in una sola richiesta, `["z-f-dev.exe", "File Explorer"]`:
+  - `"z-f-dev.exe"` o il percorso completo dell'exe. `"z-f-dev"` e `"[z]f"` non sono
+    riconosciuti, e nemmeno l'exe se non è in esecuzione (39 richieste fallite nelle sessioni
+    della 1.0.0-beta.4; lo ferma `.claude/hooks/regole.sh`). Lo stesso per i programmi di prova
+    (`"dialoghi-prova.exe"`, avviato prima);
+  - `"File Explorer"`, concesso solo per il clic: quando davanti c'è il desktop lo strumento
+    rifiuta qualsiasi clic, anche quello che riporta davanti z-f-dev ("The desktop shell is
+    frontmost": 13 volte in 7 sessioni della 1.0.0-beta.6, poi chiesto a parte in 5). Si usa solo
+    per quel clic: niente doppio clic, tasto destro o Invio sul desktop.
 - **Prima dei tasti, la finestra davanti:** un clic su z-f-dev (al centro della barra del titolo,
   lontano dai pulsanti) all'inizio di ogni batch che preme tasti. Altrimenti i tasti finiscono
-  nel desktop o nella finestra di Claude e il batch si ferma (44 volte). Per riportarla davanti
-  si clicca, non si usa `open_application`.
+  nel desktop o nella finestra di Claude e il batch si ferma (44 volte nella 1.0.0-beta.4).
+  - Per riportarla davanti si clicca, **mai `open_application` su z-f-dev**: avvia una seconda
+    finestra di prova (3 volte nella 1.0.0-beta.6, lo ferma `regole.sh`).
+  - Se davanti c'è un'app che non è né z-f-dev né il desktop (un desktop remoto, un programma
+    di cattura), Zyruel sta usando il PC: ci si ferma e si aspetta (sopra, "Rispetto per
+    Zyruel").
+- **Ctrl+rotellina:** lo strumento non tiene Ctrl con la rotellina (`scroll` con `text: "ctrl"`
+  non lo manda): si usa `prove\rotella.py` (sezione 3), non uno script improvvisato (un tentativo
+  con Windows Forms è stato negato dal classificatore).
 - **Trascinamenti nel batch:** fra `left_mouse_down` e `left_mouse_up` solo movimenti e attese,
   niente tasti (il batch viene rifiutato). Una breve `wait` prima del primo movimento evita "could
   not be verified this soon".

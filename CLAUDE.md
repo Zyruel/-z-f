@@ -51,6 +51,10 @@ documentazione sono in italiano; `shader.hlsl` è solo ASCII.
   su `main` o push forzati: li ferma `.claude/hooks/regole.sh`, e `main` è protetto anche su
   GitHub e da `.githooks/pre-push` (attivo con `git config core.hooksPath .githooks`, una volta
   per copia del repository).
+- **Bilancio:** dopo un rilascio, `/bilancio` (skill in `.claude/skills/bilancio`, la lancia solo
+  Zyruel) valuta come si è lavorato nel ciclo: processo, decisioni, skill, script, permessi.
+  Prende i dati dalle trascrizioni delle sessioni e da git e scrive un resoconto privato in
+  `build\bilanci\`; si applicano solo le proposte che Zyruel sceglie.
 - **Repository pubblico:** nei file e nei messaggi di commit niente dati personali (l'autore è
   Zyruel, mai il nome di battesimo; niente riferimenti ad amici o altre persone; niente percorsi con
   il nome utente, nomi di server, condivisioni e cartelle di lavoro: negli esempi `\\server\…`,
@@ -122,7 +126,9 @@ Come si compila e si prova, passo per passo: `/prova` (skill in `.claude/skills/
   - `drawSpinner` (`render.cpp`), l'anello di punti di un lavoro in corso (almeno un giro):
     l'unica animazione continua, solo dove l'utente guarda (DESIGN.md §5);
   - le barre in fondo, della lista e dell'anteprima: `drawBarBand`, `drawBarCounts`,
-    `drawBarView`/`barViewW` (`render.cpp`), disegnate da destra;
+    `drawBarView`/`barViewW`, `drawBarFilter` (`render.cpp`), disegnate da destra;
+  - le voci di una lista, la principale e (nel suo `PaneScope`) l'anteprima di una cartella:
+    `drawListItems`, `layoutItems` (`ListPane`, `paneSwap` in `app.h`);
   - le schede da salvare o riaprire: `tabsSerialize`, `tabsRestore` (`tabs.cpp`);
   - l'aggiornamento (`update.cpp`): `updCheck`, `updAction`, `drawUpdateIcon`, e il riavvio di
     tutte le finestre (`updRestartAll`, `restartLaunch`);
@@ -143,6 +149,10 @@ Come si compila e si prova, passo per passo: `/prova` (skill in `.claude/skills/
   `onKey` si scrivono a mano solo i tasti che dipendono dal contesto (frecce, Esc, Backspace,
   Ctrl+V, Ctrl+1…9…).
 - **Commenti:** spiegano il perché, non il cosa, in italiano.
+- **Modifiche ai file con lo strumento Edit**, anche quando sono tante nello stesso file. Gli
+  script (Python, `sed -i`) solo per un cambio meccanico uguale su molti file: nella 1.0.0-beta.6
+  gli script di sostituzione hanno dato 6 errori (heredoc non chiuso, testo non trovato, codifica
+  della console), Edit 2.
 
 ## Debiti tecnici noti (da sistemare quando si tocca quel codice)
 

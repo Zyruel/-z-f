@@ -53,6 +53,7 @@ static void updateTitle() {
 }
 
 static void tabActivate(int i) {
+    if (g_inPane) { g_paneAfter.push_back([i] { tabActivate(i); }); return; } // App è l'anteprima (PaneScope): all'uscita
     if (i < 0 || i >= (int)A.tabs.size() || i == A.tab) return;
     A.renaming = false;
     A.menu.open = false;

@@ -4,7 +4,7 @@ File explorer per Windows, veloce e leggero: C++ con Win32 e Direct3D 11, senza 
 dipendenze. L'obiettivo è che ogni operazione sembri istantanea. È gratuito e il codice è
 libero, con [licenza MIT](LICENSE).
 
-**Versione attuale: 1.0.0-beta.6.** Cosa cambia in ogni versione è in [`NOVITA.md`](NOVITA.md).
+**Versione attuale: 1.0.0-beta.7.** Cosa cambia in ogni versione è in [`NOVITA.md`](NOVITA.md).
 
 ## Scaricare
 
@@ -28,7 +28,9 @@ bit (provato su Windows 11).
   con le sottocartelle suggerite.
 - **Lista:** filtro mentre scrivi, ordinamento naturale, selezione multipla e col rettangolo,
   colonne ridimensionabili, tooltip con le informazioni di file, cartelle e unità.
-- **Anteprima** (Alt+P) di immagini, testo e cartelle.
+- **Anteprima** (Alt+P) di immagini, testo e cartelle, a destra o in basso (˅ accanto a ◨);
+  una cartella nell'anteprima è una seconda lista, con la sua vista e il suo filtro, su cui si
+  seleziona, si copia, si trascina e si rinomina.
 - **Viste con lo zoom** (Ctrl+rotellina): Dettagli, Elenco a colonne, Icone con le miniature da
   piccole a molto grandi; la vista si ricorda per cartella.
 - **Operazioni sui file** con il motore di Explorer (avanzamento, conflitti, permessi), **annulla e
@@ -86,7 +88,7 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Ctrl+A | Seleziona tutto ciò che è visibile |
 | Lettere | Filtro sui nomi |
 | Backspace | Toglie l'ultima lettera del filtro |
-| Esc | Toglie il filtro, poi la selezione |
+| Esc | Toglie il filtro, poi la selezione (nell'anteprima, poi torna alla lista) |
 
 ### File
 
@@ -125,10 +127,13 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 |---|---|
 | Ctrl+B | Mostra o nasconde la barra laterale |
 | Alt+P | Mostra o nasconde l'anteprima |
-| Ctrl+Shift+2 · Ctrl+Shift+3 · Ctrl+Shift+4 | Icone grandi · medie · piccole (zoom 100 · 70 · 40%) |
-| Ctrl+Shift+5 · Ctrl+Shift+6 | Elenco · Dettagli |
-| Ctrl+rotellina | Zoom della lista: Dettagli, Elenco, Icone da 20 a 100% |
-| Trascina il bordo di un pannello · doppio clic | Larghezza di barra laterale o anteprima · predefinita |
+| Tab · clic nel pannello | La tastiera alla lista o all'anteprima di una cartella |
+| Doppio clic nell'anteprima | Apre il file; una cartella in una nuova scheda in background |
+| Ctrl+Shift+2 · Ctrl+Shift+3 | Dettagli · Elenco |
+| Ctrl+Shift+4 · Ctrl+Shift+5 · Ctrl+Shift+6 | Icone piccole · medie · grandi (zoom 40 · 70 · 100%) |
+| Ctrl+rotellina | Zoom della lista: Dettagli, Elenco, Icone da 20 a 100% (sull'anteprima: la sua vista) |
+| Trascina il bordo di un pannello · doppio clic | Larghezza di barra laterale o anteprima (altezza, in basso) · predefinita |
+| Clic su ˅ accanto a ◨ | Anteprima a destra o in basso |
 | Clic sull'intestazione | Ordina per colonna (di nuovo: al contrario) |
 | Trascina il bordo di una colonna · doppio clic | Larghezza della colonna · adatta al contenuto |
 | Ctrl+D | Aggiunge o toglie dai preferiti |

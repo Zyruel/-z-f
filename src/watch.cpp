@@ -7,12 +7,18 @@
 // Osserva anche la cartella superiore: ReadDirectoryChangesW non segnala lo spostamento
 // della cartella osservata, ma il suo nome che sparisce dalla superiore sì.
 //
+// Un secondo osservatore, più semplice, segue la cartella mostrata dall'anteprima (previewWatch):
+// solo la cartella, senza la superiore (se sparisce lo dice già la lista, che la contiene).
+//
 // Tutto il lavoro col disco è sul thread: aprire le due cartelle (su una condivisione di rete può
 // costare secondi) e chiuderle. Il thread UI crea l'evento di stop, ne dà una copia al thread e per
 // fermarlo lo segnala e basta: non aspetta. Ognuno chiude la propria copia dell'evento, così nessuno
 // chiude un handle che l'altro sta ancora usando.
 enum { WATCH_CHANGED = 0, WATCH_LOST = 1, WATCH_UNAVAILABLE = 2 }; // lParam di WM_APP_DIRCHANGED
-struct WatchCtx { std::wstring path; HANDLE dir = nullptr, parent = nullptr; std::wstring name; HANDLE stop; HWND hwnd; uint64_t gen; };
+struct WatchCtx {
+    std::wstring path; HANDLE dir = nullptr, parent = nullptr; std::wstring name; HANDLE stop; HWND hwnd; uint64_t gen;
+    UINT msg = WM_APP_DIRCHANGED; // a chi lo dice: la lista (con la superiore) o l'anteprima (WM_APP_PVCHANGED, senza)
+};
 static HANDLE g_watchStop = nullptr, g_watchThread = nullptr;
 
 static HANDLE watchOpen(const std::wstring& path) {
@@ -25,7 +31,7 @@ static DWORD WINAPI watchThread(void* p) {
     WatchCtx* c = (WatchCtx*)p;
     c->dir = watchOpen(c->path);
     if (!c->dir) { // non osservabile: come prima, niente ricarica
-        PostMessageW(c->hwnd, WM_APP_DIRCHANGED, (WPARAM)c->gen, WATCH_UNAVAILABLE);
+        PostMessageW(c->hwnd, c->msg, (WPARAM)c->gen, WATCH_UNAVAILABLE);
         CloseHandle(c->stop);
         delete c;
         return 0;
@@ -34,7 +40,7 @@ static DWORD WINAPI watchThread(void* p) {
     std::wstring pth = c->path;
     while (pth.size() > 3 && pth.back() == L'\\') pth.pop_back();
     size_t k = pth.find_last_of(L'\\');
-    if (k != std::wstring::npos && k + 1 < pth.size() && pth.size() > 3) {
+    if (c->msg == WM_APP_DIRCHANGED && k != std::wstring::npos && k + 1 < pth.size() && pth.size() > 3) {
         c->name = pth.substr(k + 1);
         std::wstring par = pth.substr(0, k);
         if (par.size() == 2 && par[1] == L':') par += L'\\';
@@ -51,7 +57,7 @@ static DWORD WINAPI watchThread(void* p) {
     bool ok = ReadDirectoryChangesW(c->dir, buf, BUF, FALSE, filter, nullptr, &ov, nullptr) != 0;
     bool pok = c->parent &&
                ReadDirectoryChangesW(c->parent, pbuf, BUF, FALSE, FILE_NOTIFY_CHANGE_DIR_NAME, nullptr, &pov, nullptr);
-    if (!ok) PostMessageW(c->hwnd, WM_APP_DIRCHANGED, (WPARAM)c->gen, WATCH_LOST);
+    if (!ok) PostMessageW(c->hwnd, c->msg, (WPARAM)c->gen, WATCH_LOST);
     while (ok) {
         HANDLE hs[3];
         DWORD n = 0;
@@ -63,15 +69,15 @@ static DWORD WINAPI watchThread(void* p) {
         DWORD bytes = 0;
         if (w == WAIT_OBJECT_0 + 1) {
             if (!GetOverlappedResult(c->dir, &ov, &bytes, FALSE)) { // cartella eliminata o non più accessibile
-                PostMessageW(c->hwnd, WM_APP_DIRCHANGED, (WPARAM)c->gen, WATCH_LOST);
+                PostMessageW(c->hwnd, c->msg, (WPARAM)c->gen, WATCH_LOST);
                 ok = false;
                 break;
             }
             // bytes == 0: troppi eventi per il buffer. Non importa: ricarichiamo comunque tutto.
-            PostMessageW(c->hwnd, WM_APP_DIRCHANGED, (WPARAM)c->gen, WATCH_CHANGED);
+            PostMessageW(c->hwnd, c->msg, (WPARAM)c->gen, WATCH_CHANGED);
             ResetEvent(ov.hEvent);
             if (!ReadDirectoryChangesW(c->dir, buf, BUF, FALSE, filter, nullptr, &ov, nullptr)) {
-                PostMessageW(c->hwnd, WM_APP_DIRCHANGED, (WPARAM)c->gen, WATCH_LOST);
+                PostMessageW(c->hwnd, c->msg, (WPARAM)c->gen, WATCH_LOST);
                 ok = false;
             }
         } else {
@@ -152,7 +158,49 @@ static void startWatch(const std::wstring& path) {
     A.watching = true; // se la cartella non si può osservare, il thread lo dice (WATCH_UNAVAILABLE)
 }
 
+// --- cartella dell'anteprima ----------------------------------------------------------------
+static HANDLE g_pvWatchStop = nullptr;
+static uint64_t g_pvWatchGen = 0;
+static std::wstring g_pvWatchPath;
+static bool g_pvChangePending = false; // una rilettura aspetta il timer 17: le notifiche intanto si sommano
+
+// La cartella mostrata dall'anteprima (vuoto: nessuna). Solo locali: su una condivisione aprire la
+// cartella può costare secondi e tenerla aperta la blocca; lì si rilegge con F5 e dopo le operazioni
+// fatte da [z]f (onFileJob, onFsDone).
+static void previewWatch(const std::wstring& path) {
+    if (path == g_pvWatchPath) return;
+    g_pvWatchPath = path;
+    if (g_pvWatchStop) { SetEvent(g_pvWatchStop); CloseHandle(g_pvWatchStop); g_pvWatchStop = nullptr; }
+    g_pvWatchGen++; // le notifiche in coda della cartella di prima si scartano
+    KillTimer(A.hwnd, 17);
+    g_pvChangePending = false;
+    if (path.empty() || slowPath(path) || zipPathLike(path)) return;
+    HANDLE stop = CreateEventW(nullptr, TRUE, FALSE, nullptr), mine = nullptr;
+    if (!stop) return;
+    if (!DuplicateHandle(GetCurrentProcess(), stop, GetCurrentProcess(), &mine, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
+        CloseHandle(stop);
+        return;
+    }
+    WatchCtx* c = new WatchCtx;
+    c->path = path; c->stop = stop; c->hwnd = A.hwnd; c->gen = g_pvWatchGen; c->msg = WM_APP_PVCHANGED;
+    HANDLE th = CreateThread(nullptr, 0, watchThread, c, 0, nullptr);
+    if (!th) { CloseHandle(stop); CloseHandle(mine); delete c; return; }
+    CloseHandle(th);
+    g_pvWatchStop = mine;
+}
+
+// Come per la lista, le notifiche si raggruppano: una rilettura ogni WATCH_BATCH al massimo (timer 17)
+static void onPreviewDirChanged(uint64_t gen, int what) {
+    if (gen != g_pvWatchGen) return;
+    // Non più osservata (cancellata e ricreata, inaccessibile): la prossima rilettura riparte da capo
+    if (what != WATCH_CHANGED) g_pvWatchPath.clear();
+    if (what == WATCH_UNAVAILABLE || g_pvChangePending) return;
+    g_pvChangePending = true;
+    SetTimer(A.hwnd, 17, ui::WATCH_BATCH, nullptr);
+}
+
 static void requestRefresh() {
+    if (g_inPane) { previewRefresh(); return; } // dall'anteprima (PaneScope): si rilegge quella
     if (!A.cur || A.loading) return;        // una navigazione in corso porterà comunque dati freschi
     if (A.refreshInFlight) { A.refreshAgain = true; return; }
     A.refreshStart = A.changeAt > 0 ? A.changeAt : nowMs();
@@ -162,6 +210,7 @@ static void requestRefresh() {
 
 // F5, "Aggiorna": ricarica subito; se la cartella non era osservata (watcher fallito) si riprova
 static void refreshNow() {
+    if (g_inPane) { previewRefresh(); return; } // F5 o "Aggiorna" nell'anteprima
     if (!A.cur) return;
     if (!A.watching) startWatch(A.cur->path);
     A.changeAt = nowMs();

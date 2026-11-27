@@ -7,6 +7,9 @@
 // I comandi (MenuId) stanno in app.h, perché anche i tooltip ne mostrano le scorciatoie.
 
 static int g_dropChoice = 0; // voce scelta nel menu del trascinamento col tasto destro (0: nessuna)
+// Quando una voce è stata eseguita col clic: il secondo clic di un doppio clic arriva a menu chiuso e
+// non deve aprire la voce della lista che intanto è sotto il mouse (come GT.closedAt per "Vai a")
+static double g_menuClickAt = -1e18;
 
 static void menuClose() {
     if (!A.menu.open) return;
@@ -120,7 +123,8 @@ static void menuAddView() {
 
 // Menu della vista, dal suo controllo nella barra di stato: la vista attuale ha il segno di spunta
 // (le icone solo se lo zoom è uno dei tre delle scorciatoie). Si apre sopra il controllo, allineato
-// al suo bordo destro (cx)
+// al suo bordo destro (cx): le voci vanno dalla più grande alla più piccola, così Dettagli, la più
+// usata, è la più vicina al controllo
 static void menuOpenView(float cx, float cy) {
     double t0 = nowMs();
     PopupMenu& m = A.menu;
@@ -128,8 +132,8 @@ static void menuOpenView(float cx, float cy) {
     m.kind = MENU_VIEW;
     m.target = -1;
     static const struct { const wchar_t* label; int id, zoom; } kViews[] = {
-        { L"Dettagli", M_VIEW_DETAILS, ZOOM_DETAILS }, { L"Elenco", M_VIEW_LIST, ZOOM_LIST },
-        { L"Icone piccole", M_ICONS_S, ZOOM_SMALL }, { L"Icone medie", M_ICONS_M, ZOOM_MEDIUM }, { L"Icone grandi", M_ICONS_L, ZOOM_LARGE },
+        { L"Icone grandi", M_ICONS_L, ZOOM_LARGE }, { L"Icone medie", M_ICONS_M, ZOOM_MEDIUM }, { L"Icone piccole", M_ICONS_S, ZOOM_SMALL },
+        { L"Elenco", M_VIEW_LIST, ZOOM_LIST }, { L"Dettagli", M_VIEW_DETAILS, ZOOM_DETAILS },
     };
     for (const auto& v : kViews) {
         menuAdd(v.label, v.id);
@@ -137,6 +141,25 @@ static void menuOpenView(float cx, float cy) {
     }
     menuPlace(cx, cy, false, t0);
     if (m.x + m.w > cx) { m.x = std::max(px(ui::GAP_XS), floorf(cx - m.w)); } // allineato a destra anche se ci starebbe
+    // Sopra anche se sotto ci sarebbe posto: con l'anteprima in basso la barra di stato non è in fondo
+    if (m.y >= cy && cy - m.h >= px(ui::GAP_XS)) m.y = floorf(cy - m.h);
+}
+
+// ˅ accanto a ◨: dove sta l'anteprima, con la spunta sulla posizione attuale (come il menu della
+// vista). Vale anche ad anteprima chiusa: la si ritrova lì quando si apre. Sotto il pulsante,
+// allineato al suo bordo destro (right, top)
+static void menuOpenPreview(float right, float top) {
+    double t0 = nowMs();
+    PopupMenu& m = A.menu;
+    m.items.clear();
+    m.kind = MENU_PREVIEW;
+    m.target = -1;
+    menuAdd(L"A destra", M_PREVIEW_RIGHT);
+    if (!A.prevBottom) m.items.back().icon = 3;
+    menuAdd(L"In basso", M_PREVIEW_BOTTOM);
+    if (A.prevBottom) m.items.back().icon = 3;
+    menuPlace(right, top, false, t0);
+    if (m.x + m.w > right) m.x = std::max(px(ui::GAP_XS), floorf(right - m.w));
 }
 
 // cx, cy: coordinate client; screenPt: per il menu della shell; fromKeyboard: evidenzia la prima voce
@@ -209,6 +232,9 @@ static void menuOpen(float cx, float cy, POINT screenPt, bool background, bool f
 
 static void menuPlace(float cx, float cy, bool fromKeyboard, double t0) {
     PopupMenu& m = A.menu;
+    // Aperto nel PaneScope dell'anteprima (sue voci, suo sfondo, sua vista): lì si eseguirà
+    m.preview = g_inPane > 0;
+    m.forPath = m.preview && A.cur ? A.cur->path : L""; // il percorso: una rilettura della cartella cambia il Listing
     m.ih = A.rowH;
     m.sepH = px(ui::MENU_SEP);
     m.pad = px(ui::MENU_PAD_X);
@@ -327,7 +353,9 @@ static void menuRun(int id, const CmdCtx& c) {
     case M_OPTIONS:     optionsOpen(); break;
     case M_GOTO:        gotoOpen(); break;
     case M_PREVIEW:     previewToggle(); break;
-    case M_ICONS_S:       viewZoom(ZOOM_SMALL); break;
+    case M_PREVIEW_RIGHT:  previewPlace(false); break;
+    case M_PREVIEW_BOTTOM: previewPlace(true); break;
+    case M_ICONS_S:      viewZoom(ZOOM_SMALL); break;
     case M_ICONS_M:       viewZoom(ZOOM_MEDIUM); break;
     case M_ICONS_L:       viewZoom(ZOOM_LARGE); break;
     case M_VIEW_LIST:    viewZoom(ZOOM_LIST); break;
@@ -374,6 +402,7 @@ static void menuRun(int id, const CmdCtx& c) {
     case M_UP:        goUp(); break;
     case M_EDIT_PATH: gotoOpenHere(); break;
     case M_SIDEBAR:   sidebarToggle(); break;
+    case M_PANE_KEYS: previewKeysToggle(); break;
     }
     A.dirty = true;
 }
@@ -391,6 +420,13 @@ static void menuExec(int i) {
     menuClose();
     if (c.kind == MENU_CRUMB) { if (!itemPath.empty()) navigate(itemPath, 1, L""); return; }
     if (c.kind == MENU_DROP) { g_dropChoice = id; return; } // lo esegue chi ha aperto il menu (drag.cpp)
+    if (m.preview) { // dell'anteprima: nel suo PaneScope, se mostra ancora quella cartella
+        ListPane* p = previewPaneFor(m.forPath);
+        if (!p) { notice(L"L'anteprima non mostra più quella cartella", false); return; }
+        PaneScope ps(p);
+        menuRun(id, c);
+        return;
+    }
     menuRun(id, c);
 }
 
@@ -423,6 +459,7 @@ static void menuKey(WPARAM vk) {
 // completo di Windows" è il contrario: il tasto destro apre quello della shell, Shift il nostro.
 static void onContextMenu(POINT pt) {
     if (A.renaming) return;
+    if (ListPane* p = pvPane(); p && p->renaming) return; // come nella lista: durante la rinomina niente menu
     if (pt.x != -1 || pt.y != -1) { // schede e barra laterale hanno i loro menu
         POINT c = pt;
         ScreenToClient(A.hwnd, &c);
@@ -436,8 +473,13 @@ static void onContextMenu(POINT pt) {
         if (si >= 0) { menuOpenSide((float)c.x, (float)c.y, si); return; }
     }
     if (!A.cur) return;
-    bool shift = GetKeyState(VK_SHIFT) < 0;
     bool keyboard = pt.x == -1 && pt.y == -1;
+    // L'anteprima di una cartella (sotto il mouse, o con la tastiera): lo stesso menu, nel suo PaneScope
+    ListPane* pp = nullptr;
+    if (keyboard) pp = previewHasKeys() ? pvPane() : nullptr;
+    else { POINT c = pt; ScreenToClient(A.hwnd, &c); pp = pvPaneAt(c.x, c.y); }
+    PaneScope ps(pp);
+    bool shift = GetKeyState(VK_SHIFT) < 0;
     POINT c;
     bool background;
     if (keyboard) {

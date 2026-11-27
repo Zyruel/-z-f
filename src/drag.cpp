@@ -43,6 +43,12 @@ struct DragState {
     bool armed = false;
     DWORD armButton = MK_LBUTTON; // tasto con cui è stato premuto (il destro chiede cosa fare)
     POINT down = {};
+    bool preview = false;       // premuto nell'anteprima: partenza e clic rimandato nel suo PaneScope
+    // …nella sua cartella di allora: se l'anteprima ne mostra un'altra, niente. Il percorso e non il
+    // Listing: l'osservatore rilegge la stessa cartella con un Listing nuovo (un download in corso),
+    // e il trascinamento non deve fermarsi per questo
+    std::wstring pressPath;
+    bool targetPreview = false; // la destinazione (DT_ROW, DT_LIST) è nella lista dell'anteprima
     int deferRow = -1;          // clic su una voce già selezionata: vale al rilascio, se non si trascina
     bool deferToggle = false;   // …ed era un Ctrl+clic
     uint64_t zipWait = 0;       // trascinamento da uno zip: estrazione in corso col tasto premuto (zipout.cpp)
@@ -112,6 +118,7 @@ static std::wstring tabPath(int i) {
 
 static void dropTargetAt(int x, int y) {
     DD.kind = DT_NONE; DD.index = DD.favAt = -1;
+    DD.targetPreview = false;
     DD.path.clear(); DD.name.clear();
     if (OP.open || !A.cur) return;
     auto set = [&](int kind, int index, const std::wstring& path) {
@@ -139,6 +146,15 @@ static void dropTargetAt(int x, int y) {
             int si = sideHit(x, y);
             if (si >= nf) if (const SideItem* it = sideItem(si)) if (!it->path.empty()) set(DT_SIDE, si, it->path); // non su "Questo PC"
         }
+    } else if (ListPane* pp = pvPaneAt(x, y)) { // anteprima di una cartella: come la lista, nel suo PaneScope
+        PaneScope ps(pp);
+        DD.targetPreview = true;
+        int r = itemAt(x, y);
+        if (r >= 0) {
+            const Entry& e = A.cur->e[A.view[r]];
+            if (e.attr & FILE_ATTRIBUTE_DIRECTORY) set(DT_ROW, r, joinPath(A.cur->path, A.cur->name(e)));
+        }
+        if (DD.kind == DT_NONE) set(DT_LIST, -1, A.cur->path); // su un file o nello spazio vuoto: la cartella mostrata
     } else if (x >= A.listX && x < itemsRight() && y >= A.listTop - A.headH && y < A.listTop + A.listH) {
         int r = itemAt(x, y);
         if (r >= 0) {
@@ -196,7 +212,8 @@ static void dropUpdate() {
     // La destinazione si evidenzia come un elemento sotto il mouse (C_HOVER, in dissolvenza);
     // il bordo lo aggiunge drawDrop. Durante il trascinamento il mouse non manda messaggi.
     bool can = DD.effect != DROPEFFECT_NONE;
-    A.hover = can && DD.kind == DT_ROW ? DD.index : -1;
+    A.hover = can && DD.kind == DT_ROW && !DD.targetPreview ? DD.index : -1;
+    if (ListPane* p = pvPane()) p->hover = can && DD.kind == DT_ROW && DD.targetPreview ? DD.index : -1;
     A.sideHover = can && DD.kind == DT_SIDE ? DD.index : -1;
     CB.hover = can && DD.kind == DT_CRUMB ? DD.index : -1;
     A.tabHover = can && DD.kind == DT_TAB ? DD.index : -1;
@@ -221,6 +238,7 @@ static void dropEnd() {
     DD.effect = DROPEFFECT_NONE;
     if (DD.obj) { DD.obj->Release(); DD.obj = nullptr; }
     A.hover = A.sideHover = CB.hover = A.tabHover = -1;
+    if (ListPane* p = pvPane()) p->hover = -1;
     if (!DD.own) KillTimer(A.hwnd, 8);
     A.dirty = true;
 }
@@ -443,6 +461,9 @@ static void onShellDrop(ShellDrop* j) {
     A.dropMs = j->ms;
     A.changeAt = nowMs();
     transferNotice(j->fx, j->ok, hrCancelled(j->hr), j->notify, j->done, j->src.size(), j->name);
+    // Nella cartella dell'anteprima in rete non c'è l'osservatore: i collegamenti creati si vedono
+    // rileggendola qui, come dopo le operazioni di [z]f (onFileJob)
+    if (ListPane* p = previewPaneFor(j->path); p && j->ok && slowPath(p->cur->path)) previewRefresh();
     undoPush(std::move(j->op));
     delete j;
     A.dirty = true;
@@ -626,18 +647,22 @@ static void dragRun(IDataObject* obj, DWORD allowed) {
     A.dirty = true;
 }
 
-static void dragStart() {
+// L'oggetto da trascinare per la selezione della lista di App (anche l'anteprima, nel suo
+// PaneScope); nullptr se non c'è niente da trascinare o si estrae da uno zip. Il trascinamento vero
+// (dragRun, col ciclo modale di Windows) parte fuori dallo scope: nel ciclo arrivano timer e
+// rilasci che devono trovare App com'è sempre
+static IDataObject* dragPrepare(DWORD& allowed) {
     DD.armed = false;
     DD.deferRow = -1; // si trascina la selezione così com'è
     if (A.cur && A.cur->zipLen && !A.renaming) { // da uno zip: prima si estrae, col tasto premuto (zipout.cpp)
         DD.zipWait = zipJobStart(ZJ_DRAG, selectedEntries());
         if (!DD.zipWait) ReleaseCapture();
-        return;
+        return nullptr;
     }
     ReleaseCapture();
-    if (!A.cur || A.renaming) return;
+    if (!A.cur || A.renaming) return nullptr;
     std::vector<uint32_t> items = selectedEntries();
-    if (items.empty()) return;
+    if (items.empty()) return nullptr;
     IDataObject* obj = nullptr;
     if (items.size() >= kDragFastItems && !A.cur->isDrives && !A.cur->path.empty()) {
         std::vector<std::wstring> paths;
@@ -646,14 +671,16 @@ static void dragStart() {
         obj = dragObjectFor(paths, A.cur->e[items[0]].attr);
     }
     if (!obj) obj = (IDataObject*)shellObjectFor(items, IID_IDataObject);
-    if (!obj) return;
     // Le unità di "Questo PC" non si spostano né si copiano: si può solo crearne un collegamento
-    dragRun(obj, A.cur->isDrives ? DROPEFFECT_LINK : DROPEFFECT_COPY | DROPEFFECT_MOVE | DROPEFFECT_LINK);
+    allowed = A.cur->isDrives ? DROPEFFECT_LINK : DROPEFFECT_COPY | DROPEFFECT_MOVE | DROPEFFECT_LINK;
+    return obj;
 }
 
 // Tasto sinistro premuto su una riga (dopo aver aggiornato la selezione)
 static void dragArm(int x, int y, DWORD button) {
     DD.armed = true;
+    DD.preview = g_inPane > 0;
+    DD.pressPath = A.cur ? A.cur->path : std::wstring();
     DD.armButton = button;
     DD.down = { x, y };
     SetCapture(A.hwnd);
@@ -671,12 +698,25 @@ static void dragPressRight(int x, int y) {
     dragArm(x, y, MK_RBUTTON);
 }
 
+// Premuto nell'anteprima, che intanto non mostra più quella cartella (come MQ.cur per il rettangolo)
+static bool dragPaneGone() {
+    ListPane* p = pvPane();
+    return DD.preview && (!p || !p->cur || !samePath(p->cur->path, DD.pressPath));
+}
+
 // Movimento col tasto premuto: oltre la soglia di Windows parte il trascinamento
 static bool dragCheck(int x, int y, WPARAM wp) {
     if (!DD.armed) return false;
     if (!(wp & DD.armButton)) { DD.armed = false; return false; }
     if (abs(x - DD.down.x) <= GetSystemMetrics(SM_CXDRAG) && abs(y - DD.down.y) <= GetSystemMetrics(SM_CYDRAG)) return false;
-    dragStart();
+    if (dragPaneGone()) { DD.armed = false; ReleaseCapture(); return false; } // l'anteprima è cambiata
+    DWORD allowed = 0;
+    IDataObject* obj;
+    {
+        PaneScope ps(DD.preview ? pvPane() : nullptr);
+        obj = dragPrepare(allowed);
+    }
+    if (obj) dragRun(obj, allowed);
     return true;
 }
 
@@ -685,6 +725,8 @@ static void dragRelease() {
     if (DD.armed) { DD.armed = false; ReleaseCapture(); }
     int r = DD.deferRow;
     DD.deferRow = -1;
+    if (dragPaneGone()) return;
+    PaneScope ps(DD.preview ? pvPane() : nullptr);
     if (r < 0 || r >= (int)A.view.size()) return;
     if (DD.deferToggle) { // Ctrl+clic su una voce selezionata: la toglie
         uint32_t ei = A.view[r];
@@ -702,17 +744,23 @@ static void dragTick() {
     if (!DD.own && !DD.over) { KillTimer(A.hwnd, 8); return; }
     if (DD.over) {
         int x = DD.pt.x, y = DD.pt.y;
-        if (x >= A.listX && x < itemsRight() && y >= A.listTop - A.headH && y < A.listTop + A.listH && maxScroll() > 0) {
-            // Vicino ai bordi lungo l'asse (in alto anche sull'intestazione; in Elenco a sinistra e a destra)
-            int dir = listView() ? (x < A.listX + A.rowH ? -1 : x >= itemsRight() - A.rowH ? 1 : 0)
-                    : (y < A.listTop + A.rowH) ? -1 : (y >= A.listTop + A.listH - A.rowH) ? 1 : 0;
-            if (dir) {
-                A.scrollTarget += dir * A.rowH * ui::DRAG_SCROLL; // stessa velocità in pixel in ogni vista
-                clampScroll();
-                A.scrollY = A.scrollTarget;
-                dropUpdate();
+        bool scrolled = false;
+        {
+            // Sopra l'anteprima di una cartella scorre quella (nel suo PaneScope), altrimenti la lista
+            PaneScope ps(inPreview(x, y) && PV.paneShown ? pvPane() : nullptr);
+            if (x >= A.listX && x < itemsRight() && y >= A.listTop - A.headH && y < A.listTop + A.listH && maxScroll() > 0) {
+                // Vicino ai bordi lungo l'asse (in alto anche sull'intestazione; in Elenco a sinistra e a destra)
+                int dir = listView() ? (x < A.listX + A.rowH ? -1 : x >= itemsRight() - A.rowH ? 1 : 0)
+                        : (y < A.listTop + A.rowH) ? -1 : (y >= A.listTop + A.listH - A.rowH) ? 1 : 0;
+                if (dir) {
+                    A.scrollTarget += dir * A.rowH * ui::DRAG_SCROLL; // stessa velocità in pixel in ogni vista
+                    clampScroll();
+                    A.scrollY = A.scrollTarget;
+                    scrolled = true;
+                }
             }
         }
+        if (scrolled) dropUpdate();
         if (DD.kind == DT_TAB && DD.index != A.tab && nowMs() - DD.tabSince >= ui::DRAG_SPRING) {
             tabActivate(DD.index);
             dropUpdate();
@@ -725,6 +773,8 @@ static void dragTick() {
 static void drawDrop() {
     if (!DD.over || DD.effect == DROPEFFECT_NONE) return;
     float t = std::max(1.0f, floorf(A.scale)), r = px(ui::R_S);
+    // Una voce o lo spazio dell'anteprima: lo stesso bordo, con la sua geometria
+    PaneScope ps((DD.kind == DT_ROW || DD.kind == DT_LIST) && DD.targetPreview ? pvPane() : nullptr);
     switch (DD.kind) {
     case DT_ROW: {
         Box b = itemBg(DD.index);

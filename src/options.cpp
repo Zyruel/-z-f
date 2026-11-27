@@ -46,7 +46,7 @@ static Shortcut kSel[] = {
     { { { L"Ctrl+A", 0 } }, L"Seleziona tutto ciò che è visibile" },
     { { { L"Lettere", 0 } }, L"Filtro sui nomi" },
     { { { L"Backspace", 0 } }, L"Toglie l'ultima lettera del filtro" },
-    { { { L"Esc", M_FILTER_CLEAR } }, L"Toglie il filtro, poi la selezione" },
+    { { { L"Esc", M_FILTER_CLEAR } }, L"Toglie il filtro, poi la selezione (nell'anteprima, poi torna alla lista)" },
 };
 static Shortcut kFiles[] = {
     { { K(M_COPY, KC, 'C'), K(M_CUT, KC, 'X') }, L"Copia · taglia" },
@@ -78,11 +78,14 @@ static Shortcut kTabs[] = {
 static Shortcut kView[] = {
     { { K(M_SIDEBAR, KC, 'B') }, L"Mostra o nasconde la barra laterale" },
     { { K(M_PREVIEW, KA, 'P') }, L"Mostra o nasconde l'anteprima" },
-    { { K(M_ICONS_L, KC | KS, '2'), K(M_ICONS_M, KC | KS, '3'), K(M_ICONS_S, KC | KS, '4') },
-      L"Icone grandi · medie · piccole (zoom 100 · 70 · 40%)" },
-    { { K(M_VIEW_LIST, KC | KS, '5'), K(M_VIEW_DETAILS, KC | KS, '6') }, L"Elenco · Dettagli" },
-    { { { L"Ctrl+rotellina", 0 } }, L"Zoom della lista: Dettagli, Elenco, Icone da 20 a 100%" },
-    { { { L"Trascina il bordo di un pannello", 0 }, { L"doppio clic", 0 } }, L"Larghezza di barra laterale o anteprima · predefinita" },
+    { { K(M_PANE_KEYS, 0, VK_TAB), { L"clic nel pannello", 0 } }, L"La tastiera alla lista o all'anteprima di una cartella" },
+    { { { L"Doppio clic nell'anteprima", 0 } }, L"Apre il file; una cartella in una nuova scheda in background" },
+    { { K(M_VIEW_DETAILS, KC | KS, '2'), K(M_VIEW_LIST, KC | KS, '3') }, L"Dettagli · Elenco" },
+    { { K(M_ICONS_S, KC | KS, '4'), K(M_ICONS_M, KC | KS, '5'), K(M_ICONS_L, KC | KS, '6') },
+      L"Icone piccole · medie · grandi (zoom 40 · 70 · 100%)" },
+    { { { L"Ctrl+rotellina", 0 } }, L"Zoom della lista: Dettagli, Elenco, Icone da 20 a 100% (sull'anteprima: la sua vista)" },
+    { { { L"Trascina il bordo di un pannello", 0 }, { L"doppio clic", 0 } }, L"Larghezza di barra laterale o anteprima (altezza, in basso) · predefinita" },
+    { { { L"Clic su ˅ accanto a ◨", 0 } }, L"Anteprima a destra o in basso" },
     { { { L"Clic sull'intestazione", 0 } }, L"Ordina per colonna (di nuovo: al contrario)" },
     { { { L"Trascina il bordo di una colonna", 0 }, { L"doppio clic", 0 } }, L"Larghezza della colonna · adatta al contenuto" },
     { { K(M_FAV_TOGGLE, KC, 'D') }, L"Aggiunge o toglie dai preferiti" },
@@ -117,6 +120,7 @@ static std::wstring keyName(UINT vk, int mods) {
     case VK_LEFT:      s += L"←"; break;
     case VK_RIGHT:     s += L"→"; break;
     case VK_OEM_COMMA: s += L","; break;
+    case VK_TAB:       s += L"Tab"; break;
     default:
         if (vk >= VK_F1 && vk <= VK_F24) s += L"F" + std::to_wstring(vk - VK_F1 + 1);
         else if ((vk >= 'A' && vk <= 'Z') || (vk >= '0' && vk <= '9')) s += (wchar_t)vk;
@@ -198,6 +202,7 @@ static std::wstring shortcutsOf(int cmd) {
 
 enum OptId { OPT_NONE = -1, OPT_CLOSE = 1, OPT_FONT_MINUS, OPT_FONT_PLUS, OPT_FACE_PREV, OPT_FACE_NEXT,
              OPT_ANIM, OPT_SIDEBAR, OPT_DEFAULT, OPT_FOLDER, OPT_PREVIEW, OPT_MONO_PREV, OPT_MONO_NEXT,
+             OPT_PREVIEW_POS_PREV, OPT_PREVIEW_POS_NEXT,
              OPT_UNDO_PERSIST, OPT_SHELL_MENU, OPT_DIR_SIZES, OPT_DIALOGS, OPT_TIMES,
              OPT_REOPEN, OPT_UPDATES, OPT_BETA, OPT_UPD_ACT, OPT_SEPARATE, OPT_VERSION };
 
@@ -326,6 +331,7 @@ static void optionsExec(int id) {
     case OPT_ANIM:       A.animations = !A.animations; settingsSave(); break;
     case OPT_SIDEBAR:    sidebarToggle(); break;
     case OPT_PREVIEW:    previewToggle(); break;
+    case OPT_PREVIEW_POS_PREV: case OPT_PREVIEW_POS_NEXT: previewPlace(!A.prevBottom); break; // due posizioni: ‹ e › si alternano
     case OPT_MONO_PREV:  optionsMonoFace(-1); break;
     case OPT_MONO_NEXT:  optionsMonoFace(1); break;
     case OPT_DEFAULT:    toggleDefault(); break; // lo stato si rilegge all'esito (WM_APP_DEFAULT)
@@ -367,7 +373,8 @@ static bool optionsMouseDown(int x, int y, bool again = false) {
     if (!OP.open) return false;
     if (x < OP.x || x >= OP.x + OP.w || y < OP.y || y >= OP.y + OP.h) { optionsClose(); return true; } // clic fuori
     int id = optionsHit(x, y);
-    if (again && (id == OPT_VERSION || id == OPT_UPD_ACT)) return true;
+    // La posizione dell'anteprima ha due valori: il secondo clic la riporterebbe dov'era
+    if (again && (id == OPT_VERSION || id == OPT_UPD_ACT || id == OPT_PREVIEW_POS_PREV || id == OPT_PREVIEW_POS_NEXT)) return true;
     if (id != OPT_NONE) optionsExec(id);
     return true;
 }
@@ -544,8 +551,8 @@ static void drawOptions(double dt) {
         button(bx + bw + vw, cy, bw, L"+", OPT_FONT_PLUS);
         cy += rowH;
     }
-    // Selettore di un carattere: "‹  Segoe UI  ›"
-    auto faceRow = [&](const wchar_t* t, const std::wstring& face, int prevId, int nextId) {
+    // Selettore tra alcuni valori: "‹  Segoe UI  ›" (caratteri, posizione dell'anteprima)
+    auto pickRow = [&](const wchar_t* t, const std::wstring& face, int prevId, int nextId) {
         label(t, nullptr);
         float bw = rowH, vw = px(ui::OPT_FACE_W);
         float bx = right - bw * 2 - vw;
@@ -557,7 +564,7 @@ static void drawOptions(double dt) {
         button(bx + bw + vw, cy, bw, L"\x203A", nextId);
         cy += rowH;
     };
-    faceRow(L"Carattere", F.face, OPT_FACE_PREV, OPT_FACE_NEXT);
+    pickRow(L"Carattere", F.face, OPT_FACE_PREV, OPT_FACE_NEXT);
     label(L"Animazioni", nullptr);
     sw(A.animations, OP.knobAnim, OPT_ANIM);
     cy += rowH;
@@ -567,7 +574,8 @@ static void drawOptions(double dt) {
     label(L"Anteprima", nullptr);
     sw(A.prevOpen, OP.knobPreview, OPT_PREVIEW);
     cy += rowH;
-    faceRow(L"Carattere dell'anteprima", FM.face, OPT_MONO_PREV, OPT_MONO_NEXT);
+    pickRow(L"Posizione dell'anteprima", A.prevBottom ? L"In basso" : L"A destra", OPT_PREVIEW_POS_PREV, OPT_PREVIEW_POS_NEXT);
+    pickRow(L"Carattere dell'anteprima", FM.face, OPT_MONO_PREV, OPT_MONO_NEXT);
     label(L"Barra dei tempi", L"Sopra la barra di stato: lettura, ordinamento, frame, avvio. F12 per tutti i dettagli");
     sw(A.timesBar, OP.knobTimes, OPT_TIMES);
     cy += rowH * 2 - px(ui::GAP_S);

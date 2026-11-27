@@ -856,6 +856,29 @@ static void onFileJob(FileJob* j) {
         dirSizeForget(j->dest);
         for (const UndoItem& it : j->op.items) { dirSizeForget(it.a); dirSizeForget(it.b); }
     }
+    // Nell'anteprima di una cartella in rete non c'è l'osservatore: si rilegge qui (in locale lo fa
+    // lui, e rileggere anche qui la leggerebbe due volte). Le stesse cartelle che previewWatch salta
+    ListPane* pp = previewPaneFor(j->dest);
+    if (!pp && !j->src.empty()) pp = previewPaneFor(parentPath(j->src[0]));
+    // Annulla e ripeti non hanno src né dest: valgono le cartelle dei loro elementi, e il cursore va
+    // sull'elemento tornato, come nella lista (qui anche in locale: la rilettura dell'osservatore
+    // può essere partita prima che l'elemento tornasse)
+    bool pvSelect = false;
+    if (j->kind == J_INVERT && pvPane()) {
+        for (const UndoItem& it : j->op.items) {
+            if (it.kind == IK_RECYCLED || it.kind == IK_RMDIR || it.b.empty() || !previewPaneFor(parentPath(it.b))) continue;
+            PV.selectAfter = leafOf(it.b);
+            pp = pvPane();
+            pvSelect = true;
+            break;
+        }
+        for (size_t i = 0; !pp && i < j->op.items.size(); i++) {
+            const UndoItem& it = j->op.items[i];
+            if (!it.b.empty()) pp = previewPaneFor(parentPath(it.b));
+            if (!pp && !it.a.empty()) pp = previewPaneFor(parentPath(it.a));
+        }
+    }
+    if (pp && (pvSelect || slowPath(pp->cur->path))) previewRefresh();
     if (j->kind == J_INVERT) {
         UH.busy = false;
         A.undoMs = j->ms;
@@ -939,10 +962,18 @@ static void onFsDone(DWORD err, FsJob* j) {
         }
         op.items.push_back(std::move(it));
         undoPush(std::move(op));
-        A.selectAfterRefresh = j->name; // il watcher ricarica: il cursore va sulla voce nuova
-        A.renameAfterRefresh = j->op == FS_MKDIR;
-        A.changeAt = nowMs();
-        requestRefresh();
+        // Nella cartella dell'anteprima (rinomina o nuova cartella fatte lì): si rilegge quella
+        std::wstring dir = parentPath(j->op == FS_RENAME ? j->b : j->a);
+        if (previewPaneFor(dir)) {
+            PV.selectAfter = j->name;
+            PV.renameAfter = j->op == FS_MKDIR;
+            previewRefresh();
+        } else if (A.cur && samePath(dir, A.cur->path)) {
+            A.selectAfterRefresh = j->name; // il watcher ricarica: il cursore va sulla voce nuova
+            A.renameAfterRefresh = j->op == FS_MKDIR;
+            A.changeAt = nowMs();
+            requestRefresh();
+        }
     }
     delete j;
     A.dirty = true;

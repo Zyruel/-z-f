@@ -20,12 +20,35 @@ static float previewRoom() {
     return floorf((float)G.w - A.listX - px(ui::COL_NAME_MIN) - cols - A.padX - A.sbW);
 }
 
-// Anteprima: la larghezza scelta, al massimo PREVIEW_MAX della finestra e quello che la lista
-// lascia con le colonne al minimo; sotto PREVIEW_MIN sparisce (resta aperta: torna quando c'è spazio).
-static float previewWidth() {
+// In basso: l'altezza che lascia alla lista l'intestazione, PREVIEW_LIST_ROWS righe e le barre in fondo
+static float previewRoomH() {
+    return floorf((float)G.h - A.listTop - A.rowH * ui::PREVIEW_LIST_ROWS - A.footH);
+}
+
+// Anteprima: la misura scelta (larghezza a destra, altezza in basso), al massimo PREVIEW_MAX della
+// finestra e quello che la lista lascia (a destra con le colonne al minimo, in basso con
+// PREVIEW_LIST_ROWS righe); sotto il minimo sparisce (resta aperta: torna quando c'è spazio).
+static float previewSize() {
     if (!A.prevOpen) return 0;
+    if (A.prevBottom) {
+        float h = std::min({px(A.prevHeight), floorf(G.h * ui::PREVIEW_MAX), previewRoomH()});
+        return h >= px(ui::PREVIEW_HMIN) ? h : 0;
+    }
     float w = std::min({px(A.prevWidth), floorf(G.w * ui::PREVIEW_MAX), previewRoom()});
     return w >= px(ui::PREVIEW_MIN) ? w : 0;
+}
+
+// Punto dentro il pannello di anteprima (intestazione, corpo e banda in fondo)
+static bool inPreview(int x, int y) {
+    return A.prevW > 0 && x >= A.prevX && x < A.prevX + A.prevW && y >= A.prevY && y < A.prevY + A.prevH;
+}
+// Riga della barra in fondo alla lista di App: la barra di stato della lista principale (sopra
+// l'anteprima, se è in basso) o, nel PaneScope dell'anteprima, la sua banda in fondo alla finestra
+static float barTop() { return (g_inPane ? (float)G.h : A.footY) - A.statusH; }
+static bool inBar(int y) { return y >= barTop() && y < barTop() + A.statusH; }
+// Barra dei tempi e di stato della lista principale
+static bool inListFoot(int x, int y) {
+    return x >= A.sideW && x < A.listR && y >= A.footY - A.footH && y < A.footY;
 }
 
 static float lineLen();
@@ -33,57 +56,25 @@ static float viewLen();
 static bool cursorInView(float s, bool whole);
 static void ensureVisible();
 
-static void layout() {
-    // Il cursore si vedeva: resta in vista anche con la geometria nuova (l'anteprima che si apre
-    // stringe Elenco e la colonna del cursore uscirebbe a destra). Se l'utente ha scorso lontano
-    // dal cursore la lista non si muove.
-    bool keepCursor = cursorInView(A.scrollY, false);
-    int oldPerLine = A.perLine;
-    float oldLine = lineLen(), oldView = viewLen();
-    A.rowH = (float)(F.lineH + (int)lroundf(ui::ROW_EXTRA * A.scale)); // non px(): vedi ROW_EXTRA in theme.h
-    A.topH = (float)(int)(A.rowH * ui::PATH_BAR);
-    A.headH = A.rowH;
-    A.statusH = A.rowH;
-    A.sbW = px(ui::SCROLL_W);
-    A.padX = px(ui::PAD_X);
-    // Dall'alto: [schede] [barra del percorso] poi [barra laterale | intestazione + lista |
-    // anteprima]. I due pannelli arrivano in fondo alla finestra; tra loro, sotto la lista, la barra
-    // dei tempi (se scelta) e quella di stato, con il filtro: sono del corpo centrale.
-    // Le schede sono sempre visibili: se comparissero alla seconda, il contenuto salterebbe in
-    // basso proprio mentre si sta cliccando.
-    A.tabH = floorf(A.rowH * ui::TAB_BAR);
-    A.tabY = 0;
-    // Barra del titolo: [⚙] schede [+] · spazio per trascinare · [–][□][×]
-    A.btnW = A.tabH;
-    A.capW = px(ui::CAPTION_W);
-    A.navW = floorf(A.rowH * ui::NAV_W);
-    A.tabStripX = A.btnW + px(ui::GAP_S);
-    A.tabStripW = std::max(0.0f, G.w - A.capW * 3 - px(ui::DRAG_MIN) - A.tabStripX - A.rowH * ui::TAB_PLUS_W);
-    A.pathY = A.tabH;
-    A.sideTop = A.pathY + A.topH;
-    A.sideItemH = A.rowH;
-    A.sideW = A.sideVisible ? std::min(px(A.sideWidth), floorf(G.w * ui::SIDE_MAX)) : 0;
-    A.listX = A.sideW;
-    A.listTop = A.sideTop + A.headH;
-    A.timesH = A.timesBar ? A.rowH : 0;
-    A.footH = A.statusH + A.timesH;
-    A.listH = std::max(0.0f, (float)G.h - A.listTop - A.footH);
-    A.prevW = previewWidth();
-    A.listR = G.w - A.prevW;
-    // Filtro: all'inizio della barra di stato, allineato alla lista. Questa è la larghezza voluta:
-    // quella mostrata (fltW) la decide il disegno, che con la lista stretta la cede a contatori e vista
-    A.fltX = A.listX + px(ui::GAP_S);
-    A.fltWant = floorf(std::min(px(ui::FILTER_W), (A.listR - A.listX) * ui::FILTER_MAX));
-    A.fltW = A.fltWant;
+// La geometria di prima, presa prima di cambiare i bordi: il cursore che si vedeva resta in vista
+// anche con quella nuova (l'anteprima che si apre stringe Elenco e la colonna del cursore uscirebbe
+// a destra). Se l'utente ha scorso lontano dal cursore la lista non si muove.
+struct LayoutKeep { bool cursor; int perLine; float line, view; };
+static LayoutKeep layoutKeep() { return { cursorInView(A.scrollY, false), A.perLine, lineLen(), viewLen() }; }
+
+// Geometria delle voci dentro listX…listR, da listTop per listH, nella vista di A.zoom: colonne e
+// celle. La lista principale (layout) e l'anteprima di una cartella (preview.cpp, nel suo
+// PaneScope), che in Dettagli non ha Destinazione e, a destra, nemmeno Data (noDate).
+static void layoutItems(bool noDate, const LayoutKeep& k) {
     // Colonne: Nome prende quello che avanza, Destinazione (se c'è), Data e Dimensione sono
     // allineate a destra. Se la finestra è stretta si stringono prima Destinazione, poi Data e poi
     // Dimensione, fino al minimo (senza salvare); Destinazione inoltre non supera Nome (linkMax).
-    A.dateW = px(A.colDate);
+    A.dateW = noDate ? 0 : px(A.colDate);
     A.sizeW = px(A.colSize);
-    A.linkW = linkColumn() ? px(A.colLink) : 0;
+    A.linkW = !noDate && linkColumn() ? px(A.colLink) : 0;
     float right = A.listR - A.sbW - A.padX, room = colRoom(), mn = px(ui::COL_MIN);
     if (A.linkW > 0 && A.linkW + A.dateW + A.sizeW > room) A.linkW = std::max(mn, room - A.dateW - A.sizeW);
-    if (A.linkW + A.dateW + A.sizeW > room) A.dateW = std::max(mn, room - A.sizeW - A.linkW);
+    if (A.dateW > 0 && A.linkW + A.dateW + A.sizeW > room) A.dateW = std::max(mn, room - A.sizeW - A.linkW);
     if (A.linkW + A.dateW + A.sizeW > room) A.sizeW = std::max(mn, room - A.dateW - A.linkW);
     A.sizeX = right - A.sizeW;
     A.dateX = A.sizeX - A.dateW;
@@ -117,8 +108,65 @@ static void layout() {
         A.cellX = A.listX;
         A.cellH = A.rowH;
     }
-    bool changed = A.perLine != oldPerLine || lineLen() != oldLine || viewLen() != oldView;
-    if (keepCursor && changed && viewLen() > 0 && !cursorInView(A.scrollTarget, true)) ensureVisible();
+    bool changed = A.perLine != k.perLine || lineLen() != k.line || viewLen() != k.view;
+    if (k.cursor && changed && viewLen() > 0 && !cursorInView(A.scrollTarget, true)) ensureVisible();
+}
+
+static void layout() {
+    if (g_inPane) { g_paneAfter.push_back(layout); return; } // App è l'anteprima (PaneScope): all'uscita
+    LayoutKeep keep = layoutKeep();
+    A.rowH = (float)(F.lineH + (int)lroundf(ui::ROW_EXTRA * A.scale)); // non px(): vedi ROW_EXTRA in theme.h
+    A.topH = (float)(int)(A.rowH * ui::PATH_BAR);
+    A.headH = A.rowH;
+    A.statusH = A.rowH;
+    A.sbW = px(ui::SCROLL_W);
+    A.padX = px(ui::PAD_X);
+    // Dall'alto: [schede] [barra del percorso] poi [barra laterale | intestazione + lista |
+    // anteprima]. I due pannelli arrivano in fondo alla finestra; tra loro, sotto la lista, la barra
+    // dei tempi (se scelta) e quella di stato, con il filtro: sono del corpo centrale.
+    // Le schede sono sempre visibili: se comparissero alla seconda, il contenuto salterebbe in
+    // basso proprio mentre si sta cliccando.
+    A.tabH = floorf(A.rowH * ui::TAB_BAR);
+    A.tabY = 0;
+    // Barra del titolo: [⚙] schede [+] · spazio per trascinare · [–][□][×]
+    A.btnW = A.tabH;
+    A.capW = px(ui::CAPTION_W);
+    A.navW = floorf(A.rowH * ui::NAV_W);
+    A.navMenuW = floorf(A.rowH * ui::NAV_MENU_W);
+    A.tabStripX = A.btnW + px(ui::GAP_S);
+    A.tabStripW = std::max(0.0f, G.w - A.capW * 3 - px(ui::DRAG_MIN) - A.tabStripX - A.rowH * ui::TAB_PLUS_W);
+    A.pathY = A.tabH;
+    A.sideTop = A.pathY + A.topH;
+    A.sideItemH = A.rowH;
+    A.sideW = A.sideVisible ? std::min(px(A.sideWidth), floorf(G.w * ui::SIDE_MAX)) : 0;
+    A.listX = A.sideW;
+    A.listTop = A.sideTop + A.headH;
+    A.timesH = A.timesBar ? A.rowH : 0;
+    A.footH = A.statusH + A.timesH;
+    // Anteprima a destra: dall'intestazione al fondo, la lista alla sua sinistra. In basso: sotto le
+    // barre della lista, larga quanto la lista, fino al fondo
+    float ps = previewSize();
+    if (A.prevBottom) {
+        A.prevX = A.listX;
+        A.prevW = ps > 0 ? (float)G.w - A.listX : 0;
+        A.prevH = ps;
+        A.prevY = (float)G.h - ps;
+        A.listR = (float)G.w;
+    } else {
+        A.prevW = ps;
+        A.prevX = (float)G.w - ps;
+        A.prevY = A.sideTop;
+        A.prevH = ps > 0 ? (float)G.h - A.sideTop : 0;
+        A.listR = A.prevX;
+    }
+    A.footY = A.prevBottom && A.prevW > 0 ? A.prevY : (float)G.h;
+    A.listH = std::max(0.0f, A.footY - A.listTop - A.footH);
+    // Filtro: all'inizio della barra di stato, allineato alla lista. Questa è la larghezza voluta:
+    // quella mostrata (fltW) la decide il disegno, che con la lista stretta la cede a contatori e vista
+    A.fltX = A.listX + px(ui::GAP_S);
+    A.fltWant = floorf(std::min(px(ui::FILTER_W), (A.listR - A.listX) * ui::FILTER_MAX));
+    A.fltW = A.fltWant;
+    layoutItems(false, keep);
 }
 
 // Bordo b tra due colonne: 0 a sinistra di Data, 1 a sinistra di Dimensione, 2 a sinistra di
@@ -130,21 +178,31 @@ static float colBorderX(int b) { return (b == 0 ? A.dateX : b == 1 ? A.sizeX : A
 // laterale, anteprima): cursore ↔, Esc torna a prima, si salva al rilascio (listmouse.cpp).
 enum { EDGE_SIDE = 3, EDGE_PREVIEW = 4 };
 static float& colChosen(int b) {
-    return b == 0 ? A.colDate : b == 1 ? A.colSize : b == 2 ? A.colLink : b == EDGE_SIDE ? A.sideWidth : A.prevWidth;
+    return b == 0 ? A.colDate : b == 1 ? A.colSize : b == 2 ? A.colLink : b == EDGE_SIDE ? A.sideWidth
+         : A.prevBottom ? A.prevHeight : A.prevWidth;
 }
 static float colShown(int b) {
-    return b == 0 ? A.dateW : b == 1 ? A.sizeW : b == 2 ? A.linkW : b == EDGE_SIDE ? A.sideW : A.prevW;
+    return b == 0 ? A.dateW : b == 1 ? A.sizeW : b == 2 ? A.linkW : b == EDGE_SIDE ? A.sideW
+         : A.prevBottom ? A.prevH : A.prevW;
 }
-// Bordo di un pannello sotto il mouse: EDGE_SIDE, EDGE_PREVIEW o -1. Tutti e due per tutta
-// l'altezza. Barra laterale: COL_GRIP per lato (la lista ha GAP_S di margine). Anteprima: COL_GRIP
-// verso il pannello, solo GAP_XS verso la lista per non prendere la barra di scorrimento.
+// Bordo di un pannello sotto il mouse: EDGE_SIDE, EDGE_PREVIEW o -1. Barra laterale per tutta
+// l'altezza: COL_GRIP per lato (la lista ha GAP_S di margine). Anteprima per tutto il suo lato:
+// COL_GRIP verso il pannello, solo GAP_XS verso la lista per non prendere la barra di scorrimento
+// (in basso, quella orizzontale di Elenco).
 static int panelEdgeAt(int x, int y) {
     if (y < A.sideTop) return -1;
-    float grip = px(ui::COL_GRIP);
+    float grip = px(ui::COL_GRIP), in = px(ui::GAP_XS);
     if (A.sideW > 0 && x >= A.sideW - grip && x < A.sideW + grip) return EDGE_SIDE;
-    if (A.prevW > 0 && x >= A.listR - px(ui::GAP_XS) && x < A.listR + grip) return EDGE_PREVIEW;
+    if (A.prevW <= 0) return -1;
+    if (A.prevBottom) {
+        if (x >= A.prevX && y >= A.prevY - in && y < A.prevY + grip) return EDGE_PREVIEW;
+    } else if (x >= A.prevX - in && x < A.prevX + grip) {
+        return EDGE_PREVIEW;
+    }
     return -1;
 }
+// Il bordo b si trascina in verticale (quello dell'anteprima in basso) e non in orizzontale
+static bool edgeVertical(int b) { return b == EDGE_PREVIEW && A.prevBottom; }
 static int colBorderAt(int x, int y) {
     if (A.zoom != ZOOM_DETAILS) return -1; // in Elenco e Icone l'intestazione ha solo le etichette per ordinare
     if (y < A.sideTop || y >= A.listTop || x < A.listX || x >= A.listR - A.sbW) return -1;
@@ -197,6 +255,14 @@ static void clampScroll() {
     A.scrollTarget = std::min(std::max(A.scrollTarget, 0.0f), maxScroll());
     A.scrollY = std::min(std::max(A.scrollY, 0.0f), maxScroll());
 }
+// Rotellina sulla lista di App (anche l'anteprima nel suo PaneScope), con lo scorrimento morbido.
+// Icone: una riga di voci a scatto; Elenco: una colonna (scorre in orizzontale)
+static void listWheel(float lines) {
+    A.scrollTarget -= lines * (gridView() ? A.cellH : listView() ? A.cellW : A.rowH * ui::WHEEL_LINES);
+    clampScroll();
+    A.dirty = true;
+}
+
 // Di quanto lo scorrimento sposta le voci (pixel interi): in y, in Elenco in x
 static void scrollOffset(float& ox, float& oy) {
     float s = floorf(A.scrollY);
@@ -358,7 +424,22 @@ static void resort() {
     rebuildView(true);
 }
 
+static bool parentOf(std::wstring p, std::wstring& parent, std::wstring& child);
+
 static void navigate(const std::wstring& path, int history, const std::wstring& selectName, bool refresh = false) {
+    if (g_inPane) {
+        // Dall'anteprima di una cartella (PaneScope): la lista principale si muove all'uscita. Aprire
+        // una sua voce (cartella, zip) non scende nell'anteprima e non sposta la lista: la apre in una
+        // nuova scheda in background, come il clic centrale (scelta con Zyruel: per ora niente
+        // navigazione dentro l'anteprima)
+        std::wstring here = A.cur ? A.cur->path : L"", p = path, s = selectName, parent, child;
+        if (s.empty() && !refresh && parentOf(p, parent, child) && !_wcsicmp(parent.c_str(), here.c_str())) {
+            g_paneAfter.push_back([p] { tabNew(p, false); });
+            return;
+        }
+        g_paneAfter.push_back([p, history, s, refresh] { navigate(p, history, s, refresh); });
+        return;
+    }
     ListRequest* r = new ListRequest{ A.hwnd, ++A.gen, path, A.sortCol, A.sortDesc, refresh };
     A.refreshAgain = false; // la lettura che parte ora vede già tutti i cambiamenti arrivati finora
     if (refresh) {
@@ -628,6 +709,8 @@ static void openSelected() {
     std::wstring full = joinPath(A.cur->path, A.cur->name(e));
     if (e.attr & FILE_ATTRIBUTE_DIRECTORY) {
         navigate(full, 1, L"");
+    } else if (g_inPane && !A.cur->zipLen && zipNameEnd(full, full.size())) { // uno zip nell'anteprima: in una nuova scheda, come una cartella
+        navigate(full, 1, L""); // (dentro uno zip, uno zip è un file: si estrae, qui sotto)
     } else if (A.cur->zipLen) { // un file dentro uno zip: si estrae su un thread, poi si apre (zipout.cpp)
         zipJobStart(ZJ_OPEN, { A.view[A.sel] });
     } else if (zipNameEnd(full, full.size())) { // uno zip si apre come una cartella
