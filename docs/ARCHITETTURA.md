@@ -58,7 +58,7 @@ condivise sono in `app.h`.
 | `zip.cpp` | archivi zip in sola lettura: directory centrale (zip64), albero delle cartelle in memoria, inflate e CRC nostri, estrazione su un thread |
 | `lnk.cpp` | lettore dei collegamenti di Windows (.lnk), senza la shell; percorsi di rete di Windows |
 | `app.h` / `app.cpp` | stato; layout, selezione, filtro, navigazione, ricariche |
-| `columns.cpp` | colonne della lista: ordine, titoli, testo delle celle, quali si vedono, estensioni nascoste |
+| `columns.cpp` | colonne della lista: ordine, titoli, testo delle celle, quali si vedono, estensioni nascoste; valori di una colonna per il filtro e i gruppi (`groupsBuild`) |
 | `dirsize.cpp` | dimensione totale delle cartelle su un thread (urgenti per il tooltip, coda di sfondo per la colonna), cache |
 | `links.cpp` | colonna Destinazione dei collegamenti: destinazioni lette su un thread, cache, clic ("Apri percorso file") |
 | `watch.cpp` | aggiornamento in tempo reale (`ReadDirectoryChangesW`), compresi spostamento ed eliminazione della cartella aperta; la cartella dell'anteprima (`previewWatch`) |
@@ -288,11 +288,38 @@ condivise sono in `app.h`.
   tabella degli inizi d'anno dal 1980; prima si calcola voce per voce) e i totali delle cartelle già
   contati (`dirSizeTotals`). Con il filtro per Dimensione un totale che arriva può cambiare la vista:
   `onDirSize` arma un timer (al più una volta ogni `WATCH_BATCH`) e `refilterQuiet` rifiltra senza
-  far scorrere la lista. I gruppi (fase 3) useranno la stessa `colBucket`.
+  far scorrere la lista (`viewUsesDirTotals`: anche con i gruppi per Dimensione).
   *Perché le chiavi e non le etichette:* il confronto per voce resta un bit o un `wcscmp`, e il
   filtro sopravvive a una rilettura della stessa cartella.
   *Perché il menu resta aperto:* `MenuItem::keep` (voce a spunta): `menuExec` cambia la spunta e
   non chiude; il doppio clic su un menu aperto conta come un clic in più (`WM_LBUTTONDBLCLK`).
+- **Gruppi** (`columns.cpp` per la tabella, `app.cpp` per la geometria): `A.groupCol` è della
+  cartella (`viste.txt`, terza colonna con la chiave di `kCols`; `FolderView::group`), `A.groupClosed`
+  (i valori chiusi, come `ColValue`) della scheda; tutti e due si scambiano con `TabState` e
+  `ListPane`, e l'anteprima di una cartella non ha gruppi. `applyFilter`, dopo `filterInto`, chiama
+  `groupsBuild`: `colBucket` per ogni voce della vista, i valori contati con `ColTally` (lo stesso
+  contatore del menu del filtro, `colValues`), ordinati con `colValueBefore` (rovesciato se la lista
+  è ordinata per la stessa colonna al contrario), poi la vista riordinata per gruppo con un
+  ordinamento stabile per rango in O(n): dentro un gruppo resta l'ordinamento della lista. Ogni
+  `Group` dice valore, `first` e `n` nella vista (0 se chiuso: le sue voci escono dalla vista come
+  col filtro, quindi selezione, Ctrl+A e contatori non le vedono senza codice in più), `total` e
+  `at`, l'inizio lungo l'asse. `A.view` resta di sole voci: le intestazioni stanno solo nella
+  geometria. `groupsPlace` (in `layoutItems` e dopo `applyFilter`) calcola `at`: in Dettagli e Icone
+  un'intestazione alta una riga e le linee del gruppo, in Elenco la prima riga in alto è delle
+  intestazioni (`perLine` - 1 voci per colonna) e ogni gruppo comincia una colonna; `GROUP_GAP` tra
+  i gruppi. Le funzioni della lista virtualizzata passano da lì: `itemAlong` (inizio della linea di
+  una voce), `itemRect`, `itemAt`, `contentLen`, `itemsInSpan` (le voci tra due posizioni lungo
+  l'asse, per il disegno e il rettangolo), `groupHeadAt` (intestazione sotto il mouse),
+  `cursorInView`, `ensureVisible`, `scrollToItem`; la tastiera per linee con `lineStep` (linea
+  accanto, attraverso i gruppi aperti) e `pageStep` (PagSu/PagGiù in pixel). Senza gruppi
+  `A.groups` è vuota e il codice fa i conti di prima. Il clic sull'intestazione (`groupToggle`)
+  vale al rilascio, come la destinazione di un collegamento, e rifiltra con `refilterQuiet`: la
+  lista non scorre (un doppio clic non apre la voce che, chiudendo in fondo, finisce sotto il
+  mouse: `A.groupClickAt`). Il tempo di `groupsBuild` più `groupsPlace` è `A.groupMs`: riga "gruppi" di
+  F12 (con il numero di gruppi) e "gruppi lenti" nel registro oltre `LOG_MSG`.
+  *Perché `A.view` di sole voci:* indici di vista, selezione, cursore, rettangolo, trascinamento e
+  anteprima restano quelli di prima; una voce finta per l'intestazione avrebbe chiesto un controllo
+  in ognuno.
 - **Colonne ridimensionabili** (`listmouse.cpp`): il doppio clic su un bordo adatta la colonna
   senza formattare ogni voce, perché le date hanno tutte la stessa forma, per le dimensioni basta
   il valore più grande di ogni unità, e Tipo e Attributi si misurano una volta per estensione e
@@ -329,6 +356,11 @@ condivise sono in `app.h`.
   percorso: il resto sono le ricerche nella cache dei totali). Con il filtro per Dimensione, mentre
   si contano le cartelle la vista si rifiltra al più ogni 50 ms: fino a circa il 13% del thread UI
   su una cartella come WinSxS;
+- gruppi su WinSxS (30.734 voci), MSVC, finestra ingrandita (F12, "gruppi": tabella,
+  riordino della vista e `groupsPlace`): Tipo 0,79 ms (3 gruppi), Data modifica 0,95, Data creazione
+  0,69–1,02 (5 gruppi); Dimensione, con i totali delle cartelle, 7,6 ms, per le stesse ricerche
+  nella cache dei totali del filtro. Preparazione del frame mentre si scorre, raggruppata per Data
+  creazione: Dettagli 0,23 ms, Elenco 0,58 (0,44 senza gruppi), Icone medie 0,23 (0,28 senza);
 - aggiornamento in tempo reale: circa 54 ms dalla notifica allo schermo; con 1000 file spostati in
   12 s, 272 ricariche e nessun file perso.
 

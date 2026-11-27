@@ -5,12 +5,47 @@ quel codice, o tutti insieme in un momento tranquillo. Quando una voce è fatta 
 (la storia resta in git). Le idee nuove sono in `idee.md`, le prove a mano in
 `prove\da-verificare.md`, i debiti tecnici più grandi in `CLAUDE.md`.
 
+- [ ] **Gruppi: scelte minori da confermare con Zyruel** (27/11, scritte in DESIGN §7 "Gruppi"):
+  - ordine dei gruppi: quello del menu del filtro, rovesciato se la lista è ordinata per la stessa
+    colonna nel verso opposto (per Dimensione dal più grande il primo gruppo è "Oltre 4 GB");
+  - un gruppo chiuso toglie le sue voci dalla vista come il filtro: contatori e "Filtra N
+    elementi" non le contano, Ctrl+A non le prende;
+  - da tastiera i gruppi non si chiudono: una scorciatoia (per esempio ← sulla prima voce del
+    gruppo) andrebbe decisa insieme;
+  - l'intestazione ha l'aspetto del titolo di sezione della barra laterale (niente fondo sotto il
+    mouse, freccia nella colonna delle icone invece che a destra);
+  - chiudendo un gruppo la lista non scorre e il cursore che c'era dentro passa alla prima voce
+    dei gruppi dopo; il clic sull'intestazione vale al rilascio e non toglie la selezione (dallo
+    spazio vuoto invece la toglie).
+
 - [ ] **Filtro per Dimensione su cartelle enormi** (27/11, da decidere con Zyruel): con il filtro
   attivo e la dimensione delle cartelle accesa, ogni totale che arriva fa rifiltrare la vista, al
   più ogni `WATCH_BATCH` (50 ms); in WinSxS un rifiltro costa 6,6 ms (le ricerche di 30.732
   cartelle nella cache dei totali, `dsEachDir`), quindi fino al 13% del thread UI finché il conto
   va avanti. Se pesa: un intervallo più lungo solo per questo, o i totali tenuti per indice di voce
-  nel `Listing` e aggiornati solo per le cartelle arrivate.
+  nel `Listing` e aggiornati solo per le cartelle arrivate. Vale anche per i **gruppi per
+  Dimensione** (stesso timer, `viewUsesDirTotals`): in WinSxS raggruppare costa 7,6 ms, contro
+  0,7–1,0 per Tipo e date.
+
+- [ ] **Hover dopo la rotellina** (27/11, visto provando i gruppi, c'era già): scorrendo con la
+  rotellina senza muovere il mouse, il fondo dell'hover resta sulla voce (o sull'intestazione di
+  gruppo) di prima, che si allontana dal puntatore, finché il mouse non si muove (`A.hover` e
+  `A.groupHover` si aggiornano solo in `WM_MOUSEMOVE`). Lo stesso dopo un filtro scritto o una
+  ricarica, che spostano voci e gruppi sotto il puntatore fermo (anche il tooltip di un gruppo
+  resta sull'indice di prima). Da decidere se ricalcolarli dalla posizione del mouse quando la
+  lista si sposta o cambia.
+
+- [ ] **Gruppi: punti dubbi del controllo** (27/11), da decidere:
+  - il clic su un'intestazione si riconosce da `A.cur` e dall'indice del gruppo, come quello sulla
+    destinazione di un collegamento: in una cartella che si ricarica di continuo (uno scaricamento
+    in Download) una ricarica tra pressione e rilascio fa perdere il clic;
+  - tornando a una beta precedente, le righe di `viste.txt` con il raggruppamento in Elenco e
+    Dettagli vengono scartate (la vista di quelle cartelle si perde);
+  - il menu dei gruppi aperto da tastiera (Invio su "Raggruppa per…") non ha la prima voce attiva;
+  - "gruppi lenti" usa la soglia `LOG_MSG`: oltre 25 ms esce anche "messaggio lento" per lo stesso
+    evento;
+  - Elenco con una sola riga visibile (finestra bassissima, testo grande): con i gruppi l'intestazione
+    prende la riga e le voci finirebbero sulla barra di scorrimento.
 
 - [ ] **Punti minori della revisione e del controllo prima della 1.0.0-beta.8** (27/11). Interazione:
   - doppio clic fuori dalle opzioni: il primo clic le chiude, il secondo (`WM_LBUTTONDBLCLK`)

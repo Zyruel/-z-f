@@ -78,6 +78,7 @@ constexpr float LINK_MAX = 0.5f;   // colonna Destinazione: al massimo questa fr
 constexpr float COL_MIN = 48;      // colonne dopo Nome: larghezza minima
 constexpr float COL_NAME_MIN = 160; // spazio minimo della colonna Nome, dall'inizio della lista
 constexpr float COL_GRIP = 4;      // bordo tra due colonne: fascia per afferrarlo, per lato
+constexpr float GROUP_GAP = 8;     // gruppi della lista: spazio prima di ogni gruppo tranne il primo, lungo l'asse dello scorrimento
 constexpr float TAB_MIN = 70, TAB_MAX = 220;    // larghezza di una scheda
 constexpr float TAB_TEXT_X = 10;   // titolo della scheda: margine a sinistra
 constexpr float TAB_SEP_INSET = 6; // separatore tra due schede: staccato di tanto da sopra e da sotto

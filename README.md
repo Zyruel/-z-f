@@ -32,6 +32,8 @@ bit (provato su Windows 11).
   creazione, Dimensione, Attributi; ridimensionabili e adattabili al contenuto, e filtrabili per
   valore con l'imbuto accanto al titolo (estensioni, periodi come Oggi e Ieri, fasce di dimensione, attributi).
   Le estensioni nei nomi si possono nascondere.
+- **Gruppi** per Tipo, data o dimensione ("Raggruppa per…" nel menu delle colonne), in tutte le
+  viste e ricordati per cartella; un clic sull'intestazione chiude o apre un gruppo.
 - **Anteprima** (Alt+P) di immagini, testo e cartelle, a destra o in basso (˅ accanto a ◨, Alt+Shift+P);
   una cartella nell'anteprima è una seconda lista, con la sua vista e il suo filtro, su cui si
   seleziona, si copia, si trascina e si rinomina.
@@ -140,7 +142,8 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Trascina il bordo di un pannello · doppio clic | Cambia la larghezza di barra laterale o anteprima (l'altezza, in basso) · torna alla predefinita |
 | Clic su ˅ accanto a ◨ | Mette l'anteprima a destra o in basso |
 | Clic sull'intestazione | Ordina per colonna (di nuovo: al contrario) |
-| Tasto destro sull'intestazione | Sceglie le colonne da mostrare |
+| Tasto destro sull'intestazione | Sceglie le colonne da mostrare e il raggruppamento |
+| Clic sull'intestazione di un gruppo | Chiude o apre il gruppo |
 | Trascina il bordo di una colonna · doppio clic | Cambia la larghezza della colonna · la adatta al contenuto |
 | Ctrl+D | Aggiunge o toglie dai preferiti |
 | Trascina tra i preferiti | Aggiunge le cartelle ai preferiti |

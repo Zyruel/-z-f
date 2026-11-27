@@ -24,7 +24,10 @@ enum MenuId { M_OPEN = 1, M_OPENWITH, M_CUT, M_COPY, M_PASTE, M_COPYPATH, M_RENA
               M_PREVIEW_SWAP, // Alt+Shift+P: l'anteprima da destra in basso e viceversa
               M_COLUMN,      // menu delle colonne: M_COLUMN + COL_* mostra o nasconde quella colonna (columns.cpp)
               M_COLUMN_END = M_COLUMN + COL_COUNT,
-              M_COLFILTER = M_COLUMN_END }; // voce del menu del filtro di una colonna (PopupMenu::vals dice quale valore)
+              M_COLFILTER = M_COLUMN_END, // voce del menu del filtro di una colonna (PopupMenu::vals dice quale valore)
+              M_GROUP_MENU,  // "Raggruppa per…" nel menu delle colonne: apre il menu dei gruppi
+              M_GROUP,       // menu dei gruppi: M_GROUP + COL_* raggruppa per quella colonna, M_GROUP + COL_NAME nessun gruppo (thumbs.cpp)
+              M_GROUP_END = M_GROUP + COL_COUNT };
 
 // "Questo PC" per la shell: è una cartella virtuale, la si raggiunge col suo CLSID
 static const wchar_t kThisPc[] = L"::{20D04FE0-3AEA-1069-A2D8-08002B30309D}";
@@ -34,7 +37,7 @@ static const wchar_t kThisPc[] = L"::{20D04FE0-3AEA-1069-A2D8-08002B30309D}";
 // spunta (la scelta attuale). dim: elemento nascosto. keep: voce a spunta, il clic la cambia e il
 // menu resta aperto (si sceglie più di un valore: il filtro di una colonna)
 struct MenuItem { const wchar_t* label; const wchar_t* keys; int id; bool enabled; int icon = 0; bool dim = false; bool keep = false; };
-enum { MENU_LIST, MENU_SIDE, MENU_TAB, MENU_CRUMB, MENU_DROP, MENU_VIEW, MENU_PREVIEW_POS, MENU_HEADER, MENU_FILTER }; // HEADER: le colonne, dall'intestazione; FILTER: il filtro di una colonna (target); POS: la posizione dell'anteprima, da non confondere con PopupMenu::preview (un menu aperto nell'anteprima)
+enum { MENU_LIST, MENU_SIDE, MENU_TAB, MENU_CRUMB, MENU_DROP, MENU_VIEW, MENU_PREVIEW_POS, MENU_HEADER, MENU_FILTER, MENU_GROUP }; // HEADER: le colonne, dall'intestazione; FILTER: il filtro di una colonna (target); GROUP: "Raggruppa per…"; POS: la posizione dell'anteprima, da non confondere con PopupMenu::preview (un menu aperto nell'anteprima)
 
 // Valore di una colonna nel filtro (columns.cpp, colBucket): la chiave e, per un'estensione di
 // Tipo, l'estensione in minuscolo
@@ -50,6 +53,10 @@ struct ColFilter {
     void clear(int c) { keys[c].clear(); if (c == COL_TYPE) exts.clear(); }
     void clear() { for (int c = 0; c < COL_COUNT; c++) clear(c); }
 };
+// Un gruppo della lista (columns.cpp, groupsBuild): il valore della colonna di raggruppamento, le
+// sue voci nella vista (da first, n: 0 se è chiuso), quelle che passano i filtri (total), e dove
+// comincia lungo l'asse dello scorrimento, in coordinate del contenuto (at, groupsPlace in app.cpp)
+struct Group { ColValue v; int first = 0, n = 0, total = 0; bool closed = false; float at = 0; };
 struct PopupMenu {
     bool open = false, background = false, pressed = false;
     float x = 0, y = 0, w = 0, h = 0, ih = 0, sepH = 0, pad = 0, vpad = 0;
@@ -84,6 +91,9 @@ struct TabState {
     float scrollY = 0, scrollTarget = 0;
     std::wstring filter;
     ColFilter colFilter;
+    int groupCol = -1;
+    std::vector<Group> groups;
+    std::vector<ColValue> groupClosed;
     std::vector<std::wstring> back, fwd;
     int sortCol = COL_NAME;
     bool sortDesc = false;
@@ -128,6 +138,9 @@ struct ListPane {
     float scrollY = 0, scrollTarget = 0;
     std::wstring filter;
     ColFilter colFilter;
+    int groupCol = -1;   // l'anteprima non ha gruppi: questi restano vuoti
+    std::vector<Group> groups;
+    std::vector<ColValue> groupClosed;
     double filterMs = 0; // F12: ultimo filtro applicato (applyFilter)
     ViewCounts counts;
     int sortCol = COL_NAME;
@@ -192,6 +205,19 @@ struct App {
 
     std::wstring filter;
     ColFilter colFilter;              // filtri delle colonne (columns.cpp), dopo quello per nome
+    // Gruppi (columns.cpp, groupsBuild): la colonna per cui si raggruppa (-1 nessuna; della cartella,
+    // in viste.txt), la tabella dei gruppi della vista e i valori dei gruppi chiusi (della scheda)
+    int groupCol = -1;
+    std::vector<Group> groups;
+    std::vector<ColValue> groupClosed;
+    double groupMs = 0;               // F12: ultimo raggruppamento (in applyFilter)
+    // Intestazione di un gruppo sotto il mouse e premuta col tasto sinistro (indici in groups): il
+    // clic vale al rilascio, se non è partito il rettangolo (groupToggle)
+    int groupHover = -1, groupPress = -1;
+    const void* groupPressFor = nullptr;
+    // Ora dell'ultimo clic su un'intestazione: chiudere un gruppo può far scorrere la lista (in fondo
+    // il contenuto si accorcia), e il secondo clic di un doppio clic non deve aprire la voce finita sotto
+    double groupClickAt = -1e9;
     bool renaming = false;
     TextField renameField;
     int renameEntry = -1;
@@ -321,8 +347,8 @@ struct App {
     // Vista (thumbs.cpp): un livello di zoom per cartella (viste.txt). 0 Dettagli, 1 Elenco, poi
     // Icone da 20% a 100% (ZOOM_* più sotto)
     int zoom = 0;                     // della cartella corrente (scambiato con le schede)
-    struct FolderView { uint32_t use; int zoom; };
-    std::unordered_map<std::wstring, FolderView> viewFolders; // cartelle non in Dettagli (minuscole) → ultimo uso, zoom
+    struct FolderView { uint32_t use; int zoom; int group = -1; };
+    std::unordered_map<std::wstring, FolderView> viewFolders; // cartelle non in Dettagli o raggruppate (minuscole) → ultimo uso, zoom, colonna dei gruppi
     uint32_t viewUse = 0;             // contatore dell'ultimo uso (si tengono le più recenti)
     bool viewsReady = false;          // viste.txt letto all'avvio
     // Righe "griglia" di viste.txt (prima della 1.0.0-beta.6): lo zoom che valgono, dalla vecchia
@@ -410,6 +436,9 @@ static void paneSwap(ListPane& p) {
     std::swap(A.scrollTarget, p.scrollTarget);
     A.filter.swap(p.filter);
     std::swap(A.colFilter, p.colFilter);
+    std::swap(A.groupCol, p.groupCol);
+    A.groups.swap(p.groups);
+    A.groupClosed.swap(p.groupClosed);
     std::swap(A.filterMs, p.filterMs);
     std::swap(A.counts, p.counts);
     std::swap(A.sortCol, p.sortCol);
@@ -571,7 +600,8 @@ static void previewPlace(bool bottom);               // preview.cpp: a destra o 
 static void menuOpenPreview(float right, float top); // menu.cpp: menu della posizione dell'anteprima, sotto ˅
 static void viewZoom(int zoom);                      // thumbs.cpp: livello di zoom della cartella corrente
 static void zoomStep(int delta);                     // thumbs.cpp: Ctrl+rotellina
-static int viewZoomOf(const std::wstring& path);     // thumbs.cpp: vista ricordata della cartella
+static int viewZoomOf(const std::wstring& path, int* group = nullptr); // thumbs.cpp: vista ricordata della cartella (e colonna dei gruppi)
+static void viewGroup(int col);                      // thumbs.cpp: raggruppa la cartella corrente per col (-1: nessun gruppo)
 static int viewParse(const std::wstring& v);         // thumbs.cpp: "elenco", "icone 40" → zoom (-1 se non si capisce)
 static std::string viewText(int zoom);               // thumbs.cpp: il contrario ("dettagli", "elenco", "icone 40")
 static void viewsLoaded(const std::vector<std::wstring>& lines); // thumbs.cpp: viste.txt letto all'avvio

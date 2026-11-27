@@ -341,67 +341,128 @@ static bool colMatches(const ColMatch& m, const Entry& e) {
     return true;
 }
 
+// Ordine dei valori di una colonna, nel menu del filtro e nei gruppi. Tipo: i tipi di unità (Questo
+// PC), "Cartelle", "Senza estensione", poi le estensioni dalla A; date: i periodi dal più vicino, gli
+// anni dal più recente, "Senza data"; Dimensione e Attributi: per chiave (le fasce crescono, gli
+// attributi nell'ordine delle lettere)
+static int colValueClass(int c, const ColValue& v) {
+    if (c == COL_TYPE) return v.key >= TK_DRIVE ? 0 : v.key == TK_DIR ? 1 : v.key == TK_NOEXT ? 2 : 3;
+    if (c == COL_DATE || c == COL_CTIME) return v.key < DK_NONE ? 0 : v.key > DK_NONE ? 1 : 2;
+    return 0;
+}
+static bool colValueBefore(int c, const ColValue& a, const ColValue& b) {
+    int ka = colValueClass(c, a), kb = colValueClass(c, b);
+    if (ka != kb) return ka < kb;
+    if (c == COL_TYPE && a.key == TK_EXT) return a.ext < b.ext;
+    if ((c == COL_DATE || c == COL_CTIME) && ka == 1) return a.key > b.key; // gli anni, dal più recente
+    return a.key < b.key;
+}
+static bool colValueSame(const ColValue& a, const ColValue& b) { return a.key == b.key && a.ext == b.ext; }
+
+// I valori distinti di una colonna, ognuno col suo numero di voci (menu del filtro, gruppi): at dà
+// l'indice del valore in vals, aggiungendolo la prima volta. Le chiavi sotto 64 da una tabella, le
+// altre (anni, percorsi di rete: poche) da un elenco, le estensioni da una mappa sul loro testo, che
+// deve restare dov'è finché si conta (Listing::lower, ColFilter::exts)
+struct ColCount { ColValue v; int n = 0; };
+struct ColTally {
+    std::vector<ColCount> vals;
+    int slot[64];                                       // "small" è una macro degli header RPC
+    std::vector<std::pair<uint32_t, int>> big;
+    std::unordered_map<std::wstring_view, int> exts;
+    ColTally() { std::fill(slot, slot + 64, -1); }
+    int at(uint32_t key, const wchar_t* ext) {
+        int i = (int)vals.size();
+        if (ext) {
+            auto it = exts.find(std::wstring_view(ext));
+            if (it != exts.end()) return it->second;
+            exts.emplace(std::wstring_view(ext), i);
+        } else if (key < 64) {
+            if (slot[key] >= 0) return slot[key];
+            slot[key] = i;
+        } else {
+            for (auto& b : big) if (b.first == key) return b.second;
+            big.emplace_back(key, i);
+        }
+        vals.push_back(ColCount{ ColValue{ key, ext ? ext : L"" }, 0 });
+        return i;
+    }
+};
+
 // I valori della colonna c tra le voci vis (quelle che passano gli altri filtri), ognuno col numero
 // di voci, nell'ordine del menu; con i valori scelti in f che non ci sono più (0), per poterli togliere
-struct ColCount { ColValue v; int n = 0; };
 static void colValues(int c, const Listing* l, const std::vector<uint32_t>& vis, const ColFilter& f, std::vector<ColCount>& out) {
-    out.clear();
     ColCtx ctx;
     colCtxInit(ctx, l, 1u << c);
-    int cnt[64] = {};     // chiavi sotto 64 (attributi: per bit); "small" è una macro degli header RPC
-    bool seen[64] = {};
-    std::vector<std::pair<uint32_t, int>> big;          // anni, percorsi di rete: pochi
-    auto bigAt = [&](uint32_t k) -> int& {
-        for (auto& b : big) if (b.first == k) return b.second;
-        big.emplace_back(k, 0);
-        return big.back().second;
-    };
-    std::unordered_map<std::wstring_view, int> exts;    // Tipo: nel testo di Listing::lower o di f.exts
+    ColTally t;
     for (uint32_t k : f.keys[c]) {                      // i valori scelti ci sono anche senza voci
-        if (c == COL_ATTR) { for (int i = 0; i < 7; i++) if (k & 1u << i) seen[i] = true; }
-        else if (k < 64) seen[k] = true;
-        else bigAt(k);
+        if (c == COL_ATTR) { for (int i = 0; i < 7; i++) if (k & 1u << i) t.at(1u << i, nullptr); }
+        else t.at(k, nullptr);
     }
-    if (c == COL_TYPE) for (const std::wstring& x : f.exts) exts.emplace(std::wstring_view(x), 0);
+    if (c == COL_TYPE) for (const std::wstring& x : f.exts) t.at(TK_EXT, x.c_str());
     for (uint32_t ei : vis) {
         ColBucket b = colBucket(c, l->e[ei], ctx);
-        if (c == COL_ATTR) {
-            for (int i = 0; i < 7; i++) if (b.key & 1u << i) { cnt[i]++; seen[i] = true; }
-        } else if (b.ext) {
-            exts[std::wstring_view(b.ext)]++;
-        } else if (b.key < 64) {
-            cnt[b.key]++;
-            seen[b.key] = true;
-        } else {
-            bigAt(b.key)++;
-        }
+        if (c == COL_ATTR) { for (int i = 0; i < 7; i++) if (b.key & 1u << i) t.vals[t.at(1u << i, nullptr)].n++; } // una voce in ogni suo attributo
+        else t.vals[t.at(b.key, b.ext)].n++;
     }
-    std::sort(big.begin(), big.end());
-    auto put = [&](uint32_t k, int n) { out.push_back(ColCount{ ColValue{ k, L"" }, n }); };
-    auto putSmall = [&](uint32_t k) { if (seen[k]) put(k, cnt[k]); };
-    switch (c) {
-    case COL_TYPE: {
-        for (uint32_t k = 0; k < 64; k++) if (k >= TK_DRIVE) putSmall(k); // Questo PC: i tipi di unità
-        for (auto& b : big) put(b.first, b.second);
-        putSmall(TK_DIR);
-        putSmall(TK_NOEXT);
-        std::vector<std::pair<std::wstring_view, int>> v(exts.begin(), exts.end());
-        std::sort(v.begin(), v.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
-        for (auto& x : v) out.push_back(ColCount{ ColValue{ TK_EXT, std::wstring(x.first) }, x.second });
-        break;
+    out.swap(t.vals);
+    std::sort(out.begin(), out.end(), [c](const ColCount& a, const ColCount& b) { return colValueBefore(c, a.v, b.v); });
+}
+
+// --- gruppi: le voci della vista divise per il valore di una colonna ----------------------------
+// Tipo, date e Dimensione; Attributi no: una voce ha più attributi, e in un gruppo sta una volta
+// sola (scelta di Zyruel). In Questo PC solo Tipo, i tipi di unità
+static bool colGroupable(int c, const Listing* l) {
+    if (!l) return false;
+    if (l->isDrives) return c == COL_TYPE;
+    return c == COL_TYPE || c == COL_DATE || c == COL_CTIME || c == COL_SIZE;
+}
+// La lista di App è raggruppata (anche con la vista vuota: la geometria di Elenco cambia lo stesso)
+static bool grouped() { return colGroupable(A.groupCol, A.cur); }
+// La vista dipende dai totali delle cartelle (filtro o gruppi per Dimensione): un totale appena contato
+// può far entrare o uscire una cartella, o spostarla da "Cartelle" alla sua fascia (onDirSize)
+static bool viewUsesDirTotals() { return A.colFilter.on(COL_SIZE) || (grouped() && A.groupCol == COL_SIZE); }
+
+// A.view divisa in gruppi (A.groups) nell'ordine di colValueBefore, rovesciato se la lista è
+// ordinata per la stessa colonna nel verso opposto (il menu delle date va dal più recente, gli altri
+// crescono): ordinando per Dimensione dal più grande il primo gruppo è "Oltre 4 GB". Dentro un gruppo
+// resta l'ordine della vista (ordinamento stabile per rango, in O(n)). Le voci dei gruppi chiusi
+// escono dalla vista, come col filtro; il gruppo resta, col suo numero
+static void groupsBuild() {
+    A.groups.clear();
+    if (!grouped() || A.view.empty()) return;
+    int c = A.groupCol;
+    ColCtx ctx;
+    colCtxInit(ctx, A.cur, 1u << c);
+    ColTally t;
+    std::vector<int> gid(A.view.size());
+    for (size_t i = 0; i < A.view.size(); i++) {
+        ColBucket b = colBucket(c, A.cur->e[A.view[i]], ctx);
+        gid[i] = t.at(b.key, b.ext);
+        t.vals[gid[i]].n++;
     }
-    case COL_DATE: case COL_CTIME:
-        for (uint32_t k = DK_FUTURE; k <= DK_YEAR; k++) putSmall(k);
-        for (auto it = big.rbegin(); it != big.rend(); ++it) put(it->first, it->second); // gli anni, dal più recente
-        putSmall(DK_NONE);
-        break;
-    case COL_SIZE:
-        for (uint32_t k = SK_DIR; k <= SK_MORE; k++) putSmall(k);
-        break;
-    case COL_ATTR:
-        for (int i = 0; i < 7; i++) if (seen[i]) put(1u << i, cnt[i]);
-        break;
+    std::vector<int> rank(t.vals.size());
+    for (size_t i = 0; i < rank.size(); i++) rank[i] = (int)i;
+    bool rev = A.sortCol == c && A.sortDesc != (c == COL_DATE || c == COL_CTIME);
+    std::sort(rank.begin(), rank.end(), [&](int a, int b) {
+        return rev ? colValueBefore(c, t.vals[b].v, t.vals[a].v) : colValueBefore(c, t.vals[a].v, t.vals[b].v);
+    });
+    std::vector<int> start(t.vals.size(), -1); // dove va la prossima voce di ogni valore; -1: gruppo chiuso
+    int pos = 0;
+    for (int g : rank) {
+        Group gr;
+        gr.v = std::move(t.vals[g].v);
+        gr.total = t.vals[g].n;
+        for (const ColValue& v : A.groupClosed) if (colValueSame(v, gr.v)) { gr.closed = true; break; }
+        gr.first = pos;
+        gr.n = gr.closed ? 0 : gr.total;
+        if (!gr.closed) start[g] = pos;
+        pos += gr.n;
+        A.groups.push_back(std::move(gr));
     }
+    std::vector<uint32_t> out((size_t)pos);
+    for (size_t i = 0; i < A.view.size(); i++)
+        if (start[gid[i]] >= 0) out[(size_t)start[gid[i]]++] = A.view[i];
+    A.view.swap(out);
 }
 
 // --- intestazione di Dettagli: il titolo e l'imbuto del filtro ------------------------------------

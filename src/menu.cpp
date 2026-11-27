@@ -179,7 +179,30 @@ static void menuOpenHeader(float cx, float cy) {
         menuAdd(kCols[c].title, M_COLUMN + c, !fixed);
         if (fixed || (A.colOn >> c & 1)) m.items.back().icon = 3;
     }
+    if (!g_inPane && A.cur) { // l'anteprima di una cartella non ha gruppi
+        menuSep();
+        menuAdd(L"Raggruppa per…", M_GROUP_MENU);
+    }
     menuPlace(cx, cy, false, t0);
+}
+
+// "Raggruppa per…": "Nessun gruppo" e le colonne per cui si raggruppa (colGroupable), con la spunta
+// sulla scelta attuale; una scelta sola, quindi il clic chiude il menu. Si apre al posto del menu
+// delle colonne (x, y: il suo angolo in alto a sinistra)
+static void menuOpenGroup(float x, float y) {
+    double t0 = nowMs();
+    PopupMenu& m = A.menu;
+    m.items.clear();
+    m.kind = MENU_GROUP;
+    m.target = -1;
+    menuAdd(L"Nessun gruppo", M_GROUP + COL_NAME);
+    if (!grouped()) m.items.back().icon = 3;
+    for (int c : kColOrder) {
+        if (!colGroupable(c, A.cur)) continue;
+        menuAdd(kCols[c].title, M_GROUP + c);
+        if (grouped() && A.groupCol == c) m.items.back().icon = 3;
+    }
+    menuPlace(x, y, false, t0);
 }
 
 // Menu del filtro di una colonna: le spunte vengono dal filtro (A.colFilter), "Tutti" quando la
@@ -350,7 +373,7 @@ static void menuPlace(float cx, float cy, bool fromKeyboard, double t0) {
     m.open = true;
     m.openedAt = nowMs();
     m.pressed = false;
-    A.hover = -1;
+    A.hover = A.groupHover = -1;
     A.dirty = true;
     A.ourMenuMs = nowMs() - t0;
 }
@@ -410,7 +433,13 @@ static void menuRun(int id, const CmdCtx& c) {
         A.dirty = true;
         return;
     }
+    if (id >= M_GROUP && id < M_GROUP_END) { // menu dei gruppi: per la cartella (viste.txt)
+        viewGroup(id == M_GROUP + COL_NAME ? -1 : id - M_GROUP);
+        A.dirty = true;
+        return;
+    }
     switch (id) {
+    case M_GROUP_MENU: menuOpenGroup(A.menu.x, A.menu.y); break; // il menu delle colonne si è appena chiuso: al suo posto
     case M_NEWTAB: {
         std::wstring f = kind == MENU_SIDE ? sidePath : selectedFolder();
         if (!f.empty() || (kind == MENU_SIDE && si)) tabNew(f, false); // "" dalla barra laterale: Questo PC

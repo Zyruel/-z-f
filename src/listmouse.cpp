@@ -64,15 +64,29 @@ static bool itemGrabHit(int r, int x, int y) {
     return x >= A.iconX && x < nameEnd + px(ui::GAP_S);
 }
 
-// Elenco e Icone: voce nella cella che contiene il punto (coordinate del contenuto), riportata
-// tra le voci che ci sono
+// Voce nella cella che contiene il punto (coordinate del contenuto), riportata tra le voci che ci
+// sono: con i gruppi in quello lungo l'asse (da un'intestazione, la prima linea; da un gruppo chiuso,
+// la prima linea del primo aperto dopo o, se non ce ne sono, l'ultima di quello prima: la più
+// vicina). Dove parte e dove arriva il rettangolo
 static int cellAt(float cx, float cy) {
     int n = (int)A.view.size(), pl = A.perLine;
-    int across = (int)floorf((cx - A.cellX) / A.cellW), along = (int)floorf(cy / A.cellH);
-    int line = listView() ? across : along, k = listView() ? along : across;
-    line = std::max(0, line);
-    k = std::max(0, std::min(pl - 1, k));
-    return std::max(0, std::min(n - 1, line * pl + k));
+    if (n == 0) return 0;
+    bool lst = listView();
+    float along = lst ? cx - A.cellX : cy, cross = lst ? cy : cx - A.cellX;
+    int first = 0, cnt = n;
+    if (!A.groups.empty()) {
+        int gs = (int)A.groups.size(), g = groupAtLen(along), o = g;
+        while (o < gs && A.groups[o].n == 0) o++;
+        if (o == gs) for (o = g; o > 0 && A.groups[o].n == 0; o--) {}
+        const Group& gr = A.groups[o];
+        along = o == g ? along - gr.at - groupHeadLen() : o > g ? 0 : ((float)groupLines(gr) - 0.5f) * lineLen();
+        if (lst) cross -= A.rowH;
+        first = gr.first;
+        cnt = gr.n;
+    }
+    int line = std::max(0, (int)floorf(along / lineLen()));
+    int k = gridView() || lst ? std::max(0, std::min(pl - 1, (int)floorf(cross / (lst ? A.cellH : A.cellW)))) : 0;
+    return first + std::max(0, std::min(cnt - 1, line * pl + k));
 }
 
 static void mqEnd() {
@@ -85,7 +99,8 @@ static void mqEnd() {
     A.dirty = true;
 }
 
-// Tasto sinistro premuto nella lista fuori da icona e nome (r: riga, -1 = spazio sotto le righe)
+// Tasto sinistro premuto nella lista fuori da icona e nome (r: riga, -1 = spazio vuoto: sotto le
+// righe, tra i gruppi o sull'intestazione di un gruppo)
 static void mqPress(int x, int y, int r, bool shift, bool ctrl) {
     MQ.base = A.selFlags;
     MQ.sel = A.sel;
@@ -106,8 +121,8 @@ static void mqPress(int x, int y, int r, bool shift, bool ctrl) {
         } else {
             moveCursorTo(r, shift, ctrl);
         }
-    } else if (!shift && !ctrl) {
-        selClear(); // clic sullo spazio vuoto: toglie la selezione, il cursore resta (come Explorer)
+    } else if (!shift && !ctrl && groupHeadAt(x, y) < 0) {
+        selClear(); // clic sullo spazio vuoto: toglie la selezione, il cursore resta (come Explorer). Sull'intestazione di un gruppo il clic chiude o apre e basta
     }
     SetCapture(A.hwnd);
     A.dirty = true;
@@ -131,40 +146,28 @@ static void mqUpdate() {
         uint32_t ei = A.view[i];
         A.selFlags[ei] = MQ.mode == MQ_TOGGLE ? !MQ.base[ei] : 1;
     };
-    bool any = false;
-    if (gridView()) { // le voci di cui tocca miniatura o nome
-        int ra = std::max(0, (int)(top / A.cellH)), rb = std::min((n - 1) / A.perLine, (int)(bot / A.cellH));
-        for (int r = ra; r <= rb; r++)
-            for (int c = 0; c < A.perLine; c++) {
-                int i = r * A.perLine + c;
-                if (i >= n) break;
-                CellParts p = gridParts(i);
-                float x0 = std::min(p.thumb.x, p.name.x), x1 = std::max(p.thumb.x + p.thumb.w, p.name.x + p.name.w);
-                if (x0 < right && x1 > left && p.thumb.y < bot && p.name.y + p.name.h > top) { take(i); any = true; }
-            }
-    } else if (listView()) { // le voci di cui tocca il fondo, colonna per colonna
-        int ca = std::max(0, (int)floorf((left - A.cellX) / A.cellW)), cb = std::min((n - 1) / A.perLine, (int)floorf((right - A.cellX) / A.cellW));
-        int ka = std::max(0, (int)(top / A.cellH)), kb = std::min(A.perLine - 1, (int)(bot / A.cellH));
-        for (int c = ca; c <= cb; c++)
-            for (int k = ka; k <= kb; k++) {
-                int i = c * A.perLine + k;
-                if (i >= n) break;
-                Box b = itemBg(i);
-                if (b.x < right && b.x + b.w > left) { take(i); any = true; }
-            }
+    // Le voci delle linee che il rettangolo tocca lungo l'asse (itemsInSpan: anche con i gruppi, che
+    // le intestazioni e lo spazio tra loro non prendono), poi quelle che tocca davvero
+    bool lst = listView(), any = false;
+    int i0, i1;
+    if (lst) itemsInSpan(left - A.cellX, right - A.cellX, i0, i1);
+    else itemsInSpan(top, bot, i0, i1);
+    i1 = std::min(i1, n);
+    for (int i = i0; i < i1; i++) {
+        bool hit;
+        if (gridView()) { // le voci di cui tocca miniatura o nome
+            CellParts p = gridParts(i);
+            float x0 = std::min(p.thumb.x, p.name.x), x1 = std::max(p.thumb.x + p.thumb.w, p.name.x + p.name.w);
+            hit = x0 < right && x1 > left && p.thumb.y < bot && p.name.y + p.name.h > top;
+        } else if (lst) { // le voci di cui tocca il fondo in larghezza e la cella in altezza
+            Box b = itemBg(i), c = itemRect(i);
+            hit = b.x < right && b.x + b.w > left && c.y <= bot && c.y + c.h > top;
+        } else hit = true; // Dettagli: le righe che tocca in altezza
+        if (hit) { take(i); any = true; }
     }
-    if (gridView() || listView()) {
-        if (any) { // ancora dove è partito, cursore dove è il mouse
-            A.anchor = (int)A.view[cellAt(MQ.x0, MQ.y0)];
-            A.sel = cellAt(xc, yc);
-        }
-    } else { // le righe che tocca in altezza
-        int i0 = std::max(0, (int)(top / A.cellH)), i1 = std::min(n - 1, (int)(bot / A.cellH));
-        for (int i = i0; i <= i1; i++) take(i);
-        if (i0 <= i1) { // ancora dove è partito, cursore dove è il mouse: Shift+frecce continua da qui
-            A.anchor = (int)A.view[std::min(n - 1, (int)(MQ.y0 / A.cellH))];
-            A.sel = std::min(std::max(i0, (int)(yc / A.cellH)), i1);
-        }
+    if (any) { // ancora dove è partito, cursore dove è il mouse: Shift+frecce continua da qui
+        A.anchor = (int)A.view[cellAt(MQ.x0, MQ.y0)];
+        A.sel = std::min(std::max(i0, cellAt(xc, yc)), i1 - 1);
     }
     A.dirty = true;
     A.mqMs = nowMs() - t0;
@@ -178,7 +181,7 @@ static void mqStart() {
     A.selFlags = MQ.base; // si riparte dalla selezione di prima del clic
     A.sel = MQ.sel;
     A.anchor = MQ.anchor;
-    A.hover = A.linkHover = -1;
+    A.hover = A.linkHover = A.groupHover = -1;
     tipHide();
     SetTimer(A.hwnd, 10, ui::DRAG_TICK, nullptr); // scorrimento vicino ai bordi
 }

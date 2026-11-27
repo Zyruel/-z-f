@@ -11,7 +11,8 @@ enum TipKind { TIP_NONE, TIP_ROW, TIP_SIDE, TIP_TAB, TIP_TABPLUS, TIP_TABCLOSE, 
                TIP_LINK,  // destinazione di un collegamento nella colonna Destinazione (links.cpp)
                TIP_VIEW,   // vista e zoom nella barra di stato
                TIP_OPTIONS, // scorciatoia troncata nel pannello delle opzioni (options.cpp)
-               TIP_COLFILTER }; // imbuto del filtro di una colonna nell'intestazione (columns.cpp)
+               TIP_COLFILTER, // imbuto del filtro di una colonna nell'intestazione (columns.cpp)
+               TIP_GROUP };   // intestazione di un gruppo nella lista (indice in A.groups)
 
 struct TipInfo {           // risultato del thread
     uint64_t gen = 0;
@@ -351,6 +352,14 @@ static bool tipBuild() {
         tipRow(L"", L"Tasto destro: le colonne da mostrare");
         break;
     }
+    case TIP_GROUP: { // intestazione di un gruppo: chiude o apre
+        if (T.index < 0 || T.index >= (int)A.groups.size() || T.owner != (const void*)A.cur) return false;
+        const Group& g = A.groups[T.index];
+        T.title = colValueLabel(A.groupCol, g.v);
+        tipRow(L"Voci", withThousands((uint64_t)g.total));
+        tipRow(L"", g.closed ? L"Clic: apri il gruppo" : L"Clic: chiudi il gruppo");
+        break;
+    }
     case TIP_COLFILTER: { // imbuto del filtro di una colonna
         if (!colFilterable(T.index)) return false;
         T.title = kCols[T.index].filterBy;
@@ -496,10 +505,11 @@ static void onDirSize() {
     InterlockedExchange(&DS.posted, 0);
     dirSizeRefill(); // il thread del conto può aspettare il pezzo successivo della coda
     if (T.visible && T.kind == TIP_ROW) tipBuild();
-    // Filtro per Dimensione: una cartella appena contata può entrare o uscire dalla vista. Al più una
-    // volta ogni WATCH_BATCH, come le ricariche: i totali arrivano anche a centinaia al secondo
-    // (il timer non si riarma finché non scatta: arrivando di continuo, i totali lo rimanderebbero sempre)
-    if (A.colFilter.on(COL_SIZE) && A.cur && colNeedsTotals(A.cur) && !g_sizeRefilter) {
+    // Filtro o gruppi per Dimensione: una cartella appena contata può entrare o uscire dalla vista, o
+    // cambiare gruppo. Al più una volta ogni WATCH_BATCH, come le ricariche: i totali arrivano anche a
+    // centinaia al secondo (il timer non si riarma finché non scatta: arrivando di continuo, i totali lo
+    // rimanderebbero sempre)
+    if (viewUsesDirTotals() && A.cur && colNeedsTotals(A.cur) && !g_sizeRefilter) {
         g_sizeRefilter = true;
         SetTimer(A.hwnd, 18, ui::WATCH_BATCH, nullptr);
     }
@@ -554,6 +564,7 @@ static void tipTarget(int x, int y, int& kind, int& index, bool& preview) {
         return;
     }
     if (int lh = linkHit(x, y); lh >= 0) { kind = TIP_LINK; index = (int)A.view[lh]; return; }
+    if (int g = groupHeadAt(x, y); g >= 0) { kind = TIP_GROUP; index = g; return; }
     int r = itemAt(x, y);
     if (r >= 0) { kind = TIP_ROW; index = (int)A.view[r]; }
 }
@@ -563,7 +574,8 @@ static void tipMouseMove(int x, int y) {
     bool preview;
     tipTarget(x, y, kind, index, preview);
     if (A.menu.open) kind = TIP_NONE;
-    const void* owner = kind == TIP_ROW || kind == TIP_LINK ? (preview ? (const void*)pvPane()->cur : (const void*)A.cur) : nullptr;
+    const void* owner = kind == TIP_ROW || kind == TIP_LINK ? (preview ? (const void*)pvPane()->cur : (const void*)A.cur)
+                      : kind == TIP_GROUP ? (const void*)A.cur : nullptr; // un gruppo è della cartella
     if (kind == T.kind && index == T.index && owner == T.owner) return;
     bool wasVisible = T.visible;
     tipHide();

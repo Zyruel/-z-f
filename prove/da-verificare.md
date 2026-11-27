@@ -20,6 +20,34 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 00000000000000000000000000000000000000000000000000000000. Gruppi (z-f-dev, novembre 2026)
+
+Terza fase delle colonne. Già provato da Claude a 100%, finestra ingrandita, nella cartella di
+`prove\colonne-prova.py` e in WinSxS: "Raggruppa per…" in fondo al menu delle colonne, con la
+spunta; gruppi per Tipo, Data modifica, Data creazione e Dimensione; in Questo PC solo Tipo (Disco
+locale, Percorso di rete); ordinamento per Data modifica crescente: i gruppi si rovesciano (1975
+per primo); intestazioni in Dettagli, Icone ed Elenco (in Elenco una colonna per gruppo, quello
+chiuso largo una colonna, nome allineato col nome delle voci); hover, tooltip ("Clic: chiudi il
+gruppo" / "apri"), clic che chiude e apre senza far scorrere la lista; doppio clic = un clic
+(corretto: prima chiudeva e riapriva); con un gruppo chiuso Ctrl+A e contatori senza le sue voci
+("Filtra 111 elementi"); ↑↓ in Icone e ←→ in Elenco attraverso un gruppo chiuso, nella stessa
+posizione; PagSu/PagGiù in Icone; rettangolo da un'intestazione in Elenco attraverso due gruppi
+(l'intestazione non si chiude); tasto destro sull'intestazione: menu dello sfondo; raggruppamento
+ritrovato riaprendo la finestra, gruppi chiusi riaperti; misure su WinSxS (ARCHITETTURA). Restano:
+- [ ] a 175%: intestazioni (freccia nella colonna delle icone, nome nella colonna dei nomi) in
+      tutte le viste, `GROUP_GAP` tra i gruppi, Elenco con la riga delle intestazioni;
+- [ ] gruppi per Dimensione con "Dimensione delle cartelle" accesa, in una cartella con
+      sottocartelle ancora da contare: le cartelle passano da "Cartelle" alla loro fascia mentre
+      arrivano i totali (corretto: prima restavano in "Cartelle" fino a un'altra ricarica);
+- [ ] gruppi chiusi in due schede della stessa cartella: ognuna tiene i suoi; cambiando cartella si
+      riaprono;
+- [ ] rilascio di file trascinati da un'altra cartella sull'intestazione di un gruppo: vanno nella
+      cartella aperta;
+- [ ] dentro uno zip: gruppi per Tipo e per Data creazione ("Senza data");
+- [ ] anteprima di una cartella raggruppata: nell'anteprima niente gruppi;
+- [ ] Dettagli con un gruppo chiuso e la barra di scorrimento trascinata fino in fondo: l'ultima
+      intestazione si vede intera.
+
 ## 0000000000000000000000000000000000000000000000000000000. Filtro per colonna (z-f-dev, novembre 2026)
 
 Seconda fase delle colonne. Già provato da Claude a 100%, in una cartella di file finti

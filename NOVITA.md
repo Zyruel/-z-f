@@ -35,6 +35,18 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
   Una colonna filtrata ha titolo e imbuto in azzurro; i filtri di più colonne valgono insieme e con
   quello per nome. Restano con le ricariche e l'ordinamento, si tolgono cambiando cartella; Esc
   toglie prima il filtro per nome, poi quelli delle colonne.
+- **Gruppi:** "Raggruppa per…", in fondo al menu delle colonne (tasto destro sull'intestazione, in
+  ogni vista), divide le voci per Tipo, Data modifica, Data creazione o Dimensione, con gli stessi
+  valori e le stesse parole del filtro ("Oggi", "JPG", "Fino a 1 MB"); in Questo PC per tipo di
+  unità. Il raggruppamento si ricorda per cartella, come la vista.
+  - Ogni gruppo ha un'intestazione col nome e il numero di voci: in Dettagli e Icone sopra le sue
+    voci, in Elenco in cima alle sue colonne.
+  - I gruppi seguono l'ordine del menu del filtro (le date dal più recente), rovesciato se la lista
+    è ordinata per la stessa colonna al contrario; dentro un gruppo vale l'ordinamento della lista.
+  - Un clic sull'intestazione chiude o apre il gruppo: le voci di un gruppo chiuso escono dalla
+    vista come col filtro (niente selezione, Ctrl+A, contatori). I gruppi chiusi restano con le
+    ricariche e il cambio di vista, e si riaprono cambiando cartella.
+  - Le frecce passano da un gruppo all'altro saltando le intestazioni e i gruppi chiusi.
 
 - **Barre in fondo allineate:** con l'anteprima in basso, la barretta, i contatori e il controllo
   della vista della barra di stato stanno sopra quelli della banda dell'anteprima, e nelle due

@@ -242,6 +242,31 @@ static void drawRowIcon(const Entry& e, float x, float y, double now) {
     if (ie) drawIcon(x, y, *ie, fadeA(hidden ? C_ICON_HIDDEN : C_ICON, ia));
 }
 
+// Intestazioni dei gruppi visibili (s0: inizio dello scorrimento lungo l'asse; ox, oy: di quanto si
+// spostano le voci). Come il titolo di una sezione della barra laterale: freccia ˅ o › nella colonna
+// delle icone, nome nella colonna dei nomi, poi " · " e le voci del gruppo; sotto il mouse
+// (A.groupHover) nome in C_TEXT e freccia in C_DIM. In Dettagli e Icone una
+// riga sopra le voci; in Elenco la prima riga in alto, larga quanto le colonne del gruppo
+static void drawGroupHeads(float s0, float ox, float oy) {
+    if (A.groups.empty()) return;
+    float textOff = floorf((A.rowH - F.lineH) * 0.5f), iconS = (float)I.size, s1 = s0 + viewLen();
+    for (int i = groupAtLen(s0); i < (int)A.groups.size() && A.groups[i].at < s1; i++) {
+        const Group& g = A.groups[i];
+        float dx = 0, y = A.listTop + g.at - oy, end = itemsRight() - A.padX;
+        if (listView()) {
+            dx = g.at - ox;
+            y = A.listTop - oy; // lungo y in Elenco oy è solo l'entrata della lista: scende con le voci
+            end = A.cellX + g.at + groupLen(g) - ox - px(ui::GAP_XS) - px(ui::GAP_S); // come il nome in una colonna (listParts)
+        }
+        if (y + A.rowH <= A.listTop || y >= A.listTop + A.listH) continue;
+        bool hot = i == A.groupHover; // sotto il mouse: nome e freccia più chiari, senza fondo
+        drawUiIcon(A.iconX + dx, y, iconS, A.rowH, g.closed ? IC_CHEVRON_RIGHT : IC_CHEVRON_DOWN, hot ? C_DIM : C_FAINT);
+        std::wstring label = colValueLabel(A.groupCol, g.v), count = L" \x00B7 " + withThousands((uint64_t)g.total);
+        float x = drawText(A.nameX + dx, y + textOff, label.c_str(), (int)label.size(), hot ? C_TEXT : C_DIM, end);
+        drawText(x, y + textOff, count.c_str(), (int)count.size(), C_DIM, end);
+    }
+}
+
 // Voci della lista di App (virtualizzate: solo quelle visibili), cursore, rettangolo e barra di
 // scorrimento: la lista principale e, nel suo PaneScope, l'anteprima di una cartella (preview:
 // niente copertura a destra in Elenco, il ritaglio lo fa chi chiama; le colonne le decide
@@ -267,9 +292,10 @@ static void drawListItems(double dt, double now, bool preview, bool cursor) {
     float ox, oy; // scorrimento: le voci si spostano in y, in Elenco in x
     scrollOffset(ox, oy);
     oy -= enterDy;
-    float s0 = listView() ? ox : oy, len = lineLen(); // linee visibili lungo l'asse
-    int first = std::max(0, (int)(s0 / len)) * A.perLine;
-    int last = std::min((int)A.view.size(), ((int)((s0 + viewLen()) / len) + 1) * A.perLine);
+    float s0 = listView() ? ox : oy; // voci visibili lungo l'asse
+    int first, last;
+    itemsInSpan(s0, s0 + viewLen(), first, last);
+    drawGroupHeads(s0, ox, oy);
     double ts = nowMs();
     thumbsFrame(gridView() ? first : -1, gridView() ? last : -1, preview); // miniature: risultati arrivati, richieste
     wchar_t buf[64];
@@ -395,7 +421,7 @@ static void drawListItems(double dt, double now, bool preview, bool cursor) {
         if (listView()) rrect(tStart, A.listTop + A.listH - A.sbW + pad, tLen, th, th * 0.5f, C_SCROLL);
         else rrect(listRight + pad, tStart, th, tLen, th * 0.5f, C_SCROLL);
     }
-    if (A.view.empty()) {
+    if (A.view.empty() && A.groups.empty()) { // con i gruppi tutti chiusi restano le intestazioni
         const wchar_t* msg = !filtering() ? L"Cartella vuota" : L"Nessun risultato per il filtro";
         drawText(iconX, A.listTop + A.rowH * 0.5f, msg, (int)wcslen(msg), C_DIM);
     }
@@ -642,6 +668,12 @@ static void render() {
         row(L"chiavi di ordinamento", L"%.2f ms%s", A.cur->keyMs, L"");
         row(L"ordinamento", L"%.2f ms%s", A.sortMs, L"");
         row(L"filtro", L"%.2f ms%s", A.filterMs, L"");
+        {
+            rows[nr].label = L"gruppi"; rows[nr].head = false;
+            if (A.groups.empty()) wcscpy(rows[nr].val, L"—");
+            else _snwprintf(rows[nr].val, 95, L"%.2f ms · %d %s", A.groupMs, (int)A.groups.size(), A.groups.size() == 1 ? L"gruppo" : L"gruppi");
+            rows[nr].val[95] = 0; nr++;
+        }
         auto row2 = [&](const wchar_t* t, double v, double mx) {
             rows[nr].label = t; rows[nr].head = false;
             _snwprintf(rows[nr].val, 95, L"%.2f ms · peggiore %.2f", v, mx); rows[nr].val[95] = 0; nr++;

@@ -328,6 +328,45 @@ doppione.
     ricariche, l'ordinamento e il cambio di vista, e si tolgono cambiando cartella, come il filtro
     per nome. Esc toglie prima il filtro per nome, poi quelli delle colonne (§8). Con un filtro di
     colonna e nessun risultato la lista dice "Nessun risultato per il filtro".
+  - **Raggruppa per…** (ultima voce del menu delle colonne, dopo un separatore, in ogni vista): apre
+    al suo posto il menu dei gruppi, con "Nessun gruppo", Tipo, Data modifica, Data creazione,
+    Dimensione e la spunta sulla scelta attuale (una scelta sola: il clic chiude il menu). In Questo
+    PC solo Tipo (i tipi di unità). Attributi non c'è: una voce ha più attributi, e in un gruppo
+    deve starci una volta sola (scelta di Zyruel). Si può raggruppare anche per una colonna che non
+    si vede: il valore lo dice l'intestazione del gruppo. Il raggruppamento è della cartella, come
+    la vista: si ricorda per cartella (`viste.txt`), le cartelle mai raggruppate non hanno gruppi.
+- **Gruppi** (Dettagli, Elenco, Icone; non nell'anteprima di una cartella): le voci si dividono
+  per il valore della colonna scelta, con gli stessi valori e le stesse parole del menu del filtro
+  (sopra): "Oggi", "Fino a 1 MB", "JPG", "Cartelle". Un gruppo c'è solo se ha voci (dopo i filtri).
+  - **ordine**: quello del menu del filtro (date dal più recente, Tipo dalla A dopo "Cartelle" e
+    "Senza estensione", Dimensione dalla più piccola); se la lista è ordinata per la stessa colonna
+    nel verso opposto, anche i gruppi si rovesciano, così ordinando per Dimensione dal più grande
+    il primo gruppo è "Oltre 4 GB". Dentro un gruppo le voci seguono l'ordinamento della lista;
+  - **intestazione del gruppo**: alta una riga, larga quanto lo sfondo delle righe. Come il titolo
+    di una sezione della barra laterale: freccia ˅ (aperto) o › (chiuso) in `C_FAINT` nella colonna
+    delle icone (`A.iconX`), il nome in `C_DIM` nella colonna dei nomi (`A.nameX`), poi " · " e il
+    numero di voci in `C_DIM`; sotto il mouse nome in `C_TEXT` e freccia in `C_DIM`, senza fondo.
+    Prima di ogni gruppo tranne il primo, `GROUP_GAP` (8) di spazio vuoto;
+  - in **Dettagli** e **Icone** l'intestazione è una riga a sé sopra le voci del gruppo, che
+    cominciano su una riga nuova (in Icone l'ultima riga di un gruppo può restare a metà). In
+    **Elenco** la prima riga in alto è delle intestazioni: ogni gruppo comincia una colonna nuova,
+    con la sua intestazione sopra la prima colonna e larga quanto le sue colonne; le voci stanno
+    nelle righe sotto. Tra i gruppi `GROUP_GAP` lungo l'asse dello scorrimento;
+  - **chiudere e aprire**: clic sull'intestazione (il doppio clic conta come un clic, come ˅ dei
+    titoli della barra laterale). Un gruppo chiuso mostra solo l'intestazione, e le sue voci escono
+    dalla vista come col filtro: non sono selezionate, Ctrl+A e il rettangolo non le prendono,
+    contatori e "Filtra N elementi" non le contano; il numero sull'intestazione resta. La lista non
+    scorre (l'intestazione resta sotto il mouse) e il cursore di un gruppo che si chiude passa alla
+    prima voce dei gruppi dopo (all'ultima dei gruppi prima, se dopo sono tutti chiusi). Il clic vale al rilascio, se non è partito il rettangolo. I gruppi
+    chiusi sono della scheda: restano con le ricariche, l'ordinamento e il cambio di vista, e si
+    riaprono tutti cambiando cartella o raggruppamento (scelta di Zyruel: non si ritrova una
+    cartella con voci nascoste da giorni). Tooltip: il nome del gruppo, le voci, "Clic: chiudi il
+    gruppo" (o "apri");
+  - sull'intestazione il tasto destro apre il menu dello sfondo, il rettangolo parte come dallo
+    spazio vuoto e un rilascio di file vale per la cartella aperta: non è una voce;
+  - **tastiera**: il cursore sta solo sulle voci, e le frecce passano da un gruppo all'altro
+    saltando le intestazioni (↑ ↓ in Icone, ← → in Elenco: la riga o la colonna accanto, nella
+    stessa posizione o nell'ultima voce se è più corta). Da tastiera i gruppi non si chiudono.
 - **Viste e zoom** (Ctrl+rotellina · controllo della vista nella barra di stato · Ctrl+Shift+2 per
   Dettagli, 3 per Elenco, 4/5/6 per le icone piccole, medie, grandi · menu dello sfondo → "Mostra come
   icone"/"Mostra come dettagli", `thumbs.cpp`): un solo livello di zoom per cartella sceglie la
@@ -800,8 +839,9 @@ doppione.
 | trascina da icona o nome di una voce selezionata | sposta sulla stessa unità, altrimenti copia; Ctrl copia, Shift sposta, Alt collega |
 | trascina da un altro punto della lista (anche dal nome di una voce non selezionata) | rettangolo di selezione; Ctrl alterna, Shift aggiunge |
 | trascina un bordo nell'intestazione | larghezza della colonna; doppio clic: adatta al contenuto |
-| tasto destro sull'intestazione | il menu delle colonne: quali si vedono |
+| tasto destro sull'intestazione | il menu delle colonne: quali si vedono, "Raggruppa per…" |
 | clic sull'imbuto accanto al titolo di una colonna | il menu del filtro della colonna, con i valori presenti |
+| clic sull'intestazione di un gruppo | chiude o apre il gruppo |
 | trascina il bordo della barra laterale o dell'anteprima | larghezza del pannello (altezza dell'anteprima in basso); doppio clic: predefinita |
 | clic su ˅ accanto a ◨ | posizione dell'anteprima: a destra o in basso |
 | trascina un preferito | lo sposta tra gli altri preferiti (solo l'ordine); Esc annulla |

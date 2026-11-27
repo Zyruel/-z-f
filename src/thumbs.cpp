@@ -923,17 +923,19 @@ static void drawThumb(int vi, const Box& box, bool hidden, double now, bool prev
 }
 
 // --- vista per cartella (viste.txt) -------------------------------------------------------------
-// Una riga per cartella non in Dettagli: "percorso<TAB>elenco" o "percorso<TAB>icone 40" (zoom in
-// percento). Le righe "percorso<TAB>griglia" delle versioni di prima valgono la misura che aveva
-// la griglia (griglia_dimensione, A.gridLegacyZoom), e il file si riscrive nella forma nuova.
+// Una riga per cartella non in Dettagli o raggruppata: "percorso<TAB>elenco" o "percorso<TAB>icone
+// 40" (zoom in percento), con i gruppi "<TAB>" e la chiave della colonna ("percorso<TAB>dettagli<TAB>
+// data"). Le righe "percorso<TAB>griglia" delle versioni di prima valgono la misura che aveva la
+// griglia (griglia_dimensione, A.gridLegacyZoom), e il file si riscrive nella forma nuova.
 static std::wstring viewKey(const std::wstring& path) {
     std::wstring k = path;
     if (!k.empty()) CharLowerBuffW(&k[0], (DWORD)k.size());
     return k;
 }
 
-static int viewZoomOf(const std::wstring& path) {
+static int viewZoomOf(const std::wstring& path, int* group) {
     auto it = A.viewFolders.find(viewKey(path));
+    if (group) *group = it == A.viewFolders.end() ? -1 : it->second.group;
     if (it == A.viewFolders.end()) return ZOOM_DETAILS;
     it->second.use = ++A.viewUse; // usata di recente: resta tra le kViewsMax
     return it->second.zoom;
@@ -941,7 +943,7 @@ static int viewZoomOf(const std::wstring& path) {
 
 // Zoom di una riga di viste.txt (dopo il TAB); -1 se non si capisce
 static int viewParse(const std::wstring& v) {
-    if (v == L"dettagli") return ZOOM_DETAILS; // anteprima_vista (in viste.txt Dettagli non si scrive)
+    if (v == L"dettagli") return ZOOM_DETAILS; // anteprima_vista; in viste.txt solo con i gruppi
     if (v == L"elenco") return ZOOM_LIST;
     if (v == L"griglia") return A.gridLegacyZoom; // versioni di prima: la misura che aveva la griglia
     if (v.compare(0, 6, L"icone ") == 0) {
@@ -967,8 +969,10 @@ static void viewsSave() {
     }
     std::string d;
     for (auto& p : v) {
-        int z = A.viewFolders[*p.second].zoom;
-        d += toUtf8(*p.second) + "\t" + viewText(z) + "\r\n"; // Dettagli non c'è: è la vista di partenza
+        const App::FolderView& f = A.viewFolders[*p.second];
+        d += toUtf8(*p.second) + "\t" + viewText(f.zoom); // Dettagli solo con i gruppi: è la vista di partenza
+        if (f.group > 0 && f.group < COL_COUNT) d += std::string("\t") + kCols[f.group].key;
+        d += "\r\n";
     }
     saveDataAsync(L"viste.txt", std::move(d));
 }
@@ -976,7 +980,7 @@ static void viewsSave() {
 // Geometria nuova (vista o dimensione): resta in vista la prima voce, poi il cursore
 static void viewRelayout(int first) {
     A.cursorFor = nullptr; // il cursore salta, non scivola da una forma all'altra
-    A.hover = -1;
+    A.hover = A.groupHover = -1;
     A.rowFade = HoverFade();
     tipHide();
     layout();
@@ -984,6 +988,21 @@ static void viewRelayout(int first) {
     clampScroll();
     ensureVisible();
     A.dirty = true;
+}
+
+// Vista o gruppi nuovi per la cartella corrente: con i gruppi nuovi la vista si riordina, e resta in
+// vista la stessa voce in cima (poi il cursore)
+static void viewApply(int zoom, int group) {
+    int fv = firstVisibleItem();
+    uint32_t top = fv < (int)A.view.size() ? A.view[fv] : UINT32_MAX;
+    bool regroup = group != A.groupCol;
+    A.zoom = zoom;
+    if (regroup) {
+        A.groupCol = group;
+        A.groupClosed.clear();
+        rebuildView(true);
+    }
+    viewRelayout(regroup ? std::max(0, viewIndexOf(top == UINT32_MAX ? -1 : (int)top)) : fv);
 }
 
 // viste.txt letto all'avvio. Le viste scelte prima del suo arrivo restano, come le più recenti, e si salvano.
@@ -996,41 +1015,54 @@ static void viewsLoaded(const std::vector<std::wstring>& lines) {
         const std::wstring& l = lines[i];
         size_t tab = l.find(L'\t');
         if (tab == std::wstring::npos) continue;
-        int z = viewParse(l.substr(tab + 1));
+        size_t tab2 = l.find(L'\t', tab + 1); // la colonna dei gruppi, se c'è
+        int z = viewParse(l.substr(tab + 1, tab2 == std::wstring::npos ? std::wstring::npos : tab2 - tab - 1));
         if (z < 0) continue;
+        int g = tab2 == std::wstring::npos ? -1 : colByKey(l.substr(tab2 + 1)); // se non vale per la cartella, grouped() la ignora
+        if (z == ZOOM_DETAILS && g < 0) continue; // Dettagli senza gruppi (una colonna che non c'è più) è la vista di partenza
         old = old || l.compare(tab + 1, std::wstring::npos, L"griglia") == 0;
         std::wstring k = viewKey(l.substr(0, tab));
-        if (!A.viewFolders.count(k)) A.viewFolders[k] = { n - i, z };
+        if (!A.viewFolders.count(k)) A.viewFolders[k] = { n - i, z, g };
     }
     A.viewUse = std::max(A.viewUse, n);
     A.viewsReady = true;
     for (const std::wstring& k : early) A.viewFolders[k].use = ++A.viewUse;
     if (!early.empty() || old) viewsSave();
-    if (A.cur && A.zoom == ZOOM_DETAILS) { // la prima cartella è arrivata prima del file
-        int z = viewZoomOf(A.cur->path);
-        if (z != ZOOM_DETAILS) {
-            int first = firstVisibleItem();
-            A.zoom = z;
-            viewRelayout(first);
-        }
+    if (A.cur && A.zoom == ZOOM_DETAILS && A.groupCol < 0) { // la prima cartella è arrivata prima del file
+        int g, z = viewZoomOf(A.cur->path, &g);
+        if (z != ZOOM_DETAILS || g >= 0) viewApply(z, g);
     }
 }
 
+// La vista e i gruppi della cartella corrente in viste.txt; Dettagli senza gruppi, la vista di
+// partenza, non si scrive
+static void viewRemember() {
+    if (!A.cur) return;
+    std::wstring k = viewKey(A.cur->path);
+    int g = grouped() ? A.groupCol : -1; // una colonna che qui non raggruppa non si scrive
+    if (A.zoom == ZOOM_DETAILS && g < 0) A.viewFolders.erase(k);
+    else A.viewFolders[k] = { ++A.viewUse, A.zoom, g };
+    viewsSave();
+}
+
 // Livello di zoom della cartella corrente: Dettagli, Elenco o Icone (menu, scorciatoie,
-// Ctrl+rotellina). Si ricorda per cartella; Dettagli, la vista di partenza, non si scrive.
+// Ctrl+rotellina). Si ricorda per cartella
 static void viewZoom(int zoom) {
     if (g_inPane) { previewZoom(zoom); return; } // la lista dell'anteprima ha la sua vista (menu, scorciatoie)
     zoom = std::max((int)ZOOM_DETAILS, std::min((int)ZOOM_MAX, zoom));
     if (zoom == A.zoom) return;
-    int first = firstVisibleItem();
-    if (A.cur) {
-        std::wstring k = viewKey(A.cur->path);
-        if (zoom == ZOOM_DETAILS) A.viewFolders.erase(k);
-        else A.viewFolders[k] = { ++A.viewUse, zoom };
-        viewsSave();
-    }
-    A.zoom = zoom;
-    viewRelayout(first);
+    viewApply(zoom, A.groupCol);
+    viewRemember();
+}
+
+// Gruppi della cartella corrente ("Raggruppa per…"): col una colonna di colGroupable, -1 nessuno.
+// Si ricordano per cartella, come la vista; i gruppi chiusi si riaprono tutti
+static void viewGroup(int col) {
+    if (g_inPane || !A.cur) return; // l'anteprima di una cartella non ha gruppi
+    if (!colGroupable(col, A.cur)) col = -1;
+    if (col == A.groupCol) return;
+    viewApply(A.zoom, col);
+    viewRemember();
 }
 
 // Ctrl+rotellina: un livello per scatto (Dettagli ↔ Elenco ↔ Icone 20% … 100%)

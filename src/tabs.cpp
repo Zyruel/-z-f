@@ -16,6 +16,9 @@ static void tabSwap(TabState& t) {
     std::swap(A.scrollTarget, t.scrollTarget);
     A.filter.swap(t.filter);
     std::swap(A.colFilter, t.colFilter);
+    std::swap(A.groupCol, t.groupCol);
+    A.groups.swap(t.groups);
+    A.groupClosed.swap(t.groupClosed);
     A.back.swap(t.back);
     A.fwd.swap(t.fwd);
     std::swap(A.sortCol, t.sortCol);
@@ -58,7 +61,7 @@ static void tabActivate(int i) {
     if (i < 0 || i >= (int)A.tabs.size() || i == A.tab) return;
     A.renaming = false;
     A.menu.open = false;
-    A.hover = -1;
+    A.hover = A.groupHover = -1;
     TabState& old = A.tabs[A.tab];
     if (A.loading) { // lasciata a metà caricamento: riprende quando torna attiva
         old.pending = true;
