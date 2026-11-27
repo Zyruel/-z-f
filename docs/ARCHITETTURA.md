@@ -299,8 +299,12 @@ condivise sono in `app.h`.
   inizi dei periodi in ora locale come FILETIME UTC (`TzSpecificLocalTimeToSystemTime`, e una
   tabella degli inizi d'anno dal 1980; prima si calcola voce per voce) e i totali delle cartelle già
   contati (`dirSizeTotals`). Con il filtro per Dimensione un totale che arriva può cambiare la vista:
-  `onDirSize` arma un timer (al più una volta ogni `WATCH_BATCH`) e `refilterQuiet` rifiltra senza
-  far scorrere la lista (`viewUsesDirTotals`: anche con i gruppi per Dimensione).
+  `onDirSize` arma un timer (al più una volta ogni `DS_REFILTER`, 250 ms) e `refilterQuiet`
+  rifiltra senza far scorrere la lista (`viewUsesDirTotals`: anche con i gruppi per Dimensione).
+  *Perché 250 ms e non `WATCH_BATCH`:* in WinSxS un rifiltro costa 6,6 ms e un raggruppamento 7,6
+  (le ricerche di 30.732 cartelle nella cache dei totali); ogni 50 ms, per tutto il conto, era fino
+  al 13% del thread UI, ogni 250 ms circa il 3% (calcolato da quelle misure). Se non bastasse: i totali tenuti per voce
+  nel `Listing`, aggiornati solo per le cartelle arrivate.
   *Perché le chiavi e non le etichette:* il confronto per voce resta un bit o un `wcscmp`, e il
   filtro sopravvive a una rilettura della stessa cartella.
   *Perché il menu resta aperto:* `MenuItem::keep` (voce a spunta): `menuExec` cambia la spunta e
@@ -602,7 +606,8 @@ Mostra la voce sotto il cursore e la segue mentre ci si muove con le frecce.
     (`onFileJob`, anche annulla e ripeti, `onFsDone`) e dopo i comandi della shell e i rilasci
     passati a lei (`onShellMenu` con `SmRes::invoked`, `onShellDrop`). Un osservatore perso
     (`WATCH_LOST`) non riparte da solo, come quello della lista: su un file system che lo perde
-    subito rileggerebbe ogni `WATCH_BATCH`; riparte con F5 o con un'altra cartella. `pvPaneSet`
+    subito rileggerebbe ogni `WATCH_BATCH`; riparte con un'altra cartella o con F5, dato
+    nell'anteprima o nella lista (`refreshNow`: F5 è "rileggi tutto"). `pvPaneSet`
     rilegge con lo stesso codice della ricarica della lista (`listReload`, nel suo PaneScope):
     selezione per nome, cursore, scorrimento, filtro e la rinomina in corso. `previewRefresh` non
     supera una richiesta in corso: se il cursore è già su un'altra voce non fa niente (rifare la
@@ -733,6 +738,8 @@ tolto 2.842 voci su 10.266 in 0,6 ms, con il lock tenuto al massimo 0,17 ms per 
 - **Preferiti** in `%APPDATA%\z-f\preferiti.txt`: una riga per cartella, con il nome mostrato dopo
   un tab (facoltativo, modificabile a mano).
 - F12 mostra i due tempi ("barra laterale: voci locali", "rete e ottiche" con il numero di voci).
+- **Nome di un'unità troncato:** `drawTextKeepTail` (`text.cpp`) mette "…" prima di " (C:)", che
+  resta: due misure del testo in più, solo per le voci che non ci stanno.
 
 **Perché così.**
 
@@ -771,7 +778,10 @@ tolto 2.842 voci su 10.266 in 0,6 ms, con il lock tenuto al massimo 0,17 ms per 
   dall'avvio, l'unità di rete da sola dopo 8,1 s;
 - "Aggiungi percorso di rete…" (novembre 2026): sul thread dell'interfaccia solo la creazione del
   thread; la procedura compare 30–140 ms dopo l'avvio del processo (tre giri), e quel processo
-  occupa 4,9 MB di memoria privata finché resta aperta.
+  occupa 4,9 MB di memoria privata finché resta aperta;
+- `drawTextKeepTail`: non misurato da solo (servirebbe l'atlante dei glifi fuori dalla finestra);
+  è dentro il tempo del frame: con la barra laterale stretta ("Disco lo… (C:)") la preparazione
+  del frame è 0,31 ms di media (F12, 28/11).
 
 ## Percorso a segmenti e "Vai a"
 

@@ -54,6 +54,18 @@ prima `f.truncate()` li scriveva interi, 31 GB). Da provare:
 - [ ] tooltip delle righe Dimensione del testo (Scorciatoia Ctrl+/−, Predefinita Ctrl+0), Barra
       laterale (Ctrl+B), Anteprima (Alt+P), Posizione dell'anteprima (Alt+Shift+P), anche a 175%.
 
+Seconda parte (28/11), provata da Claude a 100% in z-f-dev: con la finestra alla larghezza minima
+e il testo a 22 px "Posizione dell'antepri…" e "Carattere dell'antepri…" finiscono a filo del
+selettore e il tooltip le mostra intere (la seconda senza riga Scorciatoia); fino a 18 px nessuna
+etichetta è tagliata. Alt+Shift+P ad anteprima chiusa: "L'anteprima si aprirà in basso". Titolo
+del tooltip di un nome lungo: a capo tra le parole. Con la lista in Icone a 20% (circa 220
+miniature) e l'anteprima di una cartella in Icone grandi, tutte le miniature piene, anche
+scorrendo (F12: 256 sulla GPU). Da provare:
+- [ ] F5 nella lista con l'osservatore dell'anteprima perso (la cartella mostrata cancellata e
+      ricreata da fuori): l'anteprima si rilegge e torna ad aggiornarsi da sola (F12, "anteprima:
+      aggiornamento automatico" attivo);
+- [ ] le stesse etichette troncate e l'atlante delle miniature con le due liste, a 175%.
+
 ## 00000000000000000000000000000000000000000000000000000000. Gruppi (z-f-dev, novembre 2026)
 
 Terza fase delle colonne. Già provato da Claude a 100%, finestra ingrandita, nella cartella di

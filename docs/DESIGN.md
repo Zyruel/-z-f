@@ -112,9 +112,10 @@ arrotonda per difetto, così i bordi cadono su pixel interi.
 - **Testo su più righe** (tooltip, testo nell'anteprima, spiegazioni delle opzioni): interlinea
   `LINE_GAP` (3); a capo dopo l'ultimo spazio che ci sta (`textLineEnd`).
 - **ClearType** se Windows lo usa, altrimenti scala di grigi.
-- **Testo troncato** con "…" alla fine. Il testo completo è nel tooltip. Eccezione: il nome di
-  un'unità perde le lettere prima di " (C:)", che resta ("Disco l… (C:)", `drawTextKeepTail`),
-  perché la lettera è ciò che distingue le unità.
+- **Testo troncato** con "…" alla fine. Il testo completo è nel tooltip (anche per le etichette
+  delle opzioni, che finiscono a `GAP_M` dal loro controllo). Eccezione: nella barra laterale il
+  nome di un'unità perde le lettere prima di " (C:)", che resta ("Disco l… (C:)",
+  `drawTextKeepTail`), perché la lettera è ciò che distingue le unità.
 - **Allineamento:** numeri a destra (dimensioni), tutto il resto a sinistra.
 
 ---

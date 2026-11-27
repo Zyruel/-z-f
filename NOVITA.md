@@ -57,7 +57,15 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
   ricarica, il fondo sotto il mouse passa alla voce (o all'intestazione di gruppo) che ora è lì,
   senza aspettare che il mouse si muova.
 - **Opzioni:** le righe Dimensione del testo, Barra laterale, Anteprima e Posizione dell'anteprima
-  dicono nel tooltip la loro scorciatoia.
+  dicono nel tooltip la loro scorciatoia. Le etichette arrivano fino al loro controllo (prima si
+  fermavano molto prima, a una misura fissa) e, se non ci stanno, il tooltip le mostra intere.
+- **Tooltip:** un titolo lungo (il nome di un file) va a capo tra le parole, non a metà di una.
+- **Alt+Shift+P con l'anteprima chiusa** dice dove si aprirà ("L'anteprima si aprirà in basso").
+- **F5 nella lista** riaccende anche l'osservatore dell'anteprima di una cartella, se si era perso.
+- **Filtro e gruppi per Dimensione** in una cartella enorme si aggiornano coi totali delle
+  cartelle ogni 250 ms invece di 50: meno lavoro per l'interfaccia mentre il conto va avanti.
+- **Testi delle scorciatoie:** cominciano tutti con un verbo ("Passa a quella scheda dopo un
+  momento", "Cambia l'ordine dei preferiti").
 - **Correzioni:**
   - "Sposta nel Cestino" del menu va sempre nel Cestino: con Shift ancora premuto al clic
     eliminava definitivamente, come Shift+Canc;

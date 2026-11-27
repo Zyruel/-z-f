@@ -510,12 +510,12 @@ static void onDirSize() {
     dirSizeRefill(); // il thread del conto può aspettare il pezzo successivo della coda
     if (T.visible && T.kind == TIP_ROW) tipBuild();
     // Filtro o gruppi per Dimensione: una cartella appena contata può entrare o uscire dalla vista, o
-    // cambiare gruppo. Al più una volta ogni WATCH_BATCH, come le ricariche: i totali arrivano anche a
-    // centinaia al secondo (il timer non si riarma finché non scatta: arrivando di continuo, i totali lo
+    // cambiare gruppo. Al più una volta ogni DS_REFILTER: i totali arrivano anche a centinaia al
+    // secondo (il timer non si riarma finché non scatta: arrivando di continuo, i totali lo
     // rimanderebbero sempre)
     if (viewUsesDirTotals() && A.cur && colNeedsTotals(A.cur) && !g_sizeRefilter) {
         g_sizeRefilter = true;
-        SetTimer(A.hwnd, 18, ui::WATCH_BATCH, nullptr);
+        SetTimer(A.hwnd, 18, ui::DS_REFILTER, nullptr);
     }
     A.dirty = true;
 }
@@ -617,20 +617,17 @@ static void drawTooltip() {
     float maxW = px(ui::TIP_MAX_W);
     PanelEnter e = panelEnter(T.shownAt, ui::DUR_TIP);
     float k = e.k;
-    // Titolo su più righe se lungo (nomi di file lunghi: il punto del tooltip è leggerli interi)
+    // Titolo su più righe se lungo (nomi di file lunghi: il punto del tooltip è leggerli interi), a
+    // capo dopo l'ultimo spazio che ci sta, come le spiegazioni delle opzioni (DESIGN §4)
     std::vector<std::pair<int, int>> tl;
     {
-        int start = 0, n = (int)T.title.size();
-        while (start < n) {
-            int w = 0, i = start, lastFit = start;
-            while (i < n) {
-                int j = i;
-                int cw = glyphGet(decodeUtf16(T.title.c_str(), n, j)).adv;
-                if (w + cw > maxW - pad * 2 && i > start) break;
-                w += cw; i = j; lastFit = i;
-            }
-            tl.push_back({ start, lastFit - start });
-            start = lastFit;
+        const wchar_t* s = T.title.c_str();
+        int n = (int)T.title.size();
+        for (int start = 0; start < n;) {
+            int end = textLineEnd(s, n, start, maxW - pad * 2), e = end;
+            while (e > start && s[e - 1] == L' ') e--; // lo spazio a fine riga non conta nella larghezza
+            tl.push_back({ start, e - start });
+            for (start = end; start < n && s[start] == L' '; start++) {}
         }
     }
     float labW = 0, valW = 0, titleW = 0;

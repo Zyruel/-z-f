@@ -478,7 +478,10 @@ static void menuRun(int id, const CmdCtx& c) {
     case M_PREVIEW:     previewToggle(); break;
     case M_PREVIEW_RIGHT:  previewPlace(false); break;
     case M_PREVIEW_BOTTOM: previewPlace(true); break;
-    case M_PREVIEW_SWAP:   previewPlace(!A.prevBottom); break;
+    case M_PREVIEW_SWAP: // dal tasto: ad anteprima chiusa non si vedrebbe niente, quindi lo si dice
+        previewPlace(!A.prevBottom);
+        if (!A.prevOpen) notice(A.prevBottom ? L"L'anteprima si aprirà in basso" : L"L'anteprima si aprirà a destra", true);
+        break;
     case M_ICONS_S:      viewZoom(ZOOM_SMALL); break;
     case M_ICONS_M:       viewZoom(ZOOM_MEDIUM); break;
     case M_ICONS_L:       viewZoom(ZOOM_LARGE); break;

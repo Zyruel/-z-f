@@ -90,7 +90,6 @@ constexpr float TIP_ROWS_GAP = 6, TIP_OFFSET_ABOVE = 10; // tooltip: tra titolo 
 constexpr float STATS_W = 440;     // pannello F12
 // Pannello delle opzioni: misura massima, spazio dal bordo della finestra, distanza minima dall'alto
 constexpr float OPT_W = 640, OPT_H = 720, OPT_MARGIN = 48, OPT_TOP_MIN = 24;
-constexpr float OPT_LABEL_RESERVE = 200; // a destra dell'etichetta, lo spazio dei controlli
 constexpr float OPT_VALUE_W = 56, OPT_FACE_W = 170, OPT_SEARCH_W = 240; // "13 px", nome del carattere, ricerca
 constexpr float SWITCH_W = 32, SWITCH_H = 16, SWITCH_KNOB_INSET = 3; // interruttore (come Windows 11)
 constexpr float FIELD_PAD = 6;     // margine interno delle caselle di testo
@@ -177,6 +176,10 @@ constexpr int ZIP_TEMP_KEEP = 3 * 24 * 3600 * 1000; // file estratti da uno zip 
 // il tooltip vede il parziale ogni DS_PROGRESS; la cache oltre il suo limite si pulisce
 // al massimo ogni DS_TRIM_EVERY
 constexpr int DS_FRESH = 60000, DS_PROGRESS = 100, DS_TRIM_EVERY = 15000;
+// Filtro o gruppi per Dimensione: la vista si rifà coi totali arrivati al più ogni DS_REFILTER.
+// Più lungo di WATCH_BATCH perché in una cartella enorme un rifiltro costa qualche ms (WinSxS: 6,6
+// filtrare, 7,6 raggruppare) e i totali arrivano per tutto il conto: così è circa il 3% del thread
+constexpr int DS_REFILTER = 250;
 // Salto dei dialoghi Apri e Salva (filedlg.cpp, sul suo thread): ogni FD_POLL si guarda se il
 // dialogo è pronto, per al massimo FD_WAIT_MAX; poi FD_SETTLE di margine (prima, il comando fa
 // cadere il programma del dialogo). Attesa massima di una risposta del dialogo: FD_MSG_WAIT per il

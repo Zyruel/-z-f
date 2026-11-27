@@ -5,33 +5,6 @@ quel codice, o tutti insieme in un momento tranquillo. Quando una voce è fatta 
 (la storia resta in git). Le idee nuove sono in `idee.md`, le prove a mano in
 `prove\da-verificare.md`, i debiti tecnici più grandi in `CLAUDE.md`.
 
-- [ ] **Filtro per Dimensione su cartelle enormi** (27/11, da decidere con Zyruel): con il filtro
-  attivo e la dimensione delle cartelle accesa, ogni totale che arriva fa rifiltrare la vista, al
-  più ogni `WATCH_BATCH` (50 ms); in WinSxS un rifiltro costa 6,6 ms (le ricerche di 30.732
-  cartelle nella cache dei totali, `dsEachDir`), quindi fino al 13% del thread UI finché il conto
-  va avanti. Se pesa: un intervallo più lungo solo per questo, o i totali tenuti per indice di voce
-  nel `Listing` e aggiornati solo per le cartelle arrivate. Vale anche per i **gruppi per
-  Dimensione** (stesso timer, `viewUsesDirTotals`): in WinSxS raggruppare costa 7,6 ms, contro
-  0,7–1,0 per Tipo e date.
-
-- [ ] **Punti minori della revisione e del controllo prima della 1.0.0-beta.8** (27/11; quelli di
-  interazione senza scelte fatti il 27/11, nella 1.0.0-beta.9). Scelte da confermare:
-  - F5 dato nella lista non riaccende l'osservatore dell'anteprima perso (`refreshNow`): o lo fa,
-    o ARCHITETTURA dice "F5 nell'anteprima";
-  - Alt+Shift+P con l'anteprima chiusa cambia solo la posizione salvata, senza avviso;
-  - `previewNoRoom()` è informativo con Alt+P e ◨, errore con Tab (`previewKeysToggle`);
-  - `drawTextKeepTail` senza riga "Misurato:" in ARCHITETTURA (costo trascurabile; misurarlo da
-    solo vuole l'atlante dei glifi).
-
-  Testi e coerenza:
-  - etichette delle opzioni limitate sempre a `OPT_LABEL_RESERVE`: lunghe, finiscono in "…" senza
-    tooltip; in una finestra stretta passano sotto il fondo dei selettori;
-  - descrizioni di `kShortcuts` (e README) che non cominciano con un verbo: "La apre dopo un
-    momento", "Lo sposta tra gli altri", "Vai a: …" (NOVITA della 1.0.0-beta.8 dice "tutte");
-  - il titolo del tooltip va a capo a qualsiasi carattere, DESIGN §4 dice dopo l'ultimo spazio
-    (`textLineEnd`): usarla anche lì, o correggere DESIGN;
-  - "Disco l… (C:)" solo nella barra laterale, DESIGN §4 lo scrive in generale.
-
 - [ ] **Atlante delle miniature con lista e anteprima in Icone a misure diverse** (`thumbs.cpp`).
   I posti sono grandi quanto il riquadro più grande in uso (calano solo quando quello scende alla
   metà o meno): a 175% l'anteprima in Icone grandi ha riquadri di 448 px, quindi nell'atlante
@@ -40,7 +13,10 @@ quel codice, o tutti insieme in un momento tranquillo. Quando una voce è fatta 
   schermo, tutte le miniature). Da provare a 175% con le due liste; se serve, un atlante per misura
   o righe dell'atlante per misura. Dalla 1.0.0-beta.7 l'anteprima aperta in Icone conta anche
   mentre mostra un file (così le miniature della lista non lampeggiano scorrendo tra cartelle e
-  file): il limite vale anche allora.
+  file): il limite vale anche allora. Provato il 28/11 a 100% (riquadri di 256 px, 256 posti):
+  lista in Icone a 20% con circa 220 miniature visibili e anteprima in Icone grandi, tutte piene
+  anche scorrendo. A 175% resta da provare (`prove\da-verificare.md`): lì i posti sono 81, ma
+  anche le miniature visibili sono circa un terzo.
 
 - [ ] **Collegamenti senza LinkInfo** (colonna Destinazione, `lnk.cpp`). Il nostro lettore prende
   il percorso dalla LinkInfo, dalla variabile d'ambiente o dal percorso relativo; un collegamento

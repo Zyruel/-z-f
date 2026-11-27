@@ -30,8 +30,8 @@ static Shortcut kNav[] = {
     { { { L"Clic sulla destinazione di un collegamento", 0 }, { L"clic centrale", 0 } }, L"Apre il percorso del file (in una nuova scheda)" },
     { { K(M_EDIT_PATH, KC, 'L'), K(M_EDIT_PATH, 0, VK_F4), { L"clic sul percorso vuoto", 0 } }, L"Apre Vai a col percorso della cartella aperta, da modificare" },
     { { K(M_GOTO, KC, 'P'), K(M_GOTO, KC, 'G') }, L"Apre Vai a: cartelle recenti, preferiti, sottocartelle" },
-    { { { L"Ctrl+Invio", M_GOTO_NEWTAB }, { L"clic centrale", 0 } }, L"Vai a: apre in una nuova scheda" },
-    { { { L"Tab", M_GOTO_ENTER } }, L"Vai a: entra nella cartella e mostra le sottocartelle" },
+    { { { L"Ctrl+Invio", M_GOTO_NEWTAB }, { L"clic centrale", 0 } }, L"Apre in una nuova scheda la voce scelta in Vai a" },
+    { { { L"Tab", M_GOTO_ENTER } }, L"Entra nella cartella scelta in Vai a e ne mostra le sottocartelle" },
     { { K(M_REFRESH, 0, VK_F5), { L"tasto Aggiorna della tastiera", 0 } }, L"Ricarica" },
 };
 static Shortcut kSel[] = {
@@ -73,7 +73,7 @@ static Shortcut kTabs[] = {
     { { { L"Ctrl+Tab", 0 }, { L"Ctrl+Shift+Tab", 0 } }, L"Passa alla scheda successiva · precedente" },
     { { { L"Ctrl+1…8", 0 }, { L"Ctrl+9", 0 } }, L"Passa alla scheda n · all'ultima" },
     { { { L"Clic centrale", M_NEWTAB }, { L"Ctrl+clic su un preferito", 0 } }, L"Apre in una nuova scheda in background" },
-    { { { L"Trascina su una scheda", 0 } }, L"La apre dopo un momento" },
+    { { { L"Trascina su una scheda", 0 } }, L"Passa a quella scheda dopo un momento" },
 };
 static Shortcut kView[] = {
     { { K(M_SIDEBAR, KC, 'B') }, L"Mostra o nasconde la barra laterale" },
@@ -91,7 +91,7 @@ static Shortcut kView[] = {
     { { { L"Trascina il bordo di una colonna", 0 }, { L"doppio clic", 0 } }, L"Cambia la larghezza della colonna · la adatta al contenuto" },
     { { K(M_FAV_TOGGLE, KC, 'D') }, L"Aggiunge o toglie dai preferiti" },
     { { { L"Trascina tra i preferiti", 0 } }, L"Aggiunge le cartelle ai preferiti" },
-    { { { L"Trascina un preferito", 0 } }, L"Lo sposta tra gli altri (solo l'ordine)" },
+    { { { L"Trascina un preferito", 0 } }, L"Cambia l'ordine dei preferiti" },
     { { { L"Clic su Preferiti", 0 }, { L"sulla freccia di Questo PC", 0 } }, L"Chiude o riapre i preferiti · le unità" },
     { { { L"Ctrl+/−", M_FONT_STEP } }, L"Cambia la dimensione del testo" },
     { { { L"Ctrl+0", M_FONT_RESET } }, L"Riporta il testo alla dimensione predefinita" },
@@ -206,7 +206,7 @@ enum OptId { OPT_NONE = -1, OPT_CLOSE = 1, OPT_FONT_MINUS, OPT_FONT_PLUS, OPT_FA
              OPT_PREVIEW_POS_PREV, OPT_PREVIEW_POS_NEXT,
              OPT_UNDO_PERSIST, OPT_SHELL_MENU, OPT_DIR_SIZES, OPT_EXT, OPT_DIALOGS, OPT_TIMES,
              OPT_REOPEN, OPT_UPDATES, OPT_BETA, OPT_UPD_ACT, OPT_SEPARATE, OPT_VERSION };
-enum { OPT_TIP_ROW = 1 << 16 }; // OptionsPanel::tips: oltre, una riga con la sua scorciatoia (sotto, una scorciatoia troncata)
+enum { OPT_TIP_ROW = 1 << 16 }; // OptionsPanel::tips: oltre, una riga troncata o con una scorciatoia (sotto, una scorciatoia troncata)
 
 struct OptionsPanel {
     bool open = false;
@@ -220,9 +220,9 @@ struct OptionsPanel {
     struct Hit { float x, y, w, h; int id; };
     std::vector<Hit> hits;             // aree cliccabili dell'ultimo frame
     std::vector<Hit> tips;             // scorciatoie troncate dell'ultimo frame (id: gruppo * 256 + voce): il tooltip ha il testo intero;
-                                       // righe con una scorciatoia (id: OPT_TIP_ROW + indice in rowTips)
-    struct RowTip { const wchar_t* label; int cmd, cmd2; }; // cmd2: la riga "Predefinita" (Ctrl+0)
-    std::vector<RowTip> rowTips;       // righe dell'ultimo frame con una scorciatoia: etichetta e comandi
+                                       // righe troncate o con una scorciatoia (id: OPT_TIP_ROW + indice in rowTips)
+    struct RowTip { const wchar_t* label; int cmd, cmd2; }; // cmd: 0 se la riga non ha scorciatoia; cmd2: la riga "Predefinita" (Ctrl+0)
+    std::vector<RowTip> rowTips;       // righe dell'ultimo frame troncate o con una scorciatoia: etichetta e comandi
     int hover = OPT_NONE;
     HoverFade fade;
     float knobAnim = 0, knobSide = 0, knobDefault = 0, knobPreview = 0, knobUndo = 0, knobMenu = 0, knobDirSizes = 0, knobDialogs = 0, knobTimes = 0; // posizione animata degli interruttori
@@ -442,12 +442,12 @@ static bool optionsTipTarget(int x, int y, int& index) {
 }
 
 static bool optionsTipBuild(int index) {
-    if (index >= OPT_TIP_ROW) { // una riga con una scorciatoia: l'etichetta e i suoi tasti (DESIGN §8, Tooltip)
+    if (index >= OPT_TIP_ROW) { // una riga: l'etichetta intera e i suoi tasti, se ne ha (DESIGN §8, Tooltip)
         size_t r = (size_t)(index - OPT_TIP_ROW);
         if (!OP.open || r >= OP.rowTips.size()) return false;
         const OptionsPanel::RowTip& t = OP.rowTips[r];
         T.title = t.label;
-        tipRow(L"Scorciatoia", shortcutsOf(t.cmd));
+        if (t.cmd) tipRow(L"Scorciatoia", shortcutsOf(t.cmd));
         if (t.cmd2) tipRow(L"Predefinita", shortcutsOf(t.cmd2));
         return true;
     }
@@ -570,12 +570,14 @@ static void drawOptions(double dt) {
         if (visible(cy, rowH)) drawText(rowL, cy + textOff + px(ui::GAP_XS), t, (int)wcslen(t), fadeA(C_DIM, k));
         cy += rowH;
     };
-    auto label = [&](const wchar_t* t) {
-        if (visible(cy, rowH)) drawText(inL, cy + textOff, t, (int)wcslen(t), fadeA(C_TEXT, k), right - px(ui::OPT_LABEL_RESERVE));
-    };
-    // Una riga che ha anche una scorciatoia (cmd, da kShortcuts): il tooltip la dice (DESIGN §8, Tooltip)
-    auto keysTip = [&](const wchar_t* t, int cmd, int cmd2) {
-        if (!cmd || !visible(cy, rowH)) return;
+    // L'etichetta di una riga finisce a GAP_M dal suo controllo (ctlX). Il tooltip della riga ha
+    // l'etichetta intera, se è troncata, e la scorciatoia (cmd, da kShortcuts), se c'è (DESIGN §8, Tooltip)
+    auto label = [&](const wchar_t* t, float ctlX, int cmd, int cmd2) {
+        if (!visible(cy, rowH)) return;
+        int n = (int)wcslen(t);
+        float maxX = ctlX - px(ui::GAP_M);
+        drawText(inL, cy + textOff, t, n, fadeA(C_TEXT, k), maxX);
+        if (!cmd && floorf(inL) + (float)textWidth(t, n) <= maxX) return; // lo stesso confronto di drawText
         OP.tips.push_back({ rowL, cy, right - rowL, rowH, OPT_TIP_ROW + (int)OP.rowTips.size() });
         OP.rowTips.push_back({ t, cmd, cmd2 });
     };
@@ -590,7 +592,6 @@ static void drawOptions(double dt) {
     // fondo sotto il mouse. hintCol: C_ACCENT quando la spiegazione avvisa di uno stato a metà.
     std::vector<std::pair<int, int>> hl; // righe della spiegazione: inizio, fine
     auto opt = [&](const wchar_t* t, const wchar_t* hint, bool on, float& anim, int id, uint32_t hintCol = C_DIM, int cmd = 0) {
-        keysTip(t, cmd, 0);
         hl.clear();
         int hn = hint ? (int)wcslen(hint) : 0;
         for (int s = 0; s < hn;) {
@@ -600,7 +601,7 @@ static void drawOptions(double dt) {
         }
         float rh = hl.empty() ? rowH : rowH * 2 - px(ui::GAP_S) + lh * (float)(hl.size() - 1);
         hov(rowL, cy, right - rowL, rh, id);
-        label(t);
+        label(t, inR - px(ui::SWITCH_W), cmd, 0);
         float hy = cy + rowH - px(ui::GAP_S);
         for (auto& l : hl) {
             if (visible(hy, rowH)) drawText(inL, hy + textOff, hint + l.first, l.second - l.first, fadeA(hintCol, k), inR);
@@ -623,9 +624,8 @@ static void drawOptions(double dt) {
     // (C_INPUT), così si vede che il valore si cambia; i pulsanti hanno il loro fondo sotto il mouse
     auto pickRow = [&](const wchar_t* t, const std::wstring& val, float vw, const wchar_t* prev, const wchar_t* next,
                        int prevId, int nextId, int cmd = 0, int cmd2 = 0) {
-        keysTip(t, cmd, cmd2);
-        label(t);
         float bw = rowH, bx = inR - bw * 2 - vw;
+        label(t, bx, cmd, cmd2);
         if (visible(cy, rowH)) rrect(bx, cy + px(ui::GAP_XS), bw * 2 + vw, rowH - px(ui::GAP_S), px(ui::R_S), fadeA(C_INPUT, k));
         button(bx, cy, bw, prev, prevId);
         if (visible(cy, rowH)) {

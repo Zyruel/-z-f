@@ -76,8 +76,8 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Clic sulla destinazione di un collegamento · clic centrale | Apre il percorso del file (in una nuova scheda) |
 | Ctrl+L · F4 · clic sul percorso vuoto | Apre Vai a col percorso della cartella aperta, da modificare |
 | Ctrl+P · Ctrl+G | Apre Vai a: cartelle recenti, preferiti, sottocartelle |
-| Ctrl+Invio · clic centrale | Vai a: apre in una nuova scheda |
-| Tab | Vai a: entra nella cartella e mostra le sottocartelle |
+| Ctrl+Invio · clic centrale | Apre in una nuova scheda la voce scelta in Vai a |
+| Tab | Entra nella cartella scelta in Vai a e ne mostra le sottocartelle |
 | F5 · tasto Aggiorna della tastiera | Ricarica |
 
 ### Selezione
@@ -125,7 +125,7 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Ctrl+Tab · Ctrl+Shift+Tab | Passa alla scheda successiva · precedente |
 | Ctrl+1…8 · Ctrl+9 | Passa alla scheda n · all'ultima |
 | Clic centrale · Ctrl+clic su un preferito | Apre in una nuova scheda in background |
-| Trascina su una scheda | La apre dopo un momento |
+| Trascina su una scheda | Passa a quella scheda dopo un momento |
 
 ### Vista
 
@@ -147,7 +147,7 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Trascina il bordo di una colonna · doppio clic | Cambia la larghezza della colonna · la adatta al contenuto |
 | Ctrl+D | Aggiunge o toglie dai preferiti |
 | Trascina tra i preferiti | Aggiunge le cartelle ai preferiti |
-| Trascina un preferito | Lo sposta tra gli altri (solo l'ordine) |
+| Trascina un preferito | Cambia l'ordine dei preferiti |
 | Clic su Preferiti · sulla freccia di Questo PC | Chiude o riapre i preferiti · le unità |
 | Ctrl+/− | Cambia la dimensione del testo |
 | Ctrl+0 | Riporta il testo alla dimensione predefinita |
