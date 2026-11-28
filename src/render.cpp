@@ -529,7 +529,7 @@ static void render() {
     if (A.zoom != ZOOM_DETAILS) { // solo le etichette per ordinare, a sinistra (le colonne non ci sono)
         A.sortN = 0;
         A.sortC[A.sortN++] = COL_NAME;
-        for (int c : kColOrder) if (c != COL_LINK && colWanted(c, false)) A.sortC[A.sortN++] = c; // Destinazione qui non c'è
+        for (int c : kColOrder) if (colSortLabel(c)) A.sortC[A.sortN++] = c;
         int arrow = colArrow();
         float x = LX + A.padX, y = headY + textOff, xMax = listRight - A.padX;
         for (int i = 0; i < A.sortN; i++) {

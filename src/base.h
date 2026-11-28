@@ -148,7 +148,10 @@ static inline uint32_t fadeA(uint32_t c, float a) {
 #define ZF_VERSION L"1.0.0-beta.8" // versione (SemVer) mostrata in fondo alle opzioni
 // Il nome con cui le finestre di [z]f si riconoscono tra loro: classe della finestra, mutex,
 // messaggi tra finestre, cartella in %APPDATA% e in %TEMP%. La build di prova (ZF_DEV) ha il suo,
-// così le finestre di prova non parlano con quelle di chi usa [z]f né ne toccano i file
+// così le finestre di prova non parlano con quelle di chi usa [z]f né ne toccano i file.
+// Restano in comune: build\z-f-log.txt, la memoria condivisa dei dialoghi Apri e Salva (una sola
+// finestra li fa saltare, filedlg.cpp) e il registro di "[z]f al posto di Explorer", che la build
+// di prova legge ma non scrive (kDefaultLocked, integration.cpp)
 #ifdef ZF_DEV
 #define ZF_ID L"z-f-dev"
 #else

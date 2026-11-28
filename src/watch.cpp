@@ -165,10 +165,9 @@ static std::wstring g_pvWatchPath;
 static bool g_pvChangePending = false; // una rilettura aspetta il timer 17: le notifiche intanto si sommano
 static bool g_pvWatchOff = false;      // l'osservatore si è perso: F5 riprova, come per la lista (A.watching)
 
-// La cartella mostrata dall'anteprima (nullptr: nessuna). Solo locali: su una condivisione aprire la
+// Osserva la cartella path dell'anteprima ("": nessuna). Solo locali: su una condivisione aprire la
 // cartella può costare secondi e tenerla aperta la blocca; lì si rilegge con F5 e dopo le operazioni
-// fatte da [z]f (onFileJob, onFsDone). Dentro uno zip niente: l'archivio non avvisa (lo dice zipLen,
-// non il nome: una vera cartella "Backup.zip" si osserva). retry: F5, anche sulla stessa cartella
+// fatte da [z]f (onFileJob, onFsDone). retry: F5, anche sulla stessa cartella
 static void previewWatchPath(std::wstring path, bool retry) {
     if (path == g_pvWatchPath && !(retry && g_pvWatchOff)) return;
     g_pvWatchPath = path;
@@ -192,6 +191,8 @@ static void previewWatchPath(std::wstring path, bool retry) {
     CloseHandle(th);
     g_pvWatchStop = mine;
 }
+// La cartella mostrata dall'anteprima (nullptr: nessuna). Dentro uno zip niente: l'archivio non
+// avvisa (lo dice zipLen, non il nome: una vera cartella "Backup.zip" si osserva)
 static void previewWatch(const Listing* l, bool retry = false) {
     previewWatchPath(l && !l->zipLen ? l->path : L"", retry);
 }

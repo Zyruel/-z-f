@@ -237,7 +237,10 @@ static bool settingsApply(const std::vector<std::wstring>& lines) {
             for (size_t i = 0; i <= v.size();) {
                 size_t e = v.find(L',', i);
                 if (e == std::wstring::npos) e = v.size();
-                int c = colByKey(v.substr(i, e - i));
+                size_t a = i, b = e; // scritta a mano, "tipo, data": senza gli spazi ai capi Data sparirebbe
+                while (a < b && (v[a] == L' ' || v[a] == L'\t')) a++;
+                while (b > a && (v[b - 1] == L' ' || v[b - 1] == L'\t')) b--;
+                int c = colByKey(v.substr(a, b - a));
                 if (c > 0) A.colOn |= 1u << c;
                 i = e + 1;
             }

@@ -17,10 +17,17 @@ cartelle, registro, nomi interni di Windows) il nome tecnico è **z-f**: `z-f.ex
 
 La build di prova (`build.bat dev`, `ZF_DEV`) usa il nome **z-f-dev** (`ZF_ID` in `base.h`) per
 tutto ciò con cui le finestre si riconoscono: classe della finestra, mutex dell'istanza, messaggi
-tra finestre, la finestra per i dialoghi Apri e Salva, `%APPDATA%\z-f-dev` e `%TEMP%\z-f-dev`. Le
-finestre di prova sono così un [z]f a parte: non ricevono le cartelle aperte da fuori, non
-cambiano le opzioni delle finestre vere né ne riscrivono i file. Il registro resta in comune
-(`build\z-f-log.txt` accanto all'exe).
+tra finestre, `%APPDATA%\z-f-dev` e `%TEMP%\z-f-dev`. Le finestre di prova sono così un [z]f a
+parte: non ricevono le cartelle aperte da fuori, non cambiano le opzioni delle finestre vere né
+ne riscrivono i file. Restano in comune:
+- il registro dei rallentamenti (`build\z-f-log.txt` accanto all'exe);
+- la memoria condivisa dei dialoghi Apri e Salva (`Local\z-f-ultima-finestra`): con due nomi,
+  con tutte e due le build aperte, ognuna si crederebbe l'ultima usata e farebbero saltare lo
+  stesso dialogo insieme (sezione "Dialoghi Apri e Salva");
+- "[z]f al posto di Explorer", che Windows ha uno solo: la build di prova legge lo stato ma non
+  scrive nel registro, né dalle opzioni né con `--predefinito` (`kDefaultLocked`,
+  `integration.cpp`), perché registrerebbe `z-f-dev.exe` al posto di `z-f.exe`, o spegnendolo
+  toglierebbe l'integrazione vera.
 
 Fino alla 0.15 si chiamava zx: le copie `build\zx-0.N.exe` sono di allora. Al primo avvio
 `migrateLegacyData` (`settings.cpp`) sposta `%APPDATA%\zx` in `%APPDATA%\z-f`; quando si attiva o
@@ -178,7 +185,9 @@ condivise sono in `app.h`.
 - **Hover col mouse fermo** (`hoverFollowList`, `input.cpp`): a ogni frame, dopo scorrimento e
   layout, voce, intestazione di gruppo, voce dell'anteprima e destinazione di un collegamento sotto
   il mouse si rileggono dalla sua posizione (`GetCursorPos`), con lo stesso codice di
-  `WM_MOUSEMOVE` (`listHoverAt`). Se cambiano, il tooltip in arrivo si chiude, perché era della voce
+  `WM_MOUSEMOVE` (`listHoverAt`); così anche bordo, colonna e imbuto del filtro nell'intestazione
+  delle colonne (`colHeadHoverAt`), che dopo Esc da un menu o con Ctrl+B e Alt+P resterebbero su
+  una colonna non più sotto il mouse. Se cambiano, il tooltip in arrivo si chiude, perché era della voce
   di prima. Un tooltip di gruppo aperto si confronta col gruppo che ora sta a quell'indice
   (`tipGroupFollow`, per valore e non per `Listing`, che una ricarica può rifare allo stesso
   indirizzo): un altro gruppo lo chiude, lo stesso con altre voci ne rifà il testo. Non con un tasto del mouse premuto, durante un trascinamento o con un menu o un
@@ -305,13 +314,26 @@ condivise sono in `app.h`.
   mentre si spunta. `ColCtx` prepara una volta per applicazione ciò che serve oltre alla voce: gli
   inizi dei periodi in ora locale come FILETIME UTC (`TzSpecificLocalTimeToSystemTime`, e una
   tabella degli inizi d'anno dal 1980; prima si calcola voce per voce) e i totali delle cartelle già
-  contati (`dirSizeTotals`). Con il filtro per Dimensione un totale che arriva può cambiare la vista:
-  `onDirSize` arma un timer (al più una volta ogni `DS_REFILTER`, 250 ms) e `refilterQuiet`
-  rifiltra senza far scorrere la lista (`viewUsesDirTotals`: anche con i gruppi per Dimensione).
-  *Perché 250 ms e non `WATCH_BATCH`:* in WinSxS un rifiltro costa 6,6 ms e un raggruppamento 7,6
-  (le ricerche di 30.732 cartelle nella cache dei totali); ogni 50 ms, per tutto il conto, era fino
-  al 13% del thread UI, ogni 250 ms circa il 3% (calcolato da quelle misure). Se non bastasse: i totali tenuti per voce
-  nel `Listing`, aggiornati solo per le cartelle arrivate.
+  contati (`dirSizeTotals`). `applyFilter` ne prepara uno solo per filtro e gruppi (`viewCtxCols`:
+  le colonne filtrate e quella dei gruppi), passato a `filterInto` e a `groupsBuild`: con filtro e
+  gruppi per Dimensione i totali si leggono una volta, cioè una presa di `DS.lock` e 30.732
+  ricerche in WinSxS invece di due. Con il filtro per Dimensione un totale che arriva può cambiare
+  la vista: `onDirSize` arma un timer (al più una volta ogni `DS_REFILTER`, 250 ms) e
+  `refilterQuiet` rifiltra senza far scorrere la lista (`viewUsesDirTotals`: anche con i gruppi
+  per Dimensione). Le cartelle non ancora contate stanno in "Cartelle", spesso fuori dalla vista:
+  `dirSizeQueueCurrent` mette in coda, dopo quelle visibili, anche le cartelle che passano gli
+  altri filtri (`filterInto` senza Dimensione), altrimenti non entrerebbero mai; accendere o
+  spegnere la dimensione delle cartelle rifiltra prima di rifare la coda.
+  *Perché 250 ms e non `WATCH_BATCH`:* in WinSxS un rifiltro con filtro e gruppi per Dimensione
+  costa circa 6,4 ms (le ricerche di 30.732 cartelle nella cache dei totali); ogni 50 ms, per tutto
+  il conto, sarebbe più del 10% del thread UI, ogni 250 ms circa il 3%. Se non bastasse: i totali
+  tenuti per voce nel `Listing`, aggiornati solo per le cartelle arrivate.
+  *Il giorno:* "Oggi", "Ieri"… valgono fino a mezzanotte. Con un filtro o i gruppi per una data
+  (`viewUsesDates`) `applyFilter` arma il timer 19 alla prossima mezzanotte locale
+  (`dayTimerUpdate`), che rifà la vista con `refilterQuiet` e si riarma; anche `WM_TIMECHANGE` e
+  il ritorno dalla sospensione (`WM_POWERBROADCAST`) passano da `onDayChange`. Senza date nella
+  vista il timer è spento: a riposo nessun lavoro. Vale per la lista di App (non dall'anteprima di
+  una cartella); le altre schede si ricaricano, e quindi si rifiltrano, quando tornano attive.
   *Perché le chiavi e non le etichette:* il confronto per voce resta un bit o un `wcscmp`, e il
   filtro sopravvive a una rilettura della stessa cartella.
   *Perché il menu resta aperto:* `MenuItem::keep` (voce a spunta): `menuExec` cambia la spunta e
@@ -376,13 +398,15 @@ condivise sono in `app.h`.
   conteggi e filtro applicato (F12: "menu del filtro di una colonna", "filtro"): Tipo 0,3 e
   0,1 ms; Data modifica 0,7 e 0,5 ms; Dimensione, con i totali delle cartelle, 8,0 e 6,6 ms (era
   11,9 e 11,1 prima che `dsEachDir` continuasse l'hash della cartella invece di costruire ogni
-  percorso: il resto sono le ricerche nella cache dei totali). Con il filtro per Dimensione, mentre
-  si contano le cartelle la vista si rifiltra al più ogni 50 ms: fino a circa il 13% del thread UI
-  su una cartella come WinSxS;
+  percorso: il resto sono le ricerche nella cache dei totali). Con filtro e gruppi per Dimensione
+  insieme, mentre si contano le cartelle (tutte le fasce scelte, vista intera, mediana di circa 13
+  rifiltri per giro, due giri alternati, copie strumentate col registro): filtro 6,1–6,5 ms e gruppi
+  0,2 ms, somma 6,3–6,5, invece di 6,5 + 4,4 = 10,8–11,0 quando i gruppi rileggevano i totali;
 - gruppi su WinSxS (30.734 voci), MSVC, finestra ingrandita (F12, "gruppi": tabella,
   riordino della vista e `groupsPlace`): Tipo 0,79 ms (3 gruppi), Data modifica 0,95, Data creazione
   0,69–1,02 (5 gruppi); Dimensione, con i totali delle cartelle, 7,6 ms, per le stesse ricerche
-  nella cache dei totali del filtro. Preparazione del frame mentre si scorre, raggruppata per Data
+  nella cache dei totali del filtro: ora le fa `applyFilter` una volta, quindi in F12 stanno nella
+  riga "filtro". Preparazione del frame mentre si scorre, raggruppata per Data
   creazione: Dettagli 0,23 ms, Elenco 0,58 (0,44 senza gruppi), Icone medie 0,23 (0,28 senza);
 - aggiornamento in tempo reale: circa 54 ms dalla notifica allo schermo; con 1000 file spostati in
   12 s, 272 ricariche e nessun file perso.
@@ -683,7 +707,8 @@ tooltip su un JPEG), nessun file scaricato.
 - Il tooltip lo chiede subito (`DS_TIP`): il totale si aggiorna ogni
   `DS_PROGRESS` (100 ms, `theme.h`) mentre cresce, e si ferma se il mouse va altrove.
 - La colonna Dimensione conta in background, con priorità di I/O bassa, le sottocartelle della
-  cartella aperta nell'ordine della vista. Il thread UI tiene gli indici delle voci e passa al
+  cartella aperta nell'ordine della vista; con il filtro o i gruppi per Dimensione, dopo di loro,
+  anche quelle che la vista non mostra perché non ancora contate (filtro per colonna, sopra). Il thread UI tiene gli indici delle voci e passa al
   thread i percorsi a pezzi di `kDsChunk` (256): finito un pezzo, il thread lo dice con
   `WM_APP_DIRSIZE` e `dirSizeRefill` gli dà il successivo. I percorsi tutti insieme erano 8 MB in
   WinSxS.
@@ -918,9 +943,13 @@ elementi 3,6 ms sul thread (mandarli nel Cestino 98 ms).
   copia, Shift sposta, Alt crea un collegamento; col tasto destro, al rilascio, il nostro menu.
 - **Mentre il mouse si muove** l'effetto si decide senza disco né shell; il controllo "dentro sé
   stessa" si rifà solo quando cambia la destinazione. Durante il trascinamento il mouse non manda
-  messaggi: quando l'anteprima passa da sola a un'altra cartella (o la chiude) sotto il mouse fermo,
-  `dropRetarget` rifà subito destinazione ed evidenziazione, invece di lasciarle sulla riga con
-  lo stesso indice fino al movimento successivo.
+  messaggi: quando la lista cambia sotto il mouse fermo (l'anteprima passa a un'altra cartella o la
+  chiude, `applyFilter` rifà la vista per un filtro, un gruppo, una ricarica o una scheda aperta),
+  `dropRetarget` segna solo che la destinazione va rifatta; la rifà `dragTick` (il timer del
+  trascinamento) dopo il primo frame cominciato da quel momento, con la geometria nuova
+  (`pvPaneAt` guarda l'ultimo frame), una volta sola e misurata (`dropNoteUi`). Non subito, perché
+  chi cambia la lista può essere dentro `render()` o un `PaneScope`, e `dropUpdate` manda la
+  descrizione dell'azione al processo sorgente (`SetData`).
 - **Al rilascio** i file veri si copiano o spostano su un thread con `foRun` (`fileops.cpp`),
   e l'esito di ogni elemento entra nella cronologia di Ctrl+Z. L'elenco trascinato si legge da
   `DROPFILES` in un passaggio (`hdropPaths`).
@@ -1070,7 +1099,8 @@ lettore nostro, senza dipendenze e senza zipfldr della shell.
 - **Senza LinkInfo:** Windows la omette quando, alla creazione, la destinazione non è raggiungibile
   (un'unità di rete non collegata), e resta solo la IDList, l'elenco di elementi della shell.
   `lkIdList` ne legge solo gli elementi di un percorso: radice Computer o Rete, unità, computer e
-  condivisione, poi una voce per cartella col nome lungo (blocco `0xBEEF0004`). Le altre radici
+  condivisione (il nome dal byte 5: il 4 sono i flag di descrizione e commento), poi una voce per
+  cartella col nome lungo (blocco `0xBEEF0004`). Le altre radici
   (cartella dell'utente, Download, app) non si leggono: lì la LinkInfo c'è sempre.
 - **Colonna Destinazione** (`colonna_destinazione`): che ci sia lo dice il thread di lettura dai
   nomi, così la lista non cambia forma. Le destinazioni le legge un thread nell'ordine della vista
@@ -1083,7 +1113,12 @@ lettore nostro, senza dipendenze e senza zipfldr della shell.
 `IShellLink` di Windows, 0,09 ms l'uno contro 0,86; la prima lettura dopo l'avvio del PC circa
 5 ms, per disco e antivirus, sul thread. La sola IDList (28/11, 72 collegamenti di Desktop e menu
 Start): 35 percorsi uguali a Windows e nessuno diverso, come nei collegamenti irraggiungibili
-creati dalla prova con `--crea`; 0,12 ms l'uno, come prima.
+creati dalla prova con `--crea`; 0,12 ms l'uno, come prima. La rete (28/11): Windows 11 non
+salva mai una IDList di rete (`SetPath` con un percorso UNC, e anche `SetIDList`, danno la sola
+LinkInfo), quindi `--crea` scrive a mano due collegamenti con la radice Rete e l'elemento di rete
+vero di `SHParseDisplayName` (`\\localhost\C$\…`, `\\127.0.0.1\ADMIN$\…`): uguali a Windows
+(prima senza percorso, perché il nome si leggeva dal byte dei flag); 71 collegamenti del PC
+ancora tutti uguali, 0,11 ms l'uno.
 
 ## Dialoghi Apri e Salva
 
@@ -1110,7 +1145,10 @@ creati dalla prova con `--crea`; 0,12 ms l'uno, come prima.
   del salto: un salto che arriverebbe più tardi (dialogo lento a costruirsi, salto precedente da
   finire) si lascia, perché intanto l'utente lavora già nel dialogo. Il thread UI scrive la
   richiesta sotto un lock che i thread tengono solo per copiarla, quindi non aspetta.
-- Con più finestre di [z]f agisce l'ultima usata (HWND in memoria condivisa). Il tempo per F12
+- Con più finestre di [z]f agisce l'ultima usata (HWND in memoria condivisa,
+  `Local\z-f-ultima-finestra`, la stessa per `z-f.exe` e la build di prova). Se nessuna l'ha
+  scritta, o il suo processo è caduto, agisce la più in alto: la build di prova, che `z-f.exe`
+  non conosce, cede se c'è una finestra di `z-f.exe`. Il tempo per F12
   (`A.fdJumpUs`, in µs) lo scrivono i thread dei dialoghi con `InterlockedExchange64`.
 
 **Perché così.**
@@ -1154,6 +1192,8 @@ nessuna conferma del nome, nome proposto intatto.
 - Si registra l'eseguibile da cui lo si attiva: se lo si sposta o lo si cancella, prima va
   disattivato. L'aggiornamento automatico non cambia il percorso, quindi l'integrazione resta.
 - Emergenza senza [z]f: `prove\ripristina-explorer.bat`. Prova: `prove\predefinito.bat`.
+- La build di prova non scrive nel registro (`kDefaultLocked`; sezione "Nome tecnico"): mostra lo
+  stato, e un clic sull'interruttore lo dice con un avviso.
 
 ## Aggiornamento automatico
 

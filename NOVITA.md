@@ -79,7 +79,10 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
   - trascinando file sopra l'anteprima, quando questa passa a un'altra cartella la destinazione si
     aggiorna subito, non al movimento successivo del mouse;
   - la colonna Destinazione mostra anche i collegamenti creati quando la destinazione non era
-    raggiungibile (per esempio verso un'unità di rete non collegata): prima restavano vuoti.
+    raggiungibile (per esempio verso un'unità di rete non collegata): prima restavano vuoti;
+  - un file mostrato da un altro programma ("Apri percorso file") in una cartella già aperta in
+    [z]f si vede subito selezionato: prima la finestra si aggiornava solo al primo movimento del
+    mouse.
 
 ## 1.0.0-beta.8 (novembre 2026)
 

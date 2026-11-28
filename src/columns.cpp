@@ -36,6 +36,9 @@ static bool colWanted(int c, bool noDate) {
     if (c == COL_LINK) return A.cur && !A.cur->lnk.empty();
     return true;
 }
+// In Elenco e Icone la colonna c ha la sua etichetta per ordinare nell'intestazione (render.cpp):
+// le colonne di Dettagli, tranne Destinazione
+static bool colSortLabel(int c) { return c != COL_LINK && colWanted(c, false); }
 
 // Colonna più a destra tra quelle mostrate (layoutItems), -1 se c'è solo Nome
 static int colLast() {
@@ -127,7 +130,8 @@ enum : uint32_t { DK_FUTURE = 0, DK_TODAY, DK_YESTERDAY, DK_WEEK, DK_LASTWEEK, D
 enum : uint32_t { SK_DIR = 0, SK_EMPTY, SK_16K, SK_1M, SK_128M, SK_1G, SK_4G, SK_MORE };
 static const uint64_t kSizeTop[] = { 0, 16ull << 10, 1ull << 20, 128ull << 20, 1ull << 30, 4ull << 30 }; // da SK_EMPTY
 // Attributi: un bit per lettera (kAttrBits, nel loro ordine), anche più d'uno; AK_NONE senza nessuno
-static constexpr uint32_t AK_NONE = 1u << 6;
+static constexpr int kAttrN = (int)(sizeof(kAttrBits) / sizeof(kAttrBits[0]));
+static constexpr uint32_t AK_NONE = 1u << kAttrN;
 
 static const wchar_t* const kDateLabels[] = { L"Data futura", L"Oggi", L"Ieri", L"Questa settimana", L"Settimana scorsa",
                                               L"Questo mese", L"Mese scorso", L"Quest'anno", L"Senza data" };
@@ -135,6 +139,8 @@ static const wchar_t* const kSizeLabels[] = { L"Cartelle", L"Vuoti", L"Fino a 16
                                               L"Fino a 1 GB", L"Fino a 4 GB", L"Oltre 4 GB" };
 static const wchar_t* const kAttrLabels[] = { L"Sola lettura (R)", L"Nascosto (H)", L"Sistema (S)", L"Archivio (A)",
                                               L"Compresso (C)", L"Crittografato (E)", L"Nessun attributo" };
+static constexpr int kAttrKeys = (int)(sizeof(kAttrLabels) / sizeof(kAttrLabels[0])); // le lettere e AK_NONE
+static_assert(kAttrKeys == kAttrN + 1, "un'etichetta per lettera, più Nessun attributo");
 static constexpr int kYearTable = 1980; // gli inizi d'anno precalcolati arrivano fin qui; prima si calcolano voce per voce
 
 // Ciò che colBucket deve sapere oltre alla voce, calcolato una volta per applicazione (colCtxInit):
@@ -168,6 +174,13 @@ static SYSTEMTIME dayAdd(SYSTEMTIME st, int days) {
     return st;
 }
 
+// La prossima mezzanotte locale come FILETIME UTC: fin lì valgono "Oggi", "Ieri"… di colCtxInit
+static uint64_t nextLocalMidnight() {
+    SYSTEMTIME now;
+    GetLocalTime(&now);
+    return localMidnight(dayAdd(now, 1));
+}
+
 static bool colNeedsTotals(const Listing* l) { return A.dirSizes && !l->isDrives && !l->zipLen; }
 
 // cols: un bit per COL_* che si chiederà a colBucket (date e Dimensione hanno qualcosa da preparare)
@@ -176,7 +189,7 @@ static void colCtxInit(ColCtx& c, const Listing* l, uint32_t cols) {
     if (cols & (1u << COL_DATE | 1u << COL_CTIME)) {
         SYSTEMTIME now;
         GetLocalTime(&now);
-        c.from[DK_FUTURE] = localMidnight(dayAdd(now, 1));
+        c.from[DK_FUTURE] = localMidnight(dayAdd(now, 1)); // lo stesso now di tutti i periodi
         c.from[DK_TODAY] = localMidnight(now);
         c.from[DK_YESTERDAY] = localMidnight(dayAdd(now, -1));
         SYSTEMTIME mon = dayAdd(now, -((now.wDayOfWeek + 6) % 7)); // la settimana comincia di lunedì
@@ -241,7 +254,7 @@ static ColBucket colBucket(int col, const Entry& e, const ColCtx& c) {
     }
     case COL_ATTR: {
         uint32_t m = 0;
-        for (int i = 0; i < 6; i++) if (e.attr & kAttrBits[i]) m |= 1u << i;
+        for (int i = 0; i < kAttrN; i++) if (e.attr & kAttrBits[i]) m |= 1u << i;
         return { m ? m : AK_NONE, nullptr };
     }
     }
@@ -264,7 +277,7 @@ static std::wstring colValueLabel(int col, const ColValue& v) {
     case COL_SIZE:
         return v.key <= SK_MORE ? kSizeLabels[v.key] : L"";
     case COL_ATTR:
-        for (int i = 0; i < 7; i++) if (v.key == 1u << i) return kAttrLabels[i];
+        for (int i = 0; i < kAttrKeys; i++) if (v.key == 1u << i) return kAttrLabels[i];
         return L"";
     }
     return L"";
@@ -293,26 +306,19 @@ static void colFilterFlip(ColFilter& f, int c, const ColValue& v) {
     auto it = std::find(k.begin(), k.end(), v.key);
     if (it != k.end()) k.erase(it); else k.push_back(v.key);
 }
-// I valori scelti di una colonna, " · " tra l'uno e l'altro (tooltip)
-static std::wstring colFilterText(const ColFilter& f, int c) {
-    std::wstring s;
-    auto add = [&](const ColValue& v) { if (!s.empty()) s += L" \x00B7 "; s += colValueLabel(c, v); };
-    for (uint32_t k : f.keys[c]) add(ColValue{ k, L"" });
-    if (c == COL_TYPE) for (const std::wstring& x : f.exts) add(ColValue{ TK_EXT, x });
-    return s;
-}
-
 // Il filtro delle colonne pronto per le voci (colMatchInit, una volta per applicazione): le chiavi
 // sotto 64 come bit (gli attributi come la loro maschera), le altre (anni, percorsi di rete) cercate
 // nell'elenco, le estensioni con la ricerca binaria
 struct ColMatch {
     const ColFilter* f = nullptr;
-    ColCtx ctx;
+    const ColCtx* ctx = nullptr; // own, o quello di chi chiama (applyFilter: lo stesso dei gruppi)
+    ColCtx own;
     int cols[COL_COUNT] = {}, n = 0;
     uint64_t bits[COL_COUNT] = {};
 };
-// skip: la colonna da non applicare (i conteggi del suo menu), -1 nessuna. false: nessun filtro
-static bool colMatchInit(ColMatch& m, const ColFilter& f, const Listing* l, int skip) {
+// skip: la colonna da non applicare (i conteggi del suo menu), -1 nessuna. ctx: già preparato per
+// tutte le colonne filtrate, o nullptr (se ne prepara uno). false: nessun filtro
+static bool colMatchInit(ColMatch& m, const ColFilter& f, const Listing* l, int skip, const ColCtx* ctx = nullptr) {
     uint32_t used = 0;
     for (int c = 0; c < COL_COUNT; c++) {
         if (c == skip || !f.on(c)) continue;
@@ -324,13 +330,14 @@ static bool colMatchInit(ColMatch& m, const ColFilter& f, const Listing* l, int 
     }
     if (!m.n) return false;
     m.f = &f;
-    colCtxInit(m.ctx, l, used);
+    if (ctx) m.ctx = ctx;
+    else { colCtxInit(m.own, l, used); m.ctx = &m.own; }
     return true;
 }
 static bool colMatches(const ColMatch& m, const Entry& e) {
     for (int i = 0; i < m.n; i++) {
         int c = m.cols[i];
-        ColBucket b = colBucket(c, e, m.ctx);
+        ColBucket b = colBucket(c, e, *m.ctx);
         bool ok;
         if (c == COL_ATTR) ok = (b.key & m.bits[c]) != 0;
         else if (b.ext) { auto it = colExtFind(m.f->exts, b.ext); ok = it != m.f->exts.end() && *it == b.ext; }
@@ -358,6 +365,18 @@ static bool colValueBefore(int c, const ColValue& a, const ColValue& b) {
     return a.key < b.key;
 }
 static bool colValueSame(const ColValue& a, const ColValue& b) { return a.key == b.key && a.ext == b.ext; }
+
+// I valori scelti di una colonna, " · " tra l'uno e l'altro (tooltip dell'imbuto), nell'ordine del
+// menu del filtro: f li tiene nell'ordine dei clic, e le estensioni a parte
+static std::wstring colFilterText(const ColFilter& f, int c) {
+    std::vector<ColValue> vs;
+    for (uint32_t k : f.keys[c]) vs.push_back(ColValue{ k, L"" });
+    if (c == COL_TYPE) for (const std::wstring& x : f.exts) vs.push_back(ColValue{ TK_EXT, x });
+    std::sort(vs.begin(), vs.end(), [c](const ColValue& a, const ColValue& b) { return colValueBefore(c, a, b); });
+    std::wstring s;
+    for (const ColValue& v : vs) { if (!s.empty()) s += L" \x00B7 "; s += colValueLabel(c, v); }
+    return s;
+}
 
 // I valori distinti di una colonna, ognuno col suo numero di voci (menu del filtro, gruppi): at dà
 // l'indice del valore in vals, aggiungendolo la prima volta. Le chiavi sotto 64 da una tabella, le
@@ -395,13 +414,13 @@ static void colValues(int c, const Listing* l, const std::vector<uint32_t>& vis,
     colCtxInit(ctx, l, 1u << c);
     ColTally t;
     for (uint32_t k : f.keys[c]) {                      // i valori scelti ci sono anche senza voci
-        if (c == COL_ATTR) { for (int i = 0; i < 7; i++) if (k & 1u << i) t.at(1u << i, nullptr); }
+        if (c == COL_ATTR) { for (int i = 0; i < kAttrKeys; i++) if (k & 1u << i) t.at(1u << i, nullptr); }
         else t.at(k, nullptr);
     }
     if (c == COL_TYPE) for (const std::wstring& x : f.exts) t.at(TK_EXT, x.c_str());
     for (uint32_t ei : vis) {
         ColBucket b = colBucket(c, l->e[ei], ctx);
-        if (c == COL_ATTR) { for (int i = 0; i < 7; i++) if (b.key & 1u << i) t.vals[t.at(1u << i, nullptr)].n++; } // una voce in ogni suo attributo
+        if (c == COL_ATTR) { for (int i = 0; i < kAttrKeys; i++) if (b.key & 1u << i) t.vals[t.at(1u << i, nullptr)].n++; } // una voce in ogni suo attributo
         else t.vals[t.at(b.key, b.ext)].n++;
     }
     out.swap(t.vals);
@@ -421,18 +440,31 @@ static bool grouped() { return colGroupable(A.groupCol, A.cur); }
 // La vista dipende dai totali delle cartelle (filtro o gruppi per Dimensione): un totale appena contato
 // può far entrare o uscire una cartella, o spostarla da "Cartelle" alla sua fascia (onDirSize)
 static bool viewUsesDirTotals() { return A.colFilter.on(COL_SIZE) || (grouped() && A.groupCol == COL_SIZE); }
+// La vista dipende dal giorno (filtro o gruppi per una data): "Oggi" e "Ieri" cambiano a mezzanotte
+// (dayTimerUpdate)
+static bool viewUsesDates() {
+    return A.colFilter.on(COL_DATE) || A.colFilter.on(COL_CTIME) ||
+           (grouped() && (A.groupCol == COL_DATE || A.groupCol == COL_CTIME));
+}
+// Le colonne per cui applyFilter prepara il ColCtx: quelle filtrate e quella dei gruppi. Uno solo per
+// filtro e gruppi: per Dimensione dirSizeTotals prende DS.lock e su WinSxS costa circa 6,6 ms
+static uint32_t viewCtxCols() {
+    uint32_t cols = 0;
+    for (int c = 0; c < COL_COUNT; c++) if (A.colFilter.on(c)) cols |= 1u << c;
+    if (grouped()) cols |= 1u << A.groupCol;
+    return cols;
+}
 
 // A.view divisa in gruppi (A.groups) nell'ordine di colValueBefore, rovesciato se la lista è
 // ordinata per la stessa colonna nel verso opposto (il menu delle date va dal più recente, gli altri
 // crescono): ordinando per Dimensione dal più grande il primo gruppo è "Oltre 4 GB". Dentro un gruppo
 // resta l'ordine della vista (ordinamento stabile per rango, in O(n)). Le voci dei gruppi chiusi
-// escono dalla vista, come col filtro; il gruppo resta, col suo numero
-static void groupsBuild() {
+// escono dalla vista, come col filtro; il gruppo resta, col suo numero. ctx: quello del filtro
+// (applyFilter), preparato anche per la colonna dei gruppi (viewCtxCols)
+static void groupsBuild(const ColCtx& ctx) {
     A.groups.clear();
     if (!grouped() || A.view.empty()) return;
     int c = A.groupCol;
-    ColCtx ctx;
-    colCtxInit(ctx, A.cur, 1u << c);
     ColTally t;
     std::vector<int> gid(A.view.size());
     for (size_t i = 0; i < A.view.size(); i++) {

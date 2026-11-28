@@ -351,7 +351,7 @@ static bool tipBuild() {
         if (T.index < 0 || T.index >= COL_COUNT) return false;
         T.title = kCols[T.index].sortBy;
         if (A.sortCol == T.index) tipRow(L"", A.sortDesc ? L"Ora: decrescente. Clic: crescente" : L"Ora: crescente. Clic: decrescente");
-        tipRow(L"", L"Tasto destro: le colonne da mostrare");
+        tipRow(L"", L"Tasto destro: colonne da mostrare e raggruppamento"); // il menu delle colonne, in ogni vista
         break;
     }
     case TIP_GROUP: { // intestazione di un gruppo: chiude o apre

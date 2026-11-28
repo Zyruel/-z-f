@@ -503,7 +503,10 @@ static void showContextMenu(POINT screenPt, bool background) {
 // shell e QueryContextMenu costano circa 80 µs a voce in locale e 400 µs su una condivisione (20.000 voci: 1,6 s e 8 s; misure
 // con prove\shell-verbi.cpp), e "delete" conta gli elementi dentro InvokeCommand prima di chiedere
 // (altri 1,4 s) e poi elimina lì dentro: va tutto sul thread del menu della shell.
-static void shellVerb(const char* verb) {
+// shift: Shift premuto per il comando (CMIC_MASK_SHIFT_DOWN: "delete" diventa definitivo). Lo dice
+// chi chiama, non lo stato del tasto adesso: "Sposta nel Cestino" del menu cliccato con Shift premuto
+// resta Cestino
+static void shellVerb(const char* verb, bool shift = false) {
     if (!A.cur) return;
     std::vector<uint32_t> items = selectedEntries();
     if (items.empty()) return;
@@ -521,7 +524,7 @@ static void shellVerb(const char* verb) {
     r->folder = A.cur->path;
     for (uint32_t ei : items) r->names.emplace_back(A.cur->name(A.cur->e[ei]), A.cur->e[ei].nameLen);
     r->drives = A.cur->isDrives;
-    r->shift = GetKeyState(VK_SHIFT) < 0; // lo stato dei tasti è per thread: si legge qui
+    r->shift = shift;
     r->what = items.size() == 1 ? r->names[0] : std::to_wstring(items.size()) + L" elementi";
     smSend(r, L"Windows è ancora occupato con un altro comando");
 }

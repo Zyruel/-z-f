@@ -98,6 +98,9 @@ struct TabState {
     std::vector<std::wstring> back, fwd;
     int sortCol = COL_NAME;
     bool sortDesc = false;
+    // L'ordinamento è tornato per nome mentre la scheda non era attiva (la sua colonna è stata
+    // nascosta): l'ordine delle voci si rifà quando torna attiva, prima che la si veda
+    bool resort = false;
     int zoom = 0;
     // Da caricare quando diventa attiva: scheda aperta in background, o lasciata a metà caricamento
     bool pending = false;

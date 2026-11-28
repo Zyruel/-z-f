@@ -88,8 +88,9 @@ static std::wstring lkIdList(const uint8_t* p, const uint8_t* end) {
             if (sz < 6 || p[4] != ':' || !iswalpha(p[3])) return L"";
             path = lkAnsi(p + 3, ie);
         } else if ((type & 0x70) == 0x40) { // rete: "\\server", poi "\\server\condivisione"
-            // "Rete di Microsoft Windows" e il dominio, prima del computer, non sono percorsi: si saltano
-            std::wstring s = sz > 4 ? lkAnsi(p + 4, ie) : L"";
+            // "Rete di Microsoft Windows" e il dominio, prima del computer, non sono percorsi: si saltano.
+            // Il byte 4 sono i flag (descrizione e commento dopo il nome), il nome comincia al byte 5
+            std::wstring s = sz > 5 ? lkAnsi(p + 5, ie) : L"";
             if (s.size() > 2 && s[0] == L'\\' && s[1] == L'\\') path = s;
         } else if ((type & 0x70) == 0x30) { // cartella o file
             if (path.empty() || sz < 16) return L"";

@@ -898,6 +898,7 @@ static void pvPaneClear() {
 static void pvPaneSet(Listing* l, bool same, bool partial) {
     ListPane& p = PV.pane;
     previewWatch(l); // cambiamenti da fuori o dalle operazioni: si rilegge (stessa cartella: niente di nuovo)
+    dropRetarget(); // un trascinamento fermo sopra l'anteprima: la destinazione è nella lista nuova
     p.hover = p.linkHover = -1;
     p.rowFade = HoverFade();
     p.zoom = A.prevZoom;
@@ -999,7 +1000,6 @@ static void onPreviewResult(PvRes* o) {
     if (o->kind == PV_DIR && o->dir && !o->err) { pvPaneSet(o->dir, same, o->more); o->dir = nullptr; }
     else pvPaneClear();
     pvSetResult(o);
-    dropRetarget(); // un trascinamento fermo sopra l'anteprima: la destinazione è nella lista nuova
     PV.stale = false;
     KillTimer(A.hwnd, 12);
     static const wchar_t* kinds[] = { L"", L"testo", L"immagine", L"cartella", L"informazioni" };

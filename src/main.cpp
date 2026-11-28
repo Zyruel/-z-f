@@ -130,6 +130,10 @@ static LRESULT onCopyData(const COPYDATASTRUCT* cd) {
     size_t bar = msg.find(L'|');
     if (bar == std::wstring::npos) return 0;
     openFromOutside(msg.substr(bar + 1), msg.substr(0, bar));
+    // WM_COPYDATA arriva con SendMessage: GetMessageW lo esegue dentro di sé e non torna al ciclo, che
+    // disegnerebbe solo al prossimo messaggio (la scheda già aperta con la voce scelta restava ferma
+    // finché il mouse non si muoveva). Un messaggio vuoto lo fa tornare
+    PostMessageW(A.hwnd, WM_NULL, 0, 0);
     return 1;
 }
 

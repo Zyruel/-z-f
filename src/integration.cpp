@@ -115,7 +115,17 @@ static void notifyAssocChanged() {
     SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr); // Explorer rilegge le associazioni
 }
 
+// La build di prova non scrive nel registro. Verbo e chiave di ripristino sono quelli di z-f.exe
+// (ZF_ID non li cambia: Windows ha un solo "al posto di Explorer"): registrerebbe z-f-dev.exe al
+// posto di z-f.exe, o spegnendolo toglierebbe l'integrazione di chi usa [z]f
+#ifdef ZF_DEV
+static constexpr bool kDefaultLocked = true;
+#else
+static constexpr bool kDefaultLocked = false;
+#endif
+
 static bool setDefault(bool on) {
+    if (kDefaultLocked) return false; // anche con --predefinito
     // Senza il percorso dell'exe il comando sarebbe "" "%1": tutte le cartelle smetterebbero di aprirsi
     if (on && exePath().empty()) return false;
     bool ok = true;
@@ -192,6 +202,7 @@ static DWORD WINAPI defaultThread(void* p) {
 }
 
 static void toggleDefault() {
+    if (kDefaultLocked) { notice(L"Nella build di prova l'interruttore non cambia il registro: lo cambia z-f.exe", true); return; }
     if (g_defaultBusy) return;
     bool on = defaultState() != 1; // lettura del registro: microsecondi
     HANDLE h = CreateThread(nullptr, 0, defaultThread, on ? (void*)1 : nullptr, 0, nullptr);

@@ -436,7 +436,9 @@ static int groupHeadAt(int x, int y) {
     scrollOffset(ox, oy);
     float cx = x + ox - A.cellX, cy = y - A.listTop + oy;
     if (listView()) { // la riga in alto, larga quanto le colonne del gruppo
-        if (y - A.listTop >= A.rowH) return -1;
+        // cy, come itemAt per le voci sotto: intestazioni e voci si prendono con le stesse coordinate
+        // (lo spostamento dell'entrata, LIST_ENTER_DY per un istante, non lo conta nessuna delle due)
+        if (cy < 0 || cy >= A.rowH) return -1;
         int g = groupAtLen(cx);
         return cx >= A.groups[g].at && cx < A.groups[g].at + groupLen(A.groups[g]) ? g : -1;
     }
@@ -482,8 +484,13 @@ static void ensureVisible() {
     if (A.view.empty()) return;
     float top = itemAlong(A.sel), len = lineLen(), view = viewLen();
     float s = A.scrollTarget;
-    if (top < s) s = std::min(top, std::max(itemAlongWithHead(A.sel), top + len - view)); // salendo, anche l'intestazione del gruppo se ci sta
-    else if (top + len > s + view) s = top + len - view;
+    // La prima voce della vista porta fino all'inizio e l'ultima fino alla fine del contenuto: con
+    // Home e Fine si vedono anche le intestazioni dei gruppi chiusi in cima e in fondo, che
+    // nessuna voce porterebbe in vista. Senza gruppi sono le stesse posizioni della voce
+    bool first = A.sel == 0, last = A.sel == (int)A.view.size() - 1;
+    float head = first ? 0 : itemAlongWithHead(A.sel), end = last ? contentLen() : top + len;
+    if (top < s || (first && s > 0)) s = std::min(top, std::max(head, top + len - view)); // salendo, anche l'intestazione del gruppo se ci sta
+    else if (end > s + view) s = std::max(top + len - view, std::min(top, end - view)); // la voce resta in vista
     A.scrollTarget = A.scrollY = s; // da tastiera: niente animazione, deve sembrare immediato
     clampScroll();
 }
@@ -530,11 +537,12 @@ static void selKeepVisible() {
 
 // Le voci dell'ordine corrente che passano il filtro per nome (sottostringa, maiuscole/minuscole
 // indifferenti) e quelli delle colonne (columns.cpp), tranne quello della colonna skip (-1: tutti):
-// la vista, e le voci da contare nel menu del filtro di una colonna
-static void filterInto(std::vector<uint32_t>& out, int skip) {
+// la vista, e le voci da contare nel menu del filtro di una colonna. ctx: già preparato per tutte le
+// colonne filtrate (applyFilter), o nullptr
+static void filterInto(std::vector<uint32_t>& out, int skip, const ColCtx* ctx = nullptr) {
     out.clear();
     ColMatch m;
-    bool cols = A.cur && colMatchInit(m, A.colFilter, A.cur, skip);
+    bool cols = A.cur && colMatchInit(m, A.colFilter, A.cur, skip, ctx);
     if (A.filter.empty() && !cols) { out = A.order; return; }
     std::wstring needle = A.filter;
     if (!needle.empty()) CharLowerBuffW(&needle[0], (DWORD)needle.size());
@@ -547,19 +555,42 @@ static void filterInto(std::vector<uint32_t>& out, int skip) {
     }
 }
 
+// Filtro o gruppi per una data: alla prossima mezzanotte locale la vista si rifà (timer 19,
+// onDayChange), perché colCtxInit calcola "Oggi", "Ieri"… solo quando si filtra. Senza date nella
+// vista il timer è spento: a riposo nessun lavoro. Della lista di App, non dell'anteprima di una
+// cartella (PaneScope: lo stato scambiato non è quello della lista)
+static uint64_t g_dayEnd = 0; // la mezzanotte (FILETIME UTC) a cui scatta il timer 19; 0: spento
+static void dayTimerUpdate() {
+    if (g_inPane || !A.hwnd) return;
+    if (!viewUsesDates()) {
+        if (g_dayEnd) { KillTimer(A.hwnd, 19); g_dayEnd = 0; }
+        return;
+    }
+    if (g_dayEnd) return; // già armato per la stessa mezzanotte
+    g_dayEnd = nextLocalMidnight();
+    FILETIME f;
+    GetSystemTimeAsFileTime(&f);
+    uint64_t now = fileTime64(f);
+    SetTimer(A.hwnd, 19, g_dayEnd > now ? (UINT)((g_dayEnd - now) / 10000 + 1) : 0, nullptr); // al più 25 ore
+}
+
 // Applica i filtri all'ordine corrente
 static void applyFilter() {
     double t0 = nowMs();
-    filterInto(A.view, -1);
+    ColCtx ctx; // uno per filtro e gruppi: i totali delle cartelle si leggono una volta sola
+    if (A.cur) colCtxInit(ctx, A.cur, viewCtxCols());
+    filterInto(A.view, -1, &ctx);
     double t1 = nowMs();
     A.filterMs = t1 - t0;
-    groupsBuild(); // i gruppi dopo i filtri: un gruppo c'è solo se ha voci che passano
+    groupsBuild(ctx); // i gruppi dopo i filtri: un gruppo c'è solo se ha voci che passano
     groupsPlace();
     if (!A.groups.empty()) {
         A.groupMs = nowMs() - t1;
         if (A.groupMs > ui::LOG_MSG) hitchLog("gruppi lenti", (unsigned)A.view.size(), A.groupMs);
     }
     A.counts.dirty = true; // un filtro diverso può dare lo stesso numero di voci, ma non le stesse
+    dayTimerUpdate();
+    dropRetarget(); // la vista è cambiata: un trascinamento fermo sopra non punta più all'indice di prima
 }
 static bool filtering() { return !A.filter.empty() || A.colFilter.any(); }
 
@@ -583,9 +614,11 @@ static void rebuildView(bool keepSelection) {
 // di cartella arrivato, un gruppo chiuso): come rebuildView, ma la lista non scorre verso il cursore.
 // Il cursore uscito dalla vista resta allo stesso indice, o con closed (indice in A.groups, che
 // chiudere un gruppo non cambia) va alla prima voce dei gruppi dopo quel gruppo: all'ultima voce
-// prima, se dopo non ce ne sono di aperti
+// prima, se dopo non ce ne sono di aperti. Se la selezione esce tutta dalla vista, si seleziona la
+// voce al cursore, come rebuildView e listReload: non si resta senza nessuna voce selezionata
 static void refilterQuiet(int closed = -1) {
     if (!A.cur) return;
+    bool hadSel = selCount(nullptr) > 0;
     uint32_t selEntry = A.sel >= 0 && A.sel < (int)A.view.size() ? A.view[A.sel] : UINT32_MAX;
     applyFilter();
     int sel = -1;
@@ -594,8 +627,23 @@ static void refilterQuiet(int closed = -1) {
     if (sel < 0) sel = closed >= 0 && closed < (int)A.groups.size() ? A.groups[closed].first : A.sel;
     A.sel = std::max(0, std::min(sel, (int)A.view.size() - 1));
     selKeepVisible();
+    if (hadSel && selCount(nullptr) == 0) selOnly(A.sel);
     clampScroll();
     A.dirty = true;
+}
+
+// Timer 19, ora di sistema cambiata (WM_TIMECHANGE: timeChanged) o ritorno dalla sospensione: se è
+// passata la mezzanotte, o l'ora è cambiata, la vista si rifà (e applyFilter riarma per la prossima);
+// se il timer è scattato prima (o la sospensione l'ha spostato), si riarma per il resto
+static void onDayChange(bool timeChanged) {
+    if (!g_dayEnd || g_inPane) return; // nessuna data nella vista
+    KillTimer(A.hwnd, 19);
+    uint64_t end = g_dayEnd;
+    g_dayEnd = 0;
+    FILETIME f;
+    GetSystemTimeAsFileTime(&f);
+    if (!timeChanged && fileTime64(f) < end) { dayTimerUpdate(); return; }
+    refilterQuiet();
 }
 
 // Clic sull'intestazione del gruppo g: lo chiude o lo apre (A.groupClosed, della scheda). La lista

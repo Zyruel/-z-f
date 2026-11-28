@@ -378,12 +378,25 @@ static void dirSizeQueueCurrent() {
     DS.pendingPos = 0;
     DS.pendingList = A.cur;
     DS.pendingGen = A.cur ? A.cur->gen : 0;
-    if (A.dirSizes && A.cur && !A.cur->isDrives && !A.cur->zipLen && !slowPath(A.cur->path)) // zip: i totali li dà l'archivio
-        for (uint32_t ei : A.view) {
-            const Entry& e = A.cur->e[ei];
+    if (A.dirSizes && A.cur && !A.cur->isDrives && !A.cur->zipLen && !slowPath(A.cur->path)) { // zip: i totali li dà l'archivio
+        const Listing* l = A.cur;
+        auto add = [l](uint32_t ei) {
+            const Entry& e = l->e[ei];
             if ((e.attr & FILE_ATTRIBUTE_DIRECTORY) && !(e.attr & FILE_ATTRIBUTE_REPARSE_POINT))
                 DS.pending.push_back(ei);
+        };
+        for (uint32_t ei : A.view) add(ei);
+        // Filtro o gruppi per Dimensione: una cartella non ancora contata sta in "Cartelle", fuori
+        // dalla vista se quel valore non è scelto o il suo gruppo è chiuso. Senza contarla non
+        // entrerebbe mai: si contano anche le cartelle che passano gli altri filtri, dopo quelle visibili
+        if (viewUsesDirTotals()) {
+            std::vector<uint8_t> queued(l->e.size(), 0);
+            for (uint32_t ei : A.view) queued[ei] = 1;
+            std::vector<uint32_t> rest;
+            filterInto(rest, COL_SIZE);
+            for (uint32_t ei : rest) if (!queued[ei]) add(ei);
         }
+    }
     dsRefill();
     SetEvent(DS.wake);
 }
@@ -424,7 +437,6 @@ static void dirSizeForgetAll() {
     LeaveCriticalSection(&DS.lock);
 }
 
-// Ordinamento per dimensione (thread di lettura o thread UI): le cartelle prendono il totale noto
 // Ogni cartella di l (per indice di voce) col suo totale in cache, nullptr se non c'è: una presa del
 // lock per tutte. La chiave di una sottocartella è quella della cartella più il nome minuscolo, che la
 // lettura ha già (Listing::lower, con la stessa CharLowerBuffW di dsKey): l'hash continua dallo stato
@@ -445,6 +457,7 @@ template <class F> static void dsEachDir(const Listing* l, F f) {
     LeaveCriticalSection(&DS.lock);
 }
 
+// Ordinamento per dimensione (thread di lettura o thread UI): le cartelle prendono il totale noto
 static void dirSizeFill(Listing* l) {
     dsEachDir(l, [l](size_t i, const DirSize* d) { l->e[i].size = d ? d->bytes : 0; });
 }

@@ -81,6 +81,20 @@ static bool listHoverAt(int x, int y) {
     return changed;
 }
 
+// Ciò che sta sotto il mouse nell'intestazione delle colonne: bordo, colonna con l'imbuto del filtro
+// (che si vede solo lì), imbuto stesso. true se è cambiato
+static bool colHeadHoverAt(int x, int y) {
+    bool changed = false;
+    int cb = colBorderAt(x, y);
+    if (cb != A.colHover) { A.colHover = cb; changed = true; }
+    int fh = cb >= 0 ? -1 : colFilterHeadAt(x, y);
+    if (fh != A.colFltHead) { A.colFltHead = fh; changed = true; }
+    int fg = colGlyphAt(x, y); // dopo colFltHead: colGlyphShown ne dipende
+    if (fg != A.colFltGlyph) { A.colFltGlyph = fg; changed = true; }
+    if (changed) A.dirty = true;
+    return changed;
+}
+
 // A ogni frame, dopo scorrimento e layout: la lista può essersi spostata sotto il mouse fermo
 // (rotellina, filtro, ricarica, un gruppo chiuso, la barra laterale nascosta). Senza, l'hover resta
 // sulla voce di prima, che si allontana dal puntatore, finché il mouse non si muove. Non durante
@@ -92,7 +106,10 @@ static void hoverFollowList() {
     if (GetKeyState(VK_LBUTTON) < 0 || GetKeyState(VK_RBUTTON) < 0) return;
     POINT c;
     if (!GetCursorPos(&c) || !ScreenToClient(A.hwnd, &c)) return;
-    if (listHoverAt(c.x, c.y)) tipHide(); // il tooltip in arrivo o aperto era della voce di prima
+    // Anche l'intestazione delle colonne: dopo Esc dal menu del filtro, o con Ctrl+B e Alt+P che la
+    // spostano, l'imbuto resterebbe acceso su una colonna che non è più sotto il mouse
+    bool head = colHeadHoverAt(c.x, c.y);
+    if (listHoverAt(c.x, c.y) || head) tipHide(); // il tooltip in arrivo o aperto era della voce di prima
 }
 
 static void onKey(WPARAM vk, bool alt) {
@@ -426,6 +443,12 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             sideLoad(true);
         }
         return TRUE;
+    case WM_TIMECHANGE: // ora di sistema cambiata: "Oggi", "Ieri"… dei filtri e dei gruppi per data
+        onDayChange(true);
+        return 0;
+    case WM_POWERBROADCAST: // ritorno dalla sospensione: la mezzanotte può essere passata mentre il PC dormiva
+        if (wp == PBT_APMRESUMEAUTOMATIC) onDayChange(false);
+        break;
     case WM_ACTIVATEAPP: // tornando su [z]f lo spazio libero può essere cambiato (al massimo ogni 5 s)
         if (wp && nowMs() - A.sideLoadedAt > ui::SIDE_RELOAD) sideLoad();
         if (wp) fdActivated(); // i dialoghi Apri e Salva guardano questa finestra
@@ -492,6 +515,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (wp == 4) { KillTimer(hwnd, 4); onGpuReady(); }
         if (wp == 13) { KillTimer(hwnd, 13); gpuRecoverStart(); return 0; } // GPU persa: nuovo tentativo
         if (wp == 18) { KillTimer(hwnd, 18); g_sizeRefilter = false; if (viewUsesDirTotals()) refilterQuiet(); return 0; } // totali di cartelle arrivati, col filtro o i gruppi per Dimensione
+        if (wp == 19) { onDayChange(false); return 0; } // mezzanotte: filtri e gruppi per data
         if (wp == 14) { zipOnTimer(); return 0; } // estrazione da uno zip che dura
         if (wp == 15) { updOnTimer(); return 0; } // aggiornamento: un controllo al giorno
         if (wp == 17) { KillTimer(hwnd, 17); g_pvChangePending = false; previewRefresh(); return 0; } // cartella dell'anteprima cambiata: al massimo una rilettura ogni WATCH_BATCH
@@ -583,12 +607,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (optionsMouseMove(x, y)) { tipMouseMove(x, y); return 0; }
         if (dragCheck(x, y, wp)) return 0;
         if (mqMouseMove(x, y, wp)) return 0;
-        int cb = colBorderAt(x, y);
-        if (cb != A.colHover) { A.colHover = cb; A.dirty = true; }
-        int fh = cb >= 0 ? -1 : colFilterHeadAt(x, y); // imbuto del filtro: la colonna, poi l'imbuto stesso (che si vede solo lì)
-        if (fh != A.colFltHead) { A.colFltHead = fh; A.dirty = true; }
-        int fg = colGlyphAt(x, y);
-        if (fg != A.colFltGlyph) { A.colFltGlyph = fg; A.dirty = true; }
+        colHeadHoverAt(x, y);
         if (A.draggingThumb) { listThumbDrag(x, y); return 0; }
         if (ListPane* p = pvPane(); p && p->draggingThumb) { PaneScope ps(p); listThumbDrag(x, y); return 0; }
         listHoverAt(x, y);

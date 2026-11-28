@@ -21,7 +21,7 @@ struct ShortcutGroup { const wchar_t* title; Shortcut* items; int n; };
 
 static Shortcut kNav[] = {
     { { K(M_OPEN, 0, VK_RETURN), { L"doppio clic", 0 } }, L"Apre la cartella o il file" },
-    { { K(M_UP, KA, VK_UP), { L"Backspace", 0 } }, L"Va alla cartella superiore (Backspace: se non c'è un filtro)" },
+    { { K(M_UP, KA, VK_UP), { L"Backspace", 0 } }, L"Va alla cartella superiore (Backspace: se non c'è un filtro per nome)" },
     // Anche i tasti del browser e i gesti del touchpad (WM_APPCOMMAND, in input.cpp)
     { { K(M_BACK, KA, VK_LEFT), { L"tasto Indietro del mouse o della tastiera", 0 }, { L"gesto Indietro del touchpad", 0 } }, L"Va indietro" },
     { { K(M_FWD, KA, VK_RIGHT), { L"tasto Avanti del mouse o della tastiera", 0 }, { L"gesto Avanti del touchpad", 0 } }, L"Va avanti" },
@@ -88,6 +88,9 @@ static Shortcut kView[] = {
     { { { L"Trascina il bordo di un pannello", 0 }, { L"doppio clic", 0 } }, L"Cambia la larghezza di barra laterale o anteprima (l'altezza, in basso) · torna alla predefinita" },
     { { { L"Clic su ˅ accanto a ◨", 0 } }, L"Mette l'anteprima a destra o in basso" },
     { { { L"Clic sull'intestazione", 0 } }, L"Ordina per colonna (di nuovo: al contrario)" },
+    { { { L"Tasto destro sull'intestazione", 0 } }, L"Sceglie le colonne da mostrare e il raggruppamento" },
+    { { { L"Clic sull'imbuto accanto al titolo di una colonna", 0 } }, L"Filtra la colonna per i valori presenti" },
+    { { { L"Clic sull'intestazione di un gruppo", 0 } }, L"Chiude o apre il gruppo" },
     { { { L"Trascina il bordo di una colonna", 0 }, { L"doppio clic", 0 } }, L"Cambia la larghezza della colonna · la adatta al contenuto" },
     { { K(M_FAV_TOGGLE, KC, 'D') }, L"Aggiunge o toglie dai preferiti" },
     { { { L"Trascina tra i preferiti", 0 } }, L"Aggiunge le cartelle ai preferiti" },
@@ -290,10 +293,12 @@ static void optionsOpen() {
     A.dirty = true;
 }
 
-static void optionsClose() {
+// mouse: chiuse da un clic (fuori, ×, Apri cartella). Solo allora il secondo clic di un doppio clic
+// non va alla lista: dopo Esc o Ctrl+, un doppio clic su un file lo deve aprire
+static void optionsClose(bool mouse = false) {
     if (!OP.open) return;
     OP.open = false;
-    OP.closedAt = nowMs();
+    OP.closedAt = mouse ? nowMs() : -1e18;
     A.dirty = true;
 }
 
@@ -331,7 +336,7 @@ static void separateWindowsToggle() {
 
 static void optionsExec(int id) {
     switch (id) {
-    case OPT_CLOSE:      optionsClose(); break;
+    case OPT_CLOSE:      optionsClose(true); break; // optionsExec viene solo dal mouse
     case OPT_FONT_MINUS: fontSizeStep(-1); break;
     case OPT_FONT_PLUS:  fontSizeStep(1); break;
     case OPT_FACE_PREV:  optionsFace(-1); break;
@@ -345,7 +350,12 @@ static void optionsExec(int id) {
     case OPT_DEFAULT:    toggleDefault(); break; // lo stato si rilegge all'esito (WM_APP_DEFAULT)
     case OPT_UNDO_PERSIST: undoPersistToggle(); break;
     case OPT_SHELL_MENU: A.shellMenu = !A.shellMenu; settingsSave(); break;
-    case OPT_DIR_SIZES:  A.dirSizes = !A.dirSizes; settingsSave(); dirSizeQueueCurrent(); break;
+    case OPT_DIR_SIZES: // filtro o gruppi per Dimensione: le cartelle passano tra "Cartelle" e la fascia
+        A.dirSizes = !A.dirSizes; // del totale; la vista prima della coda, che segue il suo ordine
+        settingsSave();
+        if (viewUsesDirTotals()) refilterQuiet();
+        dirSizeQueueCurrent();
+        break;
     case OPT_EXT:        A.showExt = !A.showExt; settingsSave(); break;
     case OPT_DIALOGS:    A.dialogJump = !A.dialogJump; settingsSave(); break;
     case OPT_TIMES:      A.timesBar = !A.timesBar; settingsSave(); break;
@@ -358,7 +368,7 @@ static void optionsExec(int id) {
     case OPT_FOLDER: {
         std::wstring p = zfDataPath(L"");
         if (!p.empty()) p.pop_back(); // senza "\" finale
-        optionsClose();
+        optionsClose(true);
         // La cartella può non esserci ancora (nessuna impostazione salvata): la crea un thread, che
         // poi chiede alla finestra di aprirla (WM_APP_OPENTAB)
         HANDLE h = CreateThread(nullptr, 0, settingsDirThread, new std::wstring(p), 0, nullptr);
@@ -382,7 +392,7 @@ static int optionsHit(int x, int y) {
 // a ciò che c'è sotto: aprirebbe il file della lista in quel punto
 static bool optionsMouseDown(int x, int y, bool again = false) {
     if (!OP.open) return again && nowMs() - OP.closedAt < GetDoubleClickTime();
-    if (x < OP.x || x >= OP.x + OP.w || y < OP.y || y >= OP.y + OP.h) { optionsClose(); return true; } // clic fuori
+    if (x < OP.x || x >= OP.x + OP.w || y < OP.y || y >= OP.y + OP.h) { optionsClose(true); return true; } // clic fuori
     int id = optionsHit(x, y);
     if (again && (id == OPT_VERSION || id == OPT_UPD_ACT || id == OPT_PREVIEW_POS_PREV || id == OPT_PREVIEW_POS_NEXT)) return true;
     if (id != OPT_NONE) optionsExec(id);
@@ -661,12 +671,13 @@ static void drawOptions(double dt) {
 
         section(L"Integrazione con Windows");
         // Negli stati a metà l'interruttore è spento (non fa tutto) e la spiegazione, in C_ACCENT
-        // (informazione), dice cosa c'è e cosa fa il clic
+        // (informazione), dice cosa c'è e cosa fa il clic. La build di prova non lo cambia (kDefaultLocked)
         opt(L"[z]f al posto di Explorer",
-            OP.defaultState == 2 ? L"Attivo con un altro eseguibile di [z]f: un clic lo assegna a questo"
+            kDefaultLocked ? L"Nella build di prova non cambia il registro: lo cambia z-f.exe"
+            : OP.defaultState == 2 ? L"Attivo con un altro eseguibile di [z]f: un clic lo assegna a questo"
             : OP.defaultState == 3 ? L"Attivo senza gli zip: un clic li aggiunge"
                                    : L"Doppio clic sulle cartelle e sugli zip, Win+E, programmi che aprono una cartella",
-            OP.defaultState == 1, OP.knobDefault, OPT_DEFAULT, OP.defaultState >= 2 ? C_ACCENT : C_DIM);
+            OP.defaultState == 1, OP.knobDefault, OPT_DEFAULT, kDefaultLocked || OP.defaultState >= 2 ? C_ACCENT : C_DIM);
         opt(L"Una finestra per ogni cartella aperta da fuori",
             L"Invece di una scheda nella finestra principale. Una finestra occupa da 40 a 70 MB, una scheda meno di 1 MB",
             A.separateWindows, OP.knobSeparate, OPT_SEPARATE);

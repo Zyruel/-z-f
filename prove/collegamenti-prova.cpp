@@ -5,7 +5,8 @@
 // Compilare (da Bash, nella cartella del progetto; l'exe va in build\):
 //   cmd //c '.\build.bat prova prove\collegamenti-prova.cpp ole32.lib shell32.lib'
 // Per ognuno prova anche la sola IDList, come se mancasse la LinkInfo. Con --crea, prima scrive
-// nella cartella data dei collegamenti a destinazioni irraggiungibili (senza LinkInfo) e li prova.
+// nella cartella data dei collegamenti a destinazioni irraggiungibili (senza LinkInfo) e due
+// collegamenti di rete con la sola IDList (a condivisioni del PC, scritti a mano), e li prova.
 // Uso:
 //   build\collegamenti-prova.exe [--crea cartella] cartella [cartella…]
 // Esempio, tutti i collegamenti del PC che contano:
@@ -60,6 +61,44 @@ static void createUnreachable(const std::wstring& dir) {
             pf->Release();
         }
         sl->Release();
+    }
+    // Rete: Windows 11 non salva mai una IDList di rete in un .lnk (SetPath con un percorso UNC, e
+    // anche SetIDList, danno la sola LinkInfo), che però c'è nei collegamenti scritti da versioni
+    // vecchie. Il collegamento si scrive a mano: la radice Rete, poi gli elementi dalla condivisione
+    // in giù presi da SHParseDisplayName (il suo elemento di rete è quello vero di Windows), senza
+    // LinkInfo. Serve una condivisione che esiste: quella amministrativa del PC
+    static const wchar_t* kNet[] = { L"\\\\localhost\\C$\\Windows\\win.ini", L"\\\\127.0.0.1\\ADMIN$\\System32" };
+    static const uint8_t kNetRoot[20] = { 0x14, 0x00, 0x1F, 0x58, 0x60, 0x2C, 0x8D, 0x20, 0xEA, 0x3A,
+                                          0x69, 0x10, 0xA2, 0xD7, 0x08, 0x00, 0x2B, 0x30, 0x30, 0x9D };
+    for (const wchar_t* t : kNet) {
+        PIDLIST_ABSOLUTE pidl = nullptr;
+        HRESULT hp = SHParseDisplayName(t, nullptr, &pidl, 0, nullptr);
+        if (FAILED(hp)) { wprintf(L"non creato: %s (SHParseDisplayName 0x%08lX)\n", t, (unsigned long)hp); continue; }
+        const uint8_t* p = (const uint8_t*)pidl;
+        while (lkU16(p) && (p[2] & 0x70) != 0x40) p += lkU16(p); // fino all'elemento di rete
+        std::vector<uint8_t> ids(kNetRoot, kNetRoot + 20);
+        for (; lkU16(p); p += lkU16(p)) ids.insert(ids.end(), p, p + lkU16(p));
+        CoTaskMemFree(pidl);
+        if (ids.size() == 20) { wprintf(L"non creato: %s (nessun elemento di rete)\n", t); continue; }
+        ids.push_back(0);
+        ids.push_back(0);
+        std::vector<uint8_t> f(0x4C, 0);
+        f[0] = 0x4C;
+        static const uint8_t kClsid[16] = { 0x01, 0x14, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                            0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46 };
+        memcpy(&f[4], kClsid, 16);
+        f[0x14] = 0x81; // HasLinkTargetIDList, IsUnicode
+        uint16_t len = (uint16_t)ids.size();
+        f.push_back((uint8_t)len);
+        f.push_back((uint8_t)(len >> 8));
+        f.insert(f.end(), ids.begin(), ids.end());
+        f.insert(f.end(), 4, 0); // blocchi extra: nessuno
+        std::wstring out = dir + L"\\rete-" + std::to_wstring(++i) + L".lnk";
+        HANDLE h = CreateFileW(out.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
+        DWORD w = 0;
+        bool ok = h != INVALID_HANDLE_VALUE && WriteFile(h, f.data(), (DWORD)f.size(), &w, nullptr) && w == f.size();
+        if (h != INVALID_HANDLE_VALUE) CloseHandle(h);
+        wprintf(L"%s %s -> %s (solo IDList, scritto a mano)\n", ok ? L"creato" : L"non creato", out.c_str(), t);
     }
 }
 

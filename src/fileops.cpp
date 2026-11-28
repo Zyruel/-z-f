@@ -713,7 +713,7 @@ static void pasteFiles(const std::wstring& dest) {
 // definitivo e lo chiede lei.
 static void deleteSelected(bool permanent) {
     if (!A.cur || zipReadOnly()) return;
-    if (A.cur->isDrives || permanent || !oleReady()) { shellVerb("delete"); return; }
+    if (A.cur->isDrives || permanent || !oleReady()) { shellVerb("delete", permanent); return; }
     std::vector<std::wstring> src;
     for (uint32_t ei : selectedEntries()) src.push_back(joinPath(A.cur->path, A.cur->name(A.cur->e[ei])));
     recyclePaths(std::move(src));

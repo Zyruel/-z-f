@@ -166,7 +166,7 @@ Valgono per righe, voci della barra laterale, schede e voci di menu.
 | Stato | Aspetto |
 |---|---|
 | normale | nessun fondo |
-| sotto il mouse | `C_HOVER`, in dissolvenza; nei pannelli sovrapposti (fondo `C_MENU`) `C_HOVER_PANEL`. Nella lista e nell'anteprima segue anche il contenuto che si sposta sotto il mouse fermo (rotellina, filtro, ricarica) |
+| sotto il mouse | `C_HOVER`, in dissolvenza; nei pannelli sovrapposti (fondo `C_MENU`) `C_HOVER_PANEL`. Nella lista e nell'anteprima segue anche il contenuto che si sposta sotto il mouse fermo (rotellina, filtro, ricarica); lo stesso l'intestazione delle colonne (bordo e imbuto del filtro), dopo Esc da un menu o con Ctrl+B e Alt+P che la spostano |
 | selezionato | `C_SEL`; sotto il mouse `C_SEL_HOVER`; il testo secondario (date, dimensioni) in `C_DIM_SEL` |
 | corrente (cartella aperta, scheda attiva) | `C_SEL` nella barra laterale; per le schede fondo `C_BAR` e barra `C_ACCENT` in alto |
 | cursore da tastiera | pillola verticale `PILL_W` a sinistra in `C_SEL_EDGE` (metà dell'altezza della riga), più un contorno 1 px arrotondato se l'elemento non è selezionato |
@@ -244,7 +244,7 @@ doppione.
     filtro cerca anche nell'estensione;
   - **colonna Destinazione** (`lnk.cpp`, `links.cpp`): tra Nome e Data, solo nelle cartelle con
     almeno un collegamento (.lnk), larga `LINK_W` (300) o quanto scelto (`colonna_destinazione`),
-    ma mai più larga di Nome (`LINK_MAX`, metà dello spazio tra l'inizio della lista e Data): con
+    ma mai più larga di Nome (`LINK_MAX`, metà dello spazio tra l'inizio della lista e la colonna dopo): con
     la finestra stretta le due colonne crescono e calano insieme, e trascinando il bordo
     Nome|Destinazione verso sinistra ci si ferma a metà.
     Ogni collegamento mostra il percorso a cui porta, in `C_DIM` come le date; i collegamenti
@@ -266,14 +266,24 @@ doppione.
     Nel tooltip la riga "Dimensione" ("2,9 GB  (3.128.245.592 byte) · 17.812 file"; mentre
     conta "almeno 1,2 GB…"; "accesso negato").
 - **Intestazione colonne:** testo `C_DIM`, freccia ↑/↓ sulla colonna di ordinamento (su Nome se
-  quella colonna non si vede). Clic per ordinare, di nuovo per invertire.
+  quella colonna non si vede). Clic per ordinare, di nuovo per invertire. Tooltip: "Ordina per
+  tipo" (e le altre), l'ordine attuale se è quella colonna, "Tasto destro: colonne da mostrare e
+  raggruppamento".
   - **menu delle colonne** (tasto destro sull'intestazione, in ogni vista): Destinazione, Tipo,
     Data modifica, Data creazione, Dimensione, Attributi, con la spunta su quelle che si vedono;
-    il clic ne mostra o nasconde una. Nome non c'è: si vede sempre. Le colonne scelte valgono per
+    il clic ne mostra o nasconde una. Nome non c'è: si vede sempre. In Questo PC Tipo (il tipo di
+    unità) è spuntato e spento, perché lì si vede sempre; le altre restano attive per scegliere
+    quelle delle cartelle (con l'avviso qui sotto). Le colonne scelte valgono per
     tutte le cartelle e le schede (`colonne` in `impostazioni.txt`; predefinite Destinazione, Tipo,
     Data modifica, Dimensione); Destinazione compare comunque solo nelle cartelle con collegamenti.
     L'anteprima di una cartella in basso ha le stesse colonne (senza Destinazione), a destra solo
-    Dimensione;
+    Dimensione. Nascondere la colonna per cui la lista è ordinata la riordina per Nome dalla A, in
+    ogni scheda (la freccia non resta su Nome con le voci in un altro ordine). Un clic che nella
+    vista attuale non cambia niente (Destinazione in una cartella senza collegamenti o in Elenco e
+    Icone, ogni colonna in Questo PC) dà un avviso che dice dove vale: "Colonna Data modifica
+    mostrata nelle cartelle", "Colonna Destinazione nascosta in Dettagli, nelle cartelle con
+    collegamenti" ("Colonna" davanti, così il participio va bene per tutte, anche Tipo e
+    Attributi);
   - **bordi tra le colonne** (a sinistra di ogni colonna dopo Nome), a metà dello spazio tra i testi; si
     afferrano solo qui, in una fascia di `COL_GRIP` (4) per lato. Sopra la fascia: cursore ↔ di
     Windows e una linea verticale 1 px `C_LINE`, che diventa `C_SEL_EDGE` mentre la si trascina.
@@ -298,7 +308,7 @@ doppione.
     l'intestazione, allineato a lui, il **menu del filtro**; il clic sul resto del titolo ordina come
     sempre. Tooltip
     "Filtra per tipo" (data di modifica, data di creazione, dimensione, attributi), con i valori
-    scelti se la colonna filtra;
+    scelti se la colonna filtra, nell'ordine del menu (non in quello dei clic);
   - **menu del filtro**: prima "Tutti", poi i valori presenti tra le voci, ognuno col numero di voci
     a destra (al posto della scorciatoia, `C_DIM`) e la spunta se è scelto; "Tutti" ha la spunta
     quando la colonna non filtra. Il numero conta le voci che passano gli altri filtri (per nome e
@@ -313,10 +323,14 @@ doppione.
     - **date**: "Data futura", "Oggi", "Ieri", "Questa settimana" (da lunedì), "Settimana scorsa",
       "Questo mese", "Mese scorso", "Quest'anno", poi un valore per anno, dal più recente; "Senza
       data" (creazione dentro uno zip). Ogni voce va nel primo che le corrisponde, in ora locale;
+      a mezzanotte (e se cambia l'ora di Windows) la lista filtrata o raggruppata per data si
+      aggiorna da sola;
     - **Dimensione**: "Vuoti", "Fino a 16 KB", "Fino a 1 MB", "Fino a 128 MB", "Fino a 1 GB",
       "Fino a 4 GB", "Oltre 4 GB". Le cartelle stanno nella fascia del loro totale se la dimensione
-      delle cartelle è accesa e il totale è già contato (la lista si aggiorna quando arriva),
-      altrimenti in "Cartelle", prima delle fasce;
+      delle cartelle è accesa e il totale è già contato (la lista si aggiorna quando arriva, e
+      quando l'opzione si accende o si spegne), altrimenti in "Cartelle", prima delle fasce. Le
+      cartelle si contano anche se "Cartelle" non è scelto o il suo gruppo è chiuso, così entrano
+      quando arriva il totale;
     - **Attributi**: un valore per attributo, nell'ordine delle lettere ("Sola lettura (R)",
       "Nascosto (H)", "Sistema (S)", "Archivio (A)", "Compresso (C)", "Crittografato (E)"), poi
       "Nessun attributo"; una voce con più attributi sta in ognuno;
@@ -356,19 +370,23 @@ doppione.
   - **chiudere e aprire**: clic sull'intestazione (il doppio clic conta come un clic, come ˅ dei
     titoli della barra laterale). Un gruppo chiuso mostra solo l'intestazione, e le sue voci escono
     dalla vista come col filtro: non sono selezionate, Ctrl+A e il rettangolo non le prendono,
-    contatori e "Filtra N elementi" non le contano; il numero sull'intestazione resta. La lista non
+    contatori e "Filtra N elementi" non le contano (se erano le sole selezionate, si seleziona la
+    voce al cursore, come col filtro); il numero sull'intestazione resta. La lista non
     scorre (l'intestazione resta sotto il mouse) e il cursore di un gruppo che si chiude passa alla
     prima voce dei gruppi dopo (all'ultima dei gruppi prima, se dopo sono tutti chiusi). Il clic vale al rilascio, se non è partito il rettangolo, anche se
     intanto la cartella si è ricaricata (vale il gruppo, non la sua posizione). I gruppi
     chiusi sono della scheda: restano con le ricariche, l'ordinamento e il cambio di vista, e si
     riaprono tutti cambiando cartella o raggruppamento (scelta di Zyruel: non si ritrova una
-    cartella con voci nascoste da giorni). Tooltip: il nome del gruppo, le voci, "Clic: chiudi il
+    cartella con voci nascoste da giorni), o quando un altro programma chiede di mostrare una
+    voce della cartella (`/select`), insieme ai filtri che si tolgono. Tooltip: il nome del gruppo, le voci, "Clic: chiudi il
     gruppo" (o "apri");
   - sull'intestazione il tasto destro apre il menu dello sfondo, il rettangolo parte come dallo
     spazio vuoto e un rilascio di file vale per la cartella aperta: non è una voce;
   - **tastiera**: il cursore sta solo sulle voci, e le frecce passano da un gruppo all'altro
     saltando le intestazioni (↑ ↓ in Icone, ← → in Elenco: la riga o la colonna accanto, nella
-    stessa posizione o nell'ultima voce se è più corta). Da tastiera i gruppi non si chiudono, come
+    stessa posizione o nell'ultima voce se è più corta). Salendo si mostra anche l'intestazione del
+    gruppo della voce; con Home la lista va fino in cima e con Fine fino in fondo, così si vedono
+    anche le intestazioni dei gruppi chiusi prima del primo aperto e dopo l'ultimo. Da tastiera i gruppi non si chiudono, come
     i titoli di sezione della barra laterale (scelta di Zyruel: ← → sono già delle viste, e i tasti
     senza modificatori scrivono nel filtro).
 - **Viste e zoom** (Ctrl+rotellina · controllo della vista nella barra di stato · Ctrl+Shift+2 per
@@ -482,7 +500,9 @@ doppione.
   Il doppio clic ripete il comando solo su ← → ↑ (due passi); su ⚙ ▯ ☆ ˅ ◨ conta come un clic.
   Nel pannello delle opzioni il secondo clic conta come un clic, tranne sulla versione e
   sull'icona dell'aggiornamento (aprirebbero la pagina due volte) e su ‹ › della posizione
-  dell'anteprima (con due valori, la riporterebbe dov'era).
+  dell'anteprima (con due valori, la riporterebbe dov'era). Se il primo clic le chiude (fuori, ×,
+  Apri cartella), il secondo non va a ciò che c'è sotto; chiuse da tastiera (Esc, Ctrl+,) un
+  doppio clic subito dopo vale com'è.
 - **Icone:** dal font di icone di Windows (Segoe Fluent Icons, Segoe MDL2 Assets su Windows 10),
   scala di grigi, dimensione 1,15 × testo; codici in `text.cpp` (`IC_*`). Niente immagini nel
   programma. Le icone di file e cartelle restano quelle della shell.
@@ -504,7 +524,8 @@ doppione.
   pannello sovrapposto ma una parte della finestra, in una di due **posizioni** (˅ accanto a ◨,
   Alt+Shift+P che le alterna, o "Posizione dell'anteprima ‹ A destra ›" nelle opzioni;
   `anteprima_posizione`). Nel menu di ˅ la scorciatoia sta sulla voce della posizione non attiva,
-  dove porterebbe:
+  dove porterebbe. Alt+Shift+P ad anteprima chiusa non mostra niente, quindi lo dice un avviso:
+  "Anteprima spostata in basso: si aprirà lì" ("a destra"). Le posizioni:
   - **a destra** (predefinita): a destra della lista, dall'intestazione al fondo della finestra,
     come la barra laterale; lista, barra dei tempi e barra di stato finiscono alla sua sinistra
     (`A.listR`);
@@ -738,7 +759,8 @@ doppione.
     righe con etichetta a sinistra e controllo a destra, a `GAP_M` dai bordi del fondo della riga;
     eventuale spiegazione sotto in `C_DIM`, a capo dove non entra (mai troncata). Una spiegazione
     che avvisa di uno stato a metà ("[z]f al posto di Explorer" attivo con un altro
-    eseguibile o senza gli zip, con l'interruttore spento) è in `C_ACCENT`;
+    eseguibile o senza gli zip, con l'interruttore spento) è in `C_ACCENT`, come quella della
+    build di prova, dove l'interruttore non cambia il registro (un clic lo dice con un avviso);
   - le righe con un interruttore si cliccano tutte (etichetta e spiegazione) e hanno il fondo
     `C_HOVER_PANEL` sotto il mouse; il contenuto che non entra scorre (rotellina, ↑↓, PagSu
     PagGiù) con la barra `EDGE` dei pannelli (`drawPanelScroll`);
@@ -751,7 +773,8 @@ doppione.
   - sezioni: Aspetto (dimensione del testo, carattere, animazioni), Finestra (barra laterale,
     anteprima, sua posizione, carattere dell'anteprima), Integrazione con Windows ("[z]f al posto
     di Explorer", "Una finestra per ogni cartella aperta da fuori", menu completo, dialoghi), File
-    ("Annullamento anche dopo il riavvio", dimensione delle cartelle), Avvio e aggiornamenti
+    ("Annullamento anche dopo il riavvio", dimensione delle cartelle, "Estensioni dei file nei
+    nomi"), Avvio e aggiornamenti
     ("Schede riaperte all'avvio", "Aggiornamenti automatici" con l'ora dell'ultimo controllo nella
     spiegazione, "Versioni beta"), Scorciatoie e, dopo tutto il resto, Diagnostica ("Barra dei
     tempi"), che serve a chi misura. Scrivendo nella ricerca restano solo le Scorciatoie;

@@ -177,8 +177,8 @@ constexpr int ZIP_TEMP_KEEP = 3 * 24 * 3600 * 1000; // file estratti da uno zip 
 // al massimo ogni DS_TRIM_EVERY
 constexpr int DS_FRESH = 60000, DS_PROGRESS = 100, DS_TRIM_EVERY = 15000;
 // Filtro o gruppi per Dimensione: la vista si rifà coi totali arrivati al più ogni DS_REFILTER.
-// Più lungo di WATCH_BATCH perché in una cartella enorme un rifiltro costa qualche ms (WinSxS: 6,6
-// filtrare, 7,6 raggruppare) e i totali arrivano per tutto il conto: così è circa il 3% del thread
+// Più lungo di WATCH_BATCH perché in una cartella enorme un rifiltro costa qualche ms (WinSxS, filtro
+// e gruppi per Dimensione: circa 6,4) e i totali arrivano per tutto il conto: così è circa il 3% del thread
 constexpr int DS_REFILTER = 250;
 // Salto dei dialoghi Apri e Salva (filedlg.cpp, sul suo thread): ogni FD_POLL si guarda se il
 // dialogo è pronto, per al massimo FD_WAIT_MAX; poi FD_SETTLE di margine (prima, il comando fa

@@ -165,6 +165,22 @@ static void menuOpenPreview(float right, float top) {
     if (m.x + m.w > right) m.x = std::max(px(ui::GAP_XS), floorf(right - m.w));
 }
 
+// Le colonne che si vedono ora (bit per COL_*): nella lista le colonne di Dettagli o, in Elenco e
+// Icone, le etichette per ordinare; nell'anteprima di una cartella le sue colonne di Dettagli (senza
+// Destinazione, a destra solo Dimensione). Il menu delle colonne le confronta prima e dopo un clic:
+// un clic che non cambia niente sullo schermo lo dice un avviso (DESIGN §7, Avvisi)
+static uint32_t colShownNow() {
+    uint32_t m = 0;
+    for (int c : kColOrder)
+        if (A.zoom == ZOOM_DETAILS ? colWanted(c, false) : colSortLabel(c)) m |= 1u << c;
+    if (ListPane* p = A.prevOpen ? pvPane() : nullptr) {
+        PaneScope ps(p);
+        if (A.zoom == ZOOM_DETAILS)
+            for (int c : kColOrder) if (c != COL_LINK && colWanted(c, !A.prevBottom)) m |= 1u << c;
+    }
+    return m;
+}
+
 // Tasto destro sull'intestazione: le colonne, nell'ordine dello schermo, con la spunta su quelle
 // scelte. Nome non c'è: si vede sempre. In Questo PC Tipo (il tipo di unità) c'è sempre (colWanted):
 // lì è spuntato e spento, perché toglierlo non cambierebbe niente; le altre valgono per le cartelle
@@ -428,10 +444,26 @@ static void menuRun(int id, const CmdCtx& c) {
     std::wstring sidePath = si ? si->path : L"";
     if (id >= M_COLUMN && id < M_COLUMN_END) { // menu delle colonne: mostra o nasconde, per tutte le cartelle
         int col = id - M_COLUMN;
+        uint32_t shown = colShownNow();
         A.colOn ^= 1u << col;
         if (!(A.colOn >> col & 1)) { // un filtro che non si vede non resta: nemmeno nelle altre schede
-            for (TabState& t : A.tabs) t.colFilter.clear(col); // (si rileggono tornando attive)
-            if (A.colFilter.on(col)) { A.colFilter.clear(col); rebuildView(true); }
+            // Nemmeno l'ordine per quella colonna: la freccia andrebbe su Nome (colArrow) con le voci
+            // ancora in un altro ordine. Si torna per nome dalla A, in ogni scheda
+            for (int i = 0; i < (int)A.tabs.size(); i++) {
+                if (i == A.tab) continue; // il guscio della scheda attiva è vuoto: il suo stato è in App
+                TabState& t = A.tabs[i];
+                t.colFilter.clear(col); // (si rileggono tornando attive)
+                if (t.sortCol == col) { t.sortCol = COL_NAME; t.sortDesc = false; t.resort = true; }
+            }
+            bool refilter = A.colFilter.on(col);
+            if (refilter) A.colFilter.clear(col);
+            if (A.sortCol == col) { A.sortCol = COL_NAME; A.sortDesc = false; resort(); } // rifà anche la vista
+            else if (refilter) rebuildView(true);
+        }
+        if (!((shown ^ colShownNow()) >> col & 1)) { // qui non si vede: si dice dove vale la scelta
+            bool on = A.colOn >> col & 1;
+            notice(std::wstring(L"Colonna ") + kCols[col].title + (on ? L" mostrata " : L" nascosta ") +
+                   (col == COL_LINK ? L"in Dettagli, nelle cartelle con collegamenti" : L"nelle cartelle"), true);
         }
         layout();
         settingsSave();
@@ -480,7 +512,7 @@ static void menuRun(int id, const CmdCtx& c) {
     case M_PREVIEW_BOTTOM: previewPlace(true); break;
     case M_PREVIEW_SWAP: // dal tasto: ad anteprima chiusa non si vedrebbe niente, quindi lo si dice
         previewPlace(!A.prevBottom);
-        if (!A.prevOpen) notice(A.prevBottom ? L"L'anteprima si aprirà in basso" : L"L'anteprima si aprirà a destra", true);
+        if (!A.prevOpen) notice(A.prevBottom ? L"Anteprima spostata in basso: si aprirà lì" : L"Anteprima spostata a destra: si aprirà lì", true);
         break;
     case M_ICONS_S:      viewZoom(ZOOM_SMALL); break;
     case M_ICONS_M:       viewZoom(ZOOM_MEDIUM); break;

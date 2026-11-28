@@ -68,7 +68,7 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Tasto | Azione |
 |---|---|
 | Invio · doppio clic | Apre la cartella o il file |
-| Alt+↑ · Backspace | Va alla cartella superiore (Backspace: se non c'è un filtro) |
+| Alt+↑ · Backspace | Va alla cartella superiore (Backspace: se non c'è un filtro per nome) |
 | Alt+← · tasto Indietro del mouse o della tastiera · gesto Indietro del touchpad | Va indietro |
 | Alt+→ · tasto Avanti del mouse o della tastiera · gesto Avanti del touchpad | Va avanti |
 | Clic su un segmento del percorso | Va alla cartella di quel segmento |
@@ -94,7 +94,7 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Ctrl+A | Seleziona tutto ciò che è visibile |
 | Lettere | Filtra i nomi mentre si scrive |
 | Backspace | Toglie l'ultima lettera del filtro |
-| Esc | Toglie il filtro, poi la selezione (nell'anteprima, poi torna alla lista) |
+| Esc | Toglie il filtro per nome, poi quelli delle colonne, poi la selezione (nell'anteprima, poi torna alla lista) |
 
 ### File
 
@@ -143,6 +143,7 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Clic su ˅ accanto a ◨ | Mette l'anteprima a destra o in basso |
 | Clic sull'intestazione | Ordina per colonna (di nuovo: al contrario) |
 | Tasto destro sull'intestazione | Sceglie le colonne da mostrare e il raggruppamento |
+| Clic sull'imbuto accanto al titolo di una colonna | Filtra la colonna per i valori presenti |
 | Clic sull'intestazione di un gruppo | Chiude o apre il gruppo |
 | Trascina il bordo di una colonna · doppio clic | Cambia la larghezza della colonna · la adatta al contenuto |
 | Ctrl+D | Aggiunge o toglie dai preferiti |
