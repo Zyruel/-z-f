@@ -8,7 +8,7 @@ erano `0.N`. Ogni rilascio, dalla 1.0.0-beta.2, ha un tag `v<versione>` e una
 versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 [`ARCHITETTURA.md`](docs/ARCHITETTURA.md).
 
-## 1.0.0-beta.9 (in corso)
+## 1.0.0-beta.9 (novembre 2026)
 
 - **Colonne a scelta:** col tasto destro sull'intestazione si scelgono le colonne da mostrare tra
   Destinazione, Tipo, Data modifica, Data creazione, Dimensione e Attributi (Nome c'è sempre); la

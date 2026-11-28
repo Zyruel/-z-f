@@ -145,7 +145,7 @@ static inline uint32_t fadeA(uint32_t c, float a) {
 
 
 // Messaggi interni (thread di lavoro → finestra)
-#define ZF_VERSION L"1.0.0-beta.8" // versione (SemVer) mostrata in fondo alle opzioni
+#define ZF_VERSION L"1.0.0-beta.9" // versione (SemVer) mostrata in fondo alle opzioni
 // Il nome con cui le finestre di [z]f si riconoscono tra loro: classe della finestra, mutex,
 // messaggi tra finestre, cartella in %APPDATA% e in %TEMP%. La build di prova (ZF_DEV) ha il suo,
 // così le finestre di prova non parlano con quelle di chi usa [z]f né ne toccano i file.
