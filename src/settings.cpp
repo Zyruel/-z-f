@@ -9,9 +9,12 @@
 //   animazioni=1           0: niente animazioni (tutto cambia di colpo)
 //   preferiti_aperti=1     0: la sezione Preferiti della barra laterale è chiusa (clic sul titolo)
 //   unita_aperte=1         0: il ramo delle unità sotto Questo PC è chiuso (clic sulla freccia)
-//   colonna_data=150       larghezza delle colonne Data e Dimensione in pixel a scala 100%
-//   colonna_dimensione=100 (trascinando il bordo nell'intestazione; doppio clic: adatta al contenuto)
-//   colonna_destinazione=300  colonna Destinazione, nelle cartelle con collegamenti (.lnk)
+//   colonne=destinazione,tipo,data,dimensione  colonne mostrate dopo Nome (tasto destro sull'intestazione):
+//                          anche creazione e attributi; vuota, solo Nome
+//   colonna_data=150       larghezza delle colonne in pixel a scala 100% (trascinando il bordo
+//   colonna_dimensione=100 nell'intestazione; doppio clic: adatta al contenuto). Anche colonna_tipo,
+//   colonna_destinazione=300  colonna_creazione, colonna_attributi (columns.cpp, kCols)
+//   estensioni=1           0: i nomi dei file nella lista senza l'estensione
 //   anteprima=0            pannello di anteprima (Alt+P)
 //   anteprima_larghezza=360  in pixel a scala 100% (trascinando il bordo; doppio clic: predefinita)
 //   anteprima_posizione=destra  dove sta l'anteprima: destra o basso (˅ accanto a ◨, opzioni)
@@ -32,11 +35,12 @@
 // Si leggono all'avvio sul thread veloce della barra laterale (il thread UI non tocca il disco)
 // e si salvano su un thread a parte, scrivendo un file temporaneo e rinominandolo.
 
+// %APPDATA%\z-f, o %APPDATA%\z-f-dev per la build di prova (ZF_ID)
 static std::wstring zfDataPath(const wchar_t* name) {
     wchar_t buf[MAX_PATH];
     DWORD n = GetEnvironmentVariableW(L"APPDATA", buf, MAX_PATH);
     if (!n || n >= MAX_PATH) return L"";
-    return std::wstring(buf) + L"\\z-f\\" + name;
+    return std::wstring(buf) + L"\\" ZF_ID L"\\" + name;
 }
 
 static std::string toUtf8(const std::wstring& w) {
@@ -56,12 +60,14 @@ static std::wstring fromUtf8(const std::string& s) {
 // Transizione dal vecchio nome: %APPDATA%\zx (fino alla 0.15) diventa %APPDATA%\z-f.
 // Si chiama dal thread d'avvio, prima di leggere preferiti e impostazioni.
 static void migrateLegacyData() {
+#ifndef ZF_DEV // la cartella vecchia è di chi usa [z]f, non della build di prova
     std::wstring nw = zfDataPath(L"");
     if (nw.size() < 4) return;
     nw.pop_back();                                      // ...\z-f
     std::wstring old = nw.substr(0, nw.size() - 3) + L"zx"; // ...\zx
     if (GetFileAttributesW(nw.c_str()) == INVALID_FILE_ATTRIBUTES && GetFileAttributesW(old.c_str()) != INVALID_FILE_ATTRIBUTES)
         MoveFileW(old.c_str(), nw.c_str());
+#endif
 }
 
 // Righe di un file UTF-8 piccolo di %APPDATA%\z-f (senza fine riga e spazi finali). false se non esiste.
@@ -166,9 +172,13 @@ static std::string settingsText() {
     d += std::string("animazioni=") + (A.animations ? "1" : "0") + "\r\n";
     d += std::string("preferiti_aperti=") + (A.favOpen ? "1" : "0") + "\r\n";
     d += std::string("unita_aperte=") + (A.drvOpen ? "1" : "0") + "\r\n";
-    d += "colonna_data=" + std::to_string(lroundf(A.colDate)) + "\r\n";
-    d += "colonna_dimensione=" + std::to_string(lroundf(A.colSize)) + "\r\n";
-    d += "colonna_destinazione=" + std::to_string(lroundf(A.colLink)) + "\r\n";
+    std::string cols;
+    for (int c : kColOrder)
+        if (A.colOn >> c & 1) cols += std::string(cols.empty() ? "" : ",") + kCols[c].key;
+    d += "colonne=" + cols + "\r\n";
+    for (int c = 1; c < COL_COUNT; c++)
+        d += std::string("colonna_") + kCols[c].key + "=" + std::to_string(lroundf(A.colW[c])) + "\r\n";
+    d += std::string("estensioni=") + (A.showExt ? "1" : "0") + "\r\n";
     d += std::string("anteprima=") + (A.prevOpen ? "1" : "0") + "\r\n";
     d += "anteprima_larghezza=" + std::to_string(lroundf(A.prevWidth)) + "\r\n";
     d += std::string("anteprima_posizione=") + (A.prevBottom ? "basso" : "destra") + "\r\n";
@@ -222,11 +232,24 @@ static bool settingsApply(const std::vector<std::wstring>& lines) {
         else if (k == L"animazioni") A.animations = v != L"0";
         else if (k == L"preferiti_aperti") A.favOpen = v != L"0";
         else if (k == L"unita_aperte") A.drvOpen = v != L"0";
-        else if (k == L"colonna_data" || k == L"colonna_dimensione" || k == L"colonna_destinazione") {
-            int n = _wtoi(v.c_str()); // il massimo lo decide la finestra (layout), qui solo i valori assurdi
-            if (n >= (int)ui::COL_MIN && n <= 4000)
-                (k == L"colonna_data" ? A.colDate : k == L"colonna_dimensione" ? A.colSize : A.colLink) = (float)n;
+        else if (k == L"colonne") {
+            A.colOn = 0;
+            for (size_t i = 0; i <= v.size();) {
+                size_t e = v.find(L',', i);
+                if (e == std::wstring::npos) e = v.size();
+                size_t a = i, b = e; // scritta a mano, "tipo, data": senza gli spazi ai capi Data sparirebbe
+                while (a < b && (v[a] == L' ' || v[a] == L'\t')) a++;
+                while (b > a && (v[b - 1] == L' ' || v[b - 1] == L'\t')) b--;
+                int c = colByKey(v.substr(a, b - a));
+                if (c > 0) A.colOn |= 1u << c;
+                i = e + 1;
+            }
         }
+        else if (k.compare(0, 8, L"colonna_") == 0 && colByKey(k.substr(8)) > 0) {
+            int n = _wtoi(v.c_str()); // il massimo lo decide la finestra (layout), qui solo i valori assurdi
+            if (n >= (int)ui::COL_MIN && n <= 4000) A.colW[colByKey(k.substr(8))] = (float)n;
+        }
+        else if (k == L"estensioni") A.showExt = v != L"0";
         else if (k == L"anteprima") A.prevOpen = v != L"0";
         else if (k == L"anteprima_vista") {
             int z = viewParse(v);

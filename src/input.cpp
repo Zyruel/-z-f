@@ -62,6 +62,56 @@ static void historyCmd(int id) {
     menuRun(id, c);
 }
 
+// Ciò che sta sotto il mouse nella lista e nell'anteprima di una cartella: voce, intestazione di
+// gruppo, destinazione di un collegamento. true se è cambiato
+static bool listHoverAt(int x, int y) {
+    bool changed = false;
+    int h = itemAt(x, y);
+    if (h != A.hover) { A.hover = h; changed = true; }
+    int gh = groupHeadAt(x, y);
+    if (gh != A.groupHover) { A.groupHover = gh; changed = true; }
+    if (ListPane* p = pvPane()) { // voce dell'anteprima sotto il mouse
+        int ph = -1;
+        if (ListPane* pp = pvPaneAt(x, y)) { PaneScope ps(pp); ph = itemAt(x, y); }
+        if (ph != p->hover) { p->hover = ph; changed = true; }
+    }
+    int lh = linkHit(x, y);
+    if (lh != A.linkHover) { A.linkHover = lh; changed = true; }
+    if (changed) A.dirty = true;
+    return changed;
+}
+
+// Ciò che sta sotto il mouse nell'intestazione delle colonne: bordo, colonna con l'imbuto del filtro
+// (che si vede solo lì), imbuto stesso. true se è cambiato
+static bool colHeadHoverAt(int x, int y) {
+    bool changed = false;
+    int cb = colBorderAt(x, y);
+    if (cb != A.colHover) { A.colHover = cb; changed = true; }
+    int fh = cb >= 0 ? -1 : colFilterHeadAt(x, y);
+    if (fh != A.colFltHead) { A.colFltHead = fh; changed = true; }
+    int fg = colGlyphAt(x, y); // dopo colFltHead: colGlyphShown ne dipende
+    if (fg != A.colFltGlyph) { A.colFltGlyph = fg; changed = true; }
+    if (changed) A.dirty = true;
+    return changed;
+}
+
+// A ogni frame, dopo scorrimento e layout: la lista può essersi spostata sotto il mouse fermo
+// (rotellina, filtro, ricarica, un gruppo chiuso, la barra laterale nascosta). Senza, l'hover resta
+// sulla voce di prima, che si allontana dal puntatore, finché il mouse non si muove. Non durante
+// ciò che usa il mouse a modo suo (tasti premuti, trascinamenti, menu e pannelli), dove neanche
+// WM_MOUSEMOVE lo aggiorna
+static void hoverFollowList() {
+    tipGroupFollow(); // anche col mouse fermo sulla stessa intestazione, il gruppo può essere cambiato
+    if (!A.trackingMouse || A.menu.open || OP.open || gotoIsOpen() || DD.over || DD.own || GetCapture()) return;
+    if (GetKeyState(VK_LBUTTON) < 0 || GetKeyState(VK_RBUTTON) < 0) return;
+    POINT c;
+    if (!GetCursorPos(&c) || !ScreenToClient(A.hwnd, &c)) return;
+    // Anche l'intestazione delle colonne: dopo Esc dal menu del filtro, o con Ctrl+B e Alt+P che la
+    // spostano, l'imbuto resterebbe acceso su una colonna che non è più sotto il mouse
+    bool head = colHeadHoverAt(c.x, c.y);
+    if (listHoverAt(c.x, c.y) || head) tipHide(); // il tooltip in arrivo o aperto era della voce di prima
+}
+
 static void onKey(WPARAM vk, bool alt) {
     bool ctrl = GetKeyState(VK_CONTROL) < 0, shift = GetKeyState(VK_SHIFT) < 0;
     if (vk == VK_ESCAPE && (mqCancel() || colDragEnd(false) || favMouseUp(false, false) || favDisarm())) return; // rettangolo, bordo, preferito trascinato: si torna a prima; cestino: niente conferma
@@ -101,31 +151,33 @@ static void onKey(WPARAM vk, bool alt) {
     if (cmd) {
         CmdCtx c;
         c.target = A.tab; // Ctrl+W: la scheda attiva
+        c.shift = shift;
         menuRun(cmd, c);
         return;
     }
     if (alt) return;
-    // Icone: ← → una voce, ↑ ↓ una riga. Elenco: ↑ ↓ una voce, ← → una colonna. Dalla prima o
-    // dall'ultima linea non si esce; pagine di linee intere (in Dettagli una riga di contesto)
-    int pl = A.perLine;
-    int page = A.zoom == ZOOM_DETAILS ? std::max(1, (int)(A.listH / A.cellH) - 1) : std::max(1, (int)(viewLen() / lineLen())) * pl;
-    int lastLine = A.view.empty() ? 0 : ((int)A.view.size() - 1) / pl;
+    // Icone: ← → una voce, ↑ ↓ una riga. Elenco: ↑ ↓ una voce, ← → una colonna. Le linee passano
+    // da un gruppo all'altro (lineStep); dalla prima o dall'ultima linea non si esce. Pagine di linee
+    // intere, misurate in pixel per contare le intestazioni dei gruppi (in Dettagli una riga di contesto)
+    float page = A.zoom == ZOOM_DETAILS ? std::max(1, (int)(A.listH / A.cellH) - 1) * A.cellH : std::max(1, (int)(viewLen() / lineLen())) * lineLen();
     bool lst = listView();
+    auto lineMove = [](int dir) { if (int t = lineStep(A.sel, dir); t >= 0) moveSel(t - A.sel); };
     switch (vk) {
-    case VK_UP:     if (lst) moveSel(-1); else if (A.sel >= pl) moveSel(-pl); break;
-    case VK_DOWN:   if (lst) moveSel(1); else if (A.sel / pl < lastLine) moveSel(pl); break;
-    case VK_LEFT:   if (lst) { if (A.sel >= pl) moveSel(-pl); } else if (gridView()) moveSel(-1); break;
-    case VK_RIGHT:  if (lst) { if (A.sel / pl < lastLine) moveSel(pl); } else if (gridView()) moveSel(1); break;
-    case VK_PRIOR:  moveSel(-page); break;
-    case VK_NEXT:   moveSel(page); break;
+    case VK_UP:     if (lst) moveSel(-1); else lineMove(-1); break;
+    case VK_DOWN:   if (lst) moveSel(1); else lineMove(1); break;
+    case VK_LEFT:   if (lst) lineMove(-1); else if (gridView()) moveSel(-1); break;
+    case VK_RIGHT:  if (lst) lineMove(1); else if (gridView()) moveSel(1); break;
+    case VK_PRIOR:  if (!A.view.empty()) moveSel(pageStep(A.sel, -1, page) - A.sel); break;
+    case VK_NEXT:   if (!A.view.empty()) moveSel(pageStep(A.sel, 1, page) - A.sel); break;
     case VK_HOME:   moveSel(-(int)A.view.size()); break;
     case VK_END:    moveSel((int)A.view.size()); break;
     case VK_BACK: // il filtro di chi ha la tastiera (anteprima: nel suo PaneScope); senza, la cartella superiore della lista
         if (!A.filter.empty() && (g_inPane || !kp)) { A.filter.pop_back(); rebuildView(true); A.dirty = true; }
         else goUp();
         break;
-    case VK_ESCAPE: // prima toglie il filtro, poi la selezione (resta solo il cursore)
+    case VK_ESCAPE: // prima toglie il filtro per nome, poi quelli delle colonne, poi la selezione (resta solo il cursore)
         if (!A.filter.empty()) { A.filter.clear(); rebuildView(true); }
+        else if (A.colFilter.any()) { A.colFilter.clear(); rebuildView(true); }
         else if (g_inPane && selCount(nullptr) <= 1) PV.keys = false; // nell'anteprima, poi la tastiera torna alla lista
         else { selOnly(A.sel); }
         A.dirty = true;
@@ -287,8 +339,12 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             }
         }
         break;
-    case WM_CAPTURECHANGED: // un'altra finestra ha preso il mouse: rettangolo e bordo si fermano dove sono
-        if ((HWND)lp != hwnd) { mqEnd(); colDragEnd(true); favMouseUp(false, false); zipDragCancel(); }
+    case WM_CAPTURECHANGED: // un'altra finestra ha preso il mouse (Alt+Tab): rettangolo, bordo e barra di scorrimento si fermano dove sono
+        if ((HWND)lp != hwnd) {
+            mqEnd(); colDragEnd(true); favMouseUp(false, false); zipDragCancel();
+            A.draggingThumb = false; // senza, lo scorrimento seguirebbe il mouse senza tasto premuto
+            if (ListPane* p = pvPane()) p->draggingThumb = false;
+        }
         break;
     case WM_CONTEXTMENU:
         if (OP.open || gotoIsOpen()) return 0;
@@ -387,6 +443,12 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             sideLoad(true);
         }
         return TRUE;
+    case WM_TIMECHANGE: // ora di sistema cambiata: "Oggi", "Ieri"… dei filtri e dei gruppi per data
+        onDayChange(true);
+        return 0;
+    case WM_POWERBROADCAST: // ritorno dalla sospensione: la mezzanotte può essere passata mentre il PC dormiva
+        if (wp == PBT_APMRESUMEAUTOMATIC) onDayChange(false);
+        break;
     case WM_ACTIVATEAPP: // tornando su [z]f lo spazio libero può essere cambiato (al massimo ogni 5 s)
         if (wp && nowMs() - A.sideLoadedAt > ui::SIDE_RELOAD) sideLoad();
         if (wp) fdActivated(); // i dialoghi Apri e Salva guardano questa finestra
@@ -452,6 +514,8 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (wp == 3) { KillTimer(hwnd, 3); A.changePending = false; requestRefresh(); }
         if (wp == 4) { KillTimer(hwnd, 4); onGpuReady(); }
         if (wp == 13) { KillTimer(hwnd, 13); gpuRecoverStart(); return 0; } // GPU persa: nuovo tentativo
+        if (wp == 18) { KillTimer(hwnd, 18); g_sizeRefilter = false; if (viewUsesDirTotals()) refilterQuiet(); return 0; } // totali di cartelle arrivati, col filtro o i gruppi per Dimensione
+        if (wp == 19) { onDayChange(false); return 0; } // mezzanotte: filtri e gruppi per data
         if (wp == 14) { zipOnTimer(); return 0; } // estrazione da uno zip che dura
         if (wp == 15) { updOnTimer(); return 0; } // aggiornamento: un controllo al giorno
         if (wp == 17) { KillTimer(hwnd, 17); g_pvChangePending = false; previewRefresh(); return 0; } // cartella dell'anteprima cambiata: al massimo una rilettura ogni WATCH_BATCH
@@ -543,20 +607,11 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (optionsMouseMove(x, y)) { tipMouseMove(x, y); return 0; }
         if (dragCheck(x, y, wp)) return 0;
         if (mqMouseMove(x, y, wp)) return 0;
-        int cb = colBorderAt(x, y);
-        if (cb != A.colHover) { A.colHover = cb; A.dirty = true; }
+        colHeadHoverAt(x, y);
         if (A.draggingThumb) { listThumbDrag(x, y); return 0; }
         if (ListPane* p = pvPane(); p && p->draggingThumb) { PaneScope ps(p); listThumbDrag(x, y); return 0; }
-        int h = itemAt(x, y);
-        if (h != A.hover) { A.hover = h; A.dirty = true; }
-        if (ListPane* p = pvPane()) { // voce dell'anteprima sotto il mouse
-            int ph = -1;
-            if (ListPane* pp = pvPaneAt(x, y)) { PaneScope ps(pp); ph = itemAt(x, y); }
-            if (ph != p->hover) { p->hover = ph; A.dirty = true; }
-        }
+        listHoverAt(x, y);
         if (pvViewAt(x, y) != PV.viewHover) { PV.viewHover = !PV.viewHover; A.dirty = true; }
-        int lh = linkHit(x, y);
-        if (lh != A.linkHover) { A.linkHover = lh; A.dirty = true; }
         bool closeHit, plusHit;
         int t = tabHit(x, y, &closeHit, &plusHit);
         if (t != A.tabHover || closeHit != A.tabCloseHover || plusHit != A.tabPlusHover) {
@@ -587,7 +642,9 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         tipHide();
         chromeSetHover(CH_NONE);
         if (A.colHover >= 0) { A.colHover = -1; A.dirty = true; }
+        if (A.colFltHead >= 0 || A.colFltGlyph >= 0) { A.colFltHead = A.colFltGlyph = -1; A.dirty = true; }
         if (A.favTrashHover >= 0) { A.favTrashHover = -1; A.dirty = true; }
+        if (A.groupHover >= 0) { A.groupHover = -1; A.dirty = true; }
         if (ListPane* p = pvPane(); p && p->hover >= 0) { p->hover = -1; A.dirty = true; }
         if (PV.viewHover) { PV.viewHover = false; A.dirty = true; }
         if (ListPane* p = pvPane(); p && p->fltClearHover) { p->fltClearHover = false; A.dirty = true; }
@@ -608,6 +665,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             int id = A.menu.kind == MENU_CRUMB ? crumbHit(x, y) : -1;
             bool other = (id == CRUMB_ELL || (id >= 0 && (id & 1))) && !(id & 1 && id / 2 == CB.menuFor);
             menuClose();
+            g_menuClickAt = nowMs();
             if (other) crumbClick(x, y);
             return 0;
         }
@@ -668,10 +726,11 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (!pp && y < A.listTop) { // intestazione: bordo → larghezza della colonna; altrove → ordinamento
             int b = colBorderAt(x, y);
             if (b >= 0) { colDragStart(b, x, y); return 0; }
+            if (int fc = colGlyphAt(x, y); fc >= 0) { menuOpenFilter(fc, colGlyphBox(fc).x); return 0; } // imbuto: il filtro della colonna
             int col = colAt(x);
             if (col < 0) return 0; // Elenco e Icone: fuori dalle etichette
             if (col == A.sortCol) A.sortDesc = !A.sortDesc;
-            else { A.sortCol = col; A.sortDesc = col == COL_DATE || col == COL_SIZE; } // nomi e percorsi dalla A
+            else { A.sortCol = col; A.sortDesc = kCols[col].desc; } // date e dimensioni dal più recente e dal più grande, il resto dalla A
             resort();
             A.dirty = true;
             return 0;
@@ -712,6 +771,11 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         // è partito il rettangolo, apre la cartella della destinazione (WM_LBUTTONUP)
         A.linkPress = shift || ctrl ? -1 : linkHit(x, y);
         A.linkPressFor = A.cur;
+        // Intestazione di un gruppo: chiude o apre al rilascio, se non è partito il rettangolo
+        // (che da lì parte come dallo spazio vuoto)
+        int gp = r < 0 ? groupHeadAt(x, y) : -1;
+        A.groupPressed = gp >= 0;
+        if (gp >= 0) { A.groupPressV = A.groups[gp].v; A.groupPressPath = A.cur->path; A.groupPressCol = A.groupCol; }
         mqPress(x, y, r, shift, ctrl);
         return 0;
     }
@@ -736,6 +800,7 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_RBUTTONDOWN:
         tipHide();
         if (A.menu.open && !menuInside(GET_X_LPARAM(lp), GET_Y_LPARAM(lp))) menuClose(); // poi WM_CONTEXTMENU lo riapre qui
+        else if (OP.open || gotoIsOpen()) {} // sotto il pannello niente menu (WM_CONTEXTMENU) né tastiera che passa alla lista
         else {
             int x = GET_X_LPARAM(lp), y = GET_Y_LPARAM(lp);
             ListPane* pp = pvPaneAt(x, y);
@@ -769,16 +834,27 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             A.linkPress = -1;
             bool linkClick = pressed >= 0 && MQ.armed && A.cur == A.linkPressFor &&
                              linkHit(GET_X_LPARAM(lp), GET_Y_LPARAM(lp)) == pressed;
+            // Clic sull'intestazione di un gruppo: premuto e rilasciato lì, senza rettangolo
+            int head = A.groupPressed && MQ.armed && !MQ.preview ? groupHeadAt(GET_X_LPARAM(lp), GET_Y_LPARAM(lp)) : -1;
+            bool headClick = head >= 0 && A.cur && A.groupCol == A.groupPressCol && colValueSame(A.groups[head].v, A.groupPressV) &&
+                             !_wcsicmp(A.cur->path.c_str(), A.groupPressPath.c_str());
+            A.groupPressed = false;
             mqEnd(); // il clic è già stato applicato alla pressione
             zipDragCancel();
             dragRelease();
             if (linkClick) { A.linkClickAt = nowMs(); linkOpen(pressed, false); }
+            if (headClick) { A.groupClickAt = nowMs(); groupToggle(head); }
         }
         return 0;
     case WM_LBUTTONDBLCLK: {
         int y = GET_Y_LPARAM(lp), x = GET_X_LPARAM(lp);
         if (gotoDblClk(x, y, (wp & MK_CONTROL) != 0)) return 0;
-        if (!A.menu.open && nowMs() - g_menuClickAt < GetDoubleClickTime()) return 0; // il primo clic era su una voce di menu
+        // Un menu rimasto aperto dopo il primo clic (voci a spunta): il secondo conta come un clic, al
+        // rilascio. Senza, finirebbe alla voce della lista che il menu copre
+        if (A.menu.open && menuInside(x, y)) { A.menu.pressed = true; return 0; }
+        // Il primo clic era su una voce di menu: il secondo non va a ciò che c'è sotto, anche se la voce
+        // ha aperto un altro menu più corto al suo posto ("Raggruppa per…") e il clic cade fuori
+        if (nowMs() - g_menuClickAt < GetDoubleClickTime()) return 0;
         int chId = chromeHit(x, y);
         bool nav = chId >= CH_BACK && chId <= CH_UP;
         // ⚙ ▯ ☆ ˅ ◨: il secondo clic non riapre né richiude. Prima delle opzioni: su ⚙, appena
@@ -793,6 +869,11 @@ static LRESULT CALLBACK wndProcImpl(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         // Il primo clic ha aperto la destinazione di un collegamento: il secondo non apre la voce
         // che intanto è finita sotto il mouse (o il collegamento stesso, se la cartella è lenta)
         if (nowMs() - A.linkClickAt < GetDoubleClickTime()) { A.linkClickAt = -1e9; return 0; }
+        // Intestazione di un gruppo: il primo clic l'ha già chiuso o aperto al rilascio, il secondo non
+        // lo riapre né lo richiude (come ˅ della barra laterale: il doppio clic conta come un clic), né
+        // apre la voce che intanto è finita sotto il mouse (chiudendo, in fondo la lista scorre)
+        if (nowMs() - A.groupClickAt < GetDoubleClickTime()) { A.groupClickAt = -1e9; return 0; }
+        if (groupHeadAt(x, y) >= 0) return 0;
         // Nell'anteprima: un file si apre; una cartella (o uno zip) in una nuova scheda in background
         // (navigate, dal PaneScope)
         PaneScope ps(pvPaneAt(x, y));

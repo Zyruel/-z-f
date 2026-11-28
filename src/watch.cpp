@@ -165,12 +165,10 @@ static std::wstring g_pvWatchPath;
 static bool g_pvChangePending = false; // una rilettura aspetta il timer 17: le notifiche intanto si sommano
 static bool g_pvWatchOff = false;      // l'osservatore si è perso: F5 riprova, come per la lista (A.watching)
 
-// La cartella mostrata dall'anteprima (nullptr: nessuna). Solo locali: su una condivisione aprire la
+// Osserva la cartella path dell'anteprima ("": nessuna). Solo locali: su una condivisione aprire la
 // cartella può costare secondi e tenerla aperta la blocca; lì si rilegge con F5 e dopo le operazioni
-// fatte da [z]f (onFileJob, onFsDone). Dentro uno zip niente: l'archivio non avvisa (lo dice zipLen,
-// non il nome: una vera cartella "Backup.zip" si osserva). retry: F5, anche sulla stessa cartella
-static void previewWatch(const Listing* l, bool retry = false) {
-    std::wstring path = l && !l->zipLen ? l->path : L"";
+// fatte da [z]f (onFileJob, onFsDone). retry: F5, anche sulla stessa cartella
+static void previewWatchPath(std::wstring path, bool retry) {
     if (path == g_pvWatchPath && !(retry && g_pvWatchOff)) return;
     g_pvWatchPath = path;
     g_pvWatchOff = false;
@@ -192,6 +190,11 @@ static void previewWatch(const Listing* l, bool retry = false) {
     if (!th) { CloseHandle(stop); CloseHandle(mine); delete c; return; }
     CloseHandle(th);
     g_pvWatchStop = mine;
+}
+// La cartella mostrata dall'anteprima (nullptr: nessuna). Dentro uno zip niente: l'archivio non
+// avvisa (lo dice zipLen, non il nome: una vera cartella "Backup.zip" si osserva)
+static void previewWatch(const Listing* l, bool retry = false) {
+    previewWatchPath(l && !l->zipLen ? l->path : L"", retry);
 }
 
 static bool previewWatching() { return g_pvWatchStop && !g_pvWatchOff; } // F12
@@ -219,9 +222,12 @@ static void requestRefresh() {
     navigate(A.cur->path, 0, L"", true);
 }
 
-// F5, "Aggiorna": ricarica subito; se la cartella non era osservata (watcher fallito) si riprova
+// F5, "Aggiorna": ricarica subito; se la cartella non era osservata (watcher fallito) si riprova.
+// Dalla lista vale anche per l'anteprima di una cartella che non era più osservata: F5 è "rileggi
+// tutto", e l'utente non deve sapere quale delle due liste ha perso le notifiche
 static void refreshNow() {
     if (g_inPane) { previewWatch(A.cur, true); previewRefresh(); return; } // F5 o "Aggiorna" nell'anteprima
+    if (g_pvWatchOff) { previewWatchPath(g_pvWatchPath, true); previewRefresh(); }
     if (!A.cur) return;
     if (!A.watching) startWatch(A.cur->path);
     A.changeAt = nowMs();

@@ -1,23 +1,22 @@
 // [z]f — logica della vista: layout, selezione, filtro, navigazione, ricariche, formattazione.
 
-// Spazio per le colonne dopo il nome (Destinazione, Data, Dimensione): tutto tranne il minimo del nome
+// Spazio per le colonne dopo il nome: tutto tranne il minimo del nome
 static float colRoom() { return A.listR - A.sbW - A.padX - A.listX - px(ui::COL_NAME_MIN); }
 
-// Colonna Destinazione: in Dettagli, nelle cartelle con almeno un collegamento (links.cpp)
-static bool linkColumn() { return A.zoom == ZOOM_DETAILS && A.cur && !A.cur->lnk.empty(); }
-
-// Larghezza massima di Destinazione con Data in dateX: mai più larga di Nome. Senza questo
-// limite, con la finestra stretta Nome restava al suo minimo e lo spazio in più andava tutto a
-// Destinazione; così le due colonne crescono e calano insieme.
-static float linkMax(float dateX) { return floorf((dateX - A.listX) * ui::LINK_MAX); }
+// Larghezza massima di Destinazione con la colonna dopo in nextX: mai più larga di Nome. Senza
+// questo limite, con la finestra stretta Nome restava al suo minimo e lo spazio in più andava tutto
+// a Destinazione; così le due colonne crescono e calano insieme.
+static float linkMax(float nextX) { return floorf((nextX - A.listX) * ui::LINK_MAX); }
 
 // Larghezza dell'anteprima che la lista lascia libera con le colonne al minimo. L'anteprima tiene
 // la larghezza scelta e le colonne si adattano allo spazio che resta: se l'anteprima prendesse
 // solo quello che avanza dalle colonne alla larghezza scelta, ogni colonna stretta col mouse la
 // allargherebbe, e allargare una colonna sarebbe impossibile (ci si scontra con l'anteprima).
+// Si contano le colonne di Dettagli anche nelle altre viste: cambiando vista l'anteprima non salta.
 static float previewRoom() {
-    float cols = px(ui::COL_MIN) * (linkColumn() ? 3 : 2);
-    return floorf((float)G.w - A.listX - px(ui::COL_NAME_MIN) - cols - A.padX - A.sbW);
+    int n = 0;
+    for (int c : kColOrder) n += colWanted(c, false);
+    return floorf((float)G.w - A.listX - px(ui::COL_NAME_MIN) - px(ui::COL_MIN) * n - A.padX - A.sbW);
 }
 
 // In basso: l'altezza che lascia alla lista l'intestazione, PREVIEW_LIST_ROWS righe e le barre in fondo
@@ -59,6 +58,7 @@ static float lineLen();
 static float viewLen();
 static bool cursorInView(float s, bool whole);
 static void ensureVisible();
+static void groupsPlace();
 
 // La geometria di prima, presa prima di cambiare i bordi: il cursore che si vedeva resta in vista
 // anche con quella nuova (l'anteprima che si apre stringe Elenco e la colonna del cursore uscirebbe
@@ -68,23 +68,35 @@ static LayoutKeep layoutKeep() { return { cursorInView(A.scrollY, false), A.perL
 
 // Geometria delle voci dentro listX…listR, da listTop per listH, nella vista di A.zoom: colonne e
 // celle. La lista principale (layout) e l'anteprima di una cartella (preview.cpp, nel suo
-// PaneScope), che in Dettagli non ha Destinazione e, a destra, nemmeno Data (noDate).
+// PaneScope), che in Dettagli non ha Destinazione e, a destra, solo Dimensione (noDate).
 static void layoutItems(bool noDate, const LayoutKeep& k) {
-    // Colonne: Nome prende quello che avanza, Destinazione (se c'è), Data e Dimensione sono
-    // allineate a destra. Se la finestra è stretta si stringono prima Destinazione, poi Data e poi
-    // Dimensione, fino al minimo (senza salvare); Destinazione inoltre non supera Nome (linkMax).
-    A.dateW = noDate ? 0 : px(A.colDate);
-    A.sizeW = px(A.colSize);
-    A.linkW = !noDate && linkColumn() ? px(A.colLink) : 0;
-    float right = A.listR - A.sbW - A.padX, room = colRoom(), mn = px(ui::COL_MIN);
-    if (A.linkW > 0 && A.linkW + A.dateW + A.sizeW > room) A.linkW = std::max(mn, room - A.dateW - A.sizeW);
-    if (A.dateW > 0 && A.linkW + A.dateW + A.sizeW > room) A.dateW = std::max(mn, room - A.sizeW - A.linkW);
-    if (A.linkW + A.dateW + A.sizeW > room) A.sizeW = std::max(mn, room - A.dateW - A.linkW);
-    A.sizeX = right - A.sizeW;
-    A.dateX = A.sizeX - A.dateW;
-    if (A.linkW > 0) A.linkW = std::max(mn, std::min(A.linkW, linkMax(A.dateX)));
-    A.linkX = A.dateX - A.linkW;
-    A.nameEnd = A.linkX - A.padX; // senza Destinazione linkX è dateX
+    // Colonne, solo in Dettagli: Nome prende quello che avanza, le altre stanno a destra nell'ordine
+    // di kColOrder. Se la finestra è stretta cedono nell'ordine di kColYield, ognuna fino al minimo
+    // (senza salvare); Destinazione inoltre non supera Nome (linkMax).
+    float right = A.listR - A.sbW - A.padX, room = colRoom(), mn = px(ui::COL_MIN), total = 0;
+    for (int c = 0; c < COL_COUNT; c++) {
+        A.colWd[c] = A.zoom == ZOOM_DETAILS && c != COL_NAME && colWanted(c, noDate) ? px(A.colW[c]) : 0;
+        total += A.colWd[c];
+    }
+    for (int c : kColYield)
+        if (A.colWd[c] > 0 && total > room) {
+            float w = std::max(mn, A.colWd[c] - (total - room));
+            total -= A.colWd[c] - w;
+            A.colWd[c] = w;
+        }
+    // Da destra: ogni colonna comincia dove finisce quella prima (una nascosta, larga 0, comincia
+    // dove comincia la successiva)
+    float x = right;
+    for (int i = COL_COUNT - 2; i >= 0; i--) {
+        x -= A.colWd[kColOrder[i]];
+        A.colX[kColOrder[i]] = x;
+    }
+    if (A.colWd[COL_LINK] > 0) { // Destinazione è la prima da sinistra: si stringe verso destra
+        float next = A.colX[COL_LINK] + A.colWd[COL_LINK];
+        A.colWd[COL_LINK] = std::max(mn, std::min(A.colWd[COL_LINK], linkMax(next)));
+        A.colX[COL_LINK] = next - A.colWd[COL_LINK];
+    }
+    A.nameEnd = A.colX[kColOrder[0]] - A.padX;
     // Voci: in Dettagli una colonna di righe. In Icone il riquadro della miniatura a GAP_M dai
     // bordi, sotto il nome su GRID_NAME_LINES righe; le voci di una riga si dividono la larghezza.
     // In Elenco colonne larghe LIST_COL_W di righe alte una riga, quante ne stanno sopra la barra di
@@ -102,7 +114,7 @@ static void layoutItems(bool noDate, const LayoutKeep& k) {
         float m = px(ui::GAP_XS); // più GAP_XS di fondo: le righe cominciano a GAP_S come in Dettagli
         A.thumbPx = 0;
         A.cellH = A.rowH;
-        A.perLine = std::max(1, (int)((A.listH - A.sbW) / A.rowH));
+        A.perLine = std::max(1, (int)((A.listH - A.sbW) / A.rowH) - (grouped() ? 1 : 0)); // con i gruppi la prima riga è delle intestazioni
         A.cellW = std::max(1.0f, std::min(px(ui::LIST_COL_W), lw - m * 2));
         A.cellX = A.listX + m;
     } else {
@@ -112,6 +124,7 @@ static void layoutItems(bool noDate, const LayoutKeep& k) {
         A.cellX = A.listX;
         A.cellH = A.rowH;
     }
+    groupsPlace();
     bool changed = A.perLine != k.perLine || lineLen() != k.line || viewLen() != k.view;
     if (k.cursor && changed && viewLen() > 0 && !cursorInView(A.scrollTarget, true)) ensureVisible();
 }
@@ -178,21 +191,18 @@ static void layout() {
     layoutItems(false, keep);
 }
 
-// Bordo b tra due colonne: 0 a sinistra di Data, 1 a sinistra di Dimensione, 2 a sinistra di
-// Destinazione (se c'è); a metà dello spazio tra il testo di una colonna e quello della successiva.
-// Ogni bordo comanda la colonna alla sua destra: colChosen è il valore scelto (impostazioni.txt),
-// colShown la larghezza mostrata adesso.
-static float colBorderX(int b) { return (b == 0 ? A.dateX : b == 1 ? A.sizeX : A.linkX) - floorf(A.padX * 0.5f); }
+// Bordo b tra due colonne: quello a sinistra della colonna b (COL_*), a metà dello spazio tra il
+// testo della colonna prima e il suo. Ogni bordo comanda la colonna alla sua destra: colChosen è
+// il valore scelto (impostazioni.txt), colShown la larghezza mostrata adesso.
+static float colBorderX(int b) { return A.colX[b] + (colAfterRight(b) ? 1 : -1) * floorf(A.padX * 0.5f); }
 // Oltre ai bordi delle colonne si trascinano con lo stesso gesto quelli dei pannelli (barra
 // laterale, anteprima): cursore ↔, Esc torna a prima, si salva al rilascio (listmouse.cpp).
-enum { EDGE_SIDE = 3, EDGE_PREVIEW = 4 };
+enum { EDGE_SIDE = COL_COUNT, EDGE_PREVIEW };
 static float& colChosen(int b) {
-    return b == 0 ? A.colDate : b == 1 ? A.colSize : b == 2 ? A.colLink : b == EDGE_SIDE ? A.sideWidth
-         : A.prevBottom ? A.prevHeight : A.prevWidth;
+    return b < COL_COUNT ? A.colW[b] : b == EDGE_SIDE ? A.sideWidth : A.prevBottom ? A.prevHeight : A.prevWidth;
 }
 static float colShown(int b) {
-    return b == 0 ? A.dateW : b == 1 ? A.sizeW : b == 2 ? A.linkW : b == EDGE_SIDE ? A.sideW
-         : A.prevBottom ? A.prevH : A.prevW;
+    return b < COL_COUNT ? A.colWd[b] : b == EDGE_SIDE ? A.sideW : A.prevBottom ? A.prevH : A.prevW;
 }
 // Bordo di un pannello sotto il mouse: EDGE_SIDE, EDGE_PREVIEW o -1. Barra laterale per tutta
 // l'altezza: COL_GRIP per lato (la lista ha GAP_S di margine). Anteprima per tutto il suo lato:
@@ -215,18 +225,49 @@ static bool edgeVertical(int b) { return b == EDGE_PREVIEW && A.prevBottom; }
 static int colBorderAt(int x, int y) {
     if (A.zoom != ZOOM_DETAILS) return -1; // in Elenco e Icone l'intestazione ha solo le etichette per ordinare
     if (y < A.sideTop || y >= A.listTop || x < A.listX || x >= A.listR - A.sbW) return -1;
-    for (int b = A.linkW > 0 ? 2 : 1; b >= 0; b--)
-        if (fabsf(x - colBorderX(b)) <= px(ui::COL_GRIP)) return b;
+    for (int i = COL_COUNT - 2; i >= 0; i--) {
+        int c = kColOrder[i];
+        if (A.colWd[c] > 0 && fabsf(x - colBorderX(c)) <= px(ui::COL_GRIP)) return c;
+    }
     return -1;
 }
 // Colonna dell'intestazione sotto x; in Elenco e Icone l'etichetta (sortX, dal disegno), -1 fuori
 static int colAt(int x) {
     if (A.zoom != ZOOM_DETAILS) {
-        for (int c = 0; c < 3; c++)
-            if (x >= A.sortX[c] - px(ui::GAP_S) && x < A.sortX[c + 1] - px(ui::GAP_XL) + px(ui::GAP_S)) return c;
+        for (int i = 0; i < A.sortN; i++)
+            if (x >= A.sortX[i] - px(ui::GAP_S) && x < A.sortX[i + 1] - px(ui::GAP_XL) + px(ui::GAP_S)) return A.sortC[i];
         return -1;
     }
-    return x >= colBorderX(1) ? COL_SIZE : x >= colBorderX(0) ? COL_DATE : A.linkW > 0 && x >= colBorderX(2) ? COL_LINK : COL_NAME;
+    for (int i = COL_COUNT - 2; i >= 0; i--) {
+        int c = kColOrder[i];
+        if (A.colWd[c] > 0 && x >= colBorderX(c)) return c;
+    }
+    return COL_NAME;
+}
+
+struct Box { float x, y, w, h; };
+// Imbuto del filtro della colonna c nell'intestazione di Dettagli (colHeadParts, columns.cpp): il
+// rettangolo cliccabile, con GAP_XS intorno, alto l'intestazione meno GAP_XS sopra e sotto
+static Box colGlyphBox(int c) {
+    HeadParts h = colHeadParts(c, colTitle(c, colArrow() == c), true);
+    float m = px(ui::GAP_XS);
+    return { h.glyphX - m, A.sideTop + m, (float)F.lineH + m * 2, A.headH - 1 - m * 2 };
+}
+// Colonna dell'imbuto sotto il punto, -1 se nessuna (solo dove si vede)
+static int colGlyphAt(int x, int y) {
+    if (A.zoom != ZOOM_DETAILS || y < A.sideTop || y >= A.listTop) return -1;
+    for (int c : kColOrder) {
+        if (!colGlyphShown(c)) continue;
+        Box b = colGlyphBox(c);
+        if (x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) return c;
+    }
+    return -1;
+}
+// Colonna con filtro la cui intestazione è sotto il punto (l'imbuto compare lì), -1 se nessuna
+static int colFilterHeadAt(int x, int y) {
+    if (A.zoom != ZOOM_DETAILS || A.colDrag >= 0 || y < A.sideTop || y >= A.listTop || x < A.listX || x >= A.listR - A.sbW) return -1;
+    int c = colAt(x);
+    return colFilterable(c) && A.colWd[c] > 0 ? c : -1;
 }
 
 // --- animazioni ---------------------------------------------------------------------------
@@ -258,7 +299,56 @@ static float easeOut(float t) { t = t < 0 ? 0 : (t > 1 ? 1 : t); float u = 1 - t
 // Lunghezza di una linea e spazio visibile lungo l'asse
 static float lineLen() { return listView() ? A.cellW : A.cellH; }
 static float viewLen() { return listView() ? itemsRight() - A.listX - (A.cellX - A.listX) * 2 : A.listH; }
-static float contentLen() { return (float)((A.view.size() + A.perLine - 1) / A.perLine) * lineLen(); }
+
+// --- gruppi (columns.cpp, groupsBuild): ogni gruppo è un'intestazione e le sue linee di voci ---
+// In Dettagli e Icone l'intestazione è una riga lungo l'asse, sopra le voci; in Elenco sta nella
+// prima riga in alto (perLine ne tiene conto) e lungo l'asse non prende spazio. Tra i gruppi GROUP_GAP.
+static float groupHeadLen() { return listView() ? 0 : A.rowH; }
+static int groupLines(const Group& g) { return (g.n + A.perLine - 1) / A.perLine; }
+// Lunghezza di un gruppo lungo l'asse: in Elenco almeno una colonna, che porta l'intestazione
+static float groupLen(const Group& g) {
+    int lines = groupLines(g);
+    if (listView()) lines = std::max(lines, 1);
+    return groupHeadLen() + lines * lineLen();
+}
+// Dove comincia ogni gruppo (Group::at): dopo ogni cambio di geometria (layoutItems) o di gruppi
+// (applyFilter)
+static void groupsPlace() {
+    float at = 0;
+    for (size_t i = 0; i < A.groups.size(); i++) {
+        if (i) at += px(ui::GROUP_GAP);
+        A.groups[i].at = at;
+        at += groupLen(A.groups[i]);
+    }
+}
+// Il gruppo della voce vi (che è nella vista, quindi in un gruppo aperto): l'ultimo che comincia
+// prima; i gruppi chiusi hanno lo stesso first del gruppo dopo e stanno prima di lui
+static int groupOf(int vi) {
+    auto it = std::upper_bound(A.groups.begin(), A.groups.end(), vi, [](int v, const Group& g) { return v < g.first; });
+    return std::max(0, (int)(it - A.groups.begin()) - 1);
+}
+// L'ultimo gruppo che comincia prima della posizione a lungo l'asse (contenuto), o a a: nello spazio
+// tra due gruppi quello prima; 0 se a è prima del primo. Solo con A.groups non vuota
+static int groupAtLen(float a) {
+    auto it = std::upper_bound(A.groups.begin(), A.groups.end(), a, [](float v, const Group& g) { return v < g.at; });
+    return std::max(0, (int)(it - A.groups.begin()) - 1);
+}
+static float contentLen() {
+    if (!A.groups.empty()) return A.groups.back().at + groupLen(A.groups.back());
+    return (float)((A.view.size() + A.perLine - 1) / A.perLine) * lineLen();
+}
+// Inizio lungo l'asse della linea della voce vi (contenuto)
+static float itemAlong(int vi) {
+    if (A.groups.empty()) return (float)(vi / A.perLine) * lineLen();
+    const Group& g = A.groups[groupOf(vi)];
+    return g.at + groupHeadLen() + (float)((vi - g.first) / A.perLine) * lineLen();
+}
+// La voce vi è nella prima linea del suo gruppo: scorrendo fin lì si mostra anche l'intestazione
+static float itemAlongWithHead(int vi) {
+    if (A.groups.empty()) return itemAlong(vi);
+    const Group& g = A.groups[groupOf(vi)];
+    return vi - g.first < A.perLine ? g.at : itemAlong(vi);
+}
 static float maxScroll() { return std::max(0.0f, contentLen() - viewLen()); }
 static void clampScroll() {
     A.scrollTarget = std::min(std::max(A.scrollTarget, 0.0f), maxScroll());
@@ -281,13 +371,17 @@ static void scrollOffset(float& ox, float& oy) {
 
 // --- voci: un solo posto per "rettangolo di una voce" e "voce sotto il punto" ----------------
 // Dettagli, Elenco e Icone passano da qui (in Dettagli: una colonna alta una riga).
-struct Box { float x, y, w, h; };
 // Rettangolo della voce vi nel contenuto, senza scorrimento: x come nella finestra, y da 0 =
 // inizio della lista. Nella finestra: (x - ox, listTop + y - oy), con scrollOffset.
 static Box itemRect(int vi) {
-    int line = vi / A.perLine, k = vi % A.perLine;
-    if (listView()) return { A.cellX + line * A.cellW, k * A.cellH, A.cellW, A.cellH };
-    return { A.cellX + k * A.cellW, line * A.cellH, A.cellW, A.cellH };
+    int k = vi % A.perLine;
+    float along = itemAlong(vi), cross = 0;
+    if (!A.groups.empty()) { // k dall'inizio del gruppo; in Elenco sotto la riga delle intestazioni
+        k = (vi - A.groups[groupOf(vi)].first) % A.perLine;
+        if (listView()) cross = A.rowH;
+    }
+    if (listView()) return { A.cellX + along, cross + k * A.cellH, A.cellW, A.cellH };
+    return { A.cellX + k * A.cellW, along, A.cellW, A.cellH };
 }
 // Fondo di hover, selezione e cursore: in Dettagli con un margine di GAP_S ai lati, in Elenco di
 // GAP_XS ai lati (le colonne non si toccano, le righe sì), in Icone di GAP_XS tutto intorno
@@ -320,33 +414,83 @@ static int itemAt(int x, int y) {
     float ox, oy;
     scrollOffset(ox, oy);
     float cx = x + ox - A.cellX, cy = y - A.listTop + oy;
-    int line, k;
-    if (listView()) { line = (int)floorf(cx / A.cellW); k = (int)floorf(cy / A.cellH); }
-    else { line = (int)floorf(cy / A.cellH); k = gridView() ? (int)floorf(cx / A.cellW) : 0; }
+    float along = listView() ? cx : cy, cross = listView() ? cy : cx;
+    int first = 0, n = (int)A.view.size();
+    if (!A.groups.empty()) { // il gruppo lungo l'asse; fuori dalle sue voci (intestazione, spazio tra i gruppi) nessuna
+        const Group& g = A.groups[groupAtLen(along)];
+        along -= g.at + groupHeadLen();
+        if (listView()) cross -= A.rowH;
+        if (along < 0 || cross < 0) return -1;
+        first = g.first;
+        n = g.n;
+    }
+    int line = (int)floorf(along / lineLen()), k = listView() ? (int)floorf(cross / A.cellH) : gridView() ? (int)floorf(cross / A.cellW) : 0;
     if (line < 0 || k < 0 || k >= A.perLine) return -1;
     int i = line * A.perLine + k;
-    return i < (int)A.view.size() ? i : -1;
+    return i < n ? first + i : -1;
+}
+// Intestazione di gruppo sotto il punto (coordinate della finestra): l'indice in A.groups, -1 se nessuna
+static int groupHeadAt(int x, int y) {
+    if (A.groups.empty() || y < A.listTop || y >= A.listTop + A.listH || x < A.listX || x >= itemsRight()) return -1;
+    float ox, oy;
+    scrollOffset(ox, oy);
+    float cx = x + ox - A.cellX, cy = y - A.listTop + oy;
+    if (listView()) { // la riga in alto, larga quanto le colonne del gruppo
+        // cy, come itemAt per le voci sotto: intestazioni e voci si prendono con le stesse coordinate
+        // (lo spostamento dell'entrata, LIST_ENTER_DY per un istante, non lo conta nessuna delle due)
+        if (cy < 0 || cy >= A.rowH) return -1;
+        int g = groupAtLen(cx);
+        return cx >= A.groups[g].at && cx < A.groups[g].at + groupLen(A.groups[g]) ? g : -1;
+    }
+    int g = groupAtLen(cy);
+    return cy >= A.groups[g].at && cy < A.groups[g].at + groupHeadLen() ? g : -1;
+}
+// Le voci che stanno, anche in parte, tra a0 e a1 lungo l'asse (contenuto): da first a last escluso
+static void itemsInSpan(float a0, float a1, int& first, int& last) {
+    float len = lineLen();
+    int n = (int)A.view.size();
+    if (A.groups.empty() || len <= 0) {
+        first = len > 0 ? std::min(n, std::max(0, (int)(a0 / len)) * A.perLine) : 0;
+        last = len > 0 ? std::min(n, ((int)(a1 / len) + 1) * A.perLine) : 0;
+        return;
+    }
+    // Le linee del gruppo g tra a0 e a1, contate dall'inizio delle sue voci
+    auto line = [&](const Group& g, float a) { return (int)floorf((a - g.at - groupHeadLen()) / len); };
+    const Group& g0 = A.groups[groupAtLen(a0)];
+    const Group& g1 = A.groups[groupAtLen(a1)];
+    first = g0.first + std::min(g0.n, std::max(0, line(g0, a0)) * A.perLine);
+    last = g1.first + std::min(g1.n, std::max(0, line(g1, a1) + 1) * A.perLine);
+    last = std::max(first, last);
 }
 // Prima voce visibile (per tenerla in vista quando cambia la geometria)
-static int firstVisibleItem() { return lineLen() > 0 ? (int)(A.scrollY / lineLen()) * A.perLine : 0; }
+static int firstVisibleItem() {
+    int first, last;
+    itemsInSpan(A.scrollY, A.scrollY, first, last);
+    return std::min(first, std::max(0, (int)A.view.size() - 1));
+}
 static void scrollToItem(int vi) {
-    A.scrollY = A.scrollTarget = (float)(vi / A.perLine) * lineLen();
+    A.scrollY = A.scrollTarget = vi >= 0 && vi < (int)A.view.size() ? itemAlongWithHead(vi) : 0;
 }
 
 // Il cursore, con lo scorrimento s, si vede tutto (whole) o almeno in parte
 static bool cursorInView(float s, bool whole) {
     if (A.sel < 0 || A.sel >= (int)A.view.size() || A.perLine < 1) return false;
-    float len = lineLen(), view = viewLen(), top = (float)(A.sel / A.perLine) * len;
+    float len = lineLen(), view = viewLen(), top = itemAlong(A.sel);
     if (len <= 0 || view <= 0) return false;
     return whole ? top >= s && top + len <= s + view : top < s + view && top + len > s;
 }
 
 static void ensureVisible() {
     if (A.view.empty()) return;
-    float top = (float)(A.sel / A.perLine) * lineLen(), len = lineLen(), view = viewLen();
+    float top = itemAlong(A.sel), len = lineLen(), view = viewLen();
     float s = A.scrollTarget;
-    if (top < s) s = top;
-    else if (top + len > s + view) s = top + len - view;
+    // La prima voce della vista porta fino all'inizio e l'ultima fino alla fine del contenuto: con
+    // Home e Fine si vedono anche le intestazioni dei gruppi chiusi in cima e in fondo, che
+    // nessuna voce porterebbe in vista. Senza gruppi sono le stesse posizioni della voce
+    bool first = A.sel == 0, last = A.sel == (int)A.view.size() - 1;
+    float head = first ? 0 : itemAlongWithHead(A.sel), end = last ? contentLen() : top + len;
+    if (top < s || (first && s > 0)) s = std::min(top, std::max(head, top + len - view)); // salendo, anche l'intestazione del gruppo se ci sta
+    else if (end > s + view) s = std::max(top + len - view, std::min(top, end - view)); // la voce resta in vista
     A.scrollTarget = A.scrollY = s; // da tastiera: niente animazione, deve sembrare immediato
     clampScroll();
 }
@@ -391,22 +535,64 @@ static void selKeepVisible() {
     A.selFlags.swap(vis);
 }
 
-// Applica il filtro all'ordine corrente (sottostringa, maiuscole/minuscole indifferenti)
+// Le voci dell'ordine corrente che passano il filtro per nome (sottostringa, maiuscole/minuscole
+// indifferenti) e quelli delle colonne (columns.cpp), tranne quello della colonna skip (-1: tutti):
+// la vista, e le voci da contare nel menu del filtro di una colonna. ctx: già preparato per tutte le
+// colonne filtrate (applyFilter), o nullptr
+static void filterInto(std::vector<uint32_t>& out, int skip, const ColCtx* ctx = nullptr) {
+    out.clear();
+    ColMatch m;
+    bool cols = A.cur && colMatchInit(m, A.colFilter, A.cur, skip, ctx);
+    if (A.filter.empty() && !cols) { out = A.order; return; }
+    std::wstring needle = A.filter;
+    if (!needle.empty()) CharLowerBuffW(&needle[0], (DWORD)needle.size());
+    out.reserve(A.order.size());
+    for (uint32_t i : A.order) {
+        const Entry& e = A.cur->e[i];
+        if (!needle.empty() && !wcsstr(A.cur->lowerName(e), needle.c_str())) continue;
+        if (cols && !colMatches(m, e)) continue;
+        out.push_back(i);
+    }
+}
+
+// Filtro o gruppi per una data: alla prossima mezzanotte locale la vista si rifà (timer 19,
+// onDayChange), perché colCtxInit calcola "Oggi", "Ieri"… solo quando si filtra. Senza date nella
+// vista il timer è spento: a riposo nessun lavoro. Della lista di App, non dell'anteprima di una
+// cartella (PaneScope: lo stato scambiato non è quello della lista)
+static uint64_t g_dayEnd = 0; // la mezzanotte (FILETIME UTC) a cui scatta il timer 19; 0: spento
+static void dayTimerUpdate() {
+    if (g_inPane || !A.hwnd) return;
+    if (!viewUsesDates()) {
+        if (g_dayEnd) { KillTimer(A.hwnd, 19); g_dayEnd = 0; }
+        return;
+    }
+    if (g_dayEnd) return; // già armato per la stessa mezzanotte
+    g_dayEnd = nextLocalMidnight();
+    FILETIME f;
+    GetSystemTimeAsFileTime(&f);
+    uint64_t now = fileTime64(f);
+    SetTimer(A.hwnd, 19, g_dayEnd > now ? (UINT)((g_dayEnd - now) / 10000 + 1) : 0, nullptr); // al più 25 ore
+}
+
+// Applica i filtri all'ordine corrente
 static void applyFilter() {
     double t0 = nowMs();
-    A.view.clear();
-    if (A.filter.empty()) {
-        A.view = A.order;
-    } else {
-        std::wstring needle = A.filter;
-        CharLowerBuffW(&needle[0], (DWORD)needle.size());
-        A.view.reserve(A.order.size());
-        for (uint32_t i : A.order)
-            if (wcsstr(A.cur->lowerName(A.cur->e[i]), needle.c_str())) A.view.push_back(i);
+    ColCtx ctx; // uno per filtro e gruppi: i totali delle cartelle si leggono una volta sola
+    if (A.cur) colCtxInit(ctx, A.cur, viewCtxCols());
+    filterInto(A.view, -1, &ctx);
+    double t1 = nowMs();
+    A.filterMs = t1 - t0;
+    groupsBuild(ctx); // i gruppi dopo i filtri: un gruppo c'è solo se ha voci che passano
+    groupsPlace();
+    if (!A.groups.empty()) {
+        A.groupMs = nowMs() - t1;
+        if (A.groupMs > ui::LOG_MSG) hitchLog("gruppi lenti", (unsigned)A.view.size(), A.groupMs);
     }
-    A.filterMs = nowMs() - t0;
     A.counts.dirty = true; // un filtro diverso può dare lo stesso numero di voci, ma non le stesse
+    dayTimerUpdate();
+    dropRetarget(); // la vista è cambiata: un trascinamento fermo sopra non punta più all'indice di prima
 }
+static bool filtering() { return !A.filter.empty() || A.colFilter.any(); }
 
 static void rebuildView(bool keepSelection) {
     int before = A.cur ? selCount(nullptr) : 0;
@@ -422,6 +608,54 @@ static void rebuildView(bool keepSelection) {
     if ((!keepSelection && before <= 1) || selCount(nullptr) == 0) selOnly(A.sel);
     clampScroll();
     ensureVisible();
+}
+
+// I filtri o i gruppi danno un risultato diverso senza che la lista debba seguire il cursore (un totale
+// di cartella arrivato, un gruppo chiuso): come rebuildView, ma la lista non scorre verso il cursore.
+// Il cursore uscito dalla vista resta allo stesso indice, o con closed (indice in A.groups, che
+// chiudere un gruppo non cambia) va alla prima voce dei gruppi dopo quel gruppo: all'ultima voce
+// prima, se dopo non ce ne sono di aperti. Se la selezione esce tutta dalla vista, si seleziona la
+// voce al cursore, come rebuildView e listReload: non si resta senza nessuna voce selezionata
+static void refilterQuiet(int closed = -1) {
+    if (!A.cur) return;
+    bool hadSel = selCount(nullptr) > 0;
+    uint32_t selEntry = A.sel >= 0 && A.sel < (int)A.view.size() ? A.view[A.sel] : UINT32_MAX;
+    applyFilter();
+    int sel = -1;
+    for (int i = 0; selEntry != UINT32_MAX && i < (int)A.view.size(); i++)
+        if (A.view[i] == selEntry) { sel = i; break; }
+    if (sel < 0) sel = closed >= 0 && closed < (int)A.groups.size() ? A.groups[closed].first : A.sel;
+    A.sel = std::max(0, std::min(sel, (int)A.view.size() - 1));
+    selKeepVisible();
+    if (hadSel && selCount(nullptr) == 0) selOnly(A.sel);
+    clampScroll();
+    A.dirty = true;
+}
+
+// Timer 19, ora di sistema cambiata (WM_TIMECHANGE: timeChanged) o ritorno dalla sospensione: se è
+// passata la mezzanotte, o l'ora è cambiata, la vista si rifà (e applyFilter riarma per la prossima);
+// se il timer è scattato prima (o la sospensione l'ha spostato), si riarma per il resto
+static void onDayChange(bool timeChanged) {
+    if (!g_dayEnd || g_inPane) return; // nessuna data nella vista
+    KillTimer(A.hwnd, 19);
+    uint64_t end = g_dayEnd;
+    g_dayEnd = 0;
+    FILETIME f;
+    GetSystemTimeAsFileTime(&f);
+    if (!timeChanged && fileTime64(f) < end) { dayTimerUpdate(); return; }
+    refilterQuiet();
+}
+
+// Clic sull'intestazione del gruppo g: lo chiude o lo apre (A.groupClosed, della scheda). La lista
+// non scorre verso il cursore: l'intestazione resta sotto il mouse (i gruppi prima non cambiano);
+// le voci selezionate di un gruppo chiuso escono dalla selezione, come col filtro
+static void groupToggle(int g) {
+    if (!A.cur || g < 0 || g >= (int)A.groups.size()) return;
+    const ColValue v = A.groups[g].v;
+    auto it = std::find_if(A.groupClosed.begin(), A.groupClosed.end(), [&](const ColValue& c) { return colValueSame(c, v); });
+    if (it != A.groupClosed.end()) A.groupClosed.erase(it);
+    else A.groupClosed.push_back(v);
+    refilterQuiet(g);
 }
 
 static void resort() {
@@ -626,7 +860,10 @@ static void onListing(Listing* l) {
     if (A.noticeKeep) A.noticeKeep = false; // l'avviso spiega proprio questo cambio di cartella
     else A.error.clear();
     A.filter.clear();
-    A.view = A.order;
+    A.colFilter.clear(); // i filtri sono della cartella: cambiandola si tolgono tutti
+    A.zoom = viewZoomOf(l->path, &A.groupCol); // vista e gruppi sono della cartella (viste.txt)
+    A.groupClosed.clear(); // i gruppi chiusi sono della scheda finché resta nella cartella
+    applyFilter();
     A.sel = 0;
     A.scrollY = A.scrollTarget = 0;
     if (!A.pendingSelect.empty()) {
@@ -637,7 +874,6 @@ static void onListing(Listing* l) {
     selOnly(A.sel);
     A.renaming = false;
     A.menu.open = false;
-    A.zoom = viewZoomOf(l->path); // la vista è della cartella (viste.txt)
     layout();
     ensureVisible();
     startWatch(l->path);
@@ -799,6 +1035,44 @@ static void moveSel(int delta) {
     moveCursorTo(A.sel + delta, GetKeyState(VK_SHIFT) < 0, GetKeyState(VK_CONTROL) < 0);
 }
 
+// La voce nella linea accanto a quella di vi (dir -1 prima, 1 dopo), nella stessa posizione o
+// nell'ultima della linea se è più corta. Con i gruppi si passa al gruppo aperto accanto, saltando
+// le intestazioni (DESIGN §7). -1 se vi è nella prima o nell'ultima linea
+static int lineStep(int vi, int dir) {
+    int n = (int)A.view.size(), pl = A.perLine;
+    if (vi < 0 || vi >= n) return -1;
+    int gi = -1, first = 0, cnt = n;
+    if (!A.groups.empty()) {
+        gi = groupOf(vi);
+        first = A.groups[gi].first;
+        cnt = A.groups[gi].n;
+    }
+    int k = (vi - first) % pl, line = (vi - first) / pl + dir;
+    if (line < 0 || line > (cnt - 1) / pl) { // fuori dal gruppo: il primo aperto in quella direzione
+        if (gi < 0) return -1;
+        do gi += dir; while (gi >= 0 && gi < (int)A.groups.size() && A.groups[gi].n == 0);
+        if (gi < 0 || gi >= (int)A.groups.size()) return -1;
+        first = A.groups[gi].first;
+        cnt = A.groups[gi].n;
+        line = dir > 0 ? 0 : (cnt - 1) / pl;
+    }
+    return first + std::min(line * pl + k, cnt - 1);
+}
+
+// PagSu, PagGiù (dir -1, 1): le linee che stanno in dist lungo l'asse, contando intestazioni e spazi
+// tra i gruppi (almeno una); dalla prima o dall'ultima linea, la prima o l'ultima voce
+static int pageStep(int vi, int dir, float dist) {
+    if (A.view.empty()) return 0;
+    float a0 = itemAlong(vi);
+    int t = vi;
+    for (;;) {
+        int u = lineStep(t, dir);
+        if (u < 0) return dir > 0 ? (int)A.view.size() - 1 : 0;
+        if (t != vi && fabsf(itemAlong(u) - a0) > dist + 0.5f) return t; // mezzo pixel: gli arrotondamenti dei prodotti
+        t = u;
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Formattazione
 // ---------------------------------------------------------------------------
@@ -818,7 +1092,8 @@ static void decimalComma(wchar_t* s, int n) {
         if (s[k] == L'.' && iswdigit(s[k - 1]) && iswdigit(s[k + 1])) s[k] = L',';
 }
 
-// Punto delle migliaia (212.388): tooltip, piede dell'anteprima, suggerimento del filtro
+// Punto delle migliaia (212.388): ogni numero di voci, righe o byte che si mostra (contatori delle
+// barre, selezionati, tooltip, gruppi, valori del filtro, piede dell'anteprima, suggerimento del filtro)
 static std::wstring withThousands(uint64_t v) {
     std::wstring s = std::to_wstring(v);
     for (int i = (int)s.size() - 3; i > 0; i -= 3) s.insert((size_t)i, 1, L'.');

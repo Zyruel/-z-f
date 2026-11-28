@@ -487,8 +487,7 @@ static void onUpdate(UpdJob* j) {
     hitchLog("aggiornamento: controllo", (unsigned)j->st, j->checkMs);
     if (j->downloadMs > 0) hitchLog("aggiornamento: download", (unsigned)j->st, j->downloadMs);
     if (!j->err.empty()) hitchLog(("aggiornamento: " + toUtf8(j->err)).c_str(), (unsigned)j->st, 0); // il perché, per chi legge il registro
-    // La build di prova non sposta il controllo giornaliero di z-f.exe (le impostazioni sono le stesse)
-    if (j->st != UP_ERROR && !j->checkOnly) { A.updLast = unixNow(); settingsSave(); }
+    if (j->st != UP_ERROR) { A.updLast = unixNow(); settingsSave(); }
     std::wstring v = L"[z]f " + j->version;
     if (j->st == UP_READY) notice(v + L" è pronto: parte al prossimo avvio, o subito dalle opzioni", true);
     else if (j->st == UP_MANUAL) notice(L"C'è " + v + L", ma " + j->err + L": si scarica dalle opzioni", false);
@@ -510,7 +509,7 @@ static void restartBegin(bool clicked) {
 }
 
 static void updRestartAll() {
-    for (HWND w = nullptr; (w = FindWindowExW(nullptr, w, L"z-f", nullptr)) != nullptr;)
+    for (HWND w = nullptr; (w = FindWindowExW(nullptr, w, ZF_ID, nullptr)) != nullptr;)
         if (w != A.hwnd) PostMessageW(w, g_msgRestart, 0, 0);
     restartBegin(true);
 }

@@ -70,9 +70,13 @@ può (con il controllo dello schermo); altrimenti gli si chiede uno screenshot. 
   - per una finestra di prova separata: `prove\dev.bat [cartella]`, che avvia `build\z-f-dev.exe`
     con `--new-window`; da Bash `cmd //c '.\prove\dev.bat <cartella>'`;
   - qualsiasi opzione `--` apre una finestra separata.
-- Le finestre avviate dall'app desktop di Claude vedono una `%APPDATA%` virtualizzata (nella
-  cartella del pacchetto dell'app): leggono e scrivono impostazioni, preferiti e schede lì, non in
-  quelli veri di Zyruel.
+- **I dati della build di prova** stanno in `%APPDATA%\z-f-dev` (`ZF_ID` in `base.h`), non in
+  quelli veri di Zyruel in `%APPDATA%\z-f`. L'`%APPDATA%` delle finestre avviate da Claude **non**
+  è virtualizzata: fino al 28/11 le prove scrivevano nelle impostazioni, nei preferiti, nei
+  recenti e nelle viste di Zyruel. La prima volta `z-f-dev` parte con le impostazioni predefinite;
+  per provare con quelle di Zyruel si copiano (`cp "$APPDATA/z-f/impostazioni.txt" "$APPDATA/z-f-dev/"`),
+  mai il contrario. Anche classe della finestra, mutex e messaggi sono di z-f-dev: le finestre di
+  prova non parlano con quelle di Zyruel (un'opzione cambiata in prova non arriva alle sue).
 - Si annota il **PID** della finestra di prova appena avviata (per esempio
   `tasklist //FI "IMAGENAME eq z-f-dev.exe"` prima e dopo l'avvio): serve per chiuderla.
 - **Chiudere:** per PID (`taskkill //PID <pid>`, `Stop-Process -Id <pid>`) o per cartella,

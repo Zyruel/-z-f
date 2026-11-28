@@ -181,12 +181,12 @@ static void linkOpen(int vi, bool newTab) {
 // Destinazione sotto il mouse (indice di vista), -1 se nessuna. Vale solo il testo (più GAP_S per
 // lato, come il fondo che si accende), non lo spazio vuoto della colonna: lì parte il rettangolo.
 static int linkHit(int x, int y) {
-    if (A.zoom != ZOOM_DETAILS || A.linkW <= 0 || !A.cur) return -1;
+    if (A.zoom != ZOOM_DETAILS || A.colWd[COL_LINK] <= 0 || !A.cur) return -1;
     int r = itemAt(x, y);
     if (r < 0) return -1;
     const LinkTarget* t = linkOf(A.cur, A.view[r]);
     if (!t) return -1;
-    float pad = px(ui::GAP_S);
-    float w = std::min((float)textWidth(t->path.c_str(), (int)t->path.size()), A.dateX - A.padX - A.linkX);
-    return x >= A.linkX - pad && x < A.linkX + w + pad ? r : -1;
+    float pad = px(ui::GAP_S), lx = colStart(COL_LINK);
+    float w = std::min((float)textWidth(t->path.c_str(), (int)t->path.size()), colEnd(COL_LINK) - lx);
+    return x >= lx - pad && x < lx + w + pad ? r : -1;
 }

@@ -21,16 +21,43 @@ enum MenuId { M_OPEN = 1, M_OPENWITH, M_CUT, M_COPY, M_PASTE, M_COPYPATH, M_RENA
               // Comandi senza voce di menu: legano i loro tasti in kShortcuts ai tooltip
               M_BACK, M_FWD, M_UP, M_EDIT_PATH, M_SIDEBAR, M_FILTER_CLEAR, M_GOTO_NEWTAB, M_GOTO_ENTER,
               M_PANE_KEYS,   // Tab: la tastiera tra la lista e l'anteprima di una cartella (preview.cpp)
-              M_PREVIEW_SWAP }; // Alt+Shift+P: l'anteprima da destra in basso e viceversa
+              M_PREVIEW_SWAP, // Alt+Shift+P: l'anteprima da destra in basso e viceversa
+              M_FONT_STEP, M_FONT_RESET, // Ctrl+/−, Ctrl+0: dimensione del testo (scritti in onKey; l'id serve ai tooltip)
+              M_COLUMN,      // menu delle colonne: M_COLUMN + COL_* mostra o nasconde quella colonna (columns.cpp)
+              M_COLUMN_END = M_COLUMN + COL_COUNT,
+              M_COLFILTER = M_COLUMN_END, // voce del menu del filtro di una colonna (PopupMenu::vals dice quale valore)
+              M_GROUP_MENU,  // "Raggruppa per…" nel menu delle colonne: apre il menu dei gruppi
+              M_GROUP,       // menu dei gruppi: M_GROUP + COL_* raggruppa per quella colonna, M_GROUP + COL_NAME nessun gruppo (thumbs.cpp)
+              M_GROUP_END = M_GROUP + COL_COUNT };
 
 // "Questo PC" per la shell: è una cartella virtuale, la si raggiunge col suo CLSID
 static const wchar_t kThisPc[] = L"::{20D04FE0-3AEA-1069-A2D8-08002B30309D}";
 
 // Menu contestuale nostro: disegnato come il resto dell'interfaccia, si apre in un frame
 // id 0 = separatore. icon: 0 nessuna, 1 cartella, 2 unità (path in PopupMenu::paths), 3 segno di
-// spunta (la scelta attuale). dim: elemento nascosto
-struct MenuItem { const wchar_t* label; const wchar_t* keys; int id; bool enabled; int icon = 0; bool dim = false; };
-enum { MENU_LIST, MENU_SIDE, MENU_TAB, MENU_CRUMB, MENU_DROP, MENU_VIEW, MENU_PREVIEW_POS }; // POS: la posizione dell'anteprima, da non confondere con PopupMenu::preview (un menu aperto nell'anteprima)
+// spunta (la scelta attuale). dim: elemento nascosto. keep: voce a spunta, il clic la cambia e il
+// menu resta aperto (si sceglie più di un valore: il filtro di una colonna)
+struct MenuItem { const wchar_t* label; const wchar_t* keys; int id; bool enabled; int icon = 0; bool dim = false; bool keep = false; };
+enum { MENU_LIST, MENU_SIDE, MENU_TAB, MENU_CRUMB, MENU_DROP, MENU_VIEW, MENU_PREVIEW_POS, MENU_HEADER, MENU_FILTER, MENU_GROUP }; // HEADER: le colonne, dall'intestazione; FILTER: il filtro di una colonna (target); GROUP: "Raggruppa per…"; POS: la posizione dell'anteprima, da non confondere con PopupMenu::preview (un menu aperto nell'anteprima)
+
+// Valore di una colonna nel filtro (columns.cpp, colBucket): la chiave e, per un'estensione di
+// Tipo, l'estensione in minuscolo
+struct ColValue { uint32_t key = 0; std::wstring ext; };
+// Filtro per colonna (columns.cpp): per ogni colonna le chiavi dei valori scelti, per Tipo anche le
+// estensioni scelte (minuscole, in ordine per la ricerca binaria). Vuoto: la colonna non filtra. È
+// della lista, come il filtro per nome: si scambia con le schede e con l'anteprima
+struct ColFilter {
+    std::vector<uint32_t> keys[COL_COUNT];
+    std::vector<std::wstring> exts;
+    bool on(int c) const { return !keys[c].empty() || (c == COL_TYPE && !exts.empty()); }
+    bool any() const { for (int c = 0; c < COL_COUNT; c++) if (on(c)) return true; return false; }
+    void clear(int c) { keys[c].clear(); if (c == COL_TYPE) exts.clear(); }
+    void clear() { for (int c = 0; c < COL_COUNT; c++) clear(c); }
+};
+// Un gruppo della lista (columns.cpp, groupsBuild): il valore della colonna di raggruppamento, le
+// sue voci nella vista (da first, n: 0 se è chiuso), quelle che passano i filtri (total), e dove
+// comincia lungo l'asse dello scorrimento, in coordinate del contenuto (at, groupsPlace in app.cpp)
+struct Group { ColValue v; int first = 0, n = 0, total = 0; bool closed = false; float at = 0; };
 struct PopupMenu {
     bool open = false, background = false, pressed = false;
     float x = 0, y = 0, w = 0, h = 0, ih = 0, sepH = 0, pad = 0, vpad = 0;
@@ -45,6 +72,7 @@ struct PopupMenu {
     // Menu con voci dinamiche (sottocartelle): le etichette vivono qui (deque: indirizzi stabili)
     std::deque<std::wstring> labels;
     std::vector<std::wstring> paths; // percorso di ogni voce, stesso indice di items
+    std::vector<ColValue> vals;      // MENU_FILTER: il valore di ogni voce, stesso indice di items (la prima è "Tutti")
     // Scorrimento, se le voci non stanno nella finestra (solo menu senza separatori)
     int first = 0, visible = 0;
     float iconW = 0;
@@ -63,9 +91,16 @@ struct TabState {
     int sel = 0, anchor = -1;
     float scrollY = 0, scrollTarget = 0;
     std::wstring filter;
+    ColFilter colFilter;
+    int groupCol = -1;
+    std::vector<Group> groups;
+    std::vector<ColValue> groupClosed;
     std::vector<std::wstring> back, fwd;
     int sortCol = COL_NAME;
     bool sortDesc = false;
+    // L'ordinamento è tornato per nome mentre la scheda non era attiva (la sua colonna è stata
+    // nascosta): l'ordine delle voci si rifà quando torna attiva, prima che la si veda
+    bool resort = false;
     int zoom = 0;
     // Da caricare quando diventa attiva: scheda aperta in background, o lasciata a metà caricamento
     bool pending = false;
@@ -106,6 +141,10 @@ struct ListPane {
     int sel = 0, anchor = -1, hover = -1;
     float scrollY = 0, scrollTarget = 0;
     std::wstring filter;
+    ColFilter colFilter;
+    int groupCol = -1;   // l'anteprima non ha gruppi: questi restano vuoti
+    std::vector<Group> groups;
+    std::vector<ColValue> groupClosed;
     double filterMs = 0; // F12: ultimo filtro applicato (applyFilter)
     ViewCounts counts;
     int sortCol = COL_NAME;
@@ -127,10 +166,12 @@ struct ListPane {
     HoverFade fltFade;
     // Geometria (layoutItems; iconX e nameX da drawListItems)
     float listX = 0, listR = 0, listTop = 0, listH = 0;
-    float dateW = 0, sizeW = 0, linkW = 0, dateX = 0, sizeX = 0, linkX = 0, nameEnd = 0, iconX = 0, nameX = 0;
+    float colX[COL_COUNT] = {}, colWd[COL_COUNT] = {};
+    float nameEnd = 0, iconX = 0, nameX = 0;
     int perLine = 1;
     float cellX = 0, cellW = 0, cellH = 0, thumbPx = 0;
-    float sortX[4] = {};
+    float sortX[COL_COUNT + 1] = {};
+    int sortC[COL_COUNT] = {}, sortN = 0;
 };
 
 // Livelli di zoom della lista (Ctrl+rotellina): Dettagli 0%, Elenco 10%, poi Icone da 20% a 100%
@@ -167,6 +208,25 @@ struct App {
     float dragOffset = 0;
 
     std::wstring filter;
+    ColFilter colFilter;              // filtri delle colonne (columns.cpp), dopo quello per nome
+    // Gruppi (columns.cpp, groupsBuild): la colonna per cui si raggruppa (-1 nessuna; della cartella,
+    // in viste.txt), la tabella dei gruppi della vista e i valori dei gruppi chiusi (della scheda)
+    int groupCol = -1;
+    std::vector<Group> groups;
+    std::vector<ColValue> groupClosed;
+    double groupMs = 0;               // F12: ultimo raggruppamento (in applyFilter)
+    // Intestazione di un gruppo sotto il mouse (indice in groups) e premuta col tasto sinistro: il
+    // clic vale al rilascio, se non è partito il rettangolo (groupToggle). La premuta si ricorda col
+    // valore, la cartella e la colonna, non con l'indice e il Listing: una ricarica tra pressione e
+    // rilascio (una cartella che cambia di continuo) rifà i gruppi e A.cur, ma il clic resta valido
+    int groupHover = -1;
+    bool groupPressed = false;
+    ColValue groupPressV;
+    std::wstring groupPressPath;
+    int groupPressCol = -1;
+    // Ora dell'ultimo clic su un'intestazione: chiudere un gruppo può far scorrere la lista (in fondo
+    // il contenuto si accorcia), e il secondo clic di un doppio clic non deve aprire la voce finita sotto
+    double groupClickAt = -1e9;
     bool renaming = false;
     TextField renameField;
     int renameEntry = -1;
@@ -252,9 +312,12 @@ struct App {
     bool sideFastDone = false;        // prima lettura veloce (file e lettere delle unità) arrivata
     bool sideStarted = false;         // il thread della barra parte solo dopo il primo frame
 
-    // Colonne: larghezze scelte (px a scala 100%, in impostazioni.txt) e bordo afferrato
-    float colDate = ui::DATE_W, colSize = ui::SIZE_W, colLink = ui::LINK_W;
-    int colHover = -1, colDrag = -1;  // bordo sotto il mouse / trascinato (0 = …|Data, 1 = Data|Dimensione, 2 = Nome|Destinazione; EDGE_SIDE, EDGE_PREVIEW: bordi dei pannelli)
+    // Colonne (columns.cpp): larghezze scelte per COL_* (px a scala 100%, in impostazioni.txt; Nome
+    // non ne ha), quelle da mostrare (un bit per COL_*), le estensioni nei nomi, e bordo afferrato
+    float colW[COL_COUNT] = { 0, ui::DATE_W, ui::SIZE_W, ui::LINK_W, ui::TYPE_W, ui::DATE_W, ui::ATTR_W };
+    uint32_t colOn = 1u << COL_LINK | 1u << COL_TYPE | 1u << COL_DATE | 1u << COL_SIZE;
+    bool showExt = true;
+    int colHover = -1, colDrag = -1;  // bordo sotto il mouse / trascinato: la colonna alla sua destra (COL_*), o EDGE_SIDE, EDGE_PREVIEW (bordi dei pannelli)
     // Destinazione dei collegamenti (links.cpp): sotto il mouse (indice di vista), premuta col tasto
     // sinistro (vale al rilascio, se non è partito il rettangolo), ultimo clic (il doppio clic che
     // segue non apre la voce che intanto è arrivata sotto il mouse)
@@ -265,6 +328,11 @@ struct App {
     int colDragX0 = 0;                // trascinamento di un bordo: x di partenza…
     float colDragW0 = 0, colDragSaved = 0; // …larghezza mostrata allora e valore scelto prima (per Esc)
     double colFitMs = 0;              // doppio clic sul bordo: adattamento al contenuto (F12)
+    // Filtro per colonna nell'intestazione (columns.cpp): colonna sotto il mouse che mostra l'imbuto,
+    // l'imbuto stesso sotto il mouse (il suo fondo, in dissolvenza); apertura del menu con i conteggi (F12)
+    int colFltHead = -1, colFltGlyph = -1;
+    HoverFade colFltFade;
+    double colFltMenuMs = 0;
     double mqMs = 0, mqMax = 0;       // selezione col rettangolo: aggiornamento a ogni movimento (F12)
     double crumbMs = 0, crumbMax = 0; // barra del percorso: segmenti e posizioni, a ogni frame (F12)
 
@@ -288,8 +356,8 @@ struct App {
     // Vista (thumbs.cpp): un livello di zoom per cartella (viste.txt). 0 Dettagli, 1 Elenco, poi
     // Icone da 20% a 100% (ZOOM_* più sotto)
     int zoom = 0;                     // della cartella corrente (scambiato con le schede)
-    struct FolderView { uint32_t use; int zoom; };
-    std::unordered_map<std::wstring, FolderView> viewFolders; // cartelle non in Dettagli (minuscole) → ultimo uso, zoom
+    struct FolderView { uint32_t use; int zoom; int group = -1; };
+    std::unordered_map<std::wstring, FolderView> viewFolders; // cartelle non in Dettagli o raggruppate (minuscole) → ultimo uso, zoom, colonna dei gruppi
     uint32_t viewUse = 0;             // contatore dell'ultimo uso (si tengono le più recenti)
     bool viewsReady = false;          // viste.txt letto all'avvio
     // Righe "griglia" di viste.txt (prima della 1.0.0-beta.6): lo zoom che valgono, dalla vecchia
@@ -321,12 +389,12 @@ struct App {
     uint64_t zipBytes = 0;
 
     // Layout (pixel, aggiornato a ogni frame)
-    float topH, headH, rowH, statusH, listTop, listH, sbW, padX, dateW, sizeW;
+    float topH, headH, rowH, statusH, listTop, listH, sbW, padX;
     float timesH = 0;                 // barra dei tempi (0 se spenta)
     float footH = 0;                  // sotto la lista: barra dei tempi più barra di stato
     float footY = 0;                  // fondo della barra di stato: la finestra, o l'anteprima in basso
-    float dateX = 0, sizeX = 0;       // inizio delle colonne Data e Dimensione
-    float linkX = 0, linkW = 0;       // colonna Destinazione (linkW 0: non c'è, e linkX = dateX)
+    // Colonne dopo Nome (layoutItems): inizio e larghezza mostrata per COL_*; colWd 0: non si vede
+    float colX[COL_COUNT] = {}, colWd[COL_COUNT] = {};
     float nameEnd = 0;                // fine del testo del nome (prima della colonna successiva)
     float iconX = 0, nameX = 0;       // icona e nome nelle righe (da render, che conosce le icone)
     float tabH, tabY, pathY, listX, sideW, sideTop, sideItemH;
@@ -335,7 +403,10 @@ struct App {
     // voci), colonne di perLine voci in Elenco, che scorre in orizzontale
     int perLine = 1;
     float cellX = 0, cellW = 0, cellH = 0, thumbPx = 0;
-    float sortX[4] = {};              // Elenco e Icone: etichette di ordinamento nell'intestazione (inizi e fine)
+    // Elenco e Icone: etichette di ordinamento nell'intestazione, sortN, con la loro colonna (sortC)
+    // e il loro inizio (sortX; sortX[sortN] è la fine dell'ultima)
+    float sortX[COL_COUNT + 1] = {};
+    int sortC[COL_COUNT] = {}, sortN = 0;
     float btnW, capW, navW, tabStripX, tabStripW; // barra del titolo e riga del percorso
     float navMenuW = 0;                           // ˅ della posizione dell'anteprima, accanto a ◨
     float fltX = 0, fltW = 0, fltClearW = 0;      // campo del filtro, a sinistra nella barra di stato
@@ -373,6 +444,10 @@ static void paneSwap(ListPane& p) {
     std::swap(A.scrollY, p.scrollY);
     std::swap(A.scrollTarget, p.scrollTarget);
     A.filter.swap(p.filter);
+    std::swap(A.colFilter, p.colFilter);
+    std::swap(A.groupCol, p.groupCol);
+    A.groups.swap(p.groups);
+    A.groupClosed.swap(p.groupClosed);
     std::swap(A.filterMs, p.filterMs);
     std::swap(A.counts, p.counts);
     std::swap(A.sortCol, p.sortCol);
@@ -400,12 +475,7 @@ static void paneSwap(ListPane& p) {
     std::swap(A.listR, p.listR);
     std::swap(A.listTop, p.listTop);
     std::swap(A.listH, p.listH);
-    std::swap(A.dateW, p.dateW);
-    std::swap(A.sizeW, p.sizeW);
-    std::swap(A.linkW, p.linkW);
-    std::swap(A.dateX, p.dateX);
-    std::swap(A.sizeX, p.sizeX);
-    std::swap(A.linkX, p.linkX);
+    for (int i = 0; i < COL_COUNT; i++) { std::swap(A.colX[i], p.colX[i]); std::swap(A.colWd[i], p.colWd[i]); }
     std::swap(A.nameEnd, p.nameEnd);
     std::swap(A.iconX, p.iconX);
     std::swap(A.nameX, p.nameX);
@@ -414,7 +484,9 @@ static void paneSwap(ListPane& p) {
     std::swap(A.cellW, p.cellW);
     std::swap(A.cellH, p.cellH);
     std::swap(A.thumbPx, p.thumbPx);
-    for (int i = 0; i < 4; i++) std::swap(A.sortX[i], p.sortX[i]);
+    for (int i = 0; i <= COL_COUNT; i++) std::swap(A.sortX[i], p.sortX[i]);
+    for (int i = 0; i < COL_COUNT; i++) std::swap(A.sortC[i], p.sortC[i]);
+    std::swap(A.sortN, p.sortN);
 }
 
 // Dentro un PaneScope App è l'anteprima: layout, navigazione, schede e disegno non devono girare
@@ -465,6 +537,8 @@ static HANDLE g_instanceMutex = nullptr;
 static UINT g_msgSeparate = 0;
 
 // Funzioni usate prima della loro definizione (l'ordine dei moduli è in z-f.cpp)
+static int fmtDate(uint64_t ft64, wchar_t* buf);   // app.cpp
+static const wchar_t* driveKind(UINT t);           // app.cpp: tipo di unità con le parole di Windows
 static void startWatch(const std::wstring& path); // watch.cpp
 static void requestRefresh();                     // watch.cpp
 static void folderGone(std::wstring p);           // watch.cpp
@@ -475,7 +549,7 @@ static void fsStart(int op, const std::wstring& a, const std::wstring& b, const 
 static void pasteFiles(const std::wstring& dest = L""); // fileops.cpp: incolla i file degli appunti (vuoto: cartella aperta)
 static bool shellDropInto(HWND hwnd, IDataObject* data, const std::wstring& path, DWORD fx, POINTL pt, HRESULT& hr); // drag.cpp: rilascio alla shell, su un thread
 static const wchar_t* errWhy(DWORD err);          // fileops.cpp: perché un elemento non si è potuto usare, per gli avvisi
-static void deleteSelected();                     // fileops.cpp: selezione nel Cestino
+static void deleteSelected(bool permanent);       // fileops.cpp: selezione nel Cestino (permanent: Shift+Canc, alla shell)
 static void recyclePaths(std::vector<std::wstring> src); // fileops.cpp: questi percorsi nel Cestino
 static bool closeDeferred();                      // fileops.cpp: WM_CLOSE con operazioni sui file in corso
 static void closeIfIdle();                        // fileops.cpp: chiusura rimandata, se non resta niente in corso
@@ -488,6 +562,7 @@ static uint64_t zipJobStart(int kind, std::vector<uint32_t> items); // zipout.cp
 static void dirSizeQueueCurrent();                // dirsize.cpp: colonna Dimensione della cartella aperta
 static void dirSizeForget(const std::wstring& path); // dirsize.cpp: totale non più valido (e quelli sopra)
 static void dirSizeForgetAll();                   // dirsize.cpp: nessun totale vale più (operazioni su migliaia di voci)
+static void dirSizeTotals(const Listing* l, std::vector<uint64_t>& out); // dirsize.cpp: totale già contato di ogni cartella (filtro per Dimensione)
 static void linksQueueCurrent();                  // links.cpp: destinazioni dei collegamenti della cartella aperta
 static void tabNew(const std::wstring& path, bool activate, const std::wstring& select = L""); // tabs.cpp
 static void updateTitle();                        // tabs.cpp
@@ -498,6 +573,8 @@ static void drawTooltip();                        // tooltip.cpp
 static void tipHide();                            // tooltip.cpp
 static void drawOptions(double dt);               // options.cpp
 static void drawDrop();                           // drag.cpp
+static void dropRetarget();                       // drag.cpp: la lista sotto un trascinamento è cambiata, senza movimento del mouse
+static void hoverFollowList();                    // input.cpp: hover ricalcolato dal mouse fermo, a ogni frame
 static void drawMarquee(bool preview);            // listmouse.cpp: il rettangolo, se è di questa lista
 static void drawChromeTitle(double dt);           // chrome.cpp
 static void drawChromeToolbar();                  // chrome.cpp
@@ -505,8 +582,8 @@ static void optionsOpen();                        // options.cpp
 static const wchar_t* shortcutFor(int menuId);    // options.cpp: scorciatoia di una voce di menu
 static std::wstring shortcutsOf(int cmd);          // options.cpp: tutte le alternative di un comando (tooltip)
 static bool optionsIsOpen();                         // options.cpp
-static bool optionsTipTarget(int x, int y, int& index); // options.cpp: scorciatoia troncata sotto il mouse
-static bool optionsTipBuild(int index);              // options.cpp: il suo tooltip, col testo intero
+static bool optionsTipTarget(int x, int y, int& index); // options.cpp: scorciatoia troncata o riga con scorciatoia sotto il mouse
+static bool optionsTipBuild(int index);              // options.cpp: il suo tooltip (testo intero, o etichetta e tasti)
 static void drawCrumbs(float x0, float x1, float y, float h, float textY, double dt); // crumbs.cpp
 static void recentVisit(const std::wstring& path);   // goto.cpp: cartella aperta (cartelle recenti)
 static void recentForget(const std::wstring& path);  // goto.cpp: cartella che non esiste più
@@ -534,7 +611,8 @@ static void previewPlace(bool bottom);               // preview.cpp: a destra o 
 static void menuOpenPreview(float right, float top); // menu.cpp: menu della posizione dell'anteprima, sotto ˅
 static void viewZoom(int zoom);                      // thumbs.cpp: livello di zoom della cartella corrente
 static void zoomStep(int delta);                     // thumbs.cpp: Ctrl+rotellina
-static int viewZoomOf(const std::wstring& path);     // thumbs.cpp: vista ricordata della cartella
+static int viewZoomOf(const std::wstring& path, int* group = nullptr); // thumbs.cpp: vista ricordata della cartella (e colonna dei gruppi)
+static void viewGroup(int col);                      // thumbs.cpp: raggruppa la cartella corrente per col (-1: nessun gruppo)
 static int viewParse(const std::wstring& v);         // thumbs.cpp: "elenco", "icone 40" → zoom (-1 se non si capisce)
 static std::string viewText(int zoom);               // thumbs.cpp: il contrario ("dettagli", "elenco", "icone 40")
 static void viewsLoaded(const std::vector<std::wstring>& lines); // thumbs.cpp: viste.txt letto all'avvio

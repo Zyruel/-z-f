@@ -70,14 +70,21 @@ static std::wstring dsKey(const std::wstring& path) {
 // Hash a 64 bit dei primi n caratteri di una chiave (FNV-1a e il rimescolamento finale di
 // MurmurHash3). Due percorsi con lo stesso hash si confonderebbero: con 100.000 cartelle in cache
 // la probabilità è circa 3·10⁻¹⁰.
-static uint64_t dsHash(const std::wstring& k, size_t n = std::wstring::npos) {
-    n = std::min(n, k.size());
-    uint64_t h = 0xcbf29ce484222325ull;
-    for (size_t i = 0; i < n; i++) { h ^= (uint16_t)k[i]; h *= 0x100000001b3ull; }
+// In due passi (dsHashAdd, dsHashEnd): le sottocartelle di una cartella continuano dal suo stato
+// (dsEachDir), senza ricostruire ogni percorso
+static constexpr uint64_t kDsHashStart = 0xcbf29ce484222325ull;
+static inline uint64_t dsHashAdd(uint64_t h, const wchar_t* s, size_t n) {
+    for (size_t i = 0; i < n; i++) { h ^= (uint16_t)s[i]; h *= 0x100000001b3ull; }
+    return h;
+}
+static inline uint64_t dsHashEnd(uint64_t h) {
     h ^= h >> 33; h *= 0xff51afd7ed558ccdull;
     h ^= h >> 33; h *= 0xc4ceb9fe1a85ec53ull;
     h ^= h >> 33;
     return h;
+}
+static uint64_t dsHash(const std::wstring& k, size_t n = std::wstring::npos) {
+    return dsHashEnd(dsHashAdd(kDsHashStart, k.data(), std::min(n, k.size())));
 }
 
 // Lunghezza della cartella che contiene la chiave k ("c:\users" → "c:\"); 0 se non ce n'è
@@ -371,12 +378,25 @@ static void dirSizeQueueCurrent() {
     DS.pendingPos = 0;
     DS.pendingList = A.cur;
     DS.pendingGen = A.cur ? A.cur->gen : 0;
-    if (A.dirSizes && A.cur && !A.cur->isDrives && !A.cur->zipLen && !slowPath(A.cur->path)) // zip: i totali li dà l'archivio
-        for (uint32_t ei : A.view) {
-            const Entry& e = A.cur->e[ei];
+    if (A.dirSizes && A.cur && !A.cur->isDrives && !A.cur->zipLen && !slowPath(A.cur->path)) { // zip: i totali li dà l'archivio
+        const Listing* l = A.cur;
+        auto add = [l](uint32_t ei) {
+            const Entry& e = l->e[ei];
             if ((e.attr & FILE_ATTRIBUTE_DIRECTORY) && !(e.attr & FILE_ATTRIBUTE_REPARSE_POINT))
                 DS.pending.push_back(ei);
+        };
+        for (uint32_t ei : A.view) add(ei);
+        // Filtro o gruppi per Dimensione: una cartella non ancora contata sta in "Cartelle", fuori
+        // dalla vista se quel valore non è scelto o il suo gruppo è chiuso. Senza contarla non
+        // entrerebbe mai: si contano anche le cartelle che passano gli altri filtri, dopo quelle visibili
+        if (viewUsesDirTotals()) {
+            std::vector<uint8_t> queued(l->e.size(), 0);
+            for (uint32_t ei : A.view) queued[ei] = 1;
+            std::vector<uint32_t> rest;
+            filterInto(rest, COL_SIZE);
+            for (uint32_t ei : rest) if (!queued[ei]) add(ei);
         }
+    }
     dsRefill();
     SetEvent(DS.wake);
 }
@@ -417,20 +437,34 @@ static void dirSizeForgetAll() {
     LeaveCriticalSection(&DS.lock);
 }
 
-// Ordinamento per dimensione (thread di lettura o thread UI): le cartelle prendono il totale noto
-static void dirSizeFill(Listing* l) {
+// Ogni cartella di l (per indice di voce) col suo totale in cache, nullptr se non c'è: una presa del
+// lock per tutte. La chiave di una sottocartella è quella della cartella più il nome minuscolo, che la
+// lettura ha già (Listing::lower, con la stessa CharLowerBuffW di dsKey): l'hash continua dallo stato
+// della cartella. Misurato su WinSxS (30.732 cartelle, il filtro per Dimensione): da 11,1 a 6,6 ms;
+// il resto sono le ricerche nella cache
+template <class F> static void dsEachDir(const Listing* l, F f) {
     if (!DS.wake || l->isDrives || l->zipLen) return; // zip: le cartelle hanno già il totale
     std::wstring base = dsKey(l->path);
     if (base.back() != L'\\') base += L'\\';
-    std::wstring k;
+    uint64_t h0 = dsHashAdd(kDsHashStart, base.data(), base.size());
     EnterCriticalSection(&DS.lock);
-    for (Entry& e : l->e) {
+    for (size_t i = 0; i < l->e.size(); i++) {
+        const Entry& e = l->e[i];
         if (!(e.attr & FILE_ATTRIBUTE_DIRECTORY)) continue;
-        k.assign(base);
-        k.append(l->name(e), e.nameLen);
-        CharLowerBuffW(&k[base.size()], e.nameLen);
-        auto it = DS.cache.find(dsHash(k));
-        e.size = it != DS.cache.end() ? it->second.bytes : 0;
+        auto it = DS.cache.find(dsHashEnd(dsHashAdd(h0, l->lowerName(e), e.nameLen)));
+        f(i, it != DS.cache.end() ? &it->second : nullptr);
     }
     LeaveCriticalSection(&DS.lock);
+}
+
+// Ordinamento per dimensione (thread di lettura o thread UI): le cartelle prendono il totale noto
+static void dirSizeFill(Listing* l) {
+    dsEachDir(l, [l](size_t i, const DirSize* d) { l->e[i].size = d ? d->bytes : 0; });
+}
+
+// Filtro per Dimensione (columns.cpp): il totale di ogni cartella già contata, UINT64_MAX per le altre
+// voci e per le cartelle illeggibili, che nella colonna restano vuote
+static void dirSizeTotals(const Listing* l, std::vector<uint64_t>& out) {
+    out.assign(l->e.size(), UINT64_MAX);
+    dsEachDir(l, [&out](size_t i, const DirSize* d) { if (d && (d->files || !d->denied)) out[i] = d->bytes; });
 }

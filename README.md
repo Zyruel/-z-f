@@ -4,7 +4,7 @@ File explorer per Windows, veloce e leggero: C++ con Win32 e Direct3D 11, senza 
 dipendenze. L'obiettivo è che ogni operazione sembri istantanea. È gratuito e il codice è
 libero, con [licenza MIT](LICENSE).
 
-**Versione attuale: 1.0.0-beta.8.** Cosa cambia in ogni versione è in [`NOVITA.md`](NOVITA.md).
+**Versione attuale: 1.0.0-beta.9.** Cosa cambia in ogni versione è in [`NOVITA.md`](NOVITA.md).
 
 ## Scaricare
 
@@ -27,7 +27,13 @@ bit (provato su Windows 11).
   sottocartelle. Dal percorso (clic, Ctrl+L) parte dalla cartella aperta: si scrive il percorso
   con le sottocartelle suggerite.
 - **Lista:** filtro mentre scrivi, ordinamento naturale, selezione multipla e col rettangolo,
-  colonne ridimensionabili, tooltip con le informazioni di file, cartelle e unità.
+  tooltip con le informazioni di file, cartelle e unità.
+- **Colonne** a scelta (tasto destro sull'intestazione): Tipo (l'estensione), Data modifica, Data
+  creazione, Dimensione, Attributi; ridimensionabili e adattabili al contenuto, e filtrabili per
+  valore con l'imbuto accanto al titolo (estensioni, periodi come Oggi e Ieri, fasce di dimensione, attributi).
+  Le estensioni nei nomi si possono nascondere.
+- **Gruppi** per Tipo, data o dimensione ("Raggruppa per…" nel menu delle colonne), in tutte le
+  viste e ricordati per cartella; un clic sull'intestazione chiude o apre un gruppo.
 - **Anteprima** (Alt+P) di immagini, testo e cartelle, a destra o in basso (˅ accanto a ◨, Alt+Shift+P);
   una cartella nell'anteprima è una seconda lista, con la sua vista e il suo filtro, su cui si
   seleziona, si copia, si trascina e si rinomina.
@@ -62,7 +68,7 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Tasto | Azione |
 |---|---|
 | Invio · doppio clic | Apre la cartella o il file |
-| Alt+↑ · Backspace | Va alla cartella superiore (Backspace: se non c'è un filtro) |
+| Alt+↑ · Backspace | Va alla cartella superiore (Backspace: se non c'è un filtro per nome) |
 | Alt+← · tasto Indietro del mouse o della tastiera · gesto Indietro del touchpad | Va indietro |
 | Alt+→ · tasto Avanti del mouse o della tastiera · gesto Avanti del touchpad | Va avanti |
 | Clic su un segmento del percorso | Va alla cartella di quel segmento |
@@ -70,8 +76,8 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Clic sulla destinazione di un collegamento · clic centrale | Apre il percorso del file (in una nuova scheda) |
 | Ctrl+L · F4 · clic sul percorso vuoto | Apre Vai a col percorso della cartella aperta, da modificare |
 | Ctrl+P · Ctrl+G | Apre Vai a: cartelle recenti, preferiti, sottocartelle |
-| Ctrl+Invio · clic centrale | Vai a: apre in una nuova scheda |
-| Tab | Vai a: entra nella cartella e mostra le sottocartelle |
+| Ctrl+Invio · clic centrale | Apre in una nuova scheda la voce scelta in Vai a |
+| Tab | Entra nella cartella scelta in Vai a e ne mostra le sottocartelle |
 | F5 · tasto Aggiorna della tastiera | Ricarica |
 
 ### Selezione
@@ -88,7 +94,7 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Ctrl+A | Seleziona tutto ciò che è visibile |
 | Lettere | Filtra i nomi mentre si scrive |
 | Backspace | Toglie l'ultima lettera del filtro |
-| Esc | Toglie il filtro, poi la selezione (nell'anteprima, poi torna alla lista) |
+| Esc | Toglie il filtro per nome, poi quelli delle colonne, poi la selezione (nell'anteprima, poi torna alla lista) |
 
 ### File
 
@@ -119,7 +125,7 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Ctrl+Tab · Ctrl+Shift+Tab | Passa alla scheda successiva · precedente |
 | Ctrl+1…8 · Ctrl+9 | Passa alla scheda n · all'ultima |
 | Clic centrale · Ctrl+clic su un preferito | Apre in una nuova scheda in background |
-| Trascina su una scheda | La apre dopo un momento |
+| Trascina su una scheda | Passa a quella scheda dopo un momento |
 
 ### Vista
 
@@ -136,10 +142,13 @@ Le stesse che elencano le opzioni (Ctrl+,), dove si possono anche cercare.
 | Trascina il bordo di un pannello · doppio clic | Cambia la larghezza di barra laterale o anteprima (l'altezza, in basso) · torna alla predefinita |
 | Clic su ˅ accanto a ◨ | Mette l'anteprima a destra o in basso |
 | Clic sull'intestazione | Ordina per colonna (di nuovo: al contrario) |
+| Tasto destro sull'intestazione | Sceglie le colonne da mostrare e il raggruppamento |
+| Clic sull'imbuto accanto al titolo di una colonna | Filtra la colonna per i valori presenti |
+| Clic sull'intestazione di un gruppo | Chiude o apre il gruppo |
 | Trascina il bordo di una colonna · doppio clic | Cambia la larghezza della colonna · la adatta al contenuto |
 | Ctrl+D | Aggiunge o toglie dai preferiti |
 | Trascina tra i preferiti | Aggiunge le cartelle ai preferiti |
-| Trascina un preferito | Lo sposta tra gli altri (solo l'ordine) |
+| Trascina un preferito | Cambia l'ordine dei preferiti |
 | Clic su Preferiti · sulla freccia di Questo PC | Chiude o riapre i preferiti · le unità |
 | Ctrl+/− | Cambia la dimensione del testo |
 | Ctrl+0 | Riporta il testo alla dimensione predefinita |

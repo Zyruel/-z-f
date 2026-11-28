@@ -595,8 +595,7 @@ static void pvDir(const PvReq& r, PvRes& o) {
             if ((int)l->e.size() >= kPvDirMax ||
                 ((l->e.size() & 255) == 255 && (nowMs() - t0 > kPvDirMs || pvCancelled(r)))) { o.more = true; break; }
             uint64_t size = ((uint64_t)fd.nFileSizeHigh << 32) | fd.nFileSizeLow;
-            uint64_t mt = ((uint64_t)fd.ftLastWriteTime.dwHighDateTime << 32) | fd.ftLastWriteTime.dwLowDateTime;
-            addEntry(l, fd.cFileName, len, fd.dwFileAttributes, size, mt);
+            addEntry(l, fd.cFileName, len, fd.dwFileAttributes, size, fileTime64(fd.ftLastWriteTime), fileTime64(fd.ftCreationTime));
             if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) dirs++; else files++;
         } while (FindNextFileW(h, &fd));
         FindClose(h);
@@ -837,10 +836,12 @@ static void previewOnTimer(UINT_PTR id) {
 // resta finché arriva il nuovo, e la lista tiene selezione e scorrimento (pvPaneSet)
 static void previewRefresh() {
     if (g_inPane) { g_paneAfter.push_back(previewRefresh); return; } // pvRequest misura il pannello con la geometria di App
-    if (!PV.want || !PV.pane.cur) return;
+    // Uscendo senza rilettura la notifica resta senza seguito: la sua ora non deve valere per una
+    // rilettura più tardi (F12 la misurerebbe da lì). Resta solo per refreshAgain, che la serve
+    if (!PV.want || !PV.pane.cur) { A.prevChangeAt = 0; return; }
     // Il cursore è già su un'altra voce (un file grande che si decodifica): rifarne la richiesta la
     // annullerebbe, e con una cartella che cambia di continuo non arriverebbe mai
-    if (PV.stale || PV.item.path != PV.shown.path) return;
+    if (PV.stale || PV.item.path != PV.shown.path) { A.prevChangeAt = 0; return; }
     // Una rilettura in corso non si supera (una cartella lenta da leggere non si aggiornerebbe mai):
     // la prossima parte quando arriva questa, come refreshAgain della lista
     if (PV.refreshGen == PV.gen) { PV.refreshAgain = true; return; }
@@ -887,6 +888,7 @@ static void pvPaneClear() {
     PV.selectAfter.clear();
     PV.renameAfter = false;
     PV.keepFirst = -1;
+    dropRetarget(); // un trascinamento sopra l'anteprima non punta più a una cartella che non si vede
 }
 
 // Una cartella letta (l, dal thread) diventa la lista dell'anteprima. same: è la stessa cartella
@@ -896,6 +898,7 @@ static void pvPaneClear() {
 static void pvPaneSet(Listing* l, bool same, bool partial) {
     ListPane& p = PV.pane;
     previewWatch(l); // cambiamenti da fuori o dalle operazioni: si rilegge (stessa cartella: niente di nuovo)
+    dropRetarget(); // un trascinamento fermo sopra l'anteprima: la destinazione è nella lista nuova
     p.hover = p.linkHover = -1;
     p.rowFade = HoverFade();
     p.zoom = A.prevZoom;
@@ -911,7 +914,8 @@ static void pvPaneSet(Listing* l, bool same, bool partial) {
     p.cur = l;
     p.order.swap(l->order);
     std::vector<uint32_t>().swap(l->order); // come la lista (listReload): non resta l'ordine della cartella di prima
-    p.filter.clear(); // il filtro è della cartella mostrata
+    p.filter.clear(); // i filtri sono della cartella mostrata
+    p.colFilter.clear();
     p.view = p.order;
     p.counts.dirty = true; // l può stare all'indirizzo del Listing di prima
     p.selFlags.assign(l->e.size(), 0);
@@ -1132,9 +1136,7 @@ static bool pvViewAt(int x, int y) {
 // come quella (choose: fondo sotto il mouse e col menu aperto), per gli altri contenuti dipende
 // dalla voce e non ha fondo. Prima i dati, se ci sono (data). Restituisce il bordo destro libero.
 static float pvBar(const PvGeom& g, uint32_t icon, const wchar_t* name, bool data, bool choose = false) {
-    static const wchar_t* const kNames[] = { viewName(ZOOM_DETAILS), viewName(ZOOM_LIST), viewName(ZOOM_ICONS),
-                                             L"Testo", L"Immagine", L"Informazioni" };
-    float w = barViewW(kNames, 6), right = g.x1 + px(ui::GAP_S), ha = 0;
+    float w = barViewW(name), right = g.x1 + px(ui::GAP_S), ha = 0;
     if (choose) {
         PV.viewX = right - w;
         PV.viewW = w;
@@ -1145,8 +1147,8 @@ static float pvBar(const PvGeom& g, uint32_t icon, const wchar_t* name, bool dat
 
 // Geometria della lista dell'anteprima: dal bordo con la lista principale al bordo della finestra,
 // sotto l'intestazione (a destra le righe sono allineate a quelle della lista), fino alla banda in
-// fondo. In basso il pannello è largo come la lista: in Dettagli c'è anche Data (la Destinazione
-// no: i collegamenti dell'anteprima non si leggono)
+// fondo. A destra, stretto, in Dettagli ha solo Dimensione; in basso è largo come la lista e ha le
+// colonne scelte (colWanted), tranne Destinazione: i collegamenti dell'anteprima non si leggono
 static void pvPaneLayout() {
     PvGeom g = pvGeom();
     float x0 = g.x0 - A.padX, x1 = g.x1 + A.padX, top = g.top + A.headH, bottom = g.footY;

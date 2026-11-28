@@ -15,6 +15,10 @@ static void tabSwap(TabState& t) {
     std::swap(A.scrollY, t.scrollY);
     std::swap(A.scrollTarget, t.scrollTarget);
     A.filter.swap(t.filter);
+    std::swap(A.colFilter, t.colFilter);
+    std::swap(A.groupCol, t.groupCol);
+    A.groups.swap(t.groups);
+    A.groupClosed.swap(t.groupClosed);
     A.back.swap(t.back);
     A.fwd.swap(t.fwd);
     std::swap(A.sortCol, t.sortCol);
@@ -57,7 +61,7 @@ static void tabActivate(int i) {
     if (i < 0 || i >= (int)A.tabs.size() || i == A.tab) return;
     A.renaming = false;
     A.menu.open = false;
-    A.hover = -1;
+    A.hover = A.groupHover = -1;
     TabState& old = A.tabs[A.tab];
     if (A.loading) { // lasciata a metà caricamento: riprende quando torna attiva
         old.pending = true;
@@ -77,6 +81,8 @@ static void tabActivate(int i) {
     A.refreshAgain = false; // riguardava la cartella della scheda precedente
     A.pendingHistory = 0;
     TabState& shell = A.tabs[i];
+    bool redo = shell.resort; // il flag non passa da tabSwap: resta nel guscio, si legge qui
+    shell.resort = false;
     if (shell.pending) {
         shell.pending = false;
         std::wstring p, sel;
@@ -86,6 +92,7 @@ static void tabActivate(int i) {
         navigate(p, shell.pendingHistory, sel);
         shell.pendingHistory = 0;
     } else if (A.cur) {
+        if (redo) resort(); // subito: la ricarica qui sotto arriva dopo il primo frame
         startWatch(A.cur->path);
         A.changeAt = nowMs();
         requestRefresh(); // mentre non era attiva la cartella può essere cambiata
@@ -158,7 +165,14 @@ static void openFromOutside(const std::wstring& path, const std::wstring& select
         const Listing* l = i == A.tab ? A.cur : t.cur;
         if (l && samePath(l->path, path)) {
             tabActivate(i);
-            if (!A.filter.empty() && !select.empty()) { A.filter.clear(); rebuildView(true); }
+            // La voce da mostrare può essere nascosta dai filtri o in un gruppo chiuso: si tolgono i
+            // filtri e si riaprono i gruppi, se no selectByName non la trova
+            if ((!A.filter.empty() || A.colFilter.any() || !A.groupClosed.empty()) && !select.empty()) {
+                A.filter.clear();
+                A.colFilter.clear();
+                A.groupClosed.clear();
+                rebuildView(true);
+            }
             selectByName(select);
             return;
         }

@@ -38,7 +38,9 @@
 #include <vector>
 #include <deque>
 #include <string>
+#include <string_view>   // estensioni contate senza copiarle (filtro per colonna, columns.cpp)
 #include <unordered_map>
+#include <unordered_set>
 #include <memory>        // shared_ptr: archivi zip letti, condivisi tra i thread (zip.cpp)
 #include <functional>    // lavori della lista principale rimandati alla fine di un PaneScope (app.h)
 #include <algorithm>
@@ -143,7 +145,18 @@ static inline uint32_t fadeA(uint32_t c, float a) {
 
 
 // Messaggi interni (thread di lavoro → finestra)
-#define ZF_VERSION L"1.0.0-beta.8" // versione (SemVer) mostrata in fondo alle opzioni
+#define ZF_VERSION L"1.0.0-beta.9" // versione (SemVer) mostrata in fondo alle opzioni
+// Il nome con cui le finestre di [z]f si riconoscono tra loro: classe della finestra, mutex,
+// messaggi tra finestre, cartella in %APPDATA% e in %TEMP%. La build di prova (ZF_DEV) ha il suo,
+// così le finestre di prova non parlano con quelle di chi usa [z]f né ne toccano i file.
+// Restano in comune: build\z-f-log.txt, la memoria condivisa dei dialoghi Apri e Salva (una sola
+// finestra li fa saltare, filedlg.cpp) e il registro di "[z]f al posto di Explorer", che la build
+// di prova legge ma non scrive (kDefaultLocked, integration.cpp)
+#ifdef ZF_DEV
+#define ZF_ID L"z-f-dev"
+#else
+#define ZF_ID L"z-f"
+#endif
 #include "risorse.h" // ID delle risorse (ZF_ICON), in comune con src\z-f.rc
 
 #define WM_APP_LISTING (WM_APP + 1)

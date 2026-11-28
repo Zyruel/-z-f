@@ -175,9 +175,9 @@ static DWORD WINAPI fdCheckThread(void* p) {
 }
 
 // La finestra di [z]f visibile più in alto, tranne skip (FindWindowEx va in ordine di profondità;
-// nessun messaggio agli altri processi)
-static HWND fdTopWindow(HWND skip) {
-    for (HWND w = nullptr; (w = FindWindowExW(nullptr, w, L"z-f", nullptr)) != nullptr;)
+// nessun messaggio agli altri processi). cls: la classe di questa build, o quella di z-f.exe
+static HWND fdTopWindow(HWND skip, const wchar_t* cls = ZF_ID) {
+    for (HWND w = nullptr; (w = FindWindowExW(nullptr, w, cls, nullptr)) != nullptr;)
         if (w != skip && IsWindowVisible(w)) return w;
     return nullptr;
 }
@@ -194,7 +194,14 @@ static void CALLBACK fdOnForeground(HWINEVENTHOOK, DWORD, HWND h, LONG obj, LONG
     if (FD.lastZf) { // agisce solo l'ultima finestra di [z]f usata
         HWND last = (HWND)(intptr_t)*FD.lastZf;
         // Nessuna, o un processo caduto che non l'ha svuotata: la più in alto, la stessa per tutti
-        if (!last || !IsWindow(last)) last = fdTopWindow(nullptr);
+        if (!last || !IsWindow(last)) {
+#ifdef ZF_DEV
+            // z-f.exe non conosce la classe della build di prova e sceglie tra le sue: se ce n'è
+            // una, decide lei, altrimenti saltano tutte e due
+            if (fdTopWindow(nullptr, L"z-f")) return;
+#endif
+            last = fdTopWindow(nullptr);
+        }
         if (last != A.hwnd) return;
     }
     if (!A.cur || A.cur->path.empty() || A.cur->zipLen) return; // Questo PC, dentro uno zip: niente da proporre
@@ -243,6 +250,9 @@ static void fdRelease() {
 // Dopo il primo frame (main.cpp)
 static void fdStart() {
     if (FD.hook) return;
+    // Il nome è lo stesso per z-f.exe e la build di prova (non ZF_ID): con tutte e due aperte, con
+    // due memorie ognuna si crederebbe l'ultima usata e farebbero saltare lo stesso dialogo insieme
+    // (i due salti si intreccerebbero nel campo del nome, quello che FdWork evita in un processo)
     HANDLE m = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(LONG64), L"Local\\z-f-ultima-finestra");
     if (m) FD.lastZf = (volatile LONG64*)MapViewOfFile(m, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(LONG64)); // resta aperta fino all'uscita
     if (GetForegroundWindow() == A.hwnd) fdActivated();

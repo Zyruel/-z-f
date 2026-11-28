@@ -62,14 +62,6 @@ static void drawSpinner(float cx, float cy, float d, uint32_t col) {
     if (A.animations) A.animActive = true;
 }
 
-// Titolo di una colonna nell'intestazione; arrow: con la freccia dell'ordinamento
-static std::wstring colTitle(int col, bool arrow) {
-    std::wstring t = col == COL_NAME ? L"Nome" : col == COL_SIZE ? L"Dimensione" : col == COL_LINK ? L"Destinazione"
-                   : A.cur && A.cur->isDrives ? L"Tipo" : L"Data modifica";
-    if (arrow) t += A.sortDesc ? L" \x2193" : L" \x2191";
-    return t;
-}
-
 // Testo allineato a destra in [left, right]; se non ci sta, da left con "…"
 static void drawTextRight(float left, float right, float y, const wchar_t* s, int n, uint32_t c) {
     float w = (float)textWidth(s, n);
@@ -165,11 +157,15 @@ static void drawBarBand(float x0, float x1, float y, float h) {
     rect(x0, y, x1 - x0, 1, C_LINE);
 }
 
-// Larghezza del blocco della vista: quanto il nome più largo tra quelli possibili, perché cambiando
-// vista quello che sta prima non si sposti
-static float barViewW(const wchar_t* const* names, int n) {
-    float tw = 0;
-    for (int i = 0; i < n; i++) tw = std::max(tw, (float)textWidth(names[i], (int)wcslen(names[i])));
+// Larghezza del blocco della vista: quanto il nome di vista più largo, nella lista e nell'anteprima
+// di una cartella. Così cambiando vista i contatori prima non si spostano, e con l'anteprima in
+// basso le parti delle due barre stanno una sopra l'altra; il nome finisce dove finiscono le
+// colonne. Un tipo di contenuto più largo (name: "Informazioni") allarga solo il suo blocco: lì non
+// ci sono contatori da allineare
+static float barViewW(const wchar_t* name) {
+    static const wchar_t* const kNames[] = { viewName(ZOOM_DETAILS), viewName(ZOOM_LIST), viewName(ZOOM_ICONS) };
+    float tw = (float)textWidth(name, (int)wcslen(name));
+    for (const wchar_t* s : kNames) tw = std::max(tw, (float)textWidth(s, (int)wcslen(s)));
     float pad = px(ui::GAP_S);
     return pad + (float)F.lineH + px(ui::GAP_S) + tw + pad;
 }
@@ -246,18 +242,41 @@ static void drawRowIcon(const Entry& e, float x, float y, double now) {
     if (ie) drawIcon(x, y, *ie, fadeA(hidden ? C_ICON_HIDDEN : C_ICON, ia));
 }
 
+// Intestazioni dei gruppi visibili (s0: inizio dello scorrimento lungo l'asse; ox, oy: di quanto si
+// spostano le voci). Come il titolo di una sezione della barra laterale: freccia ˅ o › nella colonna
+// delle icone, nome nella colonna dei nomi, poi " · " e le voci del gruppo; sotto il mouse
+// (A.groupHover) nome in C_TEXT e freccia in C_DIM. In Dettagli e Icone una
+// riga sopra le voci; in Elenco la prima riga in alto, larga quanto le colonne del gruppo
+static void drawGroupHeads(float s0, float ox, float oy) {
+    if (A.groups.empty()) return;
+    float textOff = floorf((A.rowH - F.lineH) * 0.5f), iconS = (float)I.size, s1 = s0 + viewLen();
+    for (int i = groupAtLen(s0); i < (int)A.groups.size() && A.groups[i].at < s1; i++) {
+        const Group& g = A.groups[i];
+        float dx = 0, y = A.listTop + g.at - oy, end = itemsRight() - A.padX;
+        if (listView()) {
+            dx = g.at - ox;
+            y = A.listTop - oy; // lungo y in Elenco oy è solo l'entrata della lista: scende con le voci
+            end = A.cellX + g.at + groupLen(g) - ox - px(ui::GAP_XS) - px(ui::GAP_S); // come il nome in una colonna (listParts)
+        }
+        if (y + A.rowH <= A.listTop || y >= A.listTop + A.listH) continue;
+        bool hot = i == A.groupHover; // sotto il mouse: nome e freccia più chiari, senza fondo
+        drawUiIcon(A.iconX + dx, y, iconS, A.rowH, g.closed ? IC_CHEVRON_RIGHT : IC_CHEVRON_DOWN, hot ? C_DIM : C_FAINT);
+        std::wstring label = colValueLabel(A.groupCol, g.v), count = L" \x00B7 " + withThousands((uint64_t)g.total);
+        float x = drawText(A.nameX + dx, y + textOff, label.c_str(), (int)label.size(), hot ? C_TEXT : C_DIM, end);
+        drawText(x, y + textOff, count.c_str(), (int)count.size(), C_DIM, end);
+    }
+}
+
 // Voci della lista di App (virtualizzate: solo quelle visibili), cursore, rettangolo e barra di
 // scorrimento: la lista principale e, nel suo PaneScope, l'anteprima di una cartella (preview:
 // niente copertura a destra in Elenco, il ritaglio lo fa chi chiama; le colonne le decide
-// pvPaneLayout, a destra senza Data). cursor: si
+// pvPaneLayout, a destra solo Dimensione). cursor: si
 // disegna il cursore (solo nella lista che ha la tastiera).
 static void drawListItems(double dt, double now, bool preview, bool cursor) {
     float s = A.scale;
     float textOff = floorf((A.rowH - F.lineH) * 0.5f);
     float LX = A.listX;            // la lista inizia dopo la barra laterale
     float listRight = A.listR - A.sbW; // a destra della barra di scorrimento può esserci l'anteprima
-    float sizeRight = listRight - A.padX;
-    float sizeX = A.sizeX, dateX = A.dateX, dateEnd = sizeX - A.padX; // colonne (layout)
     float iconS = (float)I.size;
     float iconX = LX + A.padX;
     float bpX = LX + px(ui::GAP_S), bpW = listRight - LX - px(ui::GAP_S) * 2, bpR = px(ui::R_S); // sfondo delle righe
@@ -273,9 +292,10 @@ static void drawListItems(double dt, double now, bool preview, bool cursor) {
     float ox, oy; // scorrimento: le voci si spostano in y, in Elenco in x
     scrollOffset(ox, oy);
     oy -= enterDy;
-    float s0 = listView() ? ox : oy, len = lineLen(); // linee visibili lungo l'asse
-    int first = std::max(0, (int)(s0 / len)) * A.perLine;
-    int last = std::min((int)A.view.size(), ((int)((s0 + viewLen()) / len) + 1) * A.perLine);
+    float s0 = listView() ? ox : oy; // voci visibili lungo l'asse
+    int first, last;
+    itemsInSpan(s0, s0 + viewLen(), first, last);
+    drawGroupHeads(s0, ox, oy);
     double ts = nowMs();
     thumbsFrame(gridView() ? first : -1, gridView() ? last : -1, preview); // miniature: risultati arrivati, richieste
     wchar_t buf[64];
@@ -296,7 +316,7 @@ static void drawListItems(double dt, double now, bool preview, bool cursor) {
             if (A.renaming && (int)A.view[i] == A.renameEntry)
                 drawField(A.renameField, p.name.x, p.name.y + dy, p.name.w, A.rowH, s);
             else
-                drawGridName(A.cur->name(e), (int)e.nameLen, p.name.x, p.name.y + dy, p.name.w, hidden ? C_FAINT : C_TEXT);
+                drawGridName(A.cur->name(e), shownLen(e), p.name.x, p.name.y + dy, p.name.w, hidden ? C_FAINT : C_TEXT);
         }
         if (!preview) {
             A.th.cellsMs = nowMs() - ts;
@@ -315,7 +335,7 @@ static void drawListItems(double dt, double now, bool preview, bool cursor) {
             if (A.renaming && (int)A.view[i] == A.renameEntry)
                 drawField(A.renameField, nx - px(ui::FIELD_PAD), y + 1, ne + px(ui::GAP_S) - nx, A.rowH - 2, s);
             else
-                drawText(nx, y + textOff, A.cur->name(e), (int)e.nameLen, hidden ? C_FAINT : C_TEXT, ne);
+                drawText(nx, y + textOff, A.cur->name(e), shownLen(e), hidden ? C_FAINT : C_TEXT, ne);
         }
     } else {
         for (int i = first; i < last; i++) {
@@ -330,37 +350,36 @@ static void drawListItems(double dt, double now, bool preview, bool cursor) {
             if (A.renaming && (int)A.view[i] == A.renameEntry)
                 drawField(A.renameField, nameX - px(ui::FIELD_PAD), y + 1, A.nameEnd + A.padX - nameX, A.rowH - 2, s);
             else
-                drawText(nameX, y + textOff, A.cur->name(e), (int)e.nameLen, hidden ? C_FAINT : C_TEXT, A.nameEnd);
-            // Destinazione di un collegamento (links.cpp): si clicca, quindi sotto il mouse ha il
-            // fondo dei controlli piccoli dentro un elemento già evidenziato
-            if (A.linkW > 0)
-                if (const LinkTarget* t = linkOf(A.cur, A.view[i])) {
+                drawText(nameX, y + textOff, A.cur->name(e), shownLen(e), hidden ? C_FAINT : C_TEXT, A.nameEnd);
+            for (int c : kColOrder) { // le altre colonne (columns.cpp), quelle che si vedono
+                if (A.colWd[c] <= 0) continue;
+                float cx = colStart(c), ce = colEnd(c);
+                if (c == COL_LINK) {
+                    // Destinazione di un collegamento (links.cpp): si clicca, quindi sotto il mouse ha il
+                    // fondo dei controlli piccoli dentro un elemento già evidenziato
+                    const LinkTarget* t = linkOf(A.cur, A.view[i]);
+                    if (!t) continue;
                     int n = (int)t->path.size();
                     float la = hoverAlpha(A.linkFade, i), lp = px(ui::GAP_S), m = px(ui::GAP_XS);
                     if (la > 0) {
-                        float w = std::min((float)textWidth(t->path.c_str(), n), dateX - A.padX - A.linkX);
-                        rrect(A.linkX - lp, y + m, w + lp * 2, A.rowH - m * 2, bpR, fadeA(C_HOVER_STRONG, la));
+                        float w = std::min((float)textWidth(t->path.c_str(), n), ce - cx);
+                        rrect(cx - lp, y + m, w + lp * 2, A.rowH - m * 2, bpR, fadeA(C_HOVER_STRONG, la));
                     }
-                    drawText(A.linkX, y + textOff, t->path.c_str(), n, dimC, dateX - A.padX);
-                }
-            if (A.cur->isDrives) {
-                { const wchar_t* k = driveKind((UINT)e.size); drawText(dateX, y + textOff, k, (int)wcslen(k), dimC, dateEnd); }
-            } else {
-                int n;
-                if (A.dateW > 0) { // l'anteprima a destra non ha la colonna Data
-                    n = fmtDate(e.mtime, buf);
-                    drawText(dateX, y + textOff, buf, n, dimC, dateEnd);
-                }
-                if (!dir || (A.cur->zipLen && A.dirSizes)) { // zip: le cartelle hanno già il totale (zip.cpp)
-                    n = fmtSize(e.size, buf);
-                    drawTextRight(sizeX, sizeRight, y + textOff, buf, n, dimC);
-                } else if (A.dirSizes) { // totale contato in background (dirsize.cpp); mentre conta, attenuato
-                    DirSize d;
-                    bool computing = false;
-                    if (dirSizeGet(joinPath(A.cur->path, A.cur->name(e)), d, computing) && (d.files || !d.denied)) { // illeggibile: niente
-                        n = fmtSize(d.bytes, buf);
-                        drawTextRight(sizeX, sizeRight, y + textOff, buf, n, computing ? C_FAINT : dimC);
+                    drawText(cx, y + textOff, t->path.c_str(), n, dimC, ce);
+                } else if (c == COL_SIZE) {
+                    if (!dir || (A.cur->zipLen && A.dirSizes)) { // zip: le cartelle hanno già il totale (zip.cpp)
+                        int n = fmtSize(e.size, buf);
+                        drawTextRight(cx, ce, y + textOff, buf, n, dimC);
+                    } else if (A.dirSizes) { // totale contato in background (dirsize.cpp); mentre conta, attenuato
+                        DirSize d;
+                        bool computing = false;
+                        if (dirSizeGet(joinPath(A.cur->path, A.cur->name(e)), d, computing) && (d.files || !d.denied)) { // illeggibile: niente
+                            int n = fmtSize(d.bytes, buf);
+                            drawTextRight(cx, ce, y + textOff, buf, n, computing ? C_FAINT : dimC);
+                        }
                     }
+                } else if (int n = colText(A.cur, c, e, buf)) {
+                    drawText(cx, y + textOff, buf, n, dimC, ce);
                 }
             }
         }
@@ -402,8 +421,8 @@ static void drawListItems(double dt, double now, bool preview, bool cursor) {
         if (listView()) rrect(tStart, A.listTop + A.listH - A.sbW + pad, tLen, th, th * 0.5f, C_SCROLL);
         else rrect(listRight + pad, tStart, th, tLen, th * 0.5f, C_SCROLL);
     }
-    if (A.view.empty()) {
-        const wchar_t* msg = A.filter.empty() ? L"Cartella vuota" : L"Nessun risultato per il filtro";
+    if (A.view.empty() && A.groups.empty()) { // con i gruppi tutti chiusi restano le intestazioni
+        const wchar_t* msg = !filtering() ? L"Cartella vuota" : L"Nessun risultato per il filtro";
         drawText(iconX, A.listTop + A.rowH * 0.5f, msg, (int)wcslen(msg), C_DIM);
     }
 }
@@ -465,6 +484,7 @@ static void render() {
     layout();
     clampScroll();
     previewSync(); // la voce sotto il cursore è cambiata: si chiede l'anteprima (su un thread)
+    hoverFollowList(); // la lista si è spostata sotto il mouse fermo: l'hover la segue
 
     float W = (float)G.w, H = (float)G.h;
     float s = A.scale;
@@ -500,8 +520,6 @@ static void render() {
     drawListItems(dt, now, false, !previewHasKeys());
     float LX = A.listX;            // la lista inizia dopo la barra laterale
     float listRight = A.listR - A.sbW; // a destra della barra di scorrimento può esserci l'anteprima
-    float sizeRight = listRight - A.padX;
-    float sizeX = A.sizeX, dateX = A.dateX, dateEnd = sizeX - A.padX; // colonne (layout)
     float nameX = A.nameX;
 
     // --- intestazione colonne (disegnata dopo le righe, le copre) ---
@@ -509,25 +527,49 @@ static void render() {
     rect(LX, headY, A.listR - LX, A.headH, C_HEADER);
     rect(LX, headY + A.headH - 1, A.listR - LX, 1, C_LINE);
     if (A.zoom != ZOOM_DETAILS) { // solo le etichette per ordinare, a sinistra (le colonne non ci sono)
-        float x = LX + A.padX, y = headY + textOff;
-        for (int c = 0; c < 3; c++) {
-            std::wstring t = colTitle(c, A.sortCol == c || (c == COL_NAME && A.sortCol == COL_LINK)); // Destinazione qui non c'è
-            A.sortX[c] = x;
-            x = drawText(x, y, t, C_DIM, listRight - A.padX) + px(ui::GAP_XL);
+        A.sortN = 0;
+        A.sortC[A.sortN++] = COL_NAME;
+        for (int c : kColOrder) if (colSortLabel(c)) A.sortC[A.sortN++] = c;
+        int arrow = colArrow();
+        float x = LX + A.padX, y = headY + textOff, xMax = listRight - A.padX;
+        for (int i = 0; i < A.sortN; i++) {
+            A.sortX[i] = x;
+            int c = A.sortC[i];
+            bool f = A.colFilter.on(c); // filtrata: in C_ACCENT, con l'imbuto dopo il titolo
+            x = drawText(x, y, colTitle(c, c == arrow), f ? C_ACCENT : C_DIM, xMax);
+            if (f && x + px(ui::GAP_XS) + F.lineH <= xMax) {
+                drawUiIcon(x + px(ui::GAP_XS), headY, (float)F.lineH, A.headH - 1, IC_FILTER, C_ACCENT);
+                x += px(ui::GAP_XS) + F.lineH;
+            }
+            x += px(ui::GAP_XL);
         }
-        A.sortX[3] = x;
+        A.sortX[A.sortN] = x;
     } else {
-        std::wstring n = colTitle(COL_NAME, A.sortCol == COL_NAME), d = colTitle(COL_DATE, A.sortCol == COL_DATE),
-                     z = colTitle(COL_SIZE, A.sortCol == COL_SIZE);
+        int arrow = colArrow();
         float y = headY + textOff;
-        if (A.linkW > 0) drawText(A.linkX, y, colTitle(COL_LINK, A.sortCol == COL_LINK), C_DIM, dateX - A.padX);
-        else if (A.sortCol == COL_LINK) n = colTitle(COL_NAME, true); // senza la colonna, l'ordine è quello del nome
-        drawText(nameX, y, n, C_DIM, A.nameEnd);
-        drawText(dateX, y, d, C_DIM, dateEnd);
-        drawTextRight(sizeX, sizeRight, y, z.c_str(), (int)z.size(), C_DIM);
+        drawText(nameX, y, colTitle(COL_NAME, arrow == COL_NAME), C_DIM, A.nameEnd);
+        // Accanto al titolo l'imbuto del filtro sotto il mouse (sopra di lui il fondo dei pulsanti, anche
+        // col menu aperto); una colonna filtrata lo ha sempre, e titolo e imbuto in C_ACCENT
+        bool fltMenu = A.menu.open && A.menu.kind == MENU_FILTER;
+        hoverFadeUpdate(A.colFltFade, A.colFltGlyph, dt);
+        for (int c : kColOrder) {
+            if (A.colWd[c] <= 0) continue;
+            std::wstring t = colTitle(c, arrow == c);
+            bool glyph = colGlyphShown(c), f = A.colFilter.on(c);
+            HeadParts h = colHeadParts(c, t, glyph);
+            uint32_t tc = f ? C_ACCENT : C_DIM;
+            if (kCols[c].right) drawTextRight(h.textX, h.textEnd, y, t.c_str(), (int)t.size(), tc);
+            else drawText(h.textX, y, t, tc, h.textEnd);
+            if (!glyph) continue;
+            Box gb = colGlyphBox(c);
+            float ha = fltMenu && A.menu.target == c ? 1.0f : hoverAlpha(A.colFltFade, c);
+            if (ha > 0) rrect(gb.x, gb.y, gb.w, gb.h, px(ui::R_S), fadeA(C_HOVER, ha));
+            uint32_t gc = f ? C_ACCENT : ha > 0 ? C_TEXT : C_DIM;
+            drawUiIcon(h.glyphX, headY, (float)F.lineH, A.headH - 1, IC_FILTER, gc);
+        }
         // Bordo tra due colonne: si vede solo sotto il mouse (C_LINE) o mentre lo si trascina (C_SEL_EDGE)
         int b = A.colDrag >= 0 ? A.colDrag : A.colHover;
-        if (b >= 0 && b < EDGE_SIDE) rect(colBorderX(b), headY + px(ui::GAP_S), 1, A.headH - 1 - px(ui::GAP_S) * 2,
+        if (b > COL_NAME && b < EDGE_SIDE) rect(colBorderX(b), headY + px(ui::GAP_S), 1, A.headH - 1 - px(ui::GAP_S) * 2,
                          A.colDrag >= 0 ? C_SEL_EDGE : C_LINE);
     }
 
@@ -577,10 +619,9 @@ static void render() {
         float rightX = bx1 - A.padX + px(ui::GAP_S); // il fondo del controllo della vista sporge di GAP_S
         {
             // Vista: si clicca (menu delle viste) e ci si gira la rotellina (zoom). Sotto il mouse, e col
-            // suo menu aperto, ha il fondo dei pulsanti della barra del percorso. Largo sempre quanto il
-            // nome più largo: cambiando vista i contatori accanto non si spostano
-            static const wchar_t* const kNames[] = { viewName(ZOOM_DETAILS), viewName(ZOOM_LIST), viewName(ZOOM_ICONS) };
-            float w = barViewW(kNames, 3);
+            // suo menu aperto, ha il fondo dei pulsanti della barra del percorso. Largo come nella
+            // banda dell'anteprima (barViewW)
+            float w = barViewW(viewName(A.zoom));
             A.viewX = rightX - w; A.viewW = w;
             hoverFadeUpdate(A.viewFade, A.viewHover ? 0 : -1, dt);
             float ha = A.menu.open && A.menu.kind == MENU_VIEW && !A.menu.preview ? 1.0f : hoverAlpha(A.viewFade, 0);
@@ -628,6 +669,12 @@ static void render() {
         row(L"chiavi di ordinamento", L"%.2f ms%s", A.cur->keyMs, L"");
         row(L"ordinamento", L"%.2f ms%s", A.sortMs, L"");
         row(L"filtro", L"%.2f ms%s", A.filterMs, L"");
+        {
+            rows[nr].label = L"gruppi"; rows[nr].head = false;
+            if (A.groups.empty()) wcscpy(rows[nr].val, L"—");
+            else _snwprintf(rows[nr].val, 95, L"%.2f ms · %d %s", A.groupMs, (int)A.groups.size(), A.groups.size() == 1 ? L"gruppo" : L"gruppi");
+            rows[nr].val[95] = 0; nr++;
+        }
         auto row2 = [&](const wchar_t* t, double v, double mx) {
             rows[nr].label = t; rows[nr].head = false;
             _snwprintf(rows[nr].val, 95, L"%.2f ms · peggiore %.2f", v, mx); rows[nr].val[95] = 0; nr++;
@@ -650,6 +697,7 @@ static void render() {
             rows[nr].val[95] = 0; nr++;
             if (A.refreshCount) row(L"ultima ricarica (da notifica a schermo)", L"%.1f ms%s", A.refreshLatency, L"");
             if (A.ourMenuMs > 0) row(L"menu contestuale: apertura", L"%.3f ms%s", A.ourMenuMs, L"");
+            if (A.colFltMenuMs > 0) row(L"menu del filtro di una colonna: apertura, con i conteggi", L"%.2f ms%s", A.colFltMenuMs, L"");
             if (A.dropRegisterMs > 0) row(L"trascinamento: registrazione (OLE)", L"%.1f ms%s", A.dropRegisterMs, L"");
             if (A.dropMs > 0) row(L"trascinamento: rilascio e operazione (thread)", L"%.1f ms%s", A.dropMs, L"");
             if (A.dropUiMax > 0) row(L"trascinamento: chiamata più lenta (UI)", L"%.2f ms%s", A.dropUiMax, L"");

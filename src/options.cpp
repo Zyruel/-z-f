@@ -21,7 +21,7 @@ struct ShortcutGroup { const wchar_t* title; Shortcut* items; int n; };
 
 static Shortcut kNav[] = {
     { { K(M_OPEN, 0, VK_RETURN), { L"doppio clic", 0 } }, L"Apre la cartella o il file" },
-    { { K(M_UP, KA, VK_UP), { L"Backspace", 0 } }, L"Va alla cartella superiore (Backspace: se non c'è un filtro)" },
+    { { K(M_UP, KA, VK_UP), { L"Backspace", 0 } }, L"Va alla cartella superiore (Backspace: se non c'è un filtro per nome)" },
     // Anche i tasti del browser e i gesti del touchpad (WM_APPCOMMAND, in input.cpp)
     { { K(M_BACK, KA, VK_LEFT), { L"tasto Indietro del mouse o della tastiera", 0 }, { L"gesto Indietro del touchpad", 0 } }, L"Va indietro" },
     { { K(M_FWD, KA, VK_RIGHT), { L"tasto Avanti del mouse o della tastiera", 0 }, { L"gesto Avanti del touchpad", 0 } }, L"Va avanti" },
@@ -30,8 +30,8 @@ static Shortcut kNav[] = {
     { { { L"Clic sulla destinazione di un collegamento", 0 }, { L"clic centrale", 0 } }, L"Apre il percorso del file (in una nuova scheda)" },
     { { K(M_EDIT_PATH, KC, 'L'), K(M_EDIT_PATH, 0, VK_F4), { L"clic sul percorso vuoto", 0 } }, L"Apre Vai a col percorso della cartella aperta, da modificare" },
     { { K(M_GOTO, KC, 'P'), K(M_GOTO, KC, 'G') }, L"Apre Vai a: cartelle recenti, preferiti, sottocartelle" },
-    { { { L"Ctrl+Invio", M_GOTO_NEWTAB }, { L"clic centrale", 0 } }, L"Vai a: apre in una nuova scheda" },
-    { { { L"Tab", M_GOTO_ENTER } }, L"Vai a: entra nella cartella e mostra le sottocartelle" },
+    { { { L"Ctrl+Invio", M_GOTO_NEWTAB }, { L"clic centrale", 0 } }, L"Apre in una nuova scheda la voce scelta in Vai a" },
+    { { { L"Tab", M_GOTO_ENTER } }, L"Entra nella cartella scelta in Vai a e ne mostra le sottocartelle" },
     { { K(M_REFRESH, 0, VK_F5), { L"tasto Aggiorna della tastiera", 0 } }, L"Ricarica" },
 };
 static Shortcut kSel[] = {
@@ -46,7 +46,7 @@ static Shortcut kSel[] = {
     { { { L"Ctrl+A", 0 } }, L"Seleziona tutto ciò che è visibile" },
     { { { L"Lettere", 0 } }, L"Filtra i nomi mentre si scrive" },
     { { { L"Backspace", 0 } }, L"Toglie l'ultima lettera del filtro" },
-    { { { L"Esc", M_FILTER_CLEAR } }, L"Toglie il filtro, poi la selezione (nell'anteprima, poi torna alla lista)" },
+    { { { L"Esc", M_FILTER_CLEAR } }, L"Toglie il filtro per nome, poi quelli delle colonne, poi la selezione (nell'anteprima, poi torna alla lista)" },
 };
 static Shortcut kFiles[] = {
     { { K(M_COPY, KC, 'C'), K(M_CUT, KC, 'X') }, L"Copia · taglia" },
@@ -55,7 +55,7 @@ static Shortcut kFiles[] = {
     { { K(M_COPYPATH, KC | KS, 'C') }, L"Copia il percorso" },
     { { K(M_NEWFOLDER, KC | KS, 'N') }, L"Crea una nuova cartella" },
     { { K(M_RENAME, 0, VK_F2) }, L"Rinomina" },
-    { { K(M_DELETE, 0, VK_DELETE), K(M_DELETE, KS, VK_DELETE) }, L"Sposta nel Cestino · elimina definitivamente" }, // Shift lo legge deleteSelected
+    { { K(M_DELETE, 0, VK_DELETE), K(M_DELETE, KS, VK_DELETE) }, L"Sposta nel Cestino · elimina definitivamente" }, // Shift arriva a deleteSelected da CmdCtx::shift
     { { K(M_UNDO, KC, 'Z') }, L"Annulla l'ultima operazione sui file" },
     { { K(M_REDO, KC, 'Y'), K(M_REDO, KC | KS, 'Z') }, L"Ripete l'operazione annullata" },
     { { K(M_PROPS, KA, VK_RETURN) }, L"Apre le proprietà" },
@@ -73,7 +73,7 @@ static Shortcut kTabs[] = {
     { { { L"Ctrl+Tab", 0 }, { L"Ctrl+Shift+Tab", 0 } }, L"Passa alla scheda successiva · precedente" },
     { { { L"Ctrl+1…8", 0 }, { L"Ctrl+9", 0 } }, L"Passa alla scheda n · all'ultima" },
     { { { L"Clic centrale", M_NEWTAB }, { L"Ctrl+clic su un preferito", 0 } }, L"Apre in una nuova scheda in background" },
-    { { { L"Trascina su una scheda", 0 } }, L"La apre dopo un momento" },
+    { { { L"Trascina su una scheda", 0 } }, L"Passa a quella scheda dopo un momento" },
 };
 static Shortcut kView[] = {
     { { K(M_SIDEBAR, KC, 'B') }, L"Mostra o nasconde la barra laterale" },
@@ -88,13 +88,16 @@ static Shortcut kView[] = {
     { { { L"Trascina il bordo di un pannello", 0 }, { L"doppio clic", 0 } }, L"Cambia la larghezza di barra laterale o anteprima (l'altezza, in basso) · torna alla predefinita" },
     { { { L"Clic su ˅ accanto a ◨", 0 } }, L"Mette l'anteprima a destra o in basso" },
     { { { L"Clic sull'intestazione", 0 } }, L"Ordina per colonna (di nuovo: al contrario)" },
+    { { { L"Tasto destro sull'intestazione", 0 } }, L"Sceglie le colonne da mostrare e il raggruppamento" },
+    { { { L"Clic sull'imbuto accanto al titolo di una colonna", 0 } }, L"Filtra la colonna per i valori presenti" },
+    { { { L"Clic sull'intestazione di un gruppo", 0 } }, L"Chiude o apre il gruppo" },
     { { { L"Trascina il bordo di una colonna", 0 }, { L"doppio clic", 0 } }, L"Cambia la larghezza della colonna · la adatta al contenuto" },
     { { K(M_FAV_TOGGLE, KC, 'D') }, L"Aggiunge o toglie dai preferiti" },
     { { { L"Trascina tra i preferiti", 0 } }, L"Aggiunge le cartelle ai preferiti" },
-    { { { L"Trascina un preferito", 0 } }, L"Lo sposta tra gli altri (solo l'ordine)" },
+    { { { L"Trascina un preferito", 0 } }, L"Cambia l'ordine dei preferiti" },
     { { { L"Clic su Preferiti", 0 }, { L"sulla freccia di Questo PC", 0 } }, L"Chiude o riapre i preferiti · le unità" },
-    { { { L"Ctrl+/−", 0 } }, L"Cambia la dimensione del testo" },
-    { { { L"Ctrl+0", 0 } }, L"Riporta il testo alla dimensione predefinita" },
+    { { { L"Ctrl+/−", M_FONT_STEP } }, L"Cambia la dimensione del testo" },
+    { { { L"Ctrl+0", M_FONT_RESET } }, L"Riporta il testo alla dimensione predefinita" },
     { { K(M_OPTIONS, KC, VK_OEM_COMMA) }, L"Apre le opzioni" },
     { { { L"F12", 0 } }, L"Mostra statistiche e tempi" },
 };
@@ -204,12 +207,13 @@ static std::wstring shortcutsOf(int cmd) {
 enum OptId { OPT_NONE = -1, OPT_CLOSE = 1, OPT_FONT_MINUS, OPT_FONT_PLUS, OPT_FACE_PREV, OPT_FACE_NEXT,
              OPT_ANIM, OPT_SIDEBAR, OPT_DEFAULT, OPT_FOLDER, OPT_PREVIEW, OPT_MONO_PREV, OPT_MONO_NEXT,
              OPT_PREVIEW_POS_PREV, OPT_PREVIEW_POS_NEXT,
-             OPT_UNDO_PERSIST, OPT_SHELL_MENU, OPT_DIR_SIZES, OPT_DIALOGS, OPT_TIMES,
+             OPT_UNDO_PERSIST, OPT_SHELL_MENU, OPT_DIR_SIZES, OPT_EXT, OPT_DIALOGS, OPT_TIMES,
              OPT_REOPEN, OPT_UPDATES, OPT_BETA, OPT_UPD_ACT, OPT_SEPARATE, OPT_VERSION };
+enum { OPT_TIP_ROW = 1 << 16 }; // OptionsPanel::tips: oltre, una riga troncata o con una scorciatoia (sotto, una scorciatoia troncata)
 
 struct OptionsPanel {
     bool open = false;
-    double openedAt = 0;
+    double openedAt = 0, closedAt = -1e18; // closedAt: il secondo clic di un doppio clic che le ha chiuse
     TextField search;
     float scroll = 0, maxScroll = 0;
     float x = 0, y = 0, w = 0, h = 0, viewTop = 0, viewBottom = 0;
@@ -218,11 +222,14 @@ struct OptionsPanel {
     int defaultState = 0;              // [z]f al posto di Explorer (letto all'apertura)
     struct Hit { float x, y, w, h; int id; };
     std::vector<Hit> hits;             // aree cliccabili dell'ultimo frame
-    std::vector<Hit> tips;             // scorciatoie troncate dell'ultimo frame (id: gruppo * 256 + voce): il tooltip ha il testo intero
+    std::vector<Hit> tips;             // scorciatoie troncate dell'ultimo frame (id: gruppo * 256 + voce): il tooltip ha il testo intero;
+                                       // righe troncate o con una scorciatoia (id: OPT_TIP_ROW + indice in rowTips)
+    struct RowTip { const wchar_t* label; int cmd, cmd2; }; // cmd: 0 se la riga non ha scorciatoia; cmd2: la riga "Predefinita" (Ctrl+0)
+    std::vector<RowTip> rowTips;       // righe dell'ultimo frame troncate o con una scorciatoia: etichetta e comandi
     int hover = OPT_NONE;
     HoverFade fade;
     float knobAnim = 0, knobSide = 0, knobDefault = 0, knobPreview = 0, knobUndo = 0, knobMenu = 0, knobDirSizes = 0, knobDialogs = 0, knobTimes = 0; // posizione animata degli interruttori
-    float knobReopen = 0, knobUpdates = 0, knobBeta = 0, knobSeparate = 0;
+    float knobReopen = 0, knobUpdates = 0, knobBeta = 0, knobSeparate = 0, knobExt = 0;
 } OP;
 
 static const wchar_t* kFaceChoices[] = { L"Segoe UI", L"Segoe UI Variable Text", L"Calibri", L"Tahoma", L"Verdana", nullptr };
@@ -271,6 +278,7 @@ static void optionsOpen() {
     OP.knobUndo = A.undoPersist ? 1.0f : 0.0f;
     OP.knobMenu = A.shellMenu ? 1.0f : 0.0f;
     OP.knobDirSizes = A.dirSizes ? 1.0f : 0.0f;
+    OP.knobExt = A.showExt ? 1.0f : 0.0f;
     OP.knobDialogs = A.dialogJump ? 1.0f : 0.0f;
     OP.knobTimes = A.timesBar ? 1.0f : 0.0f;
     OP.knobReopen = A.reopenTabs ? 1.0f : 0.0f;
@@ -285,9 +293,12 @@ static void optionsOpen() {
     A.dirty = true;
 }
 
-static void optionsClose() {
+// mouse: chiuse da un clic (fuori, ×, Apri cartella). Solo allora il secondo clic di un doppio clic
+// non va alla lista: dopo Esc o Ctrl+, un doppio clic su un file lo deve aprire
+static void optionsClose(bool mouse = false) {
     if (!OP.open) return;
     OP.open = false;
+    OP.closedAt = mouse ? nowMs() : -1e18;
     A.dirty = true;
 }
 
@@ -319,13 +330,13 @@ static DWORD WINAPI settingsDirThread(void* p) {
 static void separateWindowsToggle() {
     A.separateWindows = !A.separateWindows;
     settingsSave();
-    for (HWND w = nullptr; (w = FindWindowExW(nullptr, w, L"z-f", nullptr)) != nullptr;)
+    for (HWND w = nullptr; (w = FindWindowExW(nullptr, w, ZF_ID, nullptr)) != nullptr;)
         if (w != A.hwnd) PostMessageW(w, g_msgSeparate, A.separateWindows ? 1 : 0, 0);
 }
 
 static void optionsExec(int id) {
     switch (id) {
-    case OPT_CLOSE:      optionsClose(); break;
+    case OPT_CLOSE:      optionsClose(true); break; // optionsExec viene solo dal mouse
     case OPT_FONT_MINUS: fontSizeStep(-1); break;
     case OPT_FONT_PLUS:  fontSizeStep(1); break;
     case OPT_FACE_PREV:  optionsFace(-1); break;
@@ -339,7 +350,13 @@ static void optionsExec(int id) {
     case OPT_DEFAULT:    toggleDefault(); break; // lo stato si rilegge all'esito (WM_APP_DEFAULT)
     case OPT_UNDO_PERSIST: undoPersistToggle(); break;
     case OPT_SHELL_MENU: A.shellMenu = !A.shellMenu; settingsSave(); break;
-    case OPT_DIR_SIZES:  A.dirSizes = !A.dirSizes; settingsSave(); dirSizeQueueCurrent(); break;
+    case OPT_DIR_SIZES: // filtro o gruppi per Dimensione: le cartelle passano tra "Cartelle" e la fascia
+        A.dirSizes = !A.dirSizes; // del totale; la vista prima della coda, che segue il suo ordine
+        settingsSave();
+        if (viewUsesDirTotals()) refilterQuiet();
+        dirSizeQueueCurrent();
+        break;
+    case OPT_EXT:        A.showExt = !A.showExt; settingsSave(); break;
     case OPT_DIALOGS:    A.dialogJump = !A.dialogJump; settingsSave(); break;
     case OPT_TIMES:      A.timesBar = !A.timesBar; settingsSave(); break;
     case OPT_REOPEN:     A.reopenTabs = !A.reopenTabs; settingsSave(); break;
@@ -351,7 +368,7 @@ static void optionsExec(int id) {
     case OPT_FOLDER: {
         std::wstring p = zfDataPath(L"");
         if (!p.empty()) p.pop_back(); // senza "\" finale
-        optionsClose();
+        optionsClose(true);
         // La cartella può non esserci ancora (nessuna impostazione salvata): la crea un thread, che
         // poi chiede alla finestra di aprirla (WM_APP_OPENTAB)
         HANDLE h = CreateThread(nullptr, 0, settingsDirThread, new std::wstring(p), 0, nullptr);
@@ -371,10 +388,11 @@ static int optionsHit(int x, int y) {
 // --- input: true se l'evento è stato gestito dal pannello ------------------------------
 // again: secondo clic di un doppio clic. Conta come un clic, tranne su versione, aggiornamento e
 // posizione dell'anteprima: aprirebbero la pagina due volte, ripeterebbero l'aggiornamento o
-// rimetterebbero l'anteprima dov'era
+// rimetterebbero l'anteprima dov'era. Se il primo clic le ha chiuse (fuori, ×), il secondo non va
+// a ciò che c'è sotto: aprirebbe il file della lista in quel punto
 static bool optionsMouseDown(int x, int y, bool again = false) {
-    if (!OP.open) return false;
-    if (x < OP.x || x >= OP.x + OP.w || y < OP.y || y >= OP.y + OP.h) { optionsClose(); return true; } // clic fuori
+    if (!OP.open) return again && nowMs() - OP.closedAt < GetDoubleClickTime();
+    if (x < OP.x || x >= OP.x + OP.w || y < OP.y || y >= OP.y + OP.h) { optionsClose(true); return true; } // clic fuori
     int id = optionsHit(x, y);
     if (again && (id == OPT_VERSION || id == OPT_UPD_ACT || id == OPT_PREVIEW_POS_PREV || id == OPT_PREVIEW_POS_NEXT)) return true;
     if (id != OPT_NONE) optionsExec(id);
@@ -407,9 +425,10 @@ static bool optionsKey(WPARAM vk, bool ctrl, bool shift) {
         OP.scroll = std::max(0.0f, std::min(OP.maxScroll, OP.scroll + (vk == VK_NEXT ? page : -page)));
     } else if (ctrl && vk == VK_OEM_COMMA) {
         optionsClose();
-    } else {
+    } else { // in cima solo se la ricerca cambia: Shift da solo, ← → o Alt+Shift+P non spostano il pannello
+        std::wstring before = OP.search.text;
         OP.search.key(A.hwnd, vk, ctrl, shift);
-        OP.scroll = 0;
+        if (OP.search.text != before) OP.scroll = 0;
     }
     A.dirty = true;
     return true;
@@ -433,6 +452,15 @@ static bool optionsTipTarget(int x, int y, int& index) {
 }
 
 static bool optionsTipBuild(int index) {
+    if (index >= OPT_TIP_ROW) { // una riga: l'etichetta intera e i suoi tasti, se ne ha (DESIGN §8, Tooltip)
+        size_t r = (size_t)(index - OPT_TIP_ROW);
+        if (!OP.open || r >= OP.rowTips.size()) return false;
+        const OptionsPanel::RowTip& t = OP.rowTips[r];
+        T.title = t.label;
+        if (t.cmd) tipRow(L"Scorciatoia", shortcutsOf(t.cmd));
+        if (t.cmd2) tipRow(L"Predefinita", shortcutsOf(t.cmd2));
+        return true;
+    }
     int g = index / 256, i = index % 256;
     if (!OP.open || g < 0 || g >= (int)(sizeof(kShortcuts) / sizeof(kShortcuts[0])) || i >= kShortcuts[g].n) return false;
     const Shortcut& s = kShortcuts[g].items[i];
@@ -463,6 +491,7 @@ static void drawOptions(double dt) {
     float k = e.k;
     OP.hits.clear();
     OP.tips.clear();
+    OP.rowTips.clear();
     hoverFadeUpdate(OP.fade, OP.hover, dt);
     auto fixed = [](int id) { return id == OPT_CLOSE || id == OPT_FOLDER || id == OPT_UPD_ACT || id == OPT_VERSION; }; // titolo e piede non scorrono
     // Solo la parte dentro l'area visibile: cliccabile, e col fondo sotto il mouse (il pannello non
@@ -551,8 +580,16 @@ static void drawOptions(double dt) {
         if (visible(cy, rowH)) drawText(rowL, cy + textOff + px(ui::GAP_XS), t, (int)wcslen(t), fadeA(C_DIM, k));
         cy += rowH;
     };
-    auto label = [&](const wchar_t* t) {
-        if (visible(cy, rowH)) drawText(inL, cy + textOff, t, (int)wcslen(t), fadeA(C_TEXT, k), right - px(ui::OPT_LABEL_RESERVE));
+    // L'etichetta di una riga finisce a GAP_M dal suo controllo (ctlX). Il tooltip della riga ha
+    // l'etichetta intera, se è troncata, e la scorciatoia (cmd, da kShortcuts), se c'è (DESIGN §8, Tooltip)
+    auto label = [&](const wchar_t* t, float ctlX, int cmd, int cmd2) {
+        if (!visible(cy, rowH)) return;
+        int n = (int)wcslen(t);
+        float maxX = ctlX - px(ui::GAP_M);
+        drawText(inL, cy + textOff, t, n, fadeA(C_TEXT, k), maxX);
+        if (!cmd && floorf(inL) + (float)textWidth(t, n) <= maxX) return; // lo stesso confronto di drawText
+        OP.tips.push_back({ rowL, cy, right - rowL, rowH, OPT_TIP_ROW + (int)OP.rowTips.size() });
+        OP.rowTips.push_back({ t, cmd, cmd2 });
     };
     auto button = [&](float bx, float by, float bw, const wchar_t* t, int id) {
         if (!visible(by, rowH)) return;
@@ -564,7 +601,7 @@ static void drawOptions(double dt) {
     // niente informazioni troncate) e interruttore a destra. Tutta la riga è cliccabile e prende il
     // fondo sotto il mouse. hintCol: C_ACCENT quando la spiegazione avvisa di uno stato a metà.
     std::vector<std::pair<int, int>> hl; // righe della spiegazione: inizio, fine
-    auto opt = [&](const wchar_t* t, const wchar_t* hint, bool on, float& anim, int id, uint32_t hintCol = C_DIM) {
+    auto opt = [&](const wchar_t* t, const wchar_t* hint, bool on, float& anim, int id, uint32_t hintCol = C_DIM, int cmd = 0) {
         hl.clear();
         int hn = hint ? (int)wcslen(hint) : 0;
         for (int s = 0; s < hn;) {
@@ -574,7 +611,7 @@ static void drawOptions(double dt) {
         }
         float rh = hl.empty() ? rowH : rowH * 2 - px(ui::GAP_S) + lh * (float)(hl.size() - 1);
         hov(rowL, cy, right - rowL, rh, id);
-        label(t);
+        label(t, inR - px(ui::SWITCH_W), cmd, 0);
         float hy = cy + rowH - px(ui::GAP_S);
         for (auto& l : hl) {
             if (visible(hy, rowH)) drawText(inL, hy + textOff, hint + l.first, l.second - l.first, fadeA(hintCol, k), inR);
@@ -596,9 +633,9 @@ static void drawOptions(double dt) {
     // Selettore tra alcuni valori: "−  13 px  +", "‹  Segoe UI  ›". Su un fondo da casella
     // (C_INPUT), così si vede che il valore si cambia; i pulsanti hanno il loro fondo sotto il mouse
     auto pickRow = [&](const wchar_t* t, const std::wstring& val, float vw, const wchar_t* prev, const wchar_t* next,
-                       int prevId, int nextId) {
-        label(t);
+                       int prevId, int nextId, int cmd = 0, int cmd2 = 0) {
         float bw = rowH, bx = inR - bw * 2 - vw;
+        label(t, bx, cmd, cmd2);
         if (visible(cy, rowH)) rrect(bx, cy + px(ui::GAP_XS), bw * 2 + vw, rowH - px(ui::GAP_S), px(ui::R_S), fadeA(C_INPUT, k));
         button(bx, cy, bw, prev, prevId);
         if (visible(cy, rowH)) {
@@ -608,8 +645,8 @@ static void drawOptions(double dt) {
         button(bx + bw + vw, cy, bw, next, nextId);
         cy += rowH;
     };
-    auto namePick = [&](const wchar_t* t, const std::wstring& val, int prevId, int nextId) { // tra nomi: caratteri, posizioni
-        pickRow(t, val, px(ui::OPT_FACE_W), L"\x2039", L"\x203A", prevId, nextId);
+    auto namePick = [&](const wchar_t* t, const std::wstring& val, int prevId, int nextId, int cmd = 0) { // tra nomi: caratteri, posizioni
+        pickRow(t, val, px(ui::OPT_FACE_W), L"\x2039", L"\x203A", prevId, nextId, cmd);
     };
 
     // Con la ricerca piena solo le scorciatoie: la casella sta nel loro titolo, così casella e
@@ -620,26 +657,27 @@ static void drawOptions(double dt) {
         wchar_t b[16];
         _snwprintf(b, 15, L"%d px", F.px);
         b[15] = 0;
-        pickRow(L"Dimensione del testo", b, px(ui::OPT_VALUE_W), L"\x2212", L"+", OPT_FONT_MINUS, OPT_FONT_PLUS);
+        pickRow(L"Dimensione del testo", b, px(ui::OPT_VALUE_W), L"\x2212", L"+", OPT_FONT_MINUS, OPT_FONT_PLUS, M_FONT_STEP, M_FONT_RESET);
         namePick(L"Carattere", F.face, OPT_FACE_PREV, OPT_FACE_NEXT);
         opt(L"Animazioni", nullptr, A.animations, OP.knobAnim, OPT_ANIM);
         cy += px(ui::GAP_M);
 
         section(L"Finestra");
-        opt(L"Barra laterale", nullptr, A.sideVisible, OP.knobSide, OPT_SIDEBAR);
-        opt(L"Anteprima", nullptr, A.prevOpen, OP.knobPreview, OPT_PREVIEW);
-        namePick(L"Posizione dell'anteprima", A.prevBottom ? L"In basso" : L"A destra", OPT_PREVIEW_POS_PREV, OPT_PREVIEW_POS_NEXT);
+        opt(L"Barra laterale", nullptr, A.sideVisible, OP.knobSide, OPT_SIDEBAR, C_DIM, M_SIDEBAR);
+        opt(L"Anteprima", nullptr, A.prevOpen, OP.knobPreview, OPT_PREVIEW, C_DIM, M_PREVIEW);
+        namePick(L"Posizione dell'anteprima", A.prevBottom ? L"In basso" : L"A destra", OPT_PREVIEW_POS_PREV, OPT_PREVIEW_POS_NEXT, M_PREVIEW_SWAP);
         namePick(L"Carattere dell'anteprima", FM.face, OPT_MONO_PREV, OPT_MONO_NEXT);
         cy += px(ui::GAP_M);
 
         section(L"Integrazione con Windows");
         // Negli stati a metà l'interruttore è spento (non fa tutto) e la spiegazione, in C_ACCENT
-        // (informazione), dice cosa c'è e cosa fa il clic
+        // (informazione), dice cosa c'è e cosa fa il clic. La build di prova non lo cambia (kDefaultLocked)
         opt(L"[z]f al posto di Explorer",
-            OP.defaultState == 2 ? L"Attivo con un altro eseguibile di [z]f: un clic lo assegna a questo"
+            kDefaultLocked ? L"Nella build di prova non cambia il registro: lo cambia z-f.exe"
+            : OP.defaultState == 2 ? L"Attivo con un altro eseguibile di [z]f: un clic lo assegna a questo"
             : OP.defaultState == 3 ? L"Attivo senza gli zip: un clic li aggiunge"
                                    : L"Doppio clic sulle cartelle e sugli zip, Win+E, programmi che aprono una cartella",
-            OP.defaultState == 1, OP.knobDefault, OPT_DEFAULT, OP.defaultState >= 2 ? C_ACCENT : C_DIM);
+            OP.defaultState == 1, OP.knobDefault, OPT_DEFAULT, kDefaultLocked || OP.defaultState >= 2 ? C_ACCENT : C_DIM);
         opt(L"Una finestra per ogni cartella aperta da fuori",
             L"Invece di una scheda nella finestra principale. Una finestra occupa da 40 a 70 MB, una scheda meno di 1 MB",
             A.separateWindows, OP.knobSeparate, OPT_SEPARATE);
@@ -657,6 +695,9 @@ static void drawOptions(double dt) {
         opt(L"Dimensione delle cartelle nella colonna",
             L"Contata in background, a priorità bassa; unità di rete e ottiche solo nel tooltip e nell'anteprima",
             A.dirSizes, OP.knobDirSizes, OPT_DIR_SIZES);
+        opt(L"Estensioni dei file nei nomi",
+            L"Spente, l'estensione resta nella colonna Tipo, nel tooltip e nella rinomina",
+            A.showExt, OP.knobExt, OPT_EXT);
         cy += px(ui::GAP_M);
 
         section(L"Avvio e aggiornamenti");

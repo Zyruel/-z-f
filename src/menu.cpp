@@ -7,8 +7,9 @@
 // I comandi (MenuId) stanno in app.h, perché anche i tooltip ne mostrano le scorciatoie.
 
 static int g_dropChoice = 0; // voce scelta nel menu del trascinamento col tasto destro (0: nessuna)
-// Quando una voce è stata eseguita col clic: il secondo clic di un doppio clic arriva a menu chiuso e
-// non deve aprire la voce della lista che intanto è sotto il mouse (come GT.closedAt per "Vai a")
+// Quando un clic ha eseguito una voce o chiuso il menu da fuori: il secondo clic di un doppio clic
+// arriva a menu chiuso e non deve aprire la voce della lista che intanto è sotto il mouse (come
+// GT.closedAt per "Vai a" e OP.closedAt per le opzioni)
 static double g_menuClickAt = -1e18;
 
 static void menuClose() {
@@ -164,6 +165,122 @@ static void menuOpenPreview(float right, float top) {
     if (m.x + m.w > right) m.x = std::max(px(ui::GAP_XS), floorf(right - m.w));
 }
 
+// Le colonne che si vedono ora (bit per COL_*): nella lista le colonne di Dettagli o, in Elenco e
+// Icone, le etichette per ordinare; nell'anteprima di una cartella le sue colonne di Dettagli (senza
+// Destinazione, a destra solo Dimensione). Il menu delle colonne le confronta prima e dopo un clic:
+// un clic che non cambia niente sullo schermo lo dice un avviso (DESIGN §7, Avvisi)
+static uint32_t colShownNow() {
+    uint32_t m = 0;
+    for (int c : kColOrder)
+        if (A.zoom == ZOOM_DETAILS ? colWanted(c, false) : colSortLabel(c)) m |= 1u << c;
+    if (ListPane* p = A.prevOpen ? pvPane() : nullptr) {
+        PaneScope ps(p);
+        if (A.zoom == ZOOM_DETAILS)
+            for (int c : kColOrder) if (c != COL_LINK && colWanted(c, !A.prevBottom)) m |= 1u << c;
+    }
+    return m;
+}
+
+// Tasto destro sull'intestazione: le colonne, nell'ordine dello schermo, con la spunta su quelle
+// scelte. Nome non c'è: si vede sempre. In Questo PC Tipo (il tipo di unità) c'è sempre (colWanted):
+// lì è spuntato e spento, perché toglierlo non cambierebbe niente; le altre valgono per le cartelle
+static void menuOpenHeader(float cx, float cy) {
+    double t0 = nowMs();
+    PopupMenu& m = A.menu;
+    m.items.clear();
+    m.kind = MENU_HEADER;
+    m.target = -1;
+    bool drives = A.cur && A.cur->isDrives;
+    for (int c : kColOrder) {
+        bool fixed = drives && c == COL_TYPE;
+        menuAdd(kCols[c].title, M_COLUMN + c, !fixed);
+        if (fixed || (A.colOn >> c & 1)) m.items.back().icon = 3;
+    }
+    if (!g_inPane && A.cur) { // l'anteprima di una cartella non ha gruppi
+        menuSep();
+        menuAdd(L"Raggruppa per…", M_GROUP_MENU);
+    }
+    menuPlace(cx, cy, false, t0);
+}
+
+// "Raggruppa per…": "Nessun gruppo" e le colonne per cui si raggruppa (colGroupable), con la spunta
+// sulla scelta attuale; una scelta sola, quindi il clic chiude il menu. Si apre al posto del menu
+// delle colonne (x, y: il suo angolo in alto a sinistra). Scelto da tastiera, con la prima voce attiva
+static bool g_menuByKey = false; // la voce che si sta eseguendo è stata scelta da tastiera (menuKey)
+static void menuOpenGroup(float x, float y) {
+    double t0 = nowMs();
+    PopupMenu& m = A.menu;
+    m.items.clear();
+    m.kind = MENU_GROUP;
+    m.target = -1;
+    m.hot = -1; // quella del menu delle colonne non vale qui
+    menuAdd(L"Nessun gruppo", M_GROUP + COL_NAME);
+    if (!grouped()) m.items.back().icon = 3;
+    for (int c : kColOrder) {
+        if (!colGroupable(c, A.cur)) continue;
+        menuAdd(kCols[c].title, M_GROUP + c);
+        if (grouped() && A.groupCol == c) m.items.back().icon = 3;
+    }
+    menuPlace(x, y, g_menuByKey, t0);
+}
+
+// Menu del filtro di una colonna: le spunte vengono dal filtro (A.colFilter), "Tutti" quando la
+// colonna non filtra. Si rifanno dopo ogni clic: il menu resta aperto (voci keep)
+static void menuFilterChecks() {
+    PopupMenu& m = A.menu;
+    int c = m.target;
+    for (size_t i = 0; i < m.items.size(); i++)
+        m.items[i].icon = (i == 0 ? !A.colFilter.on(c) : colFilterHas(A.colFilter, c, m.vals[i])) ? 3 : 0;
+}
+
+// Imbuto accanto al titolo della colonna c: "Tutti", poi i valori presenti col numero di voci (al posto
+// della scorciatoia), contate con gli altri filtri ma non con quello della colonna, così non cambiano
+// mentre si spunta. Sotto l'intestazione, allineato all'imbuto (x)
+static void menuOpenFilter(int c, float x) {
+    double t0 = nowMs();
+    if (!A.cur || !colFilterable(c)) return;
+    PopupMenu& m = A.menu;
+    m.items.clear();
+    m.labels.clear();
+    m.paths.clear();
+    m.vals.clear();
+    m.kind = MENU_FILTER;
+    m.target = c;
+    std::vector<uint32_t> vis;
+    filterInto(vis, c);
+    std::vector<ColCount> vals;
+    colValues(c, A.cur, vis, A.colFilter, vals);
+    auto add = [&](std::wstring label, int n, ColValue v) {
+        m.labels.push_back(std::move(label));
+        const wchar_t* l = m.labels.back().c_str();
+        m.labels.push_back(withThousands((uint64_t)n));
+        menuAdd(l, M_COLFILTER, true, m.labels.back().c_str());
+        m.items.back().keep = true;
+        m.vals.push_back(std::move(v));
+    };
+    add(L"Tutti", (int)vis.size(), ColValue{});
+    for (ColCount& v : vals) {
+        std::wstring label = colValueLabel(c, v.v); // prima: l'ordine degli argomenti non è garantito, e v.v si sposta
+        add(std::move(label), v.n, std::move(v.v));
+    }
+    menuFilterChecks();
+    menuPlace(x, A.listTop, false, t0);
+    A.colFltMenuMs = nowMs() - t0;
+    if (A.colFltMenuMs > ui::LOG_MSG) hitchLog("menu del filtro lento", (int)A.cur->e.size(), A.colFltMenuMs);
+}
+
+// Clic (o Invio) su una voce del menu del filtro: "Tutti" toglie il filtro della colonna, un valore
+// si aggiunge o si toglie. La lista cambia subito, il menu resta
+static void menuFilterToggle(int i) {
+    PopupMenu& m = A.menu;
+    int c = m.target;
+    if (i == 0) A.colFilter.clear(c);
+    else colFilterFlip(A.colFilter, c, m.vals[i]);
+    menuFilterChecks();
+    rebuildView(true);
+    A.dirty = true;
+}
+
 // cx, cy: coordinate client; screenPt: per il menu della shell; fromKeyboard: evidenzia la prima voce
 static void menuOpen(float cx, float cy, POINT screenPt, bool background, bool fromKeyboard) {
     double t0 = nowMs();
@@ -275,7 +392,7 @@ static void menuPlace(float cx, float cy, bool fromKeyboard, double t0) {
     m.open = true;
     m.openedAt = nowMs();
     m.pressed = false;
-    A.hover = -1;
+    A.hover = A.groupHover = -1;
     A.dirty = true;
     A.ourMenuMs = nowMs() - t0;
 }
@@ -315,7 +432,9 @@ static DWORD WINAPI newWindowThread(void* p) {
 // Un comando, da una voce di menu o da un tasto di kShortcuts (onKey). Il contesto dice su cosa
 // agisce: kind e target la voce della barra laterale o la scheda del menu, bg lo sfondo della
 // lista, pt il punto del clic. Da tastiera: la selezione e la scheda attiva.
-struct CmdCtx { int kind = MENU_LIST, target = -1; bool bg = false; POINT pt = { -1, -1 }; };
+// shift: il comando viene da un tasto con Shift (Shift+Canc). Dal menu no, anche se Shift è ancora
+// premuto quando si fa clic: "Sposta nel Cestino" deve andare sempre nel Cestino
+struct CmdCtx { int kind = MENU_LIST, target = -1; bool bg = false, shift = false; POINT pt = { -1, -1 }; };
 
 static void menuRun(int id, const CmdCtx& c) {
     int kind = c.kind, target = c.target;
@@ -323,7 +442,41 @@ static void menuRun(int id, const CmdCtx& c) {
     POINT pt = c.pt;
     const SideItem* si = kind == MENU_SIDE ? sideItem(target) : nullptr;
     std::wstring sidePath = si ? si->path : L"";
+    if (id >= M_COLUMN && id < M_COLUMN_END) { // menu delle colonne: mostra o nasconde, per tutte le cartelle
+        int col = id - M_COLUMN;
+        uint32_t shown = colShownNow();
+        A.colOn ^= 1u << col;
+        if (!(A.colOn >> col & 1)) { // un filtro che non si vede non resta: nemmeno nelle altre schede
+            // Nemmeno l'ordine per quella colonna: la freccia andrebbe su Nome (colArrow) con le voci
+            // ancora in un altro ordine. Si torna per nome dalla A, in ogni scheda
+            for (int i = 0; i < (int)A.tabs.size(); i++) {
+                if (i == A.tab) continue; // il guscio della scheda attiva è vuoto: il suo stato è in App
+                TabState& t = A.tabs[i];
+                t.colFilter.clear(col); // (si rileggono tornando attive)
+                if (t.sortCol == col) { t.sortCol = COL_NAME; t.sortDesc = false; t.resort = true; }
+            }
+            bool refilter = A.colFilter.on(col);
+            if (refilter) A.colFilter.clear(col);
+            if (A.sortCol == col) { A.sortCol = COL_NAME; A.sortDesc = false; resort(); } // rifà anche la vista
+            else if (refilter) rebuildView(true);
+        }
+        if (!((shown ^ colShownNow()) >> col & 1)) { // qui non si vede: si dice dove vale la scelta
+            bool on = A.colOn >> col & 1;
+            notice(std::wstring(L"Colonna ") + kCols[col].title + (on ? L" mostrata " : L" nascosta ") +
+                   (col == COL_LINK ? L"in Dettagli, nelle cartelle con collegamenti" : L"nelle cartelle"), true);
+        }
+        layout();
+        settingsSave();
+        A.dirty = true;
+        return;
+    }
+    if (id >= M_GROUP && id < M_GROUP_END) { // menu dei gruppi: per la cartella (viste.txt)
+        viewGroup(id == M_GROUP + COL_NAME ? -1 : id - M_GROUP);
+        A.dirty = true;
+        return;
+    }
     switch (id) {
+    case M_GROUP_MENU: menuOpenGroup(A.menu.x, A.menu.y); break; // il menu delle colonne si è appena chiuso: al suo posto
     case M_NEWTAB: {
         std::wstring f = kind == MENU_SIDE ? sidePath : selectedFolder();
         if (!f.empty() || (kind == MENU_SIDE && si)) tabNew(f, false); // "" dalla barra laterale: Questo PC
@@ -357,7 +510,10 @@ static void menuRun(int id, const CmdCtx& c) {
     case M_PREVIEW:     previewToggle(); break;
     case M_PREVIEW_RIGHT:  previewPlace(false); break;
     case M_PREVIEW_BOTTOM: previewPlace(true); break;
-    case M_PREVIEW_SWAP:   previewPlace(!A.prevBottom); break;
+    case M_PREVIEW_SWAP: // dal tasto: ad anteprima chiusa non si vedrebbe niente, quindi lo si dice
+        previewPlace(!A.prevBottom);
+        if (!A.prevOpen) notice(A.prevBottom ? L"Anteprima spostata in basso: si aprirà lì" : L"Anteprima spostata a destra: si aprirà lì", true);
+        break;
     case M_ICONS_S:      viewZoom(ZOOM_SMALL); break;
     case M_ICONS_M:       viewZoom(ZOOM_MEDIUM); break;
     case M_ICONS_L:       viewZoom(ZOOM_LARGE); break;
@@ -393,7 +549,7 @@ static void menuRun(int id, const CmdCtx& c) {
     case M_REDO:      undoRun(true); break;
     case M_COPYPATH:  copyPaths(bg); break;
     case M_RENAME:    beginRename(); break;
-    case M_DELETE:    deleteSelected(); break;
+    case M_DELETE:    deleteSelected(c.shift); break;
     case M_PROPS:     showProperties(bg); break;
     case M_MORE:      showContextMenu(pt, bg); break;
     case M_NEWFOLDER: newFolder(); break;
@@ -413,6 +569,11 @@ static void menuRun(int id, const CmdCtx& c) {
 static void menuExec(int i) {
     PopupMenu& m = A.menu;
     if (i < 0 || i >= (int)m.items.size() || !m.items[i].id || !m.items[i].enabled) return;
+    if (m.items[i].keep) { // voce a spunta: cambia e il menu resta, con la voce attiva
+        m.hot = i;
+        if (m.kind == MENU_FILTER) menuFilterToggle(i);
+        return;
+    }
     int id = m.items[i].id;
     CmdCtx c;
     c.bg = m.background;
@@ -455,7 +616,9 @@ static void menuKey(WPARAM vk) {
         menuEnsureVisible();
         A.dirty = true;
     } else if (vk == VK_RETURN || vk == VK_SPACE) {
+        g_menuByKey = true;
         menuExec(m.hot);
+        g_menuByKey = false;
     } else {
         menuClose(); // Esc o qualsiasi altro tasto
     }
@@ -478,6 +641,10 @@ static void onContextMenu(POINT pt) {
         int si = sideHit(c.x, c.y);
         if (si == -2) si = (int)A.favs.size(); // la freccia è sulla riga di Questo PC: il suo menu
         if (si >= 0) { menuOpenSide((float)c.x, (float)c.y, si); return; }
+        if (c.y >= A.sideTop && c.y < A.listTop && c.x >= A.listX && c.x < A.listR) { // intestazione della lista
+            if (A.colDrag < 0) menuOpenHeader((float)c.x, (float)c.y);
+            return;
+        }
     }
     if (!A.cur) return;
     bool keyboard = pt.x == -1 && pt.y == -1;

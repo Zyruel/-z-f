@@ -8,6 +8,82 @@ erano `0.N`. Ogni rilascio, dalla 1.0.0-beta.2, ha un tag `v<versione>` e una
 versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
 [`ARCHITETTURA.md`](docs/ARCHITETTURA.md).
 
+## 1.0.0-beta.9 (novembre 2026)
+
+- **Colonne a scelta:** col tasto destro sull'intestazione si scelgono le colonne da mostrare tra
+  Destinazione, Tipo, Data modifica, Data creazione, Dimensione e Attributi (Nome c'è sempre); la
+  scelta vale per tutte le cartelle. Colonne nuove:
+  - **Tipo:** l'estensione in maiuscolo ("JPG"), "Cartella" per le cartelle; si ordina per
+    estensione, poi per nome. In Questo PC è il tipo di unità, come prima (lì le colonne sono solo
+    Nome e Tipo: Dimensione era vuota);
+  - **Data creazione** e **Attributi** (R H S A C E), dalla lettura della cartella: nessun costo in
+    più per aprirla.
+  Con la finestra stretta cedono prima le colonne meno usate; in Elenco e Icone l'intestazione
+  ordina per le stesse colonne.
+- **Estensioni nascoste**, con l'opzione "Estensioni dei file nei nomi" (sezione File): i nomi dei
+  file nella lista finiscono prima dell'ultimo punto; tooltip, anteprima e rinomina mostrano il nome
+  intero.
+- **Filtro per colonna:** con il mouse sull'intestazione di Tipo, Data modifica, Data creazione,
+  Dimensione o Attributi compare un imbuto accanto al titolo; il clic apre l'elenco dei valori
+  presenti, ognuno col numero di voci, da spuntare (il menu resta aperto mentre si sceglie):
+  - **Tipo:** le estensioni, più Cartelle e Senza estensione;
+  - **date:** Oggi, Ieri, Questa settimana, Settimana scorsa, Questo mese, Mese scorso,
+    Quest'anno, poi gli anni (e Data futura);
+  - **Dimensione:** fasce da Vuoti a Oltre 4 GB; le cartelle vanno nella fascia del loro totale,
+    se la dimensione delle cartelle è accesa;
+  - **Attributi:** uno per attributo.
+  Una colonna filtrata ha titolo e imbuto in azzurro; i filtri di più colonne valgono insieme e con
+  quello per nome. Restano con le ricariche e l'ordinamento, si tolgono cambiando cartella; Esc
+  toglie prima il filtro per nome, poi quelli delle colonne.
+- **Gruppi:** "Raggruppa per…", in fondo al menu delle colonne (tasto destro sull'intestazione, in
+  ogni vista), divide le voci per Tipo, Data modifica, Data creazione o Dimensione, con gli stessi
+  valori e le stesse parole del filtro ("Oggi", "JPG", "Fino a 1 MB"); in Questo PC per tipo di
+  unità. Il raggruppamento si ricorda per cartella, come la vista.
+  - Ogni gruppo ha un'intestazione col nome e il numero di voci: in Dettagli e Icone sopra le sue
+    voci, in Elenco in cima alle sue colonne.
+  - I gruppi seguono l'ordine del menu del filtro (le date dal più recente), rovesciato se la lista
+    è ordinata per la stessa colonna al contrario; dentro un gruppo vale l'ordinamento della lista.
+  - Un clic sull'intestazione chiude o apre il gruppo: le voci di un gruppo chiuso escono dalla
+    vista come col filtro (niente selezione, Ctrl+A, contatori). I gruppi chiusi restano con le
+    ricariche e il cambio di vista, e si riaprono cambiando cartella.
+  - Le frecce passano da un gruppo all'altro saltando le intestazioni e i gruppi chiusi.
+
+- **Barre in fondo allineate:** con l'anteprima in basso, la barretta, i contatori e il controllo
+  della vista della barra di stato stanno sopra quelli della banda dell'anteprima, e nelle due
+  barre il nome della vista finisce dove finiscono le colonne. Prima il controllo della vista
+  dell'anteprima era largo come "Informazioni" anche per una cartella: tutto quello che lo
+  precede era spostato, e a destra restava spazio vuoto.
+- **L'hover segue la lista:** scorrendo con la rotellina, filtrando o quando la cartella si
+  ricarica, il fondo sotto il mouse passa alla voce (o all'intestazione di gruppo) che ora è lì,
+  senza aspettare che il mouse si muova.
+- **Opzioni:** le righe Dimensione del testo, Barra laterale, Anteprima e Posizione dell'anteprima
+  dicono nel tooltip la loro scorciatoia. Le etichette arrivano fino al loro controllo (prima si
+  fermavano molto prima, a una misura fissa) e, se non ci stanno, il tooltip le mostra intere.
+- **Tooltip:** un titolo lungo (il nome di un file) va a capo tra le parole, non a metà di una.
+- **Alt+Shift+P con l'anteprima chiusa** dice dove si aprirà ("L'anteprima si aprirà in basso").
+- **F5 nella lista** riaccende anche l'osservatore dell'anteprima di una cartella, se si era perso.
+- **Filtro e gruppi per Dimensione** in una cartella enorme si aggiornano coi totali delle
+  cartelle ogni 250 ms invece di 50: meno lavoro per l'interfaccia mentre il conto va avanti.
+- **Testi delle scorciatoie:** cominciano tutti con un verbo ("Passa a quella scheda dopo un
+  momento", "Cambia l'ordine dei preferiti").
+- **Correzioni:**
+  - "Sposta nel Cestino" del menu va sempre nel Cestino: con Shift ancora premuto al clic
+    eliminava definitivamente, come Shift+Canc;
+  - un doppio clic fuori dalle opzioni o da un menu le chiude e basta: il secondo clic apriva il
+    file che c'era sotto;
+  - con le opzioni aperte, Shift o le scorciatoie con Alt non riportano più il pannello in cima;
+  - il tasto destro con le opzioni o "Vai a" aperti non passa più la tastiera alla lista nascosta
+    sotto;
+  - passando ad altra finestra (Alt+Tab) mentre si trascina la barra di scorrimento, la lista non
+    segue più il mouse senza tasto premuto;
+  - trascinando file sopra l'anteprima, quando questa passa a un'altra cartella la destinazione si
+    aggiorna subito, non al movimento successivo del mouse;
+  - la colonna Destinazione mostra anche i collegamenti creati quando la destinazione non era
+    raggiungibile (per esempio verso un'unità di rete non collegata): prima restavano vuoti;
+  - un file mostrato da un altro programma ("Apri percorso file") in una cartella già aperta in
+    [z]f si vede subito selezionato: prima la finestra si aggiornava solo al primo movimento del
+    mouse.
+
 ## 1.0.0-beta.8 (novembre 2026)
 
 - **Pannello delle opzioni più leggibile:**

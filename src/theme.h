@@ -71,12 +71,14 @@ constexpr float SIDE_W = 210, SIDE_MIN = 150, SIDE_MAX = 0.35f;
 constexpr float SIDE_PAD = 10;     // barra laterale: margine orizzontale delle voci
 constexpr float SIDE_SECTION_H = 1.25f; // barra laterale: titolo di sezione ("Preferiti"), in righe
 constexpr float SIDE_INDENT = 16;  // barra laterale: rientro dei preferiti sotto il titolo e delle unità sotto "Questo PC" (un livello dell'albero)
-constexpr float DATE_W = 150, SIZE_W = 100;     // colonne: larghezze predefinite (impostazioni.txt le cambia)
+constexpr float DATE_W = 150, SIZE_W = 100;     // colonne: larghezze predefinite (impostazioni.txt le cambia); DATE_W anche Data creazione
+constexpr float TYPE_W = 110, ATTR_W = 80;      // colonne Tipo (ci sta "Percorso di rete" di Questo PC) e Attributi
 constexpr float LINK_W = 300;      // colonna Destinazione (cartelle con collegamenti): larghezza predefinita
-constexpr float LINK_MAX = 0.5f;   // colonna Destinazione: al massimo questa frazione dello spazio tra l'inizio della lista e Data (mai più larga di Nome)
-constexpr float COL_MIN = 48;      // colonne Destinazione, Data e Dimensione: larghezza minima
+constexpr float LINK_MAX = 0.5f;   // colonna Destinazione: al massimo questa frazione dello spazio tra l'inizio della lista e la colonna dopo (mai più larga di Nome)
+constexpr float COL_MIN = 48;      // colonne dopo Nome: larghezza minima
 constexpr float COL_NAME_MIN = 160; // spazio minimo della colonna Nome, dall'inizio della lista
 constexpr float COL_GRIP = 4;      // bordo tra due colonne: fascia per afferrarlo, per lato
+constexpr float GROUP_GAP = 8;     // gruppi della lista: spazio prima di ogni gruppo tranne il primo, lungo l'asse dello scorrimento
 constexpr float TAB_MIN = 70, TAB_MAX = 220;    // larghezza di una scheda
 constexpr float TAB_TEXT_X = 10;   // titolo della scheda: margine a sinistra
 constexpr float TAB_SEP_INSET = 6; // separatore tra due schede: staccato di tanto da sopra e da sotto
@@ -88,7 +90,6 @@ constexpr float TIP_ROWS_GAP = 6, TIP_OFFSET_ABOVE = 10; // tooltip: tra titolo 
 constexpr float STATS_W = 440;     // pannello F12
 // Pannello delle opzioni: misura massima, spazio dal bordo della finestra, distanza minima dall'alto
 constexpr float OPT_W = 640, OPT_H = 720, OPT_MARGIN = 48, OPT_TOP_MIN = 24;
-constexpr float OPT_LABEL_RESERVE = 200; // a destra dell'etichetta, lo spazio dei controlli
 constexpr float OPT_VALUE_W = 56, OPT_FACE_W = 170, OPT_SEARCH_W = 240; // "13 px", nome del carattere, ricerca
 constexpr float SWITCH_W = 32, SWITCH_H = 16, SWITCH_KNOB_INSET = 3; // interruttore (come Windows 11)
 constexpr float FIELD_PAD = 6;     // margine interno delle caselle di testo
@@ -175,6 +176,10 @@ constexpr int ZIP_TEMP_KEEP = 3 * 24 * 3600 * 1000; // file estratti da uno zip 
 // il tooltip vede il parziale ogni DS_PROGRESS; la cache oltre il suo limite si pulisce
 // al massimo ogni DS_TRIM_EVERY
 constexpr int DS_FRESH = 60000, DS_PROGRESS = 100, DS_TRIM_EVERY = 15000;
+// Filtro o gruppi per Dimensione: la vista si rifà coi totali arrivati al più ogni DS_REFILTER.
+// Più lungo di WATCH_BATCH perché in una cartella enorme un rifiltro costa qualche ms (WinSxS, filtro
+// e gruppi per Dimensione: circa 6,4) e i totali arrivano per tutto il conto: così è circa il 3% del thread
+constexpr int DS_REFILTER = 250;
 // Salto dei dialoghi Apri e Salva (filedlg.cpp, sul suo thread): ogni FD_POLL si guarda se il
 // dialogo è pronto, per al massimo FD_WAIT_MAX; poi FD_SETTLE di margine (prima, il comando fa
 // cadere il programma del dialogo). Attesa massima di una risposta del dialogo: FD_MSG_WAIT per il

@@ -20,6 +20,231 @@ aveva portato **Questo PC** nella barra laterale, **connetti e disconnetti unit�
 0000); la 0.19 la **vista a griglia** e **annulla e ripeti**. Le prove delle sezioni 000 e 00
 restano da fare. Se qualcosa non va, la 0.20 è in `build\z-f-0.20.exe`.
 
+## 0000000000000000000000000000000000000000000000000000000000. Correzioni della revisione prima della 1.0.0-beta.9 (z-f-dev, novembre 2026)
+
+Revisione e `/controllo` del ramo prima del rilascio (28/11), corretti in più sessioni.
+
+**Filtro e gruppi che dipendono dai totali delle cartelle o dalle date.** Compilate senza avvisi
+(MSVC). Il 28/11 lo schermo era bloccato: provate senza interfaccia, con copie di z-f-dev
+strumentate (filtro e gruppi impostati all'apertura, misure e numero di voci della vista nel
+registro), la build di prima e quella nuova a confronto, nella cartella di `colonne-prova.py`:
+filtro "Oltre 4 GB" e una sottocartella da 5 GB (file sparso) creata da fuori, che prima non
+entrava mai e ora entra; l'opzione "Dimensione delle cartelle nella colonna" spenta e riaccesa
+col filtro, la vista che passa da 2 voci a 0 e torna a 2; la mezzanotte spostata a 5 secondi, con
+la vista rifatta a ogni scatto, `WM_TIMECHANGE` che la rifà subito e niente senza un filtro per
+data. Provato da Claude a schermo il 28/11 (z-f-dev, 175%, lista raggruppata per Tipo): filtro
+"Fino a 4 GB", poi da fuori una sottocartella con un file sparso da 3 GB, che entra nel filtro
+appena è contata; l'opzione spenta dalle opzioni toglie subito la cartella dalla vista, riaccesa la
+rimette. Da provare a schermo:
+- [ ] coi gruppi per Dimensione e il gruppo "Cartelle" chiuso, una sottocartella grande creata da
+      fuori compare nella sua fascia;
+- [ ] un filtro "Oggi" o i gruppi per Data modifica lasciati aperti a cavallo della mezzanotte:
+      dopo la mezzanotte i file di ieri sono in "Ieri" senza toccare niente; lo stesso dopo una
+      sospensione del PC a cavallo della mezzanotte;
+- [ ] F12 su WinSxS con filtro e gruppi per Dimensione mentre si contano le cartelle: "filtro"
+      intorno a 6 ms e "gruppi" sotto 1 ms (prima circa 6,5 e 4,4).
+
+**Colonne, menu delle colonne e tooltip.** Compilate senza avvisi (MSVC); z-f-dev avviata e chiusa
+nella cartella di `colonne-prova.py`, registro pulito. Provato da Claude a schermo il 28/11
+(z-f-dev, 175%): lista ordinata per Tipo, Tipo nascosto dal menu delle colonne: per Nome dalla A,
+con "Nome ↑"; `colonne=tipo,<tab>data, dimensione` scritto a mano: all'avvio Tipo, Data modifica e
+Dimensione; Destinazione dal menu in una cartella senza collegamenti: "Colonna Destinazione
+nascosta in Dettagli, nelle cartelle con collegamenti"; Alt+Shift+P ad anteprima chiusa: "Anteprima
+spostata in basso: si aprirà lì", poi "a destra"; tooltip del titolo in Dettagli: "Tasto destro:
+colonne da mostrare e raggruppamento"; filtro di Data modifica con 2024 e poi Oggi: "Mostra: Oggi ·
+2024", e il menu resta aperto. Da provare:
+- [ ] lo stesso in Elenco e Icone (l'etichetta Tipo sparisce, la freccia va su Nome); un'altra
+      scheda ordinata per Data modifica, nascosta Data modifica dalla scheda attiva: tornando su
+      quella scheda è già per Nome, senza vedere l'ordine di prima;
+- [ ] avviso di Destinazione in Elenco e Icone anche in una cartella con .lnk; in Questo PC, Data
+      modifica: "Colonna Data modifica nascosta nelle cartelle"; in una cartella normale in
+      Dettagli, Data modifica: nessun avviso (la colonna cambia);
+- [ ] tooltip del titolo in Icone;
+- [ ] filtro per Tipo con i clic in quest'ordine: TXT, Cartelle, JPG, Senza estensione: il
+      tooltip dell'imbuto dice "Cartelle · Senza estensione · JPG · TXT" (l'ordine del menu).
+
+Con la finestra ingrandita, l'imbuto di Data modifica e di Dimensione spariva portandoci sopra il
+mouse: non è [z]f, è la barra dello strumento dello schermo in alto a destra, che copre la finestra
+(i movimenti lì non arrivano). Con la finestra più in basso l'imbuto si prende e si clicca.
+
+**Gruppi, selezione e hover.** Compilate senza avvisi (MSVC); z-f-dev avviata e chiusa per PID
+nella cartella di `colonne-prova.py`, registro pulito. Provato da Claude a schermo il 28/11
+(z-f-dev, 175%, gruppi per Tipo): in Elenco hover e clic sull'intestazione su tutta la sua altezza,
+appena sotto la voce; una sola voce selezionata, clic sull'intestazione del suo gruppo: si chiude
+e resta selezionata la prima voce del gruppo dopo; in Dettagli, primo e ultimo gruppo chiusi: Home
+mostra "Cartelle" in cima e Fine "ZIP" sotto l'ultima voce; `z-f-dev.exe /select,<file del gruppo
+chiuso>` sulla finestra principale: il gruppo si riapre e la voce è selezionata. Lì la finestra si
+ridisegnava solo al primo movimento del mouse (anche prima di questo ciclo: `WM_COPYDATA` arriva con
+SendMessage e GetMessageW non torna al ciclo): corretto in `onCopyData` con un `WM_NULL`, riprovato
+senza toccare il mouse. Ctrl+B col mouse fermo sul titolo di Data modifica: l'imbuto resta su Data
+modifica, che è ancora sotto il mouse. Da provare:
+- [ ] con più voci selezionate in due gruppi, chiuderne uno: restano solo quelle dell'altro, senza
+      aggiungerne;
+- [ ] Home e Fine coi gruppi chiusi in Icone e in Elenco (a sinistra e a destra); senza gruppi
+      Home e Fine come prima;
+- [ ] mouse sull'imbuto di una colonna filtrata, clic, Esc senza muovere il mouse: l'imbuto è
+      ancora acceso solo se il mouse è ancora lì; Alt+P col mouse fermo sull'intestazione:
+      l'imbuto acceso passa alla colonna che ora sta sotto il mouse (o si spegne); il tooltip
+      dell'imbuto col mouse fermo non si chiude da solo.
+
+**Opzioni, trascinamento fermo, Shift del Cestino.** Compilate senza avvisi (MSVC). Provate da
+Claude il 28/11 in z-f-dev, in una cartella di prova con file finti, registro pulito: opzioni
+aperte, Esc e subito doppio clic su una cartella, che si apre (prima il secondo clic andava perso);
+opzioni aperte e doppio clic fuori dal pannello: si chiudono e il file sotto non si apre;
+trascinando un file fermo su `cartella-b`, una cartella creata da fuori che sposta le righe: la
+destinazione passa da sola a "Sposta in cartella-a", la riga che ora è sotto il mouse; trascinando
+fermo sopra l'anteprima di un file, l'anteprima che passa a una cartella (il file al cursore
+tolto da fuori): subito "Sposta in sotto", la cartella sotto il mouse, col bordo. Da provare:
+- [ ] trascinamento da Esplora file (non da [z]f) fermo su una cartella della lista, con il filtro
+      o i gruppi per Dimensione mentre si contano le cartelle: quando un totale cambia la vista,
+      bordo e "Sposta in…" seguono la cartella che ora sta sotto il mouse, non l'indice di prima;
+- [ ] lo stesso fermo su una scheda finché si apre: la destinazione resta la scheda, e spostando
+      poi il mouse sulla lista si prendono le voci della scheda nuova;
+- [ ] con un trascinamento lungo e fermo, F12: "trascinamento" non cresce e nel registro non
+      compare "trascinamento lento";
+- [ ] "Sposta nel Cestino" dal menu (tasto destro) con Shift premuto su una voce di Questo PC o
+      prima che OLE sia pronto (subito dopo l'avvio): resta Cestino (o il messaggio della shell
+      per il Cestino), non l'eliminazione definitiva. Shift+Canc resta definitivo.
+
+**Collegamenti di rete, dialoghi e "al posto di Explorer" nella build di prova.** Compilate senza
+avvisi (MSVC). Provate da Claude il 28/11: `build\collegamenti-prova.exe --crea` con due
+collegamenti di rete a sola IDList scritti a mano (`\\localhost\C$\…`, `\\127.0.0.1\ADMIN$\…`),
+prima senza destinazione e ora uguali a Windows, e i 71 collegamenti del PC ancora uguali;
+z-f-dev da sola con `dialoghi-prova ritorno`, con la memoria condivisa che ora ha lo stesso nome
+di z-f.exe: il dialogo entra in A, poi in B, il nome resta; nelle opzioni di z-f-dev la
+spiegazione "Nella build di prova non cambia il registro: lo cambia z-f.exe" (l'interruttore non
+è stato cliccato). Da provare:
+- [ ] z-f.exe e z-f-dev aperte insieme, l'ultima usata z-f.exe: un dialogo Apri (Blocco note,
+      Ctrl+O) va nella cartella di z-f.exe e salta una volta sola; poi si usa z-f-dev e si torna
+      al dialogo: va nella cartella di z-f-dev, e z-f.exe non salta;
+- [ ] lo stesso dopo aver chiuso la finestra di z-f.exe usata per ultima: salta la finestra di
+      z-f.exe rimasta, se c'è, altrimenti z-f-dev;
+- [ ] in z-f-dev, clic su "[z]f al posto di Explorer": solo l'avviso, l'interruttore non si
+      muove e le cartelle continuano ad aprirsi come prima (da fare solo da Zyruel);
+- [ ] un vero collegamento di rete a sola IDList, se ce n'è uno vecchio (fatto da Windows XP o 7,
+      o copiato da un altro PC) con la condivisione spenta: colonna Destinazione e tooltip
+      mostrano `\\server\condivisione\…`.
+
+## 000000000000000000000000000000000000000000000000000000000. Piccole correzioni di da-sistemare (z-f-dev, novembre 2026)
+
+Compilate senza avvisi (MSVC); avvio della finestra di prova con il registro pulito. Niente ancora
+provato a schermo (il 27/11 il controllo dello schermo non c'era). La cartella di prova:
+`python -I prove\colonne-prova.py <cartella>` (dal 27/11 i file grandi sono sparsi davvero:
+prima `f.truncate()` li scriveva interi, 31 GB). Da provare:
+- [ ] rotellina col mouse fermo sulla lista, in Dettagli e in Icone, anche con i gruppi: il fondo
+      dell'hover passa alla voce o all'intestazione che arriva sotto il puntatore, anche durante lo
+      scorrimento morbido; lo stesso nell'anteprima di una cartella;
+- [ ] mouse fermo su una voce mentre si scrive un filtro e mentre la cartella si ricarica (un file
+      creato da fuori): l'hover segue; un tooltip aperto o in arrivo si chiude se cambia la voce;
+- [ ] tooltip di un gruppo aperto, mouse fermo: un file creato da fuori nel gruppo porta "Voci" al
+      numero nuovo; uno che fa nascere un gruppo prima di quello chiude il tooltip; coi gruppi per
+      Dimensione mentre si contano le cartelle, il numero segue i totali;
+- [ ] Ctrl+B o ◨ col mouse sulla lista: l'hover è sulla voce che ora sta sotto il mouse;
+- [ ] durante il rettangolo, un trascinamento, un menu aperto, le opzioni e "Vai a": l'hover non
+      cambia da solo (come prima);
+- [ ] "Sposta nel Cestino" dal menu col tasto destro, tenendo Shift premuto al clic: va nel
+      Cestino (Ctrl+Z lo rimette); Shift+Canc chiede ancora l'eliminazione definitiva;
+- [ ] doppio clic fuori dalle opzioni sopra un file: si chiudono e il file non si apre; lo stesso
+      con un menu aperto; la × delle opzioni con un doppio clic;
+- [ ] opzioni aperte e scorse in basso: Shift da solo, ← →, Alt+Shift+P non le riportano in cima;
+      una lettera sì (la ricerca cambia);
+- [ ] tasto destro con le opzioni o "Vai a" aperti, sopra la lista o sopra l'anteprima di una
+      cartella: niente menu, e chiuso il pannello la tastiera è dove era;
+- [ ] trascinando la barra di scorrimento della lista (e dell'anteprima), Alt+Tab: tornando, la
+      lista non segue il mouse senza tasto;
+- [ ] file trascinati da fuori fermi sopra l'anteprima di una cartella mentre la lista cambia
+      voce (una scheda che si apre col trascinamento): bordo ed evidenziazione passano subito alla
+      lista nuova; con l'anteprima che diventa un file, nessun bordo e il rilascio non va nella
+      cartella di prima;
+- [ ] tooltip delle righe Dimensione del testo (Scorciatoia Ctrl+/−, Predefinita Ctrl+0), Barra
+      laterale (Ctrl+B), Anteprima (Alt+P), Posizione dell'anteprima (Alt+Shift+P), anche a 175%.
+
+Seconda parte (28/11), provata da Claude a 100% in z-f-dev: con la finestra alla larghezza minima
+e il testo a 22 px "Posizione dell'antepri…" e "Carattere dell'antepri…" finiscono a filo del
+selettore e il tooltip le mostra intere (la seconda senza riga Scorciatoia); fino a 18 px nessuna
+etichetta è tagliata. Alt+Shift+P ad anteprima chiusa: "L'anteprima si aprirà in basso". Titolo
+del tooltip di un nome lungo: a capo tra le parole. Con la lista in Icone a 20% (circa 220
+miniature) e l'anteprima di una cartella in Icone grandi, tutte le miniature piene, anche
+scorrendo (F12: 256 sulla GPU). Da provare:
+- [ ] F5 nella lista con l'osservatore dell'anteprima perso (la cartella mostrata cancellata e
+      ricreata da fuori): l'anteprima si rilegge e torna ad aggiornarsi da sola (F12, "anteprima:
+      aggiornamento automatico" attivo);
+- [ ] le stesse etichette troncate e l'atlante delle miniature con le due liste, a 175%.
+
+## 00000000000000000000000000000000000000000000000000000000. Gruppi (z-f-dev, novembre 2026)
+
+Terza fase delle colonne. Già provato da Claude a 100%, finestra ingrandita, nella cartella di
+`prove\colonne-prova.py` e in WinSxS: "Raggruppa per…" in fondo al menu delle colonne, con la
+spunta; gruppi per Tipo, Data modifica, Data creazione e Dimensione; in Questo PC solo Tipo (Disco
+locale, Percorso di rete); ordinamento per Data modifica crescente: i gruppi si rovesciano (1975
+per primo); intestazioni in Dettagli, Icone ed Elenco (in Elenco una colonna per gruppo, quello
+chiuso largo una colonna, nome allineato col nome delle voci); hover, tooltip ("Clic: chiudi il
+gruppo" / "apri"), clic che chiude e apre senza far scorrere la lista; doppio clic = un clic
+(corretto: prima chiudeva e riapriva); con un gruppo chiuso Ctrl+A e contatori senza le sue voci
+("Filtra 111 elementi"); ↑↓ in Icone e ←→ in Elenco attraverso un gruppo chiuso, nella stessa
+posizione; PagSu/PagGiù in Icone; rettangolo da un'intestazione in Elenco attraverso due gruppi
+(l'intestazione non si chiude); tasto destro sull'intestazione: menu dello sfondo; raggruppamento
+ritrovato riaprendo la finestra, gruppi chiusi riaperti; misure su WinSxS (ARCHITETTURA). Restano:
+- [ ] a 175%: intestazioni (freccia nella colonna delle icone, nome nella colonna dei nomi) in
+      tutte le viste, `GROUP_GAP` tra i gruppi, Elenco con la riga delle intestazioni;
+- [ ] gruppi per Dimensione con "Dimensione delle cartelle" accesa, in una cartella con
+      sottocartelle ancora da contare: le cartelle passano da "Cartelle" alla loro fascia mentre
+      arrivano i totali (corretto: prima restavano in "Cartelle" fino a un'altra ricarica);
+- [ ] gruppi chiusi in due schede della stessa cartella: ognuna tiene i suoi; cambiando cartella si
+      riaprono;
+- [ ] rilascio di file trascinati da un'altra cartella sull'intestazione di un gruppo: vanno nella
+      cartella aperta;
+- [ ] dentro uno zip: gruppi per Tipo e per Data creazione ("Senza data");
+- [ ] anteprima di una cartella raggruppata: nell'anteprima niente gruppi;
+- [ ] Dettagli con un gruppo chiuso e la barra di scorrimento trascinata fino in fondo: l'ultima
+      intestazione si vede intera;
+- [ ] clic su un'intestazione in una cartella che si ricarica di continuo (Download durante uno
+      scaricamento, o un file scritto in un ciclo da uno script): il gruppo si chiude anche se tra
+      pressione e rilascio arriva una ricarica (corretto: prima il clic si perdeva);
+- [ ] tasto destro sull'intestazione delle colonne, ↓ fino a "Raggruppa per…" e Invio: il menu dei
+      gruppi si apre con "Nessun gruppo" attivo, ↓ e Invio scelgono (corretto: prima nessuna voce
+      attiva); aperto col mouse, nessuna voce attiva come prima.
+
+## 0000000000000000000000000000000000000000000000000000000. Filtro per colonna (z-f-dev, novembre 2026)
+
+Seconda fase delle colonne. Già provato da Claude a 100%, in una cartella di file finti
+(`python -I prove\colonne-prova.py <cartella>`: estensioni, date in tutti i periodi, fasce di
+dimensione, attributi) e in WinSxS: imbuto sotto il mouse accanto a Tipo, Data modifica,
+Dimensione (a sinistra del titolo) e Attributi; menu con "Tutti", valori e conteggi giusti (".jpg"
+e ".JPG" insieme, il 1975 prima della tabella degli anni, i totali delle cartelle in WinSxS); il
+menu resta aperto spuntando col mouse e con Spazio; doppio clic su una voce = due clic; due
+colonne filtrate insieme e col filtro per nome; titolo e imbuto in azzurro, anche in Elenco; Esc
+toglie prima il filtro per nome, poi quelli delle colonne; nascondere Attributi ne toglie il
+filtro; misure (ARCHITETTURA). Restano:
+- [ ] a 175%: imbuto, fondo sotto il mouse e titolo con la freccia dell'ordinamento nelle colonne
+      strette (il titolo finisce in "…" se non c'è posto), menu sotto l'intestazione;
+- [ ] Dimensione con "Dimensione delle cartelle" accesa in una cartella con sottocartelle ancora
+      da contare: "Cartelle" nel menu, poi le cartelle entrano nella loro fascia mentre arrivano i
+      totali, senza che la lista scorra;
+- [ ] filtro di una colonna in due schede diverse: ognuna tiene il suo; nascondere la colonna lo
+      toglie anche nell'altra scheda;
+- [ ] Questo PC: il filtro di Tipo con i tipi di unità;
+- [ ] dentro uno zip: Data creazione "Senza data"; Dimensione delle cartelle con l'opzione spenta
+      e accesa;
+- [ ] tooltip dell'imbuto ("Filtra per tipo", con "Mostra: JPG · PNG" se filtra);
+- [ ] con la finestra ingrandita: lo strumento dello schermo non faceva arrivare i movimenti del
+      mouse in alto a destra (probabilmente la sua barra), da riprovare a mano.
+
+## 000000000000000000000000000000000000000000000000000000. Colonne a scelta ed estensioni nascoste (z-f-dev, novembre 2026)
+
+Prima fase delle colonne (filtro e gruppi per colonna verranno dopo). Già provato da Claude in
+z-f-dev, in una cartella di prova con file finti: colonna Tipo (estensioni, "Cartella", senza
+estensione e ".gitignore" vuote), Data creazione, Attributi ("RA", "HA"); menu col tasto destro
+sull'intestazione; ordinamento per Tipo; estensioni spente (cartelle e ".gitignore" restano
+intere, F2 mostra il nome intero); Icone con le etichette delle colonne; Questo PC (Nome e Tipo);
+anteprima a destra con le colonne al minimo; doppio clic sul bordo di Tipo; WinSxS. Restano:
+- [ ] a 175%, tutte le colonne visibili: niente titoli tagliati con le larghezze predefinite;
+- [ ] una cartella con collegamenti: Destinazione tolta e rimessa dal menu, clic sul percorso;
+- [ ] trascinare i bordi di Attributi e di Dimensione con Attributi visibile (lo spazio tra i due
+  testi resta, Esc rimette la larghezza);
+- [ ] dentro uno zip: Data creazione vuota, Tipo e Attributi;
+- [ ] riavvio: colonne scelte, larghezze ed estensioni rilette da `impostazioni.txt`.
+
 ## 00000000000000000000000000000000000000000000000000000. Correzioni della revisione prima della 1.0.0-beta.8 (z-f-dev, novembre 2026)
 
 Revisione e controllo del ramo prima del rilascio (27/11). Da provare in z-f-dev, in una cartella

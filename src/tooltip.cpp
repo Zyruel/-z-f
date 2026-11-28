@@ -10,7 +10,9 @@ enum TipKind { TIP_NONE, TIP_ROW, TIP_SIDE, TIP_TAB, TIP_TABPLUS, TIP_TABCLOSE, 
                TIP_CHROME, TIP_FILTER, TIP_GOTO, TIP_FAVDEL, // cestino di un preferito (sidebar.cpp)
                TIP_LINK,  // destinazione di un collegamento nella colonna Destinazione (links.cpp)
                TIP_VIEW,   // vista e zoom nella barra di stato
-               TIP_OPTIONS }; // scorciatoia troncata nel pannello delle opzioni (options.cpp)
+               TIP_OPTIONS, // pannello delle opzioni: scorciatoia troncata, o riga con una scorciatoia (options.cpp)
+               TIP_COLFILTER, // imbuto del filtro di una colonna nell'intestazione (columns.cpp)
+               TIP_GROUP };   // intestazione di un gruppo nella lista (indice in A.groups)
 
 struct TipInfo {           // risultato del thread
     uint64_t gen = 0;
@@ -34,6 +36,8 @@ struct Tooltip {
     TipInfo info;
     std::wstring title;
     std::vector<std::pair<std::wstring, std::wstring>> rows;
+    Group group;                 // TIP_GROUP: il gruppo mostrato (valore, voci, chiuso) e la colonna dei gruppi
+    int groupCol = -1;
 } T;
 
 struct TipReq { HWND hwnd; uint64_t gen; std::wstring path; bool dir; bool drive; };
@@ -344,11 +348,29 @@ static bool tipBuild() {
     case TIP_TABCLOSE: T.title = L"Chiudi scheda"; tipRow(L"Scorciatoia", shortcutsOf(M_TAB_CLOSE)); break;
     case TIP_FAVDEL: T.title = L"Togli dai preferiti"; tipRow(L"", L"Clic, poi un altro clic per confermare"); break;
     case TIP_HEADER: {
-        static const wchar_t* names[] = { L"Ordina per nome", L"Ordina per data di modifica", L"Ordina per dimensione",
-                                          L"Ordina per destinazione" };
-        if (T.index < 0 || T.index > COL_LINK) return false;
-        T.title = names[T.index];
+        if (T.index < 0 || T.index >= COL_COUNT) return false;
+        T.title = kCols[T.index].sortBy;
         if (A.sortCol == T.index) tipRow(L"", A.sortDesc ? L"Ora: decrescente. Clic: crescente" : L"Ora: crescente. Clic: decrescente");
+        tipRow(L"", L"Tasto destro: colonne da mostrare e raggruppamento"); // il menu delle colonne, in ogni vista
+        break;
+    }
+    case TIP_GROUP: { // intestazione di un gruppo: chiude o apre
+        if (T.index < 0 || T.index >= (int)A.groups.size() || T.owner != (const void*)A.cur) return false;
+        const Group& g = A.groups[T.index];
+        T.title = colValueLabel(A.groupCol, g.v);
+        tipRow(L"Voci", withThousands((uint64_t)g.total));
+        tipRow(L"", g.closed ? L"Clic: apri il gruppo" : L"Clic: chiudi il gruppo");
+        T.group = g; // ciò che mostra, per tipGroupFollow
+        T.groupCol = A.groupCol;
+        break;
+    }
+    case TIP_COLFILTER: { // imbuto del filtro di una colonna
+        if (!colFilterable(T.index)) return false;
+        T.title = kCols[T.index].filterBy;
+        if (A.colFilter.on(T.index)) {
+            tipRow(L"Mostra", colFilterText(A.colFilter, T.index));
+            tipRow(L"Togli il filtro", L"\x201CTutti\x201D nel menu \x00B7 " + shortcutsOf(M_FILTER_CLEAR) + L" (tutte le colonne)");
+        }
         break;
     }
     case TIP_PATH: {
@@ -363,7 +385,7 @@ static bool tipBuild() {
         }
         T.title = A.cur && !A.cur->path.empty() ? A.cur->path : L"Questo PC";
         tipRow(L"Modifica", shortcutsOf(M_EDIT_PATH));
-        if (!A.filter.empty()) tipRow(L"Togli il filtro", shortcutsOf(M_FILTER_CLEAR));
+        if (filtering()) tipRow(L"Togli il filtro", shortcutsOf(M_FILTER_CLEAR));
         break;
     }
     case TIP_GOTO:
@@ -482,10 +504,19 @@ static void tipOnTimer() {
 }
 
 // Dimensioni delle cartelle aggiornate (dirsize.cpp): tooltip e colonna
+static bool g_sizeRefilter = false; // timer 18 armato: la vista si rifiltra coi totali arrivati
 static void onDirSize() {
     InterlockedExchange(&DS.posted, 0);
     dirSizeRefill(); // il thread del conto può aspettare il pezzo successivo della coda
     if (T.visible && T.kind == TIP_ROW) tipBuild();
+    // Filtro o gruppi per Dimensione: una cartella appena contata può entrare o uscire dalla vista, o
+    // cambiare gruppo. Al più una volta ogni DS_REFILTER: i totali arrivano anche a centinaia al
+    // secondo (il timer non si riarma finché non scatta: arrivando di continuo, i totali lo
+    // rimanderebbero sempre)
+    if (viewUsesDirTotals() && A.cur && colNeedsTotals(A.cur) && !g_sizeRefilter) {
+        g_sizeRefilter = true;
+        SetTimer(A.hwnd, 18, ui::DS_REFILTER, nullptr);
+    }
     A.dirty = true;
 }
 
@@ -532,12 +563,33 @@ static void tipTarget(int x, int y, int& kind, int& index, bool& preview) {
     if (x < A.listX || x >= itemsRight()) return;
     if (y >= A.sideTop && y < A.listTop) {
         if (colBorderAt(x, y) >= 0 || A.colDrag >= 0) return; // sul bordo il clic non ordina: niente "Ordina per…"
+        if (int fc = colGlyphAt(x, y); fc >= 0) { kind = TIP_COLFILTER; index = fc; return; }
         kind = TIP_HEADER; index = colAt(x);
         return;
     }
     if (int lh = linkHit(x, y); lh >= 0) { kind = TIP_LINK; index = (int)A.view[lh]; return; }
+    if (int g = groupHeadAt(x, y); g >= 0) { kind = TIP_GROUP; index = g; return; }
     int r = itemAt(x, y);
     if (r >= 0) { kind = TIP_ROW; index = (int)A.view[r]; }
+}
+
+// Un tooltip di gruppo è legato all'indice del gruppo, e i gruppi si rifanno anche col mouse fermo:
+// una ricarica (che può riusare l'indirizzo del Listing, quindi T.owner non basta), i totali delle
+// cartelle che arrivano coi gruppi per Dimensione, un altro raggruppamento. Se a quell'indice ora
+// c'è un altro gruppo si chiude; se è lo stesso con altre voci o chiuso, il testo si rifà. A ogni
+// frame, da hoverFollowList. Solo se si vede: uno in arrivo si costruisce coi gruppi di quel momento
+static void tipGroupFollow() {
+    if (T.kind != TIP_GROUP || !T.visible) return;
+    if (T.index < 0 || T.index >= (int)A.groups.size() || A.groupCol != T.groupCol || !colValueSame(A.groups[T.index].v, T.group.v)) {
+        tipHide();
+        return;
+    }
+    const Group& g = A.groups[T.index];
+    T.owner = A.cur; // lo stesso gruppo, anche in un Listing nuovo
+    if (g.total != T.group.total || g.closed != T.group.closed) {
+        if (!tipBuild()) tipHide();
+        A.dirty = true;
+    }
 }
 
 static void tipMouseMove(int x, int y) {
@@ -545,7 +597,8 @@ static void tipMouseMove(int x, int y) {
     bool preview;
     tipTarget(x, y, kind, index, preview);
     if (A.menu.open) kind = TIP_NONE;
-    const void* owner = kind == TIP_ROW || kind == TIP_LINK ? (preview ? (const void*)pvPane()->cur : (const void*)A.cur) : nullptr;
+    const void* owner = kind == TIP_ROW || kind == TIP_LINK ? (preview ? (const void*)pvPane()->cur : (const void*)A.cur)
+                      : kind == TIP_GROUP ? (const void*)A.cur : nullptr; // un gruppo è della cartella
     if (kind == T.kind && index == T.index && owner == T.owner) return;
     bool wasVisible = T.visible;
     tipHide();
@@ -564,20 +617,17 @@ static void drawTooltip() {
     float maxW = px(ui::TIP_MAX_W);
     PanelEnter e = panelEnter(T.shownAt, ui::DUR_TIP);
     float k = e.k;
-    // Titolo su più righe se lungo (nomi di file lunghi: il punto del tooltip è leggerli interi)
+    // Titolo su più righe se lungo (nomi di file lunghi: il punto del tooltip è leggerli interi), a
+    // capo dopo l'ultimo spazio che ci sta, come le spiegazioni delle opzioni (DESIGN §4)
     std::vector<std::pair<int, int>> tl;
     {
-        int start = 0, n = (int)T.title.size();
-        while (start < n) {
-            int w = 0, i = start, lastFit = start;
-            while (i < n) {
-                int j = i;
-                int cw = glyphGet(decodeUtf16(T.title.c_str(), n, j)).adv;
-                if (w + cw > maxW - pad * 2 && i > start) break;
-                w += cw; i = j; lastFit = i;
-            }
-            tl.push_back({ start, lastFit - start });
-            start = lastFit;
+        const wchar_t* s = T.title.c_str();
+        int n = (int)T.title.size();
+        for (int start = 0; start < n;) {
+            int end = textLineEnd(s, n, start, maxW - pad * 2), e = end;
+            while (e > start && s[e - 1] == L' ') e--; // lo spazio a fine riga non conta nella larghezza
+            tl.push_back({ start, e - start });
+            for (start = end; start < n && s[start] == L' '; start++) {}
         }
     }
     float labW = 0, valW = 0, titleW = 0;

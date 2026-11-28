@@ -49,6 +49,10 @@ struct DragState {
     // e il trascinamento non deve fermarsi per questo
     std::wstring pressPath;
     bool targetPreview = false; // la destinazione (DT_ROW, DT_LIST) è nella lista dell'anteprima
+    // La lista sotto il mouse fermo è cambiata (dropRetarget): dragTick rifà la destinazione dopo il
+    // primo frame cominciato da retargetAt, perché pvPaneAt e la geometria sono quelle dell'ultimo frame
+    bool retarget = false;
+    double retargetAt = 0;
     int deferRow = -1;          // clic su una voce già selezionata: vale al rilascio, se non si trascina
     bool deferToggle = false;   // …ed era un Ctrl+clic
     uint64_t zipWait = 0;       // trascinamento da uno zip: estrazione in corso col tasto premuto (zipout.cpp)
@@ -222,6 +226,18 @@ static void dropUpdate() {
     A.dirty = true;
 }
 
+// Durante il trascinamento il mouse non manda messaggi: se la lista sotto cambia da sola (l'anteprima
+// passa a un'altra cartella, un filtro o un gruppo si rifà, la cartella si rilegge), destinazione ed
+// evidenziazione si rifanno al prossimo dragTick dopo il frame, non al prossimo movimento. Qui solo
+// il segno: chi chiama può essere dentro render() o un PaneScope, e dropUpdate parla col processo
+// sorgente (la descrizione dell'azione), cosa da fare una volta sola e misurata
+static void dropRetarget() {
+    if (!DD.over) return;
+    DD.retarget = true;
+    DD.retargetAt = nowMs();
+    A.dirty = true; // il frame che dispone la lista nuova
+}
+
 static void dropMove(DWORD keys, POINTL p) {
     DD.keys = keys;
     if (keys & MK_RBUTTON) DD.right = true;
@@ -234,6 +250,7 @@ static void dropMove(DWORD keys, POINTL p) {
 
 static void dropEnd() {
     DD.over = false;
+    DD.retarget = false;
     DD.kind = DT_NONE;
     DD.effect = DROPEFFECT_NONE;
     if (DD.obj) { DD.obj->Release(); DD.obj = nullptr; }
@@ -760,10 +777,18 @@ static void dragTick() {
                 }
             }
         }
-        if (scrolled) dropUpdate();
+        // La lista cambiata sotto il mouse fermo si guarda solo dopo un frame che l'ha disposta
+        bool after = DD.retarget && A.lastFrame >= DD.retargetAt;
+        if (scrolled || after) {
+            double t0 = nowMs();
+            DD.retarget = DD.retarget && !after;
+            dropUpdate();
+            dropNoteUi(t0);
+        }
+        if (DD.retarget) A.dirty = true; // segnato dentro render() (previewSync): il frame che manca
         if (DD.kind == DT_TAB && DD.index != A.tab && nowMs() - DD.tabSince >= ui::DRAG_SPRING) {
             tabActivate(DD.index);
-            dropUpdate();
+            dropRetarget(); // la scheda aperta ha la sua lista, disposta dal prossimo frame
         }
     }
     if (DD.own && (A.dirty || animating())) render(); // durante il nostro trascinamento il ciclo è di Windows
@@ -773,13 +798,14 @@ static void dragTick() {
 static void drawDrop() {
     if (!DD.over || DD.effect == DROPEFFECT_NONE) return;
     float t = std::max(1.0f, floorf(A.scale)), r = px(ui::R_S);
-    // Una voce o lo spazio dell'anteprima: lo stesso bordo, con la sua geometria. Se intanto l'anteprima
-    // non mostra più la cartella, fino al prossimo movimento del mouse non c'è dove disegnarlo
+    // Una voce o lo spazio dell'anteprima: lo stesso bordo, con la sua geometria. Se l'anteprima non
+    // mostra più una cartella, finché dropRetarget non ha rifatto la destinazione non c'è dove disegnarlo
     bool inPv = (DD.kind == DT_ROW || DD.kind == DT_LIST) && DD.targetPreview;
     if (inPv && !pvPane()) return;
     PaneScope ps(inPv ? pvPane() : nullptr);
     switch (DD.kind) {
     case DT_ROW: {
+        if (DD.index >= (int)A.view.size()) break; // la vista si è accorciata: dragTick rifà la destinazione
         Box b = itemBg(DD.index);
         float ox, oy;
         scrollOffset(ox, oy);

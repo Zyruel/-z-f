@@ -14,6 +14,7 @@
 #include "zip.cpp"    // archivi zip in sola lettura: elenco, inflate, estrazione
 #include "lnk.cpp"    // lettore dei collegamenti (.lnk), senza la shell
 #include "app.h"      // stato e dichiarazioni condivise
+#include "columns.cpp" // colonne della lista: ordine, titoli, contenuto, quali si vedono
 #include "app.cpp"    // layout, selezione, navigazione, ricariche
 #include "dirsize.cpp" // dimensione totale delle cartelle (tooltip, colonna)
 #include "links.cpp"  // collegamenti (.lnk): destinazione letta su un thread, colonna Destinazione

@@ -127,6 +127,16 @@ Come si compila e si prova, passo per passo: `/prova` (skill in `.claude/skills/
     l'unica animazione continua, solo dove l'utente guarda (DESIGN.md §5);
   - le barre in fondo, della lista e dell'anteprima: `drawBarBand`, `drawBarCounts`,
     `drawBarView`/`barViewW`, `drawBarFilter` (`render.cpp`), disegnate da destra;
+  - le colonne di Dettagli (`columns.cpp`): `kCols`, `kColOrder`, `colWanted`, `colStart`/
+    `colEnd`, `colText`, `colTitle`; il nome come si mostra, con le estensioni nascoste: `shownLen`;
+    il valore di una voce in una colonna (filtro, gruppi): `colBucket` con `ColCtx`, `colValueLabel`,
+    `colValues` (i valori con i conteggi), e il filtro `ColFilter` (`colMatchInit`/`colMatches`,
+    applicato da `filterInto` in `app.cpp`);
+  - i gruppi: `groupsBuild` (`columns.cpp`, la tabella `A.groups` e la vista riordinata) e la
+    geometria in `app.cpp`: `groupsPlace`, `itemAlong`, `itemsInSpan` (le voci tra due posizioni
+    lungo l'asse, per disegno e rettangolo), `groupHeadAt`, `lineStep`/`pageStep` (tastiera per
+    linee attraverso i gruppi); `viewUsesDirTotals` se la vista dipende dai totali delle cartelle;
+  - il menu con le voci a spunta che non lo chiudono: `MenuItem::keep`;
   - le voci di una lista, la principale e (nel suo `PaneScope`) l'anteprima di una cartella:
     `drawListItems`, `layoutItems` (`ListPane`, `paneSwap` in `app.h`);
   - le schede da salvare o riaprire: `tabsSerialize`, `tabsRestore` (`tabs.cpp`);
@@ -168,8 +178,13 @@ Come si compila e si prova, passo per passo: `/prova` (skill in `.claude/skills/
 
 ## Prossimi passi (concordati, in quest'ordine)
 
-Nessuno in sospeso dopo la 1.0.0-beta.6: le idee non ancora decise sono in `docs/idee.md`, e quando
-Zyruel ne sceglie una si scrive qui. Cosa c'è in ogni versione è in `NOVITA.md`. Il monitor di
+**Colonne (1.0.0-beta.9): fatte tutte e tre le fasi** (colonne a scelta ed estensioni nascoste,
+filtro per colonna, gruppi), da committare quando Zyruel lo chiede. Restano le prove a mano di
+`prove\da-verificare.md` (175%, gruppi per Dimensione mentre si contano le cartelle); le scelte
+minori dei gruppi sono confermate (27/11). Il prossimo passo si sceglie con Zyruel da
+`docs/idee.md`.
+
+Le altre idee non ancora decise sono in `docs/idee.md`, e quando Zyruel ne sceglie una si scrive qui. Cosa c'è in ogni versione è in `NOVITA.md`. Il monitor di
 Zyruel è a 175%.
 
 **Tre elenchi da tenere aggiornati** (si scrive lì appena viene fuori qualcosa, non a memoria):

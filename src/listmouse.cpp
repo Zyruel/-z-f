@@ -2,7 +2,7 @@
 //
 // Rettangolo: il trascinamento dei file parte da icona e nome di una voce già
 // selezionata (drag.cpp); da tutto il resto della lista (nome di una voce non selezionata, parte
-// vuota della colonna Nome, Destinazione, Data, Dimensione, margine, spazio sotto le righe) parte il
+// vuota della colonna Nome, le altre colonne, margine, spazio sotto le righe) parte il
 // rettangolo, oltre la soglia di trascinamento di Windows. Il clic vale subito, come sempre;
 // se poi parte il rettangolo si riparte dalla selezione che c'era prima del clic.
 // In Dettagli prende le righe che tocca in altezza, in Elenco e Icone le voci che tocca; senza
@@ -55,7 +55,7 @@ static bool itemGrabHit(int r, int x, int y) {
         return boxHit(p.thumb, cx, cy) || boxHit(p.name, cx, cy);
     }
     const Entry& e = A.cur->e[A.view[r]];
-    float tw = (float)textWidth(A.cur->name(e), (int)e.nameLen);
+    float tw = (float)textWidth(A.cur->name(e), shownLen(e));
     if (listView()) {
         RowParts p = listParts(r);
         return cx >= p.iconX && cx < std::min(p.nameX + tw, p.nameEnd) + px(ui::GAP_S);
@@ -64,15 +64,29 @@ static bool itemGrabHit(int r, int x, int y) {
     return x >= A.iconX && x < nameEnd + px(ui::GAP_S);
 }
 
-// Elenco e Icone: voce nella cella che contiene il punto (coordinate del contenuto), riportata
-// tra le voci che ci sono
+// Voce nella cella che contiene il punto (coordinate del contenuto), riportata tra le voci che ci
+// sono: con i gruppi in quello lungo l'asse (da un'intestazione, la prima linea; da un gruppo chiuso,
+// la prima linea del primo aperto dopo o, se non ce ne sono, l'ultima di quello prima: la più
+// vicina). Dove parte e dove arriva il rettangolo
 static int cellAt(float cx, float cy) {
     int n = (int)A.view.size(), pl = A.perLine;
-    int across = (int)floorf((cx - A.cellX) / A.cellW), along = (int)floorf(cy / A.cellH);
-    int line = listView() ? across : along, k = listView() ? along : across;
-    line = std::max(0, line);
-    k = std::max(0, std::min(pl - 1, k));
-    return std::max(0, std::min(n - 1, line * pl + k));
+    if (n == 0) return 0;
+    bool lst = listView();
+    float along = lst ? cx - A.cellX : cy, cross = lst ? cy : cx - A.cellX;
+    int first = 0, cnt = n;
+    if (!A.groups.empty()) {
+        int gs = (int)A.groups.size(), g = groupAtLen(along), o = g;
+        while (o < gs && A.groups[o].n == 0) o++;
+        if (o == gs) for (o = g; o > 0 && A.groups[o].n == 0; o--) {}
+        const Group& gr = A.groups[o];
+        along = o == g ? along - gr.at - groupHeadLen() : o > g ? 0 : ((float)groupLines(gr) - 0.5f) * lineLen();
+        if (lst) cross -= A.rowH;
+        first = gr.first;
+        cnt = gr.n;
+    }
+    int line = std::max(0, (int)floorf(along / lineLen()));
+    int k = gridView() || lst ? std::max(0, std::min(pl - 1, (int)floorf(cross / (lst ? A.cellH : A.cellW)))) : 0;
+    return first + std::max(0, std::min(cnt - 1, line * pl + k));
 }
 
 static void mqEnd() {
@@ -85,7 +99,8 @@ static void mqEnd() {
     A.dirty = true;
 }
 
-// Tasto sinistro premuto nella lista fuori da icona e nome (r: riga, -1 = spazio sotto le righe)
+// Tasto sinistro premuto nella lista fuori da icona e nome (r: riga, -1 = spazio vuoto: sotto le
+// righe, tra i gruppi o sull'intestazione di un gruppo)
 static void mqPress(int x, int y, int r, bool shift, bool ctrl) {
     MQ.base = A.selFlags;
     MQ.sel = A.sel;
@@ -106,8 +121,8 @@ static void mqPress(int x, int y, int r, bool shift, bool ctrl) {
         } else {
             moveCursorTo(r, shift, ctrl);
         }
-    } else if (!shift && !ctrl) {
-        selClear(); // clic sullo spazio vuoto: toglie la selezione, il cursore resta (come Explorer)
+    } else if (!shift && !ctrl && groupHeadAt(x, y) < 0) {
+        selClear(); // clic sullo spazio vuoto: toglie la selezione, il cursore resta (come Explorer). Sull'intestazione di un gruppo il clic chiude o apre e basta
     }
     SetCapture(A.hwnd);
     A.dirty = true;
@@ -131,40 +146,28 @@ static void mqUpdate() {
         uint32_t ei = A.view[i];
         A.selFlags[ei] = MQ.mode == MQ_TOGGLE ? !MQ.base[ei] : 1;
     };
-    bool any = false;
-    if (gridView()) { // le voci di cui tocca miniatura o nome
-        int ra = std::max(0, (int)(top / A.cellH)), rb = std::min((n - 1) / A.perLine, (int)(bot / A.cellH));
-        for (int r = ra; r <= rb; r++)
-            for (int c = 0; c < A.perLine; c++) {
-                int i = r * A.perLine + c;
-                if (i >= n) break;
-                CellParts p = gridParts(i);
-                float x0 = std::min(p.thumb.x, p.name.x), x1 = std::max(p.thumb.x + p.thumb.w, p.name.x + p.name.w);
-                if (x0 < right && x1 > left && p.thumb.y < bot && p.name.y + p.name.h > top) { take(i); any = true; }
-            }
-    } else if (listView()) { // le voci di cui tocca il fondo, colonna per colonna
-        int ca = std::max(0, (int)floorf((left - A.cellX) / A.cellW)), cb = std::min((n - 1) / A.perLine, (int)floorf((right - A.cellX) / A.cellW));
-        int ka = std::max(0, (int)(top / A.cellH)), kb = std::min(A.perLine - 1, (int)(bot / A.cellH));
-        for (int c = ca; c <= cb; c++)
-            for (int k = ka; k <= kb; k++) {
-                int i = c * A.perLine + k;
-                if (i >= n) break;
-                Box b = itemBg(i);
-                if (b.x < right && b.x + b.w > left) { take(i); any = true; }
-            }
+    // Le voci delle linee che il rettangolo tocca lungo l'asse (itemsInSpan: anche con i gruppi, che
+    // le intestazioni e lo spazio tra loro non prendono), poi quelle che tocca davvero
+    bool lst = listView(), any = false;
+    int i0, i1;
+    if (lst) itemsInSpan(left - A.cellX, right - A.cellX, i0, i1);
+    else itemsInSpan(top, bot, i0, i1);
+    i1 = std::min(i1, n);
+    for (int i = i0; i < i1; i++) {
+        bool hit;
+        if (gridView()) { // le voci di cui tocca miniatura o nome
+            CellParts p = gridParts(i);
+            float x0 = std::min(p.thumb.x, p.name.x), x1 = std::max(p.thumb.x + p.thumb.w, p.name.x + p.name.w);
+            hit = x0 < right && x1 > left && p.thumb.y < bot && p.name.y + p.name.h > top;
+        } else if (lst) { // le voci di cui tocca il fondo in larghezza e la cella in altezza
+            Box b = itemBg(i), c = itemRect(i);
+            hit = b.x < right && b.x + b.w > left && c.y <= bot && c.y + c.h > top;
+        } else hit = true; // Dettagli: le righe che tocca in altezza
+        if (hit) { take(i); any = true; }
     }
-    if (gridView() || listView()) {
-        if (any) { // ancora dove è partito, cursore dove è il mouse
-            A.anchor = (int)A.view[cellAt(MQ.x0, MQ.y0)];
-            A.sel = cellAt(xc, yc);
-        }
-    } else { // le righe che tocca in altezza
-        int i0 = std::max(0, (int)(top / A.cellH)), i1 = std::min(n - 1, (int)(bot / A.cellH));
-        for (int i = i0; i <= i1; i++) take(i);
-        if (i0 <= i1) { // ancora dove è partito, cursore dove è il mouse: Shift+frecce continua da qui
-            A.anchor = (int)A.view[std::min(n - 1, (int)(MQ.y0 / A.cellH))];
-            A.sel = std::min(std::max(i0, (int)(yc / A.cellH)), i1);
-        }
+    if (any) { // ancora dove è partito, cursore dove è il mouse: Shift+frecce continua da qui
+        A.anchor = (int)A.view[cellAt(MQ.x0, MQ.y0)];
+        A.sel = std::min(std::max(i0, cellAt(xc, yc)), i1 - 1);
     }
     A.dirty = true;
     A.mqMs = nowMs() - t0;
@@ -178,7 +181,7 @@ static void mqStart() {
     A.selFlags = MQ.base; // si riparte dalla selezione di prima del clic
     A.sel = MQ.sel;
     A.anchor = MQ.anchor;
-    A.hover = A.linkHover = -1;
+    A.hover = A.linkHover = A.groupHover = -1;
     tipHide();
     SetTimer(A.hwnd, 10, ui::DRAG_TICK, nullptr); // scorrimento vicino ai bordi
 }
@@ -268,10 +271,12 @@ static void colSetWidth(int b, float w) {
         mx = std::min(floorf(G.w * ui::PREVIEW_MAX), previewRoom());
     } else {
         mn = px(ui::COL_MIN);
-        if (b == 2) // Destinazione si ferma dove sarebbe più larga di Nome
-            mx = std::min(colRoom() - A.dateW - A.sizeW, linkMax(A.dateX));
-        else // Data e Dimensione prendono spazio a Destinazione, che cede fino al minimo (layout)
-            mx = colRoom() - (b == 0 ? A.sizeW : A.dateW) - (A.linkW > 0 ? mn : 0);
+        float others = 0; // le altre colonne mostrate, Destinazione esclusa
+        for (int c : kColOrder) if (c != b && c != COL_LINK) others += A.colWd[c];
+        if (b == COL_LINK) // Destinazione si ferma dove sarebbe più larga di Nome
+            mx = std::min(colRoom() - others, linkMax(A.colX[COL_LINK] + A.colWd[COL_LINK]));
+        else // le altre prendono spazio a Destinazione, che cede fino al minimo (layout)
+            mx = colRoom() - others - (A.colWd[COL_LINK] > 0 ? mn : 0);
     }
     w = std::max(mn, std::min(floorf(w), std::max(mn, mx)));
     colChosen(b) = (w + 0.5f) / A.scale; // px() lo riporta esattamente a w
@@ -339,27 +344,49 @@ static float digitsWidth(const wchar_t* s, int n) {
 // Doppio clic sul bordo b: la colonna alla sua destra si adatta al testo più largo tra
 // l'intestazione (con la freccia dell'ordinamento) e tutte le voci della vista. Le date hanno
 // tutte la stessa forma; per le dimensioni basta il valore più grande di ogni unità (con e senza
-// decimale): niente formattazione di ogni voce, quindi pochi decimi di ms anche con 30k voci.
+// decimale); Tipo e Attributi si misurano una volta per estensione e per combinazione di lettere:
+// niente formattazione di ogni voce, quindi pochi ms anche con 30k voci.
 // Le destinazioni dei collegamenti si misurano una per una (sono poche, e solo i .lnk).
 static void colFit(int b) {
     double t0 = nowMs();
     wchar_t buf[64];
-    std::wstring head = colTitle(b == 0 ? COL_DATE : b == 1 ? COL_SIZE : COL_LINK, true);
+    std::wstring head = colTitle(b, true);
     float w = (float)textWidth(head.c_str(), (int)head.size());
-    if (A.cur && b == 2) {
+    if (A.cur && b == COL_LINK) {
         for (uint32_t ei : A.view)
             if (const LinkTarget* t = linkOf(A.cur, ei)) w = std::max(w, (float)textWidth(t->path.c_str(), (int)t->path.size()));
-    } else if (A.cur && b == 0) {
-        if (A.cur->isDrives) {
-            for (uint32_t ei : A.view) {
-                const wchar_t* t = driveKind((UINT)A.cur->e[ei].size);
-                w = std::max(w, (float)textWidth(t, (int)wcslen(t)));
-            }
-        } else if (!A.view.empty()) {
-            int n = fmtDate(A.cur->e[A.view[0]].mtime, buf);
-            w = std::max(w, digitsWidth(buf, n));
+    } else if (A.cur && (b == COL_DATE || b == COL_CTIME)) {
+        for (uint32_t ei : A.view) // la prima data che c'è (dentro uno zip la creazione non c'è)
+            if (int n = colText(A.cur, b, A.cur->e[ei], buf)) { w = std::max(w, digitsWidth(buf, n)); break; }
+    } else if (A.cur && b == COL_ATTR) {
+        bool seen[64] = {};
+        for (uint32_t ei : A.view) {
+            uint32_t a = A.cur->e[ei].attr;
+            int key = 0;
+            for (int i = 0; i < 6; i++) if (a & kAttrBits[i]) key |= 1 << i;
+            if (!seen[key]) { seen[key] = true; w = std::max(w, (float)textWidth(buf, attrText(a, buf))); }
         }
-    } else if (A.cur && !A.cur->isDrives) {
+    } else if (A.cur && b == COL_TYPE) {
+        // Una misura per testo diverso: le estensioni in minuscolo, i tipi di unità (Questo PC) per
+        // numero, "Cartella" una volta sola (in WinSxS sono tutte cartelle: niente stringhe per voce)
+        std::unordered_set<std::wstring> seen;
+        bool dirDone = false, kindDone[DRIVE_NETPLACE + 1] = {};
+        for (uint32_t ei : A.view) {
+            const Entry& e = A.cur->e[ei];
+            bool fresh;
+            if (A.cur->isDrives) {
+                UINT k = (UINT)std::min<uint64_t>(e.size, DRIVE_NETPLACE);
+                fresh = !kindDone[k];
+                kindDone[k] = true;
+            } else if (e.attr & FILE_ATTRIBUTE_DIRECTORY) {
+                fresh = !dirDone;
+                dirDone = true;
+            } else {
+                fresh = e.extOff && seen.insert(std::wstring(A.cur->lowerName(e) + e.extOff)).second;
+            }
+            if (fresh) w = std::max(w, (float)textWidth(buf, colText(A.cur, b, e, buf)));
+        }
+    } else if (A.cur && b == COL_SIZE && !A.cur->isDrives) {
         uint64_t rep[5][2] = {}; // per unità (B, KB, MB, GB, TB): il più grande sotto 10 e da 10 in su
         bool has[5][2] = {};
         for (uint32_t ei : A.view) {
@@ -388,7 +415,9 @@ static void colFit(int b) {
             for (int c = 0; c < 2; c++)
                 if (has[u][c]) w = std::max(w, digitsWidth(buf, fmtSize(rep[u][c], buf)));
     }
-    if (b != 1) w += A.padX; // lo spazio prima della colonna successiva sta in Data e in Destinazione
+    // Lo spazio tra due testi sta nella colonna (colStart, colEnd)
+    if (b != colLast() && !kCols[b].right) w += A.padX;
+    if (colAfterRight(b)) w += A.padX;
     colSetWidth(b, ceilf(w));
     settingsSave();
     A.colFitMs = nowMs() - t0;
