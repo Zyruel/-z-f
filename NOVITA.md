@@ -60,7 +60,7 @@ versione sono nelle sezioni di `prove\da-verificare.md`; i dettagli tecnici in
   dicono nel tooltip la loro scorciatoia. Le etichette arrivano fino al loro controllo (prima si
   fermavano molto prima, a una misura fissa) e, se non ci stanno, il tooltip le mostra intere.
 - **Tooltip:** un titolo lungo (il nome di un file) va a capo tra le parole, non a metà di una.
-- **Alt+Shift+P con l'anteprima chiusa** dice dove si aprirà ("L'anteprima si aprirà in basso").
+- **Alt+Shift+P con l'anteprima chiusa** dice dove si aprirà ("Anteprima spostata in basso: si aprirà lì").
 - **F5 nella lista** riaccende anche l'osservatore dell'anteprima di una cartella, se si era perso.
 - **Filtro e gruppi per Dimensione** in una cartella enorme si aggiornano coi totali delle
   cartelle ogni 250 ms invece di 50: meno lavoro per l'interfaccia mentre il conto va avanti.

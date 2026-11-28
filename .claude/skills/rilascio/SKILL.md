@@ -205,16 +205,23 @@ rinominare l'exe in `z-f.exe` e che il `.sig` non serve scaricarlo). Si mostrano
 di pubblicare.
 
 La sezione si estrae con le righe a capo unite (GitHub mostra ogni a capo; le righe che
-continuano un punto in `NOVITA.md` cominciano con due spazi), in `build/note-$V.md`:
+continuano un punto in `NOVITA.md` cominciano con degli spazi), in `build/note-$V.md`. Un
+sottopunto (`  - …`) resta una riga a sé, col suo rientro:
 
 ```
 awk -v v="$V" 'index($0, "## " v " ") == 1 {f=1; next} /^## / {if (f) exit} f' NOVITA.md |
-  awk '/^  / && n {sub(/^ +/, ""); o[n] = o[n] " " $0; next} /[^[:space:]]/ {sub(/[[:space:]]+$/, ""); o[++n] = $0} END {for (i = 1; i <= n; i++) print o[i]}' \
+  awk '/^ *- / {sub(/[[:space:]]+$/, ""); o[++n] = $0; next} /^ +[^ ]/ && n {s = $0; sub(/^ +/, "", s); sub(/[[:space:]]+$/, "", s); o[n] = o[n] " " s; next} /[^[:space:]]/ {sub(/[[:space:]]+$/, ""); o[++n] = $0} END {for (i = 1; i <= n; i++) print o[i]}' \
   > "build/note-$V.md"
 ```
 
-Provato sulla 1.0.0-beta.7: uguale alle note pubblicate. Un'aggiunta per l'installazione si
-scrive con Edit.
+Provato sulla 1.0.0-beta.9, con i sottopunti: la versione di prima, provata sulla 1.0.0-beta.7
+che non ne aveva, li univa al punto sopra. Il testo che in `NOVITA.md` segue una sottolista resta
+attaccato all'ultimo sottopunto, come lo mostra GitHub anche in `NOVITA.md`. Un'aggiunta per
+l'installazione si scrive con Edit.
+
+Prima di pubblicare si rileggono le note contro il codice: una frase di `NOVITA.md` può essere
+rimasta indietro rispetto alle correzioni dopo la revisione (nella 1.0.0-beta.9 l'avviso di
+Alt+Shift+P era quello di prima).
 
 ```
 gh release create "v$V" "build/z-f-$V.exe" "build/z-f-$V.exe.sig" \
